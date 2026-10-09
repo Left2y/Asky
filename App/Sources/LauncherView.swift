@@ -108,17 +108,20 @@ final class LauncherController {
 }
 
 struct LauncherView: View {
+    private static let searchPlaceholder = "搜索应用、文件、标签页，或输入 > 运行命令"
     @Bindable var model: LauncherModel
     var onHeightChange: (CGFloat) -> Void = { _ in }
     @FocusState private var focused: Bool
     @State private var statusHeight: CGFloat = 0
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
-                TextField("搜索应用、文件、标签页，或输入 > 运行命令", text: $model.query)
+                TextField(Self.searchPlaceholder, text: $model.query,
+                          prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtle))
                     .textFieldStyle(.plain)
                     .textStyle(.input)
                     .focused($focused)
@@ -151,12 +154,15 @@ struct LauncherView: View {
         }
         .frame(width: WindowMetrics.launcherWidth)
         .fixedSize(horizontal: false, vertical: true)
+        .foregroundStyle(ThemeColor.kText)
         .background {
             if reduceTransparency {
-                RoundedRectangle(cornerRadius: 16).fill(Color(nsColor: .windowBackgroundColor))
+                RoundedRectangle(cornerRadius: 16).fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
             }
         }
-        .glassEffect(reduceTransparency ? .identity : .regular, in: .rect(cornerRadius: 16))
+        // Tint the native clear glass with Colors/background, preserving its optical treatment.
+        .glassEffect(reduceTransparency ? .identity : .clear.tint(ThemeColor.kBackground.color(for: colorScheme)),
+                     in: .rect(cornerRadius: 16))
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

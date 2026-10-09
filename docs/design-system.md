@@ -72,6 +72,8 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 首版技术默认基于 macOS 26 原生能力。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
 
+启动器外壳使用原生 Clear Liquid Glass，以 `Colors/background` 作为玻璃 tint：Light 为 `Palette/white70`，Dark 为 `Palette/black70`，保留变量原始透明度，不另外绘制覆盖玻璃的不透明底层。文字继承 `Colors/text`，图标、次要文字与选中行使用各自语义变量。减少透明度时关闭玻璃，并将同一背景变量的 RGB 作为不透明底色。验证范围见[启动器玻璃验证](validation/2026-10-09-launcher-glass.md)。
+
 - 浮动入口外壳、导航、工具栏与关键操作适合玻璃；使用系统协调的效果容器，避免各层独立叠加。
 - 对话正文、长文本与结果内容保持清晰阅读层，不能把每个卡片都做成玻璃。
 - background 等语义变量用于需要的内容与控件角色，不把一层自定义不透明背景覆盖在系统玻璃上。

@@ -10,8 +10,15 @@ public struct ThemeColor: ShapeStyle {
     public init(_ native: String) { self.native = native }
 
     public func resolve(in environment: EnvironmentValues) -> Color {
-        let appearance: Appearance = environment.colorScheme == .dark ? .dark : .light
-        return SemanticColors.color(native: native, appearance)?.color ?? .primary
+        color(for: environment.colorScheme)
+    }
+
+    /// Color-valued APIs such as native glass tint use the same semantic mapping as ShapeStyle.
+    public func color(for colorScheme: ColorScheme, opaque: Bool = false) -> Color {
+        let appearance: Appearance = colorScheme == .dark ? .dark : .light
+        guard var value = SemanticColors.color(native: native, appearance) else { return .primary }
+        if opaque { value.alpha = 1 }
+        return value.color
     }
 }
 
@@ -25,6 +32,7 @@ extension ShapeStyle where Self == ThemeColor {
     public static var kIconSubtle: ThemeColor { ThemeColor("iconSubtle") }
     public static var kBorder: ThemeColor { ThemeColor("border") }
     public static var kBorderFocused: ThemeColor { ThemeColor("borderFocused") }
+    public static var kBackground: ThemeColor { ThemeColor("background") }
     public static var kBackgroundSelected: ThemeColor { ThemeColor("backgroundSelected") }
     public static var kBackgroundNeutral: ThemeColor { ThemeColor("backgroundNeutral") }
     public static var kBackgroundPrimary: ThemeColor { ThemeColor("backgroundPrimary") }

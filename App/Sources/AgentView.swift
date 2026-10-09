@@ -24,6 +24,7 @@ final class AgentWindowController {
             w.center()
             window = w
         }
+        bringToFront()
         model.reloadConversations()
         if let prompt {
             if model.isRunning { model.draft = prompt } else {
@@ -32,6 +33,14 @@ final class AgentWindowController {
                 model.send()
             }
         }
+    }
+
+    func restoreAfterAuthentication() {
+        guard model.isRunning else { return }
+        bringToFront()
+    }
+
+    private func bringToFront() {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }

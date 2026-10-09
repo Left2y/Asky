@@ -62,6 +62,7 @@ final class AppModel {
         }
     }
     @ObservationIgnored var onSettingsChange: (() -> Void)?
+    @ObservationIgnored var onModelAuthenticationFinished: (() -> Void)?
     var keywords: KeywordRegistry {
         didSet { store.setCodableSetting("keywords", keywords) }
     }
@@ -125,9 +126,20 @@ final class AppModel {
         let launcher = NodeRuntimeLauncher(nodePath: node, entryScript: entry, dataDirectory: runtimeDir.path,
                                            stderrLog: store.root.appending(path: "runtime-stderr.log").path)
         let store = store, keychain = keychain, tools = tools
-        return AgentHost(launcher: launcher.launcher, configProvider: {
-            guard let cfg = store.codableSetting(ModelSettings.configKey, as: ModelConfiguration.self),
-                  let key = keychain.get(account: cfg.credentialRef), !key.isEmpty else { return nil }
+        return AgentHost(launcher: launcher.launcher, configProvider: { [weak self] in
+            guard let cfg = store.codableSetting(ModelSettings.configKey, as: ModelConfiguration.self) else { return nil }
+            let key: String?
+            do {
+                key = try keychain.read(account: cfg.credentialRef, allowInteraction: false)
+            } catch let error as Keychain.KeychainError where error.requiresAuthentication {
+                // AgentHost runs this off the main actor. Restore the explicit AI request's
+                // window when the system authorization dialog releases focus.
+                key = keychain.get(account: cfg.credentialRef)
+                Task { @MainActor [weak self] in self?.onModelAuthenticationFinished?() }
+            } catch {
+                return nil
+            }
+            guard let key, !key.isEmpty else { return nil }
             return RuntimeLaunchConfig(baseURL: cfg.baseURL.absoluteString, model: cfg.modelName, apiKey: key)
         }, toolsProvider: {
             await tools.definitions(for: .agent(sessionID: ""))
@@ -143,7 +155,7 @@ final class AppModel {
 
     var isModelConfigured: Bool {
         guard let cfg = modelConfiguration else { return false }
-        return keychain.get(account: cfg.credentialRef)?.isEmpty == false
+        return keychain.contains(account: cfg.credentialRef)
     }
 
     // MARK: External MCP

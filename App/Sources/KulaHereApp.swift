@@ -42,6 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         launcherModel = LauncherModel(app: model)
         launcher = LauncherController(model: launcherModel)
         agentWindow = AgentWindowController(model: AgentModel(app: model))
+        model.onModelAuthenticationFinished = { [weak self] in
+            self?.agentWindow.restoreAfterAuthentication()
+        }
         launcherModel.onAskAI = { [weak self] prompt in
             self?.launcher.hide()
             self?.agentWindow.show(prompt: prompt)

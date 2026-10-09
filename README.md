@@ -66,6 +66,8 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 
 DeepSeek 可使用 API 地址 `https://api.deepseek.com`、模型名 `deepseek-flash`。基础对话已验证；工具调用和图像输入仍需分别检查。
 
+首次读取 Key 或重新构建 Debug App 后，macOS 可能要求输入登录钥匙串密码。对话窗口会先显示，必要的授权完成后恢复到前台；配置检查只读取凭据是否存在，不读取 Key。问题与验证范围见[钥匙串与对话窗口验证](docs/validation/2026-10-09-keychain-window.md)。
+
 <a id="english"></a>
 
 ## English
@@ -124,3 +126,5 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. App data lives in `~/Library/Application Support/KulaHere/`.
 
 For DeepSeek, use `https://api.deepseek.com` as the API endpoint and `deepseek-flash` as the model name. Basic conversations have been verified; tool calling and image input still require separate checks.
+
+macOS may request the login Keychain password when first reading the key or after rebuilding the Debug app. The conversation window appears first and returns to the foreground after any required authorization; configuration checks inspect whether the credential exists without reading the key. See the [Keychain and conversation-window validation record](docs/validation/2026-10-09-keychain-window.md) for the issue and verification scope.

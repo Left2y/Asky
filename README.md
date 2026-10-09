@@ -98,6 +98,14 @@ A standalone local MCP shares native tools with the application, requires separa
 - [Resource lifecycles and performance](docs/resource-lifecycle.md): cache budgets, pagination, release, and measurement.
 - [Implementation and validation](docs/implementation-and-validation.md): M0–M4 gates, risks, and acceptance mapping.
 
+### Directory Structure
+
+- `App/Sources`: the menu bar app, including the launcher, AI conversation, confirmations, settings, clipboard, and contextual reminders.
+- `Packages/KulaCore`: the Swift package containing Contracts, Theme, Router, Search, DirectActions, Adapters, ToolService, LocalStore, AgentHost, Memory, Scheduler, Resources, MCPLink, and MCPGateway.
+- `AgentRuntime`: the TypeScript Pi host, communicating with the app over stdio JSONL protocol v1.
+- `MCPBridge`: the SwiftPM package for testing `kulahere-mcp`; the app's bundled executable is built by `project.yml`.
+- `project.yml`: XcodeGen configuration. The generated `KulaHere.xcodeproj` is excluded from version control.
+
 ### Development and Verification
 
 Requires macOS 26, Xcode 26, XcodeGen, and Node 22 or later. If `xcode-select` points to the Command Line Tools, prefix the commands with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.

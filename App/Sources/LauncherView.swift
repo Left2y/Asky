@@ -4,12 +4,20 @@ import Contracts
 import Theme
 import Router
 
+private enum LauncherLayout {
+    static let inputHeight: CGFloat = 56
+    static let dividerHeight: CGFloat = 1
+    static let rowHeight: CGFloat = 44
+    static let rowSpacing: CGFloat = 2
+    static let listPadding: CGFloat = 6
+}
+
 /// Floating, non-activating launcher panel that still takes key focus for the input field.
 final class LauncherPanel: NSPanel {
     var onEscape: () -> Void = {}
 
     init() {
-        super.init(contentRect: NSRect(x: 0, y: 0, width: WindowMetrics.launcherWidth, height: 72),
+        super.init(contentRect: NSRect(x: 0, y: 0, width: WindowMetrics.launcherWidth, height: LauncherLayout.inputHeight),
                    styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
                    backing: .buffered, defer: true)
         isFloatingPanel = true
@@ -37,6 +45,7 @@ final class LauncherController {
     private let panel = LauncherPanel()
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
+    private var contentID = UUID()
     private var hiding = false
 
     init(model: LauncherModel) {
@@ -52,8 +61,17 @@ final class LauncherController {
     func show() {
         model.rebuildProviders()
         if hosting == nil {
-            let view = NSHostingView(rootView: AnyView(LauncherView(model: model)))
-            view.sizingOptions = [.preferredContentSize]
+            let id = UUID()
+            contentID = id
+            let view = NSHostingView(rootView: AnyView(LauncherView(model: model) { [weak self] height in
+                // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
+                Task { @MainActor [weak self] in
+                    guard let self, self.contentID == id, self.hosting != nil else { return }
+                    self.resize(to: height)
+                }
+            }))
+            // The controller owns the window frame; preferredContentSize alone does not resize it.
+            view.sizingOptions = []
             panel.contentView = view
             hosting = view
         }
@@ -66,12 +84,23 @@ final class LauncherController {
         panel.makeKeyAndOrderFront(nil)
     }
 
+    private func resize(to contentHeight: CGFloat) {
+        let height = min(WindowMetrics.launcherMaxHeight, max(LauncherLayout.inputHeight, ceil(contentHeight)))
+        var frame = panel.frame
+        guard frame.height != height else { return }
+        // AppKit's origin is at the bottom left. Keep the input anchored while expanding down.
+        frame.origin.y = frame.maxY - height
+        frame.size.height = height
+        panel.setFrame(frame, display: true)
+    }
+
     /// Hiding releases the SwiftUI tree and the result payloads (panel resource scope).
     func hide() {
         guard panel.isVisible, !hiding else { return }
         hiding = true
         defer { hiding = false }
         panel.orderOut(nil)
+        contentID = UUID()
         model.reset()
         panel.contentView = nil
         hosting = nil
@@ -80,7 +109,9 @@ final class LauncherController {
 
 struct LauncherView: View {
     @Bindable var model: LauncherModel
+    var onHeightChange: (CGFloat) -> Void = { _ in }
     @FocusState private var focused: Bool
+    @State private var statusHeight: CGFloat = 0
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -101,38 +132,54 @@ struct LauncherView: View {
                     }
             }
             .padding(.horizontal, 16)
-            .frame(height: 56)
+            .frame(height: LauncherLayout.inputHeight)
 
             if let t = model.terminal {
-                Divider()
+                Divider().frame(height: LauncherLayout.dividerHeight)
                 TerminalOutputView(session: t, stop: model.stopTerminal)
             } else if !model.results.isEmpty {
-                Divider()
-                ResultList(model: model)
+                Divider().frame(height: LauncherLayout.dividerHeight)
+                ResultList(model: model, maxHeight: WindowMetrics.launcherMaxHeight
+                           - LauncherLayout.inputHeight - LauncherLayout.dividerHeight - statusHeight)
             }
             if let s = model.status {
                 Text(s).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                    .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 8)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
         }
         .frame(width: WindowMetrics.launcherWidth)
+        .fixedSize(horizontal: false, vertical: true)
         .background {
             if reduceTransparency {
                 RoundedRectangle(cornerRadius: 16).fill(Color(nsColor: .windowBackgroundColor))
             }
         }
         .glassEffect(reduceTransparency ? .identity : .regular, in: .rect(cornerRadius: 16))
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
+        .onChange(of: model.status) { _, status in
+            if status == nil { statusHeight = 0 }
+        }
         .onAppear { focused = true }
     }
 }
 
 private struct ResultList: View {
     @Bindable var model: LauncherModel
+    let maxHeight: CGFloat
+
+    private var height: CGFloat {
+        let count = model.results.count
+        let rows = CGFloat(count) * LauncherLayout.rowHeight
+        let gaps = CGFloat(max(0, count - 1)) * LauncherLayout.rowSpacing
+        return min(rows + gaps + LauncherLayout.listPadding * 2, maxHeight)
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
+                LazyVStack(spacing: LauncherLayout.rowSpacing) {
                     ForEach(Array(model.results.enumerated()), id: \.element.id) { i, r in
                         ResultRow(result: r, selected: i == model.selection)
                             .id(i)
@@ -140,10 +187,9 @@ private struct ResultList: View {
                             .onTapGesture { model.selection = i; model.submit(.executeSelection) }
                     }
                 }
-                .padding(6)
+                .padding(LauncherLayout.listPadding)
             }
-            .frame(maxHeight: WindowMetrics.launcherMaxHeight - 56)
-            .fixedSize(horizontal: false, vertical: true)
+            .frame(height: height)
             .onChange(of: model.selection) { _, s in proxy.scrollTo(s) }
         }
     }
@@ -165,7 +211,7 @@ private struct ResultRow: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
-        .frame(height: 44)
+        .frame(height: LauncherLayout.rowHeight)
         .background(selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: 8))
     }

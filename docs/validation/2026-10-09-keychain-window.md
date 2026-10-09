@@ -26,7 +26,11 @@
 | `xcodegen generate` | 成功 |
 | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build` | 成功；有工具链的 Simulator 版本提示及未使用 AppIntents 的元数据提示，没有 App 编译错误 |
 | 重启实际 Debug App | 原进程退出，新进程启动；没有打包 Release 或安装到 Applications |
+| 用户完成真实系统授权后测试 | 用户确认“验证后看到回复” |
+| 授权后的原生窗口回读 | `KulaHere AI` 窗口可见；用户随后继续进行工具对话，窗口展示完整模型回复，任务结束后“新对话”恢复可用 |
+
+后续工具对话中，日历操作返回“未获得日历完全访问权限”，模型正确说明操作失败。本次没有修改日历授权或创建日程；该权限与钥匙串授权分别管理。
 
 ## 待验证
 
-修复版重启后，菜单栏应用没有可被自动化工具操作的可见窗口。已请用户从菜单栏打开 AI 对话并提交“你好”，如需系统授权则在 macOS 弹窗中完成。授权结束后的前台窗口、回复与拒绝授权路径仍待实际核对；不能由编译和单元测试推断为全部通过。
+拒绝或取消钥匙串授权、手动关闭窗口期间完成授权，以及每次重新构建后的授权行为尚未逐项验证。当前通过的是用户完成真实授权后窗口可见并能继续对话的路径。

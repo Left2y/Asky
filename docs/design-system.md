@@ -1,6 +1,6 @@
 # KulaHere 原生界面与设计系统
 
-更新日期：2026 年 10 月 9 日。状态：已核对设计来源，原生页面与视觉验证尚未实现。
+更新日期：2026 年 10 月 9 日。状态：已核对变量与聚焦搜索节点，启动器已实现，完整视觉与辅助功能验收仍待完成。
 
 界面使用 SwiftUI 与 AppKit 原生组件，应用用户定义的变量和文字 Styles，并使用系统 Liquid Glass。产品流程以 [PRD](PRD.md) 为准；窗口规格是原型默认值，不表示 Figma 已提供完整界面。
 
@@ -18,6 +18,8 @@
 | Radius | 10 | Default；0、4、8、12、16、24、32、40、48、99999 |
 | Opacity | 1 | Default；disabled = 30 |
 | Colors | 39 | Light / Dark；语义颜色与别名 |
+
+后续指定的[聚焦搜索 Field，node 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348)为启动器收起状态的设计依据：720 × 60、左 24 / 右 20 留白、12 间距、17 pt `magnifyingglass`（21 × 22 图标槽）、16/400/Default 输入和 “Search” 提示。此节点替代之前的输入区尺寸与玻璃处理。
 
 后续 Figma 变更先核对来源，再更新附录与原生映射；不要在文件中自动创建组件或改写用户变量。本稿附录为设计数据快照，不是自动生成的生产源码。
 
@@ -44,17 +46,17 @@
 
 | 区域 | 原型默认值与行为 |
 | --- | --- |
-| Launcher | 宽 640 pt，输入区高 72 pt，高度随结果变化，最大 540 pt |
+| Launcher | 宽 720 pt，输入区高 60 pt，高度随结果变化，最大 540 pt |
 | Agent | 初始 760 × 720 pt，最小 640 × 560 pt，可调整大小 |
-| 输入 | 18/400/Default |
+| 输入 | 16/400/Default（node 22:348） |
 | 结果主文本 | 14/400/Default |
 | 次要说明与快捷键 | 12/400/Default |
 | 按钮文字 | 14/500/Default |
 | 对话正文 | 16/400/Paragraph |
 
-以上尺寸与角色来自当前实施方案，属于建议默认值。应在多显示器、长文本、辅助功能放大与真实任务中调整，不能把它们归因于空 Figma 页面。
+Launcher 收起尺寸与输入文字来自 node 22:348；其余尺寸与角色仍为当前实施方案的建议默认值。应在多显示器、长文本、辅助功能放大与真实任务中验证，不能把其余建议归因于空 Figma 页面。
 
-启动器收起时使用 `radius99999` 对应的 Capsule，展开结果、状态或终端时使用 `radius32` 连续圆角。输入区左右留白为 28 pt，搜索图标为 24 pt，与文字间距为 14 pt；结果列表左右留白 16 pt、上下 10 pt，行内左右留白 12 pt，使结果图标与输入图标左侧对齐。这些间距是按用户视觉反馈调整的布局值，不属于 Figma Spacing 变量。见[尺寸与圆角验证](validation/2026-10-09-launcher-sizing.md)。
+启动器收起时使用 `radius99999` 对应的 Capsule，展开结果、状态或终端时使用 `radius32` 连续圆角。输入区左侧留白 24 pt、右侧 20 pt，搜索图标为 17 pt（21 × 22 槽），与文字间距为 12 pt，来自 node 22:348；结果列表左右留白 12 pt、上下 10 pt，行内左右留白 12 pt，使图标左侧继续对齐。结果布局仍为实施值，不属于 Figma Spacing 变量。见[聚焦搜索验证](validation/2026-10-09-figma-search.md)。
 
 交互区至少覆盖输入、可选择结果、附件预览、工具进度、澄清、确认、实际结果、历史与记忆管理。确认界面显示具体目标和变更；“正在启动 AI”立即反馈，但不是承诺 Pi 已经在某个时限内启动。
 
@@ -74,7 +76,7 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 首版技术默认基于 macOS 26 原生能力。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
 
-启动器外壳使用原生 Clear Liquid Glass，以 `Colors/background` 作为玻璃 tint：Light 为 `Palette/white70`，Dark 为 `Palette/black70`，保留变量原始透明度，不另外绘制覆盖玻璃的不透明底层。文字继承 `Colors/text`，图标、次要文字与选中行使用各自语义变量。减少透明度时关闭玻璃，并将同一背景变量的 RGB 作为不透明底色。验证范围见[启动器玻璃验证](validation/2026-10-09-launcher-glass.md)。
+node 22:348 将 `Fill + Shadow` 与 `Glass Effect` 分层：70% `Colors/background` 填充使用 Luminosity 混合，玻璃包含 radius 6、refraction 0.7、depth 30、lightIntensity 0.25 等 Figma 专用参数。原生实现将相同语义背景置于 Clear Liquid Glass 下方并使用 luminosity 混合，不再把它作为 glass tint；原生光学处理负责边缘折射，辅以 0.5 pt 语义细边和黑色 2%、y 8、radius 15 的轻阴影。系统公开 API 不支持逐项指定 Figma 折射、深度或混合阴影，不能声称像素级等价。文字继承 `Colors/text`，放大镜使用 `Colors/textSubtle`，提示使用 `Colors/textSubtlest`，光标使用 `Colors/icon`。减少透明度时关闭玻璃和装饰阴影，并将同一背景变量的 RGB 作为不透明底色。验证范围见[聚焦搜索验证](validation/2026-10-09-figma-search.md)。
 
 - 浮动入口外壳、导航、工具栏与关键操作适合玻璃；使用系统协调的效果容器，避免各层独立叠加。
 - 对话正文、长文本与结果内容保持清晰阅读层，不能把每个卡片都做成玻璃。

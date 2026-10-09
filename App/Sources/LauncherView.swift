@@ -5,15 +5,17 @@ import Theme
 import Router
 
 private enum LauncherLayout {
-    static let inputHeight: CGFloat = 72
-    static let inputHorizontalPadding: CGFloat = 28
-    static let inputSpacing: CGFloat = 14
-    static let searchIconSize: CGFloat = 24
+    // Figma Field 22:348: 720 × 60, 24/20 insets, 12 gap, 17 pt SF Symbol.
+    static let inputHeight: CGFloat = 60
+    static let inputLeadingPadding: CGFloat = 24
+    static let inputTrailingPadding: CGFloat = 20
+    static let inputSpacing: CGFloat = 12
+    static let searchIconSize: CGFloat = 17
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
     static let rowHeight: CGFloat = 44
     static let rowSpacing: CGFloat = 2
-    static let listHorizontalPadding: CGFloat = 16
+    static let listHorizontalPadding: CGFloat = 12
     static let listVerticalPadding: CGFloat = 10
     static let rowHorizontalPadding: CGFloat = 12
 }
@@ -114,7 +116,7 @@ final class LauncherController {
 }
 
 struct LauncherView: View {
-    private static let searchPlaceholder = "搜索应用、文件、标签页，或输入 > 运行命令"
+    private static let searchPlaceholder = "Search"
     @Bindable var model: LauncherModel
     var onHeightChange: (CGFloat) -> Void = { _ in }
     @FocusState private var focused: Bool
@@ -136,12 +138,14 @@ struct LauncherView: View {
             HStack(spacing: LauncherLayout.inputSpacing) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
-                    .foregroundStyle(ThemeColor.kIconSubtle)
-                    .frame(width: LauncherLayout.searchIconSize, height: LauncherLayout.searchIconSize)
+                    .foregroundStyle(ThemeColor.kTextSubtle)
+                    .frame(width: 21, height: 22)
                 TextField(Self.searchPlaceholder, text: $model.query,
-                          prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtle))
+                          prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest))
                     .textFieldStyle(.plain)
                     .textStyle(.input)
+                    .tint(ThemeColor.kIcon.color(for: colorScheme))
+                    .accessibilityLabel("搜索应用、文件、标签页或命令")
                     .focused($focused)
                     .onSubmit { model.submit(.executeSelection) }
                     .onKeyPress(.upArrow) { model.move(-1); return .handled }
@@ -152,7 +156,8 @@ struct LauncherView: View {
                         return .handled
                     }
             }
-            .padding(.horizontal, LauncherLayout.inputHorizontalPadding)
+            .padding(.leading, LauncherLayout.inputLeadingPadding)
+            .padding(.trailing, LauncherLayout.inputTrailingPadding)
             .frame(height: LauncherLayout.inputHeight)
 
             if let t = model.terminal {
@@ -167,7 +172,8 @@ struct LauncherView: View {
                 Text(s).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, LauncherLayout.inputHorizontalPadding).padding(.vertical, 8)
+                    .padding(.leading, LauncherLayout.inputLeadingPadding)
+                    .padding(.trailing, LauncherLayout.inputTrailingPadding).padding(.vertical, 8)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
         }
@@ -175,13 +181,16 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText)
         .background {
-            if reduceTransparency {
-                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
-            }
+            // The design has a luminosity fill beneath a separate optical glass layer.
+            shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                .blendMode(reduceTransparency ? .normal : .luminosity)
         }
-        // Tint the native clear glass with Colors/background, preserving its optical treatment.
-        .glassEffect(reduceTransparency ? .identity : .clear.tint(ThemeColor.kBackground.color(for: colorScheme)),
-                     in: shellShape)
+        .glassEffect(reduceTransparency ? .identity : .clear, in: shellShape)
+        .overlay {
+            shellShape.stroke(ThemeColor.kBorder, lineWidth: 0.5)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.02), radius: 15, x: 0, y: 8)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

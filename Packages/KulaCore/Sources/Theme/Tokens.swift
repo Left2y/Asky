@@ -160,7 +160,7 @@ public struct TextStyle: Sendable, Hashable {
     }
 
     // Role mapping (design-system.md, prototype defaults).
-    public static let input = TextStyle(size: 18, weight: 400, mode: .default)
+    public static let input = TextStyle(size: 16, weight: 400, mode: .default)
     public static let resultPrimary = TextStyle(size: 14, weight: 400, mode: .default)
     public static let secondary = TextStyle(size: 12, weight: 400, mode: .default)
     public static let button = TextStyle(size: 14, weight: 500, mode: .default)
@@ -168,7 +168,7 @@ public struct TextStyle: Sendable, Hashable {
 }
 
 public enum WindowMetrics {
-    public static let launcherWidth: Double = 640
+    public static let launcherWidth: Double = 720
     public static let launcherMaxHeight: Double = 540
     public static let agentInitialSize = (width: 760.0, height: 720.0)
     public static let agentMinSize = (width: 640.0, height: 560.0)

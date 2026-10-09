@@ -76,7 +76,7 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 首版技术默认基于 macOS 26 原生能力。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
 
-node 22:348 将 `Fill + Shadow` 与 `Glass Effect` 分层：70% `Colors/background` 填充使用 Luminosity 混合，玻璃包含 radius 6、refraction 0.7、depth 30、lightIntensity 0.25 等 Figma 专用参数。原生实现将相同语义背景置于 Clear Liquid Glass 下方并使用 luminosity 混合，不再把它作为 glass tint；原生光学处理负责边缘折射，辅以 0.5 pt 语义细边和黑色 2%、y 8、radius 15 的轻阴影。系统公开 API 不支持逐项指定 Figma 折射、深度或混合阴影，不能声称像素级等价。文字继承 `Colors/text`，放大镜使用 `Colors/textSubtle`，提示使用 `Colors/textSubtlest`，光标使用 `Colors/icon`。减少透明度时关闭玻璃和装饰阴影，并将同一背景变量的 RGB 作为不透明底色。验证范围见[聚焦搜索验证](validation/2026-10-09-figma-search.md)。
+node 22:348 将 `Fill + Shadow` 与 `Glass Effect` 分层；Figma 使用 70% `Colors/background`、Luminosity 混合和专用光学参数。桌面透明 NSPanel 上的实际截图暴露了彩色采样异常和过强的文字折射，最终采用原生 Regular Liquid Glass，并将相同 70% 语义背景以普通 alpha 填充置于内容底层；不使用 luminosity 混合或玻璃 tint。移除额外 SwiftUI 描边、阴影以及矩形 NSPanel 阴影，保留玻璃自带的边缘处理。输入、图标和提示色显式按外层 Light / Dark 模式解析，避免材质内部环境使深色前景误用浅色值。减少透明度时关闭玻璃并将同一背景变量的 RGB 作为不透明底色。该处理优先保证实际浮窗合成与可读性，不声称逐项复刻 Figma 折射参数。验证范围见[透明浮窗修正记录](validation/2026-10-09-launcher-compositing.md)。
 
 - 浮动入口外壳、导航、工具栏与关键操作适合玻璃；使用系统协调的效果容器，避免各层独立叠加。
 - 对话正文、长文本与结果内容保持清晰阅读层，不能把每个卡片都做成玻璃。

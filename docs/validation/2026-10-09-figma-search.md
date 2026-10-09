@@ -2,6 +2,8 @@
 
 日期：2026-10-09。范围：启动器搜索输入与玻璃外壳。来源：[Asky / Field 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348)。本轮读取了该节点的 design context、截图、尺寸和玻璃属性，未写入 Figma。
 
+> 后续实际桌面浮窗暴露了材质合成问题，本记录的 luminosity / Clear / 自定义阴影方案已被[透明浮窗修正](2026-10-09-launcher-compositing.md)替代；输入尺寸与排版仍有效。
+
 ## 实现
 
 - 收起尺寸 720 × 60 pt、左右留白 24 / 20 pt、间距 12 pt，放大镜使用原生 `magnifyingglass`、17 pt 字号及 21 × 22 pt 图标槽。

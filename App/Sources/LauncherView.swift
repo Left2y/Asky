@@ -33,7 +33,9 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        // Liquid Glass supplies a shape-aware shadow; the borderless panel's
+        // rectangular shadow otherwise shows through at the capsule corners.
+        hasShadow = false
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
         isReleasedWhenClosed = false
@@ -138,10 +140,10 @@ struct LauncherView: View {
             HStack(spacing: LauncherLayout.inputSpacing) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
-                    .foregroundStyle(ThemeColor.kTextSubtle)
+                    .foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
                     .frame(width: 21, height: 22)
                 TextField(Self.searchPlaceholder, text: $model.query,
-                          prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest))
+                          prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest.color(for: colorScheme)))
                     .textFieldStyle(.plain)
                     .textStyle(.input)
                     .tint(ThemeColor.kIcon.color(for: colorScheme))
@@ -179,18 +181,17 @@ struct LauncherView: View {
         }
         .frame(width: WindowMetrics.launcherWidth)
         .fixedSize(horizontal: false, vertical: true)
-        .foregroundStyle(ThemeColor.kText)
+        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // The design has a luminosity fill beneath a separate optical glass layer.
+            // A normal alpha fill preserves both theme modes without re-blending
+            // pixels sampled from windows behind this transparent panel.
             shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                .blendMode(reduceTransparency ? .normal : .luminosity)
         }
-        .glassEffect(reduceTransparency ? .identity : .clear, in: shellShape)
-        .overlay {
-            shellShape.stroke(ThemeColor.kBorder, lineWidth: 0.5)
-                .allowsHitTesting(false)
-        }
-        .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.02), radius: 15, x: 0, y: 8)
+        // Use the native frosted material to keep underlying window text from
+        // competing with the input. Do not blend a fill into the sampled backdrop.
+        .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
+        // Glass draws its own edge and shadow. Avoid
+        // rasterizing the backdrop-dependent material again for a SwiftUI shadow.
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

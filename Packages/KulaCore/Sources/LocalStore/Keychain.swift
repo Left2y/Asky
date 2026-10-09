@@ -8,8 +8,20 @@ public struct Keychain: Sendable {
 
     public init(service: String = "app.kulahere.credentials") { self.service = service }
 
-    public enum KeychainError: Error {
+    public enum KeychainError: LocalizedError {
         case status(OSStatus)
+
+        public var errorDescription: String? {
+            switch self {
+            case .status(let status):
+                switch status {
+                case errSecUserCanceled: return "钥匙串授权已取消，请重新发送消息并允许 KulaHere 访问模型 Key。"
+                case errSecAuthFailed: return "钥匙串授权失败，请重新发送消息并完成模型 Key 的访问授权。"
+                case errSecInteractionNotAllowed: return "钥匙串暂时无法交互，请解锁登录钥匙串后重新发送消息。"
+                default: return "读取模型 Key 失败（钥匙串状态码 \(status)）。请检查钥匙串授权或在设置 › 模型中重新保存 Key。"
+                }
+            }
+        }
 
         public var requiresAuthentication: Bool {
             switch self {
@@ -53,16 +65,20 @@ public struct Keychain: Sendable {
 
     /// Call interactive reads off the main thread, only for an explicit credential use.
     public func read(account: String, allowInteraction: Bool = true) throws -> String? {
-        let context = LAContext()
-        context.interactionNotAllowed = !allowInteraction
-        let q: [String: Any] = [
+        var q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecUseAuthenticationContext as String: context,
         ]
+        // Interactive reads use Keychain's default authorization UI. A fresh LAContext
+        // is only needed to explicitly suppress interaction for the first attempt.
+        if !allowInteraction {
+            let context = LAContext()
+            context.interactionNotAllowed = true
+            q[kSecUseAuthenticationContext as String] = context
+        }
         var out: CFTypeRef?
         let status = SecItemCopyMatching(q as CFDictionary, &out)
         if status == errSecItemNotFound { return nil }

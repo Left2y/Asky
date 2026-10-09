@@ -150,7 +150,7 @@ private struct ModelSettingsView: View {
             Section("OpenAI 兼容接口") {
                 TextField("API 地址", text: $baseURL, prompt: Text("https://api.example.com/v1"))
                 TextField("模型名", text: $model)
-                SecureField("API Key（保存在钥匙串）", text: $key)
+                SecureField("API Key（留空保留已保存的 Key）", text: $key)
             }
             Section {
                 HStack {
@@ -171,7 +171,6 @@ private struct ModelSettingsView: View {
             if let c = app.modelConfiguration {
                 baseURL = c.baseURL.absoluteString
                 model = c.modelName
-                key = app.keychain.get(account: c.credentialRef) ?? ""
             }
         }
     }
@@ -183,9 +182,14 @@ private struct ModelSettingsView: View {
             return
         }
         do {
-            if key.isEmpty { app.keychain.delete(account: ModelSettings.keyAccount) }
-            else { try app.keychain.set(key, account: ModelSettings.keyAccount) }
-            app.modelConfiguration = ModelConfiguration(baseURL: url, modelName: model, credentialRef: ModelSettings.keyAccount)
+            let account = app.modelConfiguration?.credentialRef ?? ModelSettings.keyAccount
+            guard !key.isEmpty || app.keychain.contains(account: account) else {
+                message = "请填写 API Key；留空只会保留已保存的 Key。"
+                return
+            }
+            if !key.isEmpty { try app.keychain.set(key, account: account) }
+            app.modelConfiguration = ModelConfiguration(baseURL: url, modelName: model, credentialRef: account)
+            key = ""
             capabilities = nil
             message = "已保存。"
         } catch {

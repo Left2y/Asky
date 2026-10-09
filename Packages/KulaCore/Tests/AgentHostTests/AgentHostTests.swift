@@ -88,7 +88,7 @@ final class Launches: @unchecked Sendable {
 }
 
 func makeHost(idle: Duration = .seconds(60), protocolVersion: Int = WireProtocol.version,
-              configured: Bool = true, script: @escaping FakeRuntime.Script = echoScript,
+              configured: Bool = true, credentialError: AgentHostError? = nil, script: @escaping FakeRuntime.Script = echoScript,
               tool: @escaping AgentHost.ToolHandler = { .init(requestID: $0.requestID, status: .completed) })
     -> (AgentHost, Launches) {
     var cfg = AgentHostConfig()
@@ -101,7 +101,10 @@ func makeHost(idle: Duration = .seconds(60), protocolVersion: Int = WireProtocol
         let p = FakeRuntime(pid: Int32(1000 + launches.count), protocolVersion: protocolVersion, script: script)
         launches.list.withLock { $0.append(p) }
         return p
-    }, configProvider: { configured ? RuntimeLaunchConfig(baseURL: "http://x", model: "m", apiKey: "k") : nil },
+    }, configProvider: {
+        if let credentialError { throw credentialError }
+        return configured ? RuntimeLaunchConfig(baseURL: "http://x", model: "m", apiKey: "k") : nil
+    },
        toolsProvider: { [] }, toolHandler: tool)
     return (host, launches)
 }
@@ -118,6 +121,48 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
 }
 
 @Suite(.timeLimit(.minutes(1))) struct AgentHostTests {
+    @Test func credentialFailureIsPreservedAndDoesNotLaunchRuntime() async {
+        let (host, launches) = makeHost(credentialError: .credentialMissing)
+        let events = await collect(await host.submit(AgentRequest(sessionID: "s", text: "hello")))
+        #expect(events.contains {
+            if case .error(_, let text) = $0 {
+                return text.contains("API Key 不存在或为空") && !text.contains("notConfigured")
+            }
+            return false
+        })
+        #expect(finalState(events) == .failed)
+        #expect(launches.count == 0)
+        #expect(await host.state == .notRunning)
+    }
+
+    @Test func failedAuthorizationCanBeRetriedAfterCredentialBecomesAvailable() async {
+        struct AuthorizationError: LocalizedError {
+            var errorDescription: String? { "钥匙串授权已取消" }
+        }
+        let authorized = Mutex(false)
+        let launches = Launches()
+        let host = AgentHost(launcher: {
+            let p = FakeRuntime(pid: 1234, script: echoScript)
+            launches.list.withLock { $0.append(p) }
+            return p
+        }, configProvider: {
+            guard authorized.withLock({ $0 }) else { throw AuthorizationError() }
+            return RuntimeLaunchConfig(baseURL: "http://x", model: "m", apiKey: "synthetic")
+        }, toolsProvider: { [] }, toolHandler: { .init(requestID: $0.requestID, status: .completed) })
+        let failed = await collect(await host.submit(AgentRequest(sessionID: "s", text: "hello")))
+        #expect(failed.contains {
+            if case .error(_, let text) = $0 { return text.contains("钥匙串授权已取消") }
+            return false
+        })
+        #expect(finalState(failed) == .failed)
+        #expect(launches.count == 0)
+        authorized.withLock { $0 = true }
+        let retried = await collect(await host.submit(AgentRequest(sessionID: "s", text: "hello")))
+        #expect(finalState(retried) == .completed)
+        #expect(launches.count == 1)
+        await host.shutdown()
+    }
+
     @Test func coalescesConcurrentStartsIntoOneProcess() async {
         let (host, launches) = makeHost()
         async let a = collect(await host.submit(AgentRequest(sessionID: "s1", text: "a")))

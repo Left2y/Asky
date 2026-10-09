@@ -98,7 +98,7 @@ final class AgentModel {
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: app.agentUnavailableReason ?? "AI 运行时不可用"))
             return
         }
-        guard app.isModelConfigured else {
+        guard app.modelConfiguration != nil else {
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "尚未配置模型。请在 设置 › 模型 中填写 API 地址、模型名与 Key。"))
             return
         }

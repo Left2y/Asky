@@ -62,7 +62,7 @@ xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -de
 open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```
 
-使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。数据位于 `~/Library/Application Support/KulaHere/`。
+使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
 
 AI 对话和设置窗口使用浮动层级，可跨桌面显示；再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
 
@@ -129,7 +129,7 @@ xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -de
 open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```
 
-Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. App data lives in `~/Library/Application Support/KulaHere/`.
+Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
 
 The AI conversation and Settings windows float above ordinary windows and can join other desktops. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 

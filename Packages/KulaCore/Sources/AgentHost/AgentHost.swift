@@ -30,12 +30,24 @@ public struct AgentHostConfig: Sendable {
     public init() {}
 }
 
-public enum AgentHostError: Error, Equatable {
+public enum AgentHostError: LocalizedError, Equatable {
     case notConfigured
+    case credentialMissing
     case sessionBusy
     case handshakeFailed(String)
     case protocolMismatch(Int)
     case launchFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notConfigured: "尚未配置模型，请在设置 › 模型中填写 API 地址、模型名与 Key。"
+        case .credentialMissing: "模型 API Key 不存在或为空，请在设置 › 模型中重新保存 Key。"
+        case .sessionBusy: "该会话已有任务在运行。"
+        case .handshakeFailed(let reason): "AI 运行时连接失败：\(reason)"
+        case .protocolMismatch(let version): "AI 运行时协议版本不匹配：\(version)"
+        case .launchFailed(let reason): "AI 运行时启动失败：\(reason)"
+        }
+    }
 }
 
 /// Manages the Pi helper process: launch only on explicit AI submission, coalesced starts,
@@ -46,7 +58,7 @@ public actor AgentHost {
 
     private let launcher: Launcher
     private let toolHandler: ToolHandler
-    private let configProvider: @Sendable () -> RuntimeLaunchConfig?
+    private let configProvider: @Sendable () throws -> RuntimeLaunchConfig?
     private let toolsProvider: @Sendable () async -> [ToolDefinition]
     private let config: AgentHostConfig
 
@@ -71,7 +83,7 @@ public actor AgentHost {
     public private(set) var launchCount = 0
 
     public init(config: AgentHostConfig = .init(), launcher: @escaping Launcher,
-                configProvider: @escaping @Sendable () -> RuntimeLaunchConfig?,
+                configProvider: @escaping @Sendable () throws -> RuntimeLaunchConfig?,
                 toolsProvider: @escaping @Sendable () async -> [ToolDefinition],
                 toolHandler: @escaping ToolHandler) {
         self.config = config
@@ -128,7 +140,7 @@ public actor AgentHost {
             state = .busy
             try p.write(HostMessage.prompt(request, sessionFile: sessionFiles[request.sessionID]).encoded())
         } catch {
-            emit(request.taskID, .error(taskID: request.taskID, "无法启动 AI 运行时：\(error)"))
+            emit(request.taskID, .error(taskID: request.taskID, "无法启动 AI 运行时：\(error.localizedDescription)"))
             finish(request.taskID, .failed)
         }
     }
@@ -144,7 +156,7 @@ public actor AgentHost {
     }
 
     private func launch() async throws -> any RuntimeProcess {
-        guard let cfg = configProvider() else { throw AgentHostError.notConfigured }
+        guard let cfg = try configProvider() else { throw AgentHostError.notConfigured }
         state = .starting
         let p: any RuntimeProcess
         do { p = try launcher() } catch {

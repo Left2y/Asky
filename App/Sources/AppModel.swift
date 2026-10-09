@@ -143,12 +143,10 @@ final class AppModel {
             } catch let error as Keychain.KeychainError where error.requiresAuthentication {
                 // AgentHost runs this off the main actor. Restore the explicit AI request's
                 // window when the system authorization dialog releases focus.
-                key = keychain.get(account: cfg.credentialRef)
-                Task { @MainActor [weak self] in self?.onModelAuthenticationFinished?() }
-            } catch {
-                return nil
+                defer { Task { @MainActor [weak self] in self?.onModelAuthenticationFinished?() } }
+                key = try keychain.read(account: cfg.credentialRef)
             }
-            guard let key, !key.isEmpty else { return nil }
+            guard let key, !key.isEmpty else { throw AgentHostError.credentialMissing }
             return RuntimeLaunchConfig(baseURL: cfg.baseURL.absoluteString, model: cfg.modelName, apiKey: key)
         }, toolsProvider: {
             await tools.definitions(for: .agent(sessionID: ""))

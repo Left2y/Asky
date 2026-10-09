@@ -64,6 +64,8 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 
 使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。数据位于 `~/Library/Application Support/KulaHere/`。
 
+AI 对话和设置窗口使用浮动层级，可跨桌面显示；再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
+
 系统权限在“设置 › 系统权限”中逐项管理，AI 对话工具栏也提供设置入口。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
 
 DeepSeek 可使用 API 地址 `https://api.deepseek.com`、模型名 `deepseek-flash`。基础对话已验证；工具调用和图像输入仍需分别检查。
@@ -126,6 +128,8 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. App data lives in `~/Library/Application Support/KulaHere/`.
+
+The AI conversation and Settings windows float above ordinary windows and can join other desktops. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
 Manage individual permissions in Settings › System Permissions, also accessible from the AI conversation toolbar. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
 

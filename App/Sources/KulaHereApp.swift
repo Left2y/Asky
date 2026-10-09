@@ -74,6 +74,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        agentWindow?.show()
+        return true
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating, let model else { return .terminateNow }
         terminating = true
@@ -112,12 +117,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindow == nil {
             let w = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: true)
             w.title = "KulaHere 设置"
+            w.level = .floating
+            w.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary]
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: SettingsView(app: model, hotKeyStatus: hotKeyStatus))
             w.center()
             settingsWindow = w
         }
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        launcher.hide()
         NSApp.activate()
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        settingsWindow?.orderFrontRegardless()
     }
 }

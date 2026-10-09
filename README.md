@@ -10,7 +10,7 @@
 
 KulaHere 是一个规划中的 macOS 原生效率入口，采用 SwiftUI 与 AppKit，以快捷搜索和确定性工具为基础，通过 AI、本地记忆和情境提醒增强日常工作流。
 
-仓库已经包含首版代码：原生 App、核心 Swift 包、Pi Agent 宿主和 MCP Bridge，可以构建运行，自动化测试全部通过。界面流程、真实系统权限和真实模型尚未人工验收，详见 [M0 验证记录](docs/validation/2026-10-09-m0.md)。
+仓库已经包含首版代码：原生 App、核心 Swift 包、Pi Agent 宿主和 MCP Bridge，可以构建运行，自动化测试全部通过。DeepSeek 基础对话与历史重开已通过真实模型验证，见 [DeepSeek 验证记录](docs/validation/2026-10-09-deepseek.md)。完整界面流程、真实系统权限及其他模型能力尚未验收，详见 [M0 验证记录](docs/validation/2026-10-09-m0.md)。
 
 ### 核心能力
 
@@ -64,6 +64,8 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 
 使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。数据位于 `~/Library/Application Support/KulaHere/`。
 
+DeepSeek 可使用 API 地址 `https://api.deepseek.com`、模型名 `deepseek-flash`。基础对话已验证；工具调用和图像输入仍需分别检查。
+
 <a id="english"></a>
 
 ## English
@@ -72,7 +74,7 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 
 KulaHere is a planned native macOS productivity launcher built with SwiftUI and AppKit. Fast search and deterministic tools form its foundation, while AI, local memory, and contextual reminders enhance everyday workflows.
 
-The repository contains the first implementation: a native app, core Swift packages, a Pi agent host, and an MCP bridge. It builds and runs, and all automated tests pass. UI flows, real system permissions, and real-model use have not been manually accepted yet; see the [M0 validation record](docs/validation/2026-10-09-m0.md).
+The repository contains the first implementation: a native app, core Swift packages, a Pi agent host, and an MCP bridge. It builds and runs, and all automated tests pass. Basic DeepSeek conversations and reopening saved history have been verified with the real model; see the [DeepSeek validation record](docs/validation/2026-10-09-deepseek.md). Complete UI flows, real system permissions, and other model capabilities still await acceptance; see the [M0 validation record](docs/validation/2026-10-09-m0.md).
 
 ### Features
 
@@ -120,3 +122,5 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. App data lives in `~/Library/Application Support/KulaHere/`.
+
+For DeepSeek, use `https://api.deepseek.com` as the API endpoint and `deepseek-flash` as the model name. Basic conversations have been verified; tool calling and image input still require separate checks.

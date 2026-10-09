@@ -11,10 +11,13 @@ struct ChatItem: Identifiable, Hashable {
     let id: String
     var kind: Kind
     var text: String
+    var needsPermissionSettings = false
 }
 
 @MainActor @Observable
 final class AgentModel {
+    func openSettings(permissions: Bool = false) { app.openSettings(permissions: permissions) }
+
     static let firstPage = 40
     static let window = 120
 
@@ -143,10 +146,11 @@ final class AgentModel {
         case .toolResult(_, let r):
             let text = "\(Self.statusLabel(r.status))\(r.error.map { "：\($0.message)" } ?? "")"
             if let i = items.lastIndex(where: { $0.id == r.requestID }) {
+                items[i].needsPermissionSettings = r.error?.code == .permissionDenied || r.error?.code == .sourceDisabled
                 items[i].kind = .tool(r.status)
                 items[i].text = items[i].text.replacingOccurrences(of: "…", with: "") + " · " + text
             } else {
-                appendTrimmed(ChatItem(id: r.requestID, kind: .tool(r.status), text: text))
+                appendTrimmed(ChatItem(id: r.requestID, kind: .tool(r.status), text: text, needsPermissionSettings: r.error?.code == .permissionDenied || r.error?.code == .sourceDisabled))
             }
         case .clarification(_, let q):
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .assistant, text: q))

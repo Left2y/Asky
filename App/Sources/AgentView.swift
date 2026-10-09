@@ -68,6 +68,10 @@ struct AgentView: View {
                 Divider()
                 Composer(model: model)
             }
+            .toolbar {
+                Button { model.openSettings() } label: { Label("设置", systemImage: "gearshape") }
+                    .keyboardShortcut(",", modifiers: .command)
+            }
         }
     }
 }
@@ -82,7 +86,15 @@ private struct Transcript: View {
                     if model.hasOlder {
                         Button("加载更早的消息") { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
                     }
-                    ForEach(model.items) { ChatBubble(item: $0) }
+                    ForEach(model.items) { item in
+                        VStack(alignment: .leading, spacing: 6) {
+                            ChatBubble(item: item)
+                            if item.needsPermissionSettings {
+                                Button("管理权限…") { model.openSettings(permissions: true) }
+                                    .buttonStyle(.link)
+                            }
+                        }
+                    }
                     if !model.streaming.isEmpty {
                         ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: model.streaming))
                     }

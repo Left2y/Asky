@@ -62,16 +62,19 @@ public actor ToolService {
     private let executions: ExecutionStore
     private let policy: @Sendable () -> PolicySnapshot
     private let presenter: ConfirmationPresenter
+    private let authorize: @Sendable (DataSourceID, CallerOrigin) async throws -> Void
     private let timeout: Duration
     private let writeLock = AsyncLock()
     private var inFlight: [String: Task<ExecutionResult, Never>] = [:]
 
     public init(store: LocalStore, policy: @escaping @Sendable () -> PolicySnapshot,
-                presenter: @escaping ConfirmationPresenter, timeout: Duration = ToolService.defaultTimeout) {
+                presenter: @escaping ConfirmationPresenter, timeout: Duration = ToolService.defaultTimeout,
+                authorize: @escaping @Sendable (DataSourceID, CallerOrigin) async throws -> Void = { _, _ in }) {
         executions = ExecutionStore(store)
         self.policy = policy
         self.presenter = presenter
         self.timeout = timeout
+        self.authorize = authorize
     }
 
     public func register(_ adapter: any ToolAdapter) {
@@ -108,6 +111,12 @@ public actor ToolService {
         let def = adapter.definition
         let p = policy()
         if let err = exposureError(def, origin: request.origin, policy: p) {
+            return .failure(request.requestID, err.code, err.message, status: .rejected)
+        }
+        do {
+            try await authorize(def.source, request.origin)
+        } catch { return failure(request, error) }
+        if let err = exposureError(def, origin: request.origin, policy: policy()) {
             return .failure(request.requestID, err.code, err.message, status: .rejected)
         }
         if def.effect == .read {

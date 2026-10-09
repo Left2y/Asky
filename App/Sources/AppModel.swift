@@ -54,6 +54,14 @@ final class AppModel {
     private var mcpServer: MCPLinkServer?
     private(set) var mcpServerError: String?
 
+    var settingsTab = "general"
+    @ObservationIgnored var onOpenSettings: (() -> Void)?
+
+    func openSettings(permissions: Bool = false) {
+        if permissions { settingsTab = "permissions" }
+        onOpenSettings?()
+    }
+
     var settings: AppSettings {
         didSet {
             guard settings != oldValue else { return }
@@ -81,7 +89,8 @@ final class AppModel {
             let s = reader.load()
             return PolicySnapshot(enabledSources: s.enabledSources,
                                   mcpInstances: Dictionary(uniqueKeysWithValues: instances.all().map { ($0.id, $0) }))
-        }, presenter: { request in await confirmations.present(request) })
+        }, presenter: { request in await confirmations.present(request) },
+           authorize: { source, origin in try await SystemPermissions.require(source, origin: origin) })
         native = NativeTools(notesFolders: { reader.load().notesFolders })
         gateway = MCPGateway(store: store, tools: tools)
         exchange = ExchangeRateService(cacheURL: store.root.appending(path: "ecb-rates.json"))

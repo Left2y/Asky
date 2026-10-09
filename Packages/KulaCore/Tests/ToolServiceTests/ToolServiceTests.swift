@@ -187,3 +187,45 @@ final class ConcurrencyProbe: ToolAdapter, @unchecked Sendable {
         return AdapterOutput(output: nil)
     }
 }
+
+
+@Suite struct PermissionGateTests {
+    @Test func deniedPermissionPreventsPreviewAndExecution() async throws {
+        let store = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
+        let presenter = Presenter(.approved)
+        let service = ToolService(store: store, policy: { PolicySnapshot(enabledSources: [.calendar]) },
+                                  presenter: presenter.fn, authorize: { _, _ in
+            throw ToolError(.permissionDenied, "denied")
+        })
+        let adapter = FakeAdapter("modify", kind: .modify)
+        await service.register(adapter)
+        let result = await service.submit(req("modify"))
+        #expect(result.error?.code == .permissionDenied)
+        #expect(adapter.count == 0 && presenter.count == 0)
+    }
+
+    @Test func disabledSourceDoesNotRequestSystemPermission() async throws {
+        let store = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
+        let called = Mutex(false)
+        let service = ToolService(store: store, policy: { PolicySnapshot(enabledSources: []) },
+                                  presenter: Presenter(.approved).fn, authorize: { _, _ in
+            called.withLock { $0 = true }
+        })
+        await service.register(FakeAdapter("read", effect: .read))
+        #expect(await service.submit(req("read")).error?.code == .sourceDisabled)
+        #expect(!called.withLock { $0 })
+    }
+
+    @Test func revocationWhileRequestingPermissionBlocksRead() async throws {
+        let store = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
+        let policy = PolicyBox(PolicySnapshot(enabledSources: [.calendar]))
+        let service = ToolService(store: store, policy: { policy.value },
+                                  presenter: Presenter(.approved).fn, authorize: { _, _ in
+            policy.m.withLock { $0.enabledSources = [] }
+        })
+        let adapter = FakeAdapter("read", effect: .read)
+        await service.register(adapter)
+        #expect(await service.submit(req("read")).error?.code == .sourceDisabled)
+        #expect(adapter.count == 0)
+    }
+}

@@ -7,19 +7,21 @@ import Memory
 import MCPGateway
 import Adapters
 import Theme
+import ToolService
 
 struct SettingsView: View {
-    let app: AppModel
+    @Bindable var app: AppModel
     let hotKeyStatus: String
 
     var body: some View {
-        TabView {
-            Tab("通用", systemImage: "gearshape") { GeneralSettings(app: app, hotKeyStatus: hotKeyStatus) }
-            Tab("数据来源", systemImage: "square.stack") { SourceSettings(app: app) }
-            Tab("模型", systemImage: "sparkles") { ModelSettingsView(app: app) }
-            Tab("关键词", systemImage: "link") { KeywordSettings(app: app) }
-            Tab("记忆", systemImage: "brain") { MemorySettings(app: app) }
-            Tab("外部 MCP", systemImage: "point.3.connected.trianglepath.dotted") { MCPSettings(app: app) }
+        TabView(selection: $app.settingsTab) {
+            Tab("通用", systemImage: "gearshape", value: "general") { GeneralSettings(app: app, hotKeyStatus: hotKeyStatus) }
+            Tab("数据来源", systemImage: "square.stack", value: "sources") { SourceSettings(app: app) }
+            Tab("系统权限", systemImage: "lock.shield", value: "permissions") { PermissionSettings() }
+            Tab("模型", systemImage: "sparkles", value: "model") { ModelSettingsView(app: app) }
+            Tab("关键词", systemImage: "link", value: "keywords") { KeywordSettings(app: app) }
+            Tab("记忆", systemImage: "brain", value: "memory") { MemorySettings(app: app) }
+            Tab("外部 MCP", systemImage: "point.3.connected.trianglepath.dotted", value: "mcp") { MCPSettings(app: app) }
         }
         .frame(width: 640, height: 500)
     }
@@ -121,8 +123,7 @@ private struct SourceSettings: View {
                 }
             }
             Section("系统权限") {
-                Button("请求日历与提醒事项权限") { Task { _ = await app.native.eventKit.requestCalendar(); _ = await app.native.eventKit.requestReminders() } }
-                Button("请求通讯录权限") { Task { _ = await app.native.contacts.request() } }
+                Button("管理系统权限…") { app.openSettings(permissions: true) }
             }
             Section("情境提醒") {
                 Toggle("主动提醒（冲突、出行准备、重要日期）", isOn: $app.settings.proactiveReminders)
@@ -419,5 +420,68 @@ private struct MCPSettings: View {
           }
         }
         """
+    }
+}
+
+
+private struct PermissionSettings: View {
+    @State private var states: [SystemPermission: PermissionState] = [:]
+    @State private var requesting: SystemPermission?
+    @State private var message: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Text("数据来源开关不等于系统授权。首次使用日历、提醒事项或通讯录时会请求权限；拒绝后请在系统设置中开启，再重新发送请求。")
+                    .textStyle(.secondary)
+            }
+            Section("系统权限") {
+                ForEach(SystemPermission.allCases) { permission in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(permission.title)
+                            Spacer()
+                            Text(states[permission]?.rawValue ?? "正在检查…")
+                                .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                        }
+                        HStack {
+                            if states[permission]?.canRequest == true {
+                                Button(requesting == permission ? "正在请求…" : "请求授权") {
+                                    requesting = permission
+                                    message = nil
+                                    Task {
+                                        do {
+                                            let state = try await SystemPermissions.request(permission)
+                                            states[permission] = state
+                                            message = "\(permission.title)：\(state.rawValue)"
+                                        } catch { message = "\(permission.title)授权请求失败：\(error.localizedDescription)" }
+                                        requesting = nil
+                                    }
+                                }.disabled(requesting != nil)
+                            }
+                            Button("打开系统设置") {
+                                do { try SystemPermissions.openSettings(permission); message = nil }
+                                catch { message = error.localizedDescription }
+                            }
+                        }
+                    }
+                }
+                Button("刷新权限状态") { Task { await refresh() } }
+                if let message { Text(message).textStyle(.secondary).textSelection(.enabled) }
+            }
+            Section {
+                Text("自动化权限按目标应用分别授予；Chrome 或备忘录首次使用会请求。备忘录还需要在“数据来源”中添加允许访问的账户和文件夹。屏幕录制授权后若仍失败，请重启 KulaHere。")
+                    .textStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .task { await refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await refresh() }
+        }
+    }
+
+    private func refresh() async {
+        for permission in SystemPermission.allCases { states[permission] = await SystemPermissions.state(permission) }
     }
 }

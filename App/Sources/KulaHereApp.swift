@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+        model.onOpenSettings = { [weak self] in self?.openSettings() }
         launcherModel = LauncherModel(app: model)
         launcher = LauncherController(model: launcherModel)
         agentWindow = AgentWindowController(model: AgentModel(app: model))

@@ -10,7 +10,7 @@
 
 KulaHere 是一个规划中的 macOS 原生效率入口，采用 SwiftUI 与 AppKit，以快捷搜索和确定性工具为基础，通过 AI、本地记忆和情境提醒增强日常工作流。
 
-当前仓库处于产品定义阶段，包含 PRD、框架和技术专题，尚无应用源码、可运行程序或构建配置。首版目标是完整自用版，分阶段实现。
+仓库已经包含首版代码：原生 App、核心 Swift 包、Pi Agent 宿主和 MCP Bridge，可以构建运行，自动化测试全部通过。界面流程、真实系统权限和真实模型尚未人工验收，详见 [M0 验证记录](docs/validation/2026-10-09-m0.md)。
 
 ### 核心能力
 
@@ -36,9 +36,33 @@ V1 规划包含三个层次：
 - [资源生命周期与性能](docs/resource-lifecycle.md)：缓存预算、分页、释放与测量。
 - [实施与验证](docs/implementation-and-validation.md)：M0–M4 门槛、风险与验收映射。
 
+### 目录结构
+
+- `App/Sources`：菜单栏 App，包括启动器面板、AI 对话、确认面板、设置、剪贴板和情境提醒。
+- `Packages/KulaCore`：Swift 包，包含 Contracts、Theme、Router、Search、DirectActions、Adapters、ToolService、LocalStore、AgentHost、Memory、Scheduler、Resources、MCPLink、MCPGateway。
+- `AgentRuntime`：TypeScript 编写的 Pi 宿主，通过 stdio JSONL 协议 v1 与 App 通信。
+- `MCPBridge`：`kulahere-mcp` 的 SwiftPM 包，供测试使用；App 内置的同名二进制由 `project.yml` 构建。
+- `project.yml`：XcodeGen 配置。生成的 `KulaHere.xcodeproj` 不纳入版本库。
+
 ### 开发与验证
 
-目前没有可执行的安装、运行、构建或测试命令。实现开始后，先完成能力与权限验证，再按 PRD 的 M1 至 M4 顺序交付；实际命令随项目配置建立后补充。
+需要 macOS 26、Xcode 26、XcodeGen 和 Node 22 或更高版本。如果 `xcode-select` 指向的是 Command Line Tools，请在命令前加上 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`。
+
+```sh
+# Agent 宿主（App 的开发构建从源码目录读取 AgentRuntime/dist）
+cd AgentRuntime && npm install && npm run build && npm test
+
+# 核心包测试；需先构建 Bridge，端到端测试才会运行
+cd MCPBridge && swift build
+cd Packages/KulaCore && swift test
+
+# 构建 App
+xcodegen generate
+xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
+open build/DerivedData/Build/Products/Debug/KulaHere.app
+```
+
+使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。数据位于 `~/Library/Application Support/KulaHere/`。
 
 <a id="english"></a>
 
@@ -48,7 +72,7 @@ V1 规划包含三个层次：
 
 KulaHere is a planned native macOS productivity launcher built with SwiftUI and AppKit. Fast search and deterministic tools form its foundation, while AI, local memory, and contextual reminders enhance everyday workflows.
 
-The repository is currently in the product definition stage. It contains a PRD, architecture outline, and technical specifications, with no application source, runnable program, or build configuration. V1 targets a complete personal-use release delivered in stages.
+The repository contains the first implementation: a native app, core Swift packages, a Pi agent host, and an MCP bridge. It builds and runs, and all automated tests pass. UI flows, real system permissions, and real-model use have not been manually accepted yet; see the [M0 validation record](docs/validation/2026-10-09-m0.md).
 
 ### Features
 
@@ -76,4 +100,15 @@ A standalone local MCP shares native tools with the application, requires separa
 
 ### Development and Verification
 
-There are no runnable installation, startup, build, or test commands yet. Implementation starts with capability and permission validation, followed by stages M1 through M4 in the PRD. Actual commands will be documented when project configuration exists.
+Requires macOS 26, Xcode 26, XcodeGen, and Node 22 or later. If `xcode-select` points to the Command Line Tools, prefix the commands with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+
+```sh
+cd AgentRuntime && npm install && npm run build && npm test
+cd MCPBridge && swift build          # needed for the bridge end-to-end test
+cd Packages/KulaCore && swift test
+xcodegen generate
+xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
+open build/DerivedData/Build/Products/Debug/KulaHere.app
+```
+
+Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. App data lives in `~/Library/Application Support/KulaHere/`.

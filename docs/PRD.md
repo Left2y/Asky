@@ -205,7 +205,7 @@ Launcher、Agent 和外部 MCP 共用系统工具实现及权限策略。原生�
 
 ### MCP 接口边界
 
-V1 提供基于 stdio 的本地 MCP 入口，支持日历、提醒事项、备忘录、联系人、Chrome 标签页和 Messages 草稿交接工具。采用官方 Swift MCP SDK，该 SDK 提供客户端、服务端与本地 stdio 传输。[Swift MCP SDK](https://github.com/modelcontextprotocol/swift-sdk)
+V1 提供基于 stdio 的本地 MCP 入口，支持日历、提醒事项、备忘录、联系人、Chrome 标签页和 Messages 草稿交接工具。原计划采用官方 Swift MCP SDK，因其当前版本无法在本机工具链构建，首版改用自带的最小 stdio 实现，详见[原生工具与 MCP](native-tools-and-mcp.md)。[Swift MCP SDK](https://github.com/modelcontextprotocol/swift-sdk)
 
 外部接入默认关闭；用户启用接入实例并分配数据源及读写范围。读取在授权范围内执行，写入在 KulaHere 原生界面展示目标与变更并由用户确认。协议端传入的“已确认”字段不能代替真实确认。
 

@@ -16,7 +16,7 @@ KulaHere 围绕“快速入口、按需理解、本地记忆、少量提醒”�
 | Agent | 优先验证 Pi Coding Agent SDK，本地 Node.js 辅助进程 | M0 通过后锁定，保持可替换 |
 | 模型 | BYOK，OpenAI-compatible Chat Completions 优先 | 已确认协议方向，分项能力检查 |
 | 持久化 | SQLite、全文索引、文件附件，Keychain 保存密钥 | 原生数据方向已确认；会话整合待验证 |
-| 外部 MCP | 官方 Swift SDK、stdio Bridge，优先 XPC 连接应用 | 首版方向，签名、身份与权限归属待验证 |
+| 外部 MCP | 最小 stdio MCP 实现（官方 SDK 暂不可用）、stdio Bridge，经仅属主 Unix socket 连接应用 | 已实现；签名、真实客户端与权限归属待验证 |
 
 全天候运行不等于 Agent 全天驻留，也不表示 SwiftUI 自动低占用。启动器可靠性与资源生命周期是独立工程约束；未验证前不承诺具体总内存、冷启动时间或耗电。
 
@@ -58,7 +58,7 @@ flowchart LR
     Scheduler --> Notify[系统本地通知]
 ```
 
-图中 Host / Pi 通道是受控本地宿主通信，具体承载与线格式待 M0 冻结；Bridge 到 ToolService 的连接优先 XPC。内部原生调用不必经过 MCP 序列化。
+图中 Host / Pi 通道是受控本地宿主通信，已冻结为 stdio JSONL 协议 v1。Bridge 到 ToolService 当前经 Unix domain socket 连接。内部原生调用不必经过 MCP 序列化。
 
 主应用保持系统授权与确认的主体。Pi 通过宿主调用原生工具，不直接访问受保护数据库。Bridge 验证接入实例并转交应用，应用未运行时返回可恢复的不可用状态。
 

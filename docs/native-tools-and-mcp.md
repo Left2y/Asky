@@ -8,10 +8,10 @@ Launcher、Agent 与外部 MCP 共用 Swift ToolService。工具实现和权限�
 
 - Launcher 的确定性动作在应用内直接调用原生能力，不需要模型或 MCP。
 - Pi 的工具调用通过受控宿主连接转交 ToolService，不直接执行 EventKit、AppleScript 或数据库读取。
-- 外部 MCP 使用独立 Swift stdio Bridge，优先通过 XPC 连接运行中的应用；Bridge 不自行申请或持有系统数据访问权。
+- 外部 MCP 使用独立 Swift stdio Bridge，通过仅属主可访问的 Unix domain socket 连接运行中的应用（自用构建以 ad-hoc 签名，XPC 签名约束不可用；正式签名后可重新评估 XPC）；Bridge 不自行申请或持有系统数据访问权。
 - 应用未运行时 MCP 返回可恢复的不可用状态；不会为了外部 MCP 启动 Pi，也不把 Bridge 变成 Launcher 的启动依赖。
 
-XPC 连接隔离、实例凭据、签名与系统授权归属需要在真实构建中验证。独立协议入口不表示可以脱离原生权限主体运行。整体边界见 [框架](framework.md)。
+本地连接隔离、实例凭据、签名与系统授权归属需要在真实构建中验证。独立协议入口不表示可以脱离原生权限主体运行。整体边界见 [框架](framework.md)。
 
 ## 工具接口契约
 
@@ -76,7 +76,7 @@ XPC 连接隔离、实例凭据、签名与系统授权归属需要在真实构�
 
 ## 外部 MCP
 
-采用 [官方 Swift MCP SDK](https://github.com/modelcontextprotocol/swift-sdk)，首版 stdio，本地使用，不开放远程网络服务。日志走 stderr，stdout 只传协议。
+首版使用自带的最小 stdio 实现（initialize、ping、tools/list、tools/call）。[官方 Swift MCP SDK](https://github.com/modelcontextprotocol/swift-sdk) 0.12.1 依赖 swift-nio，0.9.0 不能用 Swift 6.3 编译，SDK 可用后再评估是否替换。仅 stdio，本地使用，不开放远程网络服务。日志走 stderr，stdout 只传协议。
 
 对外工具组限定为日历、提醒事项、Notes、联系人、Chrome 标签页和 Messages 草稿交接。默认关闭，启用实例默认只读，按实例分配数据源与操作范围。写入始终由应用确认，来源身份必须在本地连接与接入凭据上验证。
 

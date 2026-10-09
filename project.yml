@@ -1,0 +1,84 @@
+name: KulaHere
+options:
+  bundleIdPrefix: app.kulahere
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    DEAD_CODE_STRIPPING: YES
+packages:
+  KulaCore:
+    path: Packages/KulaCore
+targets:
+  KulaHere:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Sources
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: KulaHere
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSUIElement: true
+        LSMinimumSystemVersion: "26.0"
+        NSHumanReadableCopyright: ""
+        NSCalendarsFullAccessUsageDescription: KulaHere 在你明确要求时读取或创建日历事件，并用于冲突检查。
+        NSRemindersFullAccessUsageDescription: KulaHere 在你明确要求时读取或创建提醒事项。
+        NSContactsUsageDescription: KulaHere 用于在你发起的任务中确认联系人。
+        NSAppleEventsUsageDescription: KulaHere 用于列出与切换 Chrome 标签、在授权的备忘录文件夹中搜索与追加内容。
+        # Dev builds locate AgentRuntime/dist next to the sources; release builds bundle it under Resources.
+        KHSourceRoot: $(SRCROOT)
+    entitlements:
+      path: App/KulaHere.entitlements
+      properties:
+        com.apple.security.automation.apple-events: true
+        com.apple.security.personal-information.calendars: true
+        com.apple.security.personal-information.addressbook: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.kulahere.KulaHere
+        PRODUCT_NAME: KulaHere
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_STRICT_CONCURRENCY: complete
+    dependencies:
+      - package: KulaCore
+        products: [Contracts, Theme, Router, DirectActions, Resources, LocalStore, ToolService,
+                   AgentHost, Memory, Scheduler, Search, Adapters, MCPLink, MCPGateway]
+      - target: kulahere-mcp
+        copy:
+          destination: executables
+        link: false
+
+  kulahere-mcp:
+    type: tool
+    platform: macOS
+    sources:
+      - path: MCPBridge/Sources/kulahere-mcp
+    settings:
+      base:
+        PRODUCT_NAME: kulahere-mcp
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_IDENTITY: "-"
+        SKIP_INSTALL: YES
+    dependencies:
+      - package: KulaCore
+        products: [MCPLink, Contracts]
+
+schemes:
+  KulaHere:
+    build:
+      targets:
+        KulaHere: all
+        kulahere-mcp: all
+    run:
+      config: Debug
+    archive:
+      config: Release

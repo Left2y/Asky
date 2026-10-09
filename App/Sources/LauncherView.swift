@@ -5,11 +5,17 @@ import Theme
 import Router
 
 private enum LauncherLayout {
-    static let inputHeight: CGFloat = 56
+    static let inputHeight: CGFloat = 72
+    static let inputHorizontalPadding: CGFloat = 28
+    static let inputSpacing: CGFloat = 14
+    static let searchIconSize: CGFloat = 24
+    static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
     static let rowHeight: CGFloat = 44
     static let rowSpacing: CGFloat = 2
-    static let listPadding: CGFloat = 6
+    static let listHorizontalPadding: CGFloat = 16
+    static let listVerticalPadding: CGFloat = 10
+    static let rowHorizontalPadding: CGFloat = 12
 }
 
 /// Floating, non-activating launcher panel that still takes key focus for the input field.
@@ -116,10 +122,22 @@ struct LauncherView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
 
+    private var shellShape: AnyShape {
+        if model.terminal != nil || !model.results.isEmpty || model.status != nil {
+            AnyShape(RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous))
+        } else {
+            // The design system's radius99999 maps to a real capsule.
+            AnyShape(Capsule())
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
+            HStack(spacing: LauncherLayout.inputSpacing) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
+                    .foregroundStyle(ThemeColor.kIconSubtle)
+                    .frame(width: LauncherLayout.searchIconSize, height: LauncherLayout.searchIconSize)
                 TextField(Self.searchPlaceholder, text: $model.query,
                           prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtle))
                     .textFieldStyle(.plain)
@@ -134,7 +152,7 @@ struct LauncherView: View {
                         return .handled
                     }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, LauncherLayout.inputHorizontalPadding)
             .frame(height: LauncherLayout.inputHeight)
 
             if let t = model.terminal {
@@ -148,7 +166,8 @@ struct LauncherView: View {
             if let s = model.status {
                 Text(s).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                     .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, LauncherLayout.inputHorizontalPadding).padding(.vertical, 8)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
         }
@@ -157,12 +176,12 @@ struct LauncherView: View {
         .foregroundStyle(ThemeColor.kText)
         .background {
             if reduceTransparency {
-                RoundedRectangle(cornerRadius: 16).fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
+                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
             }
         }
         // Tint the native clear glass with Colors/background, preserving its optical treatment.
         .glassEffect(reduceTransparency ? .identity : .clear.tint(ThemeColor.kBackground.color(for: colorScheme)),
-                     in: .rect(cornerRadius: 16))
+                     in: shellShape)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
@@ -179,7 +198,7 @@ private struct ResultList: View {
         let count = model.results.count
         let rows = CGFloat(count) * LauncherLayout.rowHeight
         let gaps = CGFloat(max(0, count - 1)) * LauncherLayout.rowSpacing
-        return min(rows + gaps + LauncherLayout.listPadding * 2, maxHeight)
+        return min(rows + gaps + LauncherLayout.listVerticalPadding * 2, maxHeight)
     }
 
     var body: some View {
@@ -193,7 +212,8 @@ private struct ResultList: View {
                             .onTapGesture { model.selection = i; model.submit(.executeSelection) }
                     }
                 }
-                .padding(LauncherLayout.listPadding)
+                .padding(.horizontal, LauncherLayout.listHorizontalPadding)
+                .padding(.vertical, LauncherLayout.listVerticalPadding)
             }
             .frame(height: height)
             .onChange(of: model.selection) { _, s in proxy.scrollTo(s) }
@@ -216,7 +236,7 @@ private struct ResultRow: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)
         .background(selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: 8))

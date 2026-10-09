@@ -48,6 +48,28 @@ public final class EventKitBridge: @unchecked Sendable {
 
 // MARK: Calendar
 
+public struct CalendarListTool: ToolAdapter {
+    let ek: EventKitBridge
+    public init(_ ek: EventKitBridge) { self.ek = ek }
+
+    public var definition: ToolDefinition {
+        ToolDefinition(name: "calendar_list_calendars", summary: "列出实际可用日历、ID、账户、是否可写和系统默认日历；创建前可用来选择目标",
+                       inputSchema: Args.schema([:], required: []), source: .calendar, effect: .read,
+                       confirmation: .never, externallyExposable: true)
+    }
+
+    public func execute(_ a: JSONValue) async throws -> AdapterOutput {
+        try ek.requireCalendar()
+        ek.store.refreshSourcesIfNecessary()
+        let defaultID = ek.store.defaultCalendarForNewEvents?.calendarIdentifier
+        return AdapterOutput(output: .array(ek.store.calendars(for: .event).map {
+            ["id": .string($0.calendarIdentifier), "name": .string($0.title),
+             "account": .string($0.source.title), "writable": .bool($0.allowsContentModifications),
+             "isDefault": .bool($0.calendarIdentifier == defaultID)]
+        }))
+    }
+}
+
 public struct CalendarSearchTool: ToolAdapter {
     let ek: EventKitBridge
     public init(_ ek: EventKitBridge) { self.ek = ek }
@@ -83,7 +105,7 @@ public struct CalendarCreateTool: ToolAdapter {
         ToolDefinition(name: "calendar_create_event", summary: "新建日程（存在冲突时不会直接创建）",
                        inputSchema: Args.schema(["title": Args.stringProp, "start": Args.isoDateProp, "end": Args.isoDateProp,
                                                  "location": Args.stringProp, "notes": Args.stringProp,
-                                                 "calendar": ["type": "string", "description": "日历名称，缺省用默认日历"],
+                                                 "calendar": ["type": "string", "description": "日历 ID 或准确名称；先用 calendar_list_calendars 查询。缺省优先默认日历，否则仅在一个可写日历时自动选择"],
                                                  "allowConflict": ["type": "boolean"]],
                                                 required: ["title", "start", "end"]),
                        source: .calendar, effect: .write, writeKind: .create, confirmation: .createDirectOtherwiseConfirm,
@@ -91,17 +113,15 @@ public struct CalendarCreateTool: ToolAdapter {
     }
 
     func calendar(_ a: JSONValue) throws -> EKCalendar {
-        let name = try Args.string(a["calendar"], "calendar", required: false)
-        let cal: EKCalendar?
-        if let name {
-            let matches = ek.store.calendars(for: .event).filter { $0.title == name }
-            if matches.count > 1 { throw ToolError(.ambiguousTarget, "有多个名为「\(name)」的日历") }
-            cal = matches.first
-        } else {
-            cal = ek.store.defaultCalendarForNewEvents
+        let selector = try Args.string(a["calendar"], "calendar", required: false)
+        ek.store.refreshSourcesIfNecessary()
+        let calendars = ek.store.calendars(for: .event)
+        let id = try CalendarSelection.resolve(selector: selector,
+            defaultID: ek.store.defaultCalendarForNewEvents?.calendarIdentifier,
+            calendars: calendars.map(CalendarChoice.init))
+        guard let cal = calendars.first(where: { $0.calendarIdentifier == id }) else {
+            throw ToolError(.targetNotFound, "日历已变化，请调用 calendar_list_calendars 后重新选择")
         }
-        guard let cal else { throw ToolError(.targetNotFound, "找不到目标日历") }
-        guard cal.allowsContentModifications else { throw ToolError(.targetReadOnly, "日历「\(cal.title)」只读") }
         return cal
     }
 

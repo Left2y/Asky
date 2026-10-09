@@ -47,7 +47,7 @@ public struct NativeTools: Sendable {
 
     public func adapters(memories: MemoryStore?) -> [any ToolAdapter] {
         var all: [any ToolAdapter] = [
-            CalendarSearchTool(eventKit), CalendarCreateTool(eventKit), CalendarUpdateTool(eventKit), CalendarDeleteTool(eventKit),
+            CalendarListTool(eventKit), CalendarSearchTool(eventKit), CalendarCreateTool(eventKit), CalendarUpdateTool(eventKit), CalendarDeleteTool(eventKit),
             RemindersListTool(eventKit), RemindersCreateTool(eventKit),
             NotesSearchTool(notes), NotesReadTool(notes), NotesCreateTool(notes), NotesAppendTool(notes),
             ContactsSearchTool(contacts), MessagesDraftTool(contacts),

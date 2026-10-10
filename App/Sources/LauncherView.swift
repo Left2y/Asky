@@ -192,25 +192,6 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // Render only the outside shadow from an opaque silhouette: the
-            // translucent background must not weaken the requested 12% opacity.
-            shellShape.fill(.black)
-                .shadow(color: .black.opacity(0.12), radius: LauncherLayout.shadowRadius,
-                        x: 0, y: LauncherLayout.shadowOffsetY)
-                .padding(LauncherLayout.shadowPadding)
-                .mask {
-                    Rectangle().overlay {
-                        shellShape.fill(.black)
-                            .padding(LauncherLayout.shadowPadding)
-                            .blendMode(.destinationOut)
-                    }
-                    .compositingGroup()
-                }
-                .padding(-LauncherLayout.shadowPadding)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-        .background {
             // A normal alpha fill preserves both theme modes without re-blending
             // pixels sampled from windows behind this transparent panel.
             shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
@@ -229,6 +210,24 @@ struct LauncherView: View {
                 .accessibilityHidden(true)
         }
         .padding(LauncherLayout.shadowPadding)
+        .background {
+            // Keep the shadow outside glassEffect's compositing subtree and draw
+            // directly in the padded canvas, without negative layout padding.
+            shellShape.fill(.black)
+                .padding(LauncherLayout.shadowPadding)
+                .shadow(color: .black.opacity(0.12), radius: LauncherLayout.shadowRadius,
+                        x: 0, y: LauncherLayout.shadowOffsetY)
+                .mask {
+                    Rectangle().overlay {
+                        shellShape.fill(.black)
+                            .padding(LauncherLayout.shadowPadding)
+                            .blendMode(.destinationOut)
+                    }
+                    .compositingGroup()
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

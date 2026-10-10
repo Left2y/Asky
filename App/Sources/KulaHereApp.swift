@@ -83,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let settingsWindow, settingsWindow.isVisible {
             windowPresentation.show(settingsWindow)
         } else {
-            agentWindow?.show()
+            openLauncher()
         }
         return true
     }

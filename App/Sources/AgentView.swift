@@ -408,7 +408,7 @@ private struct Composer: View {
                     }
                     .padding(.horizontal, 12).padding(.vertical, 4)
                 }
-                .scrollIndicators(.hidden).frame(height: 52)
+                .scrollIndicators(.hidden).frame(height: 66)
             }
             ZStack(alignment: .topLeading) {
                 if model.draft.isEmpty && !editorFocused {

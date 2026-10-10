@@ -104,7 +104,7 @@ AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 �
 
 颜色已同步至 2026-10-10 Figma Colors：浅背景为 6%，输入背景为 8%，搜索结果与历史行使用 Light 6% / Dark 8% 的悬停色。见[颜色同步验证](docs/validation/2026-10-10-colors.md)。
 
-AI 对话输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件；点击附件按钮直接打开系统文件选择器，也可拖入文件。附件在输入框顶部横向滚动展示：图片为 1:1 缩略图，文件显示名称与大小；悬停或键盘聚焦删除按钮后可移除。`Return` 发送，`Shift Return` 换行；仅有附件时也可发送。图像理解取决于所配置模型，普通二进制文件的内容解析仍受 Runtime 支持范围限制。
+AI 对话输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件；点击附件按钮直接打开系统文件选择器，也可拖入文件。附件在输入框顶部横向滚动展示：图片为 1:1 缩略图，文件显示名称与大小；悬停或键盘聚焦删除按钮后可移除。附件卡片按 [Figma UploadFile 42:852](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=42-852) 使用 52 pt 高度，删除按钮悬于右上角外侧；文件图标使用 44 pt 描边底框，文件名左对齐并在末尾省略。`Return` 发送，`Shift Return` 换行；仅有附件时也可发送。图像理解取决于所配置模型，普通二进制文件的内容解析仍受 Runtime 支持范围限制。
 
 AI 回复通过 MarkdownUI 2.4.1 渲染 Markdown，支持列表、标题、引用、代码块和表格，保留文本选择及明暗主题；历史对话使用相同渲染器。Markdown 图片显示占位符，不自动读取图片地址。Xcode 首次构建会通过 SwiftPM 下载该依赖。见[Markdown 验证记录](docs/validation/2026-10-10-chat-markdown.md)。
 
@@ -215,7 +215,7 @@ AI conversations follow the updated Figma new chat 43:1071, conversation 42:760,
 
 Colors follow the 2026-10-10 Figma Colors update: subtle backgrounds use 6% opacity, input backgrounds use 8%, and search results and history rows use a hover color at 6% in Light mode and 8% in Dark mode. See the [color synchronization validation](docs/validation/2026-10-10-colors.md).
 
-The AI composer accepts text, images, or Finder files directly with `⌘V`. Clicking the attachment button opens the system file picker directly; files can also be dropped. Attachments scroll horizontally above the text: images use square thumbnails, and files show their name and size. Hover or focus the delete button with the keyboard to remove an attachment. `Return` sends and `Shift Return` inserts a newline; attachments can also be sent without text. Image understanding depends on the configured model, and binary file parsing remains limited by Runtime support.
+The AI composer accepts text, images, or Finder files directly with `⌘V`. Clicking the attachment button opens the system file picker directly; files can also be dropped. Attachments scroll horizontally above the text: images use square thumbnails, and files show their name and size. Hover or focus the delete button with the keyboard to remove an attachment. Cards follow [Figma UploadFile 42:852](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=42-852) with a 52 pt height and a delete button overhanging the top-right corner. Files use a 44 pt bordered icon tile and a left-aligned filename with tail truncation. `Return` sends and `Shift Return` inserts a newline; attachments can also be sent without text. Image understanding depends on the configured model, and binary file parsing remains limited by Runtime support.
 
 AI replies use MarkdownUI 2.4.1 to render Markdown lists, headings, blockquotes, code blocks, and tables, with selectable text and light/dark themes. Reopened history uses the same renderer. Markdown images display placeholders without loading their URLs. The first Xcode build downloads this dependency through SwiftPM. See the [Markdown validation record](docs/validation/2026-10-10-chat-markdown.md).
 

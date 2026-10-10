@@ -231,7 +231,8 @@ final class LauncherModel {
 
     private func publish() {
         var merged = direct + ResultMerger.merge(batches, limit: 40)
-        if commandInput == nil, let ask = router.askAIResult(for: query) { merged.append(ask) }
+        if commandInput == nil, !merged.contains(where: { $0.source == .askAI }),
+           let ask = router.askAIResult(for: query) { merged.append(ask) }
         let order: [SearchSource] = [.link, .app, .file, .bookmark, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
         merged = order.flatMap { source in merged.filter { $0.source == source } }
         results = merged

@@ -60,5 +60,36 @@ import DirectActions
         let ai = router.askAIResult(for: "Safari")
         #expect(ai?.source == .askAI)
         #expect(ai?.actions == [.askAI(prompt: "Safari")])
+        #expect(ai?.subtitle == "")
+    }
+
+    @Test(arguments: ["帮我梳理一下日程", "帮我安排明天下午的工作", "请问明天有什么安排", "怎么安排今天的工作", "今天有会议吗？", "help me plan my day", "How can I organize my calendar?"])
+    func conversationalRequestsPrepareAIAction(_ prompt: String) {
+        let route = router.route(prompt)
+        #expect(route == .conversation(prompt: prompt))
+        #expect(!router.includesSearch(route))
+        let rows = router.directResults(for: route)
+        #expect(rows.count == 1)
+        #expect(rows.first?.source == .askAI)
+        #expect(rows.first?.primaryAction == .askAI(prompt: prompt))
+    }
+
+    @Test(arguments: ["日程", "日程安排.pdf", "Calendar", "kimi", "Safari", "https://example.com/help", "ls -la"])
+    func namesAndFragmentsStayLocal(_ query: String) {
+        #expect(router.route(query) == .search(query: query))
+    }
+
+    @Test func explicitCommandsTakePriorityOverConversation() {
+        guard case .keyword(_, let query) = router.route("go 帮我梳理一下日程") else {
+            Issue.record("explicit keyword must win"); return
+        }
+        #expect(query == "帮我梳理一下日程")
+        #expect(router.route("> explain command") == .terminal(command: "explain command"))
+        let custom = IntentRouter(keywords: KeywordRegistry(commands: [
+            KeywordCommand(keyword: "please", name: "Search", urlTemplate: "https://example.com/?q={query}")
+        ]))
+        guard case .keyword = custom.route("please help me plan") else {
+            Issue.record("custom keyword must win"); return
+        }
     }
 }

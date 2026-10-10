@@ -28,4 +28,4 @@ command += ["-lsqlite3", "-o", str(binary)]
 environment = os.environ.copy()
 environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 subprocess.run(command, env=environment, cwd=root, check=True)
-subprocess.run([str(binary)], env=environment, cwd=root, check=True)
+subprocess.run([str(binary), *sys.argv[1:]], env=environment, cwd=root, check=True)

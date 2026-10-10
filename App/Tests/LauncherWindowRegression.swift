@@ -33,7 +33,11 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    try await checkWindow()
+                    if CommandLine.arguments.contains("--ai-routing") {
+                        try await checkAIRouting()
+                    } else {
+                        try await checkWindow()
+                    }
                     print("appearance=\(appearance.rawValue) passed")
                 }
                 print("LauncherWindow native regression checks passed")
@@ -49,6 +53,42 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private static func checkAIRouting() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-routing-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [
+            WindowSearchProvider(source: .app, delay: .milliseconds(300), count: 8),
+            WindowSearchProvider(source: .bookmark, delay: .milliseconds(10), count: 4),
+        ])
+        var submitted: [String] = []
+        model.onAskAI = { submitted.append($0) }
+        let controller = LauncherController(model: model)
+        controller.show()
+        defer { controller.hide() }
+        let prompt = "帮我梳理一下日程"
+        model.query = "Safari"
+        try await Task.sleep(for: .milliseconds(150))
+        model.query = prompt
+        try require(submitted.isEmpty, "typing must not submit AI")
+        try require(model.results.count == 1 && model.results[0].source == .askAI,
+                    "conversation must show only the AI action, with no bookmark fallback")
+        try require(model.selection == 0 && !model.isSearching, "AI must be the default selection")
+        try require(model.results[0].subtitle.isEmpty, "AI row must have no shortcut subtitle")
+        try await Task.sleep(for: .milliseconds(450))
+        try require(model.results.count == 1, "cancelled local batches must not replace the AI selection")
+        model.submit(.executeSelection)
+        try require(submitted == [prompt], "ordinary Return must hand the prompt to AI once")
+        model.query = "kimi"
+        try await Task.sleep(for: .milliseconds(450))
+        try require(model.results.first?.source == .app, "bare names must keep local search first")
+        try require(model.results.filter { $0.source == .askAI }.count == 1, "local search retains one AI action")
+        model.query = "go " + prompt
+        try require(model.commandInput != nil && model.results.first?.source == .keyword,
+                    "explicit keyword must keep its command result")
+        print("AI default selection, Return handoff, no subtitle, cancelled batches and explicit scopes passed")
     }
 
     private static func searchField(in view: NSView) -> NSTextField? {

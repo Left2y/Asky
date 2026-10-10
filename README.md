@@ -32,6 +32,8 @@ V1 规划包含三个层次：
 
 普通搜索中的链接与「搜索书签」入口统一放在「APP 应用」分组，不单独显示链接或书签分类。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
 
+明确的自然语言请求（例如“帮我梳理一下日程”）通过本地规则显示并默认选中 AI 条目，按 `Return` 进入对话；输入时不调用模型。应用名与文件片段仍走本地搜索，显式关键词与 `bm ` 书签模式优先。AI 条目只显示标题，不显示提交快捷键副标题；普通搜索也可选中 AI 条目后按回车，`⌘ Return` 继续作为快捷提交。
+
 书签搜索结果显示系统默认浏览器的应用图标（例如 Chrome），与打开该链接的浏览器一致。
 
 ### 文档
@@ -83,6 +85,7 @@ build/launcher-input-regression
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
+python3 App/Tests/run-launcher-window-regression.py --ai-routing
 ```
 
 此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。滚动穿透回归另起独立进程的可滚动测试窗口，通过系统投递合成滚动事件；此项需要已授予的 macOS 输入事件投递权限，不会自动请求授权。
@@ -139,6 +142,8 @@ A standalone local MCP shares native tools with the application, requires separa
 
 Ordinary search groups links and the “Search bookmarks” entry under “APP 应用”, without separate Link or Bookmark categories. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
 
+Explicit natural-language requests (such as “帮我梳理一下日程”) use local rules to show and select the AI action by default; `Return` opens the conversation. Typing does not call a model. App names and file fragments remain local searches, and explicit keywords and the `bm ` bookmark scope take priority. AI rows show only a title, without a submission-shortcut subtitle. In ordinary search, selecting the AI row and pressing Return also submits it; `⌘ Return` remains available as a shortcut.
+
 Bookmark search results display the system default browser’s application icon (such as Chrome), matching the browser that opens the link.
 
 ### Documentation
@@ -185,6 +190,7 @@ Search-window geometry regression (after the Debug build above; do not run concu
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
+python3 App/Tests/run-launcher-window-regression.py --ai-routing
 ```
 
 The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers. The scroll-through regression launches a separate process with a scrollable test window and posts synthetic scrolling through the system. It requires existing macOS input-event posting permission and never requests authorization automatically.

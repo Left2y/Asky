@@ -10,6 +10,8 @@ public enum Route: Sendable, Equatable {
     case currency(CurrencyQuery)
     case keyword(KeywordCommand, query: String)
     case terminal(command: String)
+    /// An explicit conversational request; typing only prepares the AI action.
+    case conversation(prompt: String)
     case search(query: String)
 }
 
@@ -25,7 +27,7 @@ public struct IntentRouter: Sendable {
 
     public init(keywords: KeywordRegistry = KeywordRegistry()) { self.keywords = keywords }
 
-    /// Priority: explicit terminal → calculation → unit / currency → keyword → search.
+    /// Priority: explicit terminal → calculation → unit / currency → keyword → conversation → search.
     public func route(_ raw: String) -> Route {
         let input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if input.isEmpty { return .empty }
@@ -37,28 +39,45 @@ public struct IntentRouter: Sendable {
         if let c = UnitConverter.convert(input) { return .conversion(c) }
         if let q = CurrencyQuery.parse(input) { return .currency(q) }
         if let (cmd, q) = keywords.match(input) { return .keyword(cmd, query: q) }
+        if Self.isConversation(input) { return .conversation(prompt: input) }
         return .search(query: input)
+    }
+
+    /// Conservative local cues: names and fragments remain search queries.
+    /// Explicit commands are resolved first and never overridden by these cues.
+    private static func isConversation(_ input: String) -> Bool {
+        let text = input.lowercased()
+        let requests = ["帮我", "帮忙", "请帮", "请问", "请解释", "请总结", "请分析", "请整理", "请安排", "请翻译",
+                        "如何", "怎么", "为什么", "能否", "能不能", "可不可以"]
+        if requests.contains(where: { text.hasPrefix($0) && text.count > $0.count }) { return true }
+        let english = ["help me ", "please ", "how do ", "how can ", "how to ", "why does ", "why is ",
+                       "what is ", "what are ", "can you ", "could you ", "summarize ", "explain ", "translate "]
+        if english.contains(where: { text.hasPrefix($0) && text.count > $0.count }) { return true }
+        return text.count > 3 && (text.hasSuffix("吗") || text.hasSuffix("吗？") || text.hasSuffix("吗?"))
     }
 
     /// Whether the route should also run search providers alongside its direct result.
     public func includesSearch(_ route: Route) -> Bool {
         switch route {
         case .search: true
-        case .empty, .terminal, .calculation, .conversion, .currency, .keyword: false
+        case .empty, .terminal, .calculation, .conversion, .currency, .keyword, .conversation: false
         }
     }
 
-    /// The "Ask AI" result always appended for non-empty input. It is an action, not an automatic call.
+    /// Builds an AI action for non-empty input, without making a model call.
     public func askAIResult(for raw: String) -> SearchResult? {
         let input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return nil }
         return SearchResult(source: .askAI, target: TargetRef(kind: "ai", identifier: "ask"),
-                            title: "询问 AI：\(input)", subtitle: "⌘↩ 提交给 AI", actions: [.askAI(prompt: input)], score: -1)
+                            title: "询问 AI：\(input)", actions: [.askAI(prompt: input)], score: -1)
     }
 
     /// Builds direct-result rows for a non-search route (currency is resolved asynchronously by the caller).
     public func directResults(for route: Route) -> [SearchResult] {
         switch route {
+        case .conversation(let prompt):
+            guard let result = askAIResult(for: prompt) else { return [] }
+            return [result]
         case .calculation(let expr, let v):
             let s = Calculator.format(v)
             return [SearchResult(source: .calculator, target: TargetRef(kind: "calc", identifier: expr),

@@ -405,7 +405,7 @@ private struct ChatBubble: View {
         .task(id: copyFeedbackID) {
             guard let feedbackID = copyFeedbackID else { return }
             do {
-                try await Task.sleep(for: .seconds(3))
+                try await Task.sleep(for: .milliseconds(800))
             } catch {
                 return
             }

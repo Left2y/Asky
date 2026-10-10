@@ -11,6 +11,11 @@ private enum LauncherLayout {
     static let inputTrailingPadding: CGFloat = 20
     static let inputSpacing: CGFloat = 12
     static let searchIconSize: CGFloat = 17
+    // Figma blur 80 maps to a 40 pt shadow radius. Reserve three radii
+    // around the shell so the transparent NSPanel does not clip the falloff.
+    static let shadowRadius: CGFloat = 40
+    static let shadowOffsetY: CGFloat = 12
+    static let shadowPadding: CGFloat = 132
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
     static let rowHeight: CGFloat = 44
@@ -25,7 +30,9 @@ final class LauncherPanel: NSPanel {
     var onEscape: () -> Void = {}
 
     init() {
-        super.init(contentRect: NSRect(x: 0, y: 0, width: WindowMetrics.launcherWidth, height: LauncherLayout.inputHeight),
+        super.init(contentRect: NSRect(x: 0, y: 0,
+                                      width: WindowMetrics.launcherWidth + LauncherLayout.shadowPadding * 2,
+                                      height: LauncherLayout.inputHeight + LauncherLayout.shadowPadding * 2),
                    styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
                    backing: .buffered, defer: true)
         isFloatingPanel = true
@@ -33,8 +40,7 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        // Liquid Glass supplies a shape-aware shadow; the borderless panel's
-        // rectangular shadow otherwise shows through at the capsule corners.
+        // The SwiftUI shell supplies the shadow; avoid a rectangular window shadow.
         hasShadow = false
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
@@ -88,14 +94,17 @@ final class LauncherController {
         // Screen with the mouse pointer (multi-display), upper third.
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
-            let w = WindowMetrics.launcherWidth
-            panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2, y: f.maxY - f.height * 0.22))
+            let w = WindowMetrics.launcherWidth + LauncherLayout.shadowPadding * 2
+            panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
+                                              y: f.maxY - f.height * 0.22 + LauncherLayout.shadowPadding))
         }
         panel.makeKeyAndOrderFront(nil)
     }
 
     private func resize(to contentHeight: CGFloat) {
-        let height = min(WindowMetrics.launcherMaxHeight, max(LauncherLayout.inputHeight, ceil(contentHeight)))
+        let shadowSpace = LauncherLayout.shadowPadding * 2
+        let height = min(WindowMetrics.launcherMaxHeight + shadowSpace,
+                         max(LauncherLayout.inputHeight + shadowSpace, ceil(contentHeight)))
         var frame = panel.frame
         guard frame.height != height else { return }
         // AppKit's origin is at the bottom left. Keep the input anchored while expanding down.
@@ -183,6 +192,25 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
+            // Render only the outside shadow from an opaque silhouette: the
+            // translucent background must not weaken the requested 12% opacity.
+            shellShape.fill(.black)
+                .shadow(color: .black.opacity(0.12), radius: LauncherLayout.shadowRadius,
+                        x: 0, y: LauncherLayout.shadowOffsetY)
+                .padding(LauncherLayout.shadowPadding)
+                .mask {
+                    Rectangle().overlay {
+                        shellShape.fill(.black)
+                            .padding(LauncherLayout.shadowPadding)
+                            .blendMode(.destinationOut)
+                    }
+                    .compositingGroup()
+                }
+                .padding(-LauncherLayout.shadowPadding)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .background {
             // A normal alpha fill preserves both theme modes without re-blending
             // pixels sampled from windows behind this transparent panel.
             shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
@@ -200,6 +228,7 @@ struct LauncherView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
+        .padding(LauncherLayout.shadowPadding)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

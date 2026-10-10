@@ -11,6 +11,8 @@ struct LauncherSearchField: NSViewRepresentable {
     var placeholderColor: NSColor? = nil
     var backspaceOnEmpty: () -> Bool
     var move: (Int) -> Void
+    /// When set, ←/→ switch items instead of moving the caret.
+    var moveHorizontal: ((Int) -> Void)? = nil
     var submit: (Bool) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -85,6 +87,10 @@ struct LauncherSearchField: NSViewRepresentable {
                 return true
             case #selector(NSResponder.moveDown(_:)):
                 parent.move(1)
+                return true
+            case #selector(NSResponder.moveLeft(_:)), #selector(NSResponder.moveRight(_:)):
+                guard let moveHorizontal = parent.moveHorizontal else { return false }
+                moveHorizontal(selector == #selector(NSResponder.moveLeft(_:)) ? -1 : 1)
                 return true
             case #selector(NSResponder.insertNewline(_:)),
                  #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)):

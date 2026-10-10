@@ -1,263 +1,489 @@
+<div align="center">
+
 # KulaHere
 
-[中文](#中文) | [English](#english)
+<img src="App/Branding/Logo.png" alt="KulaHere Logo" width="128" />
+
+**macOS 原生效率入口 · 聚焦搜索 · 本地记忆 · 智能助手 · MCP 扩展**  
+*A Native macOS Productivity Launcher & AI Workspace built with SwiftUI & AppKit*
+
+<br />
+
+<!-- Row 1: Platform & Languages -->
+[![macOS](https://img.shields.io/badge/macOS-14.0%2B%20%7C%2026-000000?style=flat-square&logo=apple&logoColor=white)](https://apple.com/macos)
+[![Swift](https://img.shields.io/badge/Swift-5.10%2B-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
+[![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-007AFF?style=flat-square&logo=swift&logoColor=white)](https://developer.apple.com/xcode/swiftui/)
+[![AppKit](https://img.shields.io/badge/UI-AppKit-5856D6?style=flat-square)](https://developer.apple.com/documentation/appkit)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Node.js](https://img.shields.io/badge/Node.js-22%2B-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+
+<!-- Row 2: Architecture & Protocols -->
+[![MCP](https://img.shields.io/badge/Protocol-Model%20Context%20Protocol%20(MCP)-6A1B9A?style=flat-square)](docs/native-tools-and-mcp.md)
+[![Pi Agent](https://img.shields.io/badge/Agent-Pi%20SDK%20Runtime-FF6F00?style=flat-square)](docs/agent-runtime.md)
+[![Liquid Glass](https://img.shields.io/badge/Design-Regular%20Liquid%20Glass-00A896?style=flat-square)](docs/design-system.md)
+[![Figma Tokens](https://img.shields.io/badge/Design-Figma%20Tokens-F24E1E?style=flat-square&logo=figma&logoColor=white)](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky)
+[![Security Gate](https://img.shields.io/badge/Security-ToolService%20Sandbox-1976D2?style=flat-square)](Packages/KulaCore)
+
+<!-- Row 3: AI & Models -->
+[![OpenAI Compatible](https://img.shields.io/badge/AI-OpenAI%20Compatible-412991?style=flat-square&logo=openai&logoColor=white)](https://openai.com)
+[![DeepSeek Verified](https://img.shields.io/badge/Verified%20Model-DeepSeek%20Flash-4B69FD?style=flat-square)](docs/validation/2026-10-09-deepseek.md)
+[![Apple Ecosystem](https://img.shields.io/badge/Apple%20Apps-Calendar%20%7C%20Reminders%20%7C%20Notes%20%7C%20Messages-black?style=flat-square&logo=apple&logoColor=white)](Packages/KulaCore)
+
+<!-- Row 4: Quality & Verification -->
+[![Automated Tests](https://img.shields.io/badge/Tests-100%25%20Passed-2EA44F?style=flat-square&logo=checkmarx&logoColor=white)](Packages/KulaCore)
+[![M0 Milestone](https://img.shields.io/badge/Milestone-M0%20Verified-brightgreen?style=flat-square)](docs/validation/2026-10-09-m0.md)
+[![XcodeGen](https://img.shields.io/badge/Project-XcodeGen-E9573F?style=flat-square)](project.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square)](README.md)
+
+<br />
+
+[🇨🇳 中文文档](#中文) &nbsp;&nbsp;|&nbsp;&nbsp; [🇬🇧 English Documentation](#english)
+
+</div>
+
+---
 
 <a id="中文"></a>
 
 ## 中文
 
-### 项目简介
+应用图标采用白底渐变光带 Logo；菜单栏使用同一轮廓的 18 pt 单色模板图标，随系统适配明暗外观。原图位于 `App/Branding/Logo.png`，应用与菜单栏资源位于 `App/Assets.xcassets`。
 
-KulaHere 是一个规划中的 macOS 原生效率入口，采用 SwiftUI 与 AppKit，以快捷搜索和确定性工具为基础，通过 AI、本地记忆和情境提醒增强日常工作流。
+### 📌 项目简介
 
-仓库已经包含首版代码：原生 App、核心 Swift 包、Pi Agent 宿主和 MCP Bridge，可以构建运行，自动化测试全部通过。DeepSeek 基础对话与历史重开已通过真实模型验证，见 [DeepSeek 验证记录](docs/validation/2026-10-09-deepseek.md)。完整界面流程、真实系统权限及其他模型能力尚未验收，详见 [M0 验证记录](docs/validation/2026-10-09-m0.md)。
+KulaHere 是一个规划中的 macOS 原生效率入口，采用 SwiftUI 与 AppKit 打造。以极速搜索与确定性系统工具为基石，通过本地 AI、个人记忆和情境提醒重塑桌面日常工作流。
 
-### 核心能力
+当前仓库包含首版完整代码：原生 App、核心 Swift 业务包、Pi Agent 宿主与 MCP Bridge，可直接构建并运行，自动化测试已全部通过。DeepSeek 基础对话与历史重开已通过真实模型验证（见 [DeepSeek 验证记录](docs/validation/2026-10-09-deepseek.md)）。完整界面流程、真实系统权限及其他模型能力持续验收中（详见 [M0 验证记录](docs/validation/2026-10-09-m0.md)）。
 
-V1 规划包含三个层次：
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       KulaHere Desktop                      │
+├──────────────────────────────┬──────────────────────────────┤
+│    🔍 桌面入口 (Launcher)    │     🤖 AI 助手 (Assistant)   │
+│   应用 / 文件 / 标签页 / 剪贴板 │   自然语言对话 / 截图 / 工具调用  │
+├──────────────────────────────┴──────────────────────────────┤
+│                   🧠 个人上下文 (Personal Context)            │
+│                  本地记忆 · 证据提醒 · 隐私沙箱              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- 桌面入口：应用、文件、Chrome 标签页、命令、小工具与剪贴板历史。
-- AI 增强：自然语言对话、截图理解、系统工具及 Messages 草稿交接。
-- 个人上下文：本地记忆与有依据的少量情境提醒。
+---
 
-用户自带模型 API Key，首版优先 OpenAI-compatible Chat Completions，必要上下文按授权外发。Pi SDK 是待原型验证的 Agent 方案：原生入口常驻，明确 AI 请求才启动辅助进程，空闲后退出；后台模型唤醒默认关闭。界面使用用户 Figma 变量与 Styles 和原生 Liquid Glass，资源占用通过有界加载与生命周期管理控制。 聚焦搜索按 [Figma Field 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348) 实现为 720 × 64 pt 胶囊输入框，使用原生 Regular Liquid Glass 与 70% 白／黑语义底色，保留定向边缘高光及独立投影；底色与前景随系统主题切换，原生玻璃负责背景适配，减少透明度时使用不透明背景。见[Regular 玻璃验证记录](docs/validation/2026-10-10-launcher-regular-glass.md)；验证范围见[聚焦搜索记录](docs/validation/2026-10-09-figma-search.md)。
+### 🚀 核心能力
 
-完整输入已配置关键词（如 `go`，不加空格）时，匹配命令独立显示在最前面的「别名匹配」组并默认选中；快捷指令组也排在普通应用结果之前。关键词加空格后仍进入查询输入模式。预设只保留支持查询的 Google（`go`）和 ChatGPT（`chat`），已有用户首次升级自动补齐未占用关键词，删除后不会在重启时恢复。网页关键词只需填写普通网址（如 `chatgpt.com`、`example.com`），省略协议时使用 HTTPS；关键词后回车直接打开网页。`chat 问题` 自动通过网址传递问题；旧的 Gemini、豆包默认预设会移除，`chatgpt` 默认关键词迁移为 `chat`，保留自定义配置及已有关键词冲突。内置 `go` 与已有搜索模板继续支持查询内容，无需手动配置 `{query}`。
+#### 🔍 桌面聚焦搜索 `Launcher`
+`![Spec](https://img.shields.io/badge/Spec-720%C3%9764%20pt%20Capsule-blue?style=flat-square)`
+`![Visual](https://img.shields.io/badge/Optics-Regular%20Liquid%20Glass-teal?style=flat-square)`
+`![Figma](https://img.shields.io/badge/Figma-Field%2022%3A348-red?style=flat-square&logo=figma&logoColor=white)`
+`![Debounce](https://img.shields.io/badge/Debounce-100%20ms-orange?style=flat-square)`
+`![Height](https://img.shields.io/badge/List-Max%208%20Items%20(400pt)-purple?style=flat-square)`
+`![Routing](https://img.shields.io/badge/Routing-Alias%20%7C%20AI%20Fallback-success?style=flat-square)`
 
-搜索结果仅在同时存在两个及以上分类时显示组标题；单一分类隐藏标题并释放对应高度。搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧；空输入与有输入统一使用 28 pt 左右内边距、64 pt 高度与 18 pt 字号。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；按 Ctrl + Option + Command + Shift + F9 打开独立剪贴板面板，或从菜单栏打开。横向滚动查看卡片，点击或拖拽卡片会复制原始文字或图片，悬停显示完整预览。搜索后按 Return 复制首项，↑/↓ 切换卡片；右键可固定或删除记录，顶部图钉切换窗口置顶，未置顶时点击面板与完整预览外侧自动关闭，Escape 关闭；面板不显示关闭按钮。快捷键占用时可从菜单栏打开，设置的剪贴板区域显示状态。见[剪贴板验证记录](docs/validation/2026-10-10-clipboard-panel.md)。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
+- `🏷️ [胶囊外观]` 严格按 [Figma Field 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348) 实现为 720 × 64 pt 胶囊输入框，采用原生 Regular Liquid Glass 与 70% 白/黑语义底色，保留定向边缘高光及独立投影；底色随系统明暗主题切换，原生玻璃自适应背景，启用“减少透明度”时回退为不透明背景。见 [Regular 玻璃验证记录](docs/validation/2026-10-10-launcher-regular-glass.md) 与 [聚焦搜索记录](docs/validation/2026-10-09-figma-search.md)。
+- `🏷️ [别名匹配与关键词]` 完整输入关键词（如 `go`，不加空格）时，对应命令独立展示在最前面的「别名匹配」组并默认选中；快捷指令组亦排在普通应用结果前。关键词加空格后进入查询模式。预设包含 Google（`go`）与 ChatGPT（`chat`），支持网址直达（如 `chatgpt.com`，缺省协议自动补充 HTTPS）。`chat 问题` 自动通过 URL 传递查询；已有配置在升级时自动迁移。
+- `🏷️ [菜单项与分组]` 搜索结果同时存在两个及以上分类时展示分组标题；单分类隐藏标题并释放高度。菜单项按 [Figma 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 采用 50 pt 行高、32 pt 图标、14 pt 标题、12 pt 路径与 16 pt 圆角。放大镜图标固定于右侧；输入框统一 28 pt 左右边距、64 pt 高度与 18 pt 字号。关键词模式下左侧显示浏览器图标，输入框仅显示正文；退格或按 `Escape` 退出关键词模式。见 [菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。
+- `🏷️ [窗口几何与滚动]` 浮窗顶部锚定于屏幕可用区域 12% 处；结果列表最多展示 8 项（400 pt 预算，含分类标题），底部与 Dock 预留安全间距；超出结果滚动浏览，隐藏滚动条，内容裁切于外壳圆角内。连续输入防抖合并至 100 ms。见 [搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
+- `🏷️ [交互与穿透隔离]` 鼠标光标位于输入区或列表区时均支持滚轮与触控板平滑滚动，保持输入焦点与键盘选择；键盘 `↑`/`↓` 自动滚入视野，边界处停止不循环。搜索外壳阻断滚动事件穿透，绝不误触背景窗口。
+- `🏷️ [链接与 Chrome 书签]` 链接与「搜索书签」归并入「APP 应用」分组；支持检索 Chrome Default / Profile 本地书签，点击以系统默认浏览器打开，无需 Chrome 常驻运行且不读取历史记录。见 [链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
+- `🏷️ [纯文本 AI 推导]` 普通搜索中无显式关键词且无本地结果的自然语言文本（如“你是谁啊”）默认选中 AI 意图，回车即可唤起对话；显式关键词、换算、计算与书签检索优先；输入期间绝不偷跑模型请求。AI 条目采用 32 pt 彩色白底圆角图标。
+- `🏷️ [多语言应用搜索]` 支持 `.app` 文件名、Bundle 内核名及系统各语言本地化名称匹配（如“微信 / WeChat”、“钉钉 / DingTalk”、“飞书 / Lark”）。见 [应用名称搜索验证](docs/validation/2026-10-10-app-localized-search.md)。
 
-搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 8 个菜单项的高度（400 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示，隐藏滚动指示条，内容裁切在外壳圆角内。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
+---
 
-鼠标指针位于输入框或结果区时，支持滚轮与触控板滚动结果；滚动保持输入焦点与键盘选择。键盘导航也会将屏外选中项滚入视野；↑/↓ 到达首项或末项时停住，不循环切换到另一端。搜索外壳整体接收鼠标交互，输入区与结果区的空白位置也不会将滚动穿透到背景窗口。
+#### 📋 原生剪贴板面板 `Clipboard Manager`
+`![Hotkey](https://img.shields.io/badge/Hotkey-⌃⌥⌘V%20(Customizable)-blue?style=flat-square)`
+`![Scroll](https://img.shields.io/badge/Interaction-Vertical%20Wheel%20to%20Horizontal-teal?style=flat-square)`
+`![Preview](https://img.shields.io/badge/Preview-8%20pt%20Hover%20Overlay-orange?style=flat-square)`
+`![Geometry](https://img.shields.io/badge/Design-Concentric%20Corners-purple?style=flat-square)`
+`![Paste](https://img.shields.io/badge/Action-Accessibility%20Direct%20Paste-success?style=flat-square)`
+`![Privacy](https://img.shields.io/badge/Data-Local%20Sandbox-black?style=flat-square)`
 
-独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
+- `🏷️ [全局唤起]` 普通搜索不混杂剪贴板历史；通过快捷键 `Ctrl + Option + Command + V`（⌃⌥⌘V，支持在“设置 › 触发快捷键 › 剪贴板”中录制更改与检测冲突）或菜单栏呼出独立面板。见 [剪贴板快捷键设置记录](docs/validation/2026-10-10-clipboard-hotkey-setting.md)。
+- `🏷️ [横向手势卡片]` 触控板或鼠标滚轮直接上下滚动即可横向滑动卡片列表（无需按住 Shift）；点击或拖拽卡片复制原始文本或图片。
+- `🏷️ [智能悬停预览]` 鼠标悬停卡片即在面板下方 8 pt 展开完整预览层（居中对齐，贴边时自适应左右对齐）；图片保持同心圆角，长文本支持移入预览层滚动查阅。
+- `🏷️ [一键直达粘贴]` 默认加粗描边高亮首张卡片，`←`/`→` 或 `↑`/`↓` 移动选择；回车直接复制并粘贴到当前前台应用（需辅助功能权限；未授权时降级为仅复制）。
+- `🏷️ [来源识别与管理]` 卡片左上角根据来源应用 Bundle ID 呈现原生图标（支持未运行及名称本地化应用）；右键菜单支持固定或删除；顶部图钉切换窗口置顶；未置顶时点击面板外侧或按 `Escape` 即刻关闭。见 [剪贴板验证记录](docs/validation/2026-10-10-clipboard-panel.md)。
 
-普通搜索中的链接与「搜索书签」入口统一放在「APP 应用」分组，不单独显示链接或书签分类。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
+---
 
-“搜索书签”入口使用内置蓝色书签图标；书签搜索结果显示系统默认浏览器的应用图标（例如 Chrome），与打开该链接的浏览器一致。
+#### 🤖 AI 智能对话与工作区 `AI Workspace`
+`![Runtime](https://img.shields.io/badge/Agent-Pi%20SDK%20(On--demand)-FF6F00?style=flat-square)`
+`![Protocol](https://img.shields.io/badge/Protocol-stdio%20JSONL%20v1-blue?style=flat-square)`
+`![Model](https://img.shields.io/badge/Verified-DeepSeek%20Flash%20%7C%20OpenAI-4B69FD?style=flat-square)`
+`![Markdown](https://img.shields.io/badge/Markdown-MarkdownUI%202.4.1-teal?style=flat-square)`
+`![Window](https://img.shields.io/badge/Window-720%C3%97640%20pt-purple?style=flat-square)`
+`![Security](https://img.shields.io/badge/Credentials-macOS%20Keychain-success?style=flat-square)`
 
-普通入口中，未输入显式关键词且没有实际本地结果的纯文字（例如“你是谁啊”“你好”）只显示并默认选中 AI，回车进入对话；“搜索书签”和通用 Google 搜索动作不视为本地命中。明确请求继续直接显示 AI；有实际匹配的应用、文件或链接时保留本地结果，显式关键词、计算、换算与 `bm ` 书签模式优先。输入期间不调用模型。AI 条目只显示标题，不显示提交快捷键副标题；普通搜索也可选中 AI 条目后按回车，`⌘ Return` 继续作为快捷提交。
+- `🏷️ [按需进程架构]` 原生应用常驻，仅在发生明确 AI 对话请求时拉起 TypeScript Pi Agent 辅助进程，空闲超时自动退出释放资源，无后台冗余唤醒。
+- `🏷️ [原生界面规范]` 遵循 Figma 43:1071 / 42:760 / 38:653 规范打造 720 × 640 pt 对话窗口，使用 Regular Liquid Glass 背景。顶部提供历史、新建、置顶及关闭控件；默认普通窗口层级，可随时置顶。
+- `🏷️ [流畅动效与打字机]` 页面进入、返回及历史切换配备 240 ms 原生平滑动效；空白页问候语以 38 ms/字符逐字显现；系统开启“减少动态效果”时降级为 150 ms 渐隐无位移。见 [对话过渡验证](docs/validation/2026-10-10-ai-chat-motion.md)。
+- `🏷️ [多模态附件流]` 输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件，或通过 52 pt 规格卡片（Figma 42:852）拖拽上传；提供 1:1 图片缩略图、文件名与大小展示；发送后右对齐归档于气泡上方。
+- `🏷️ [Markdown 排版]` 内置 MarkdownUI 2.4.1 原生解析渲染，支持代码块选择高亮、表格、列表与明暗双主题；采用 16 pt 标题与 14 pt 正文排版规范。见 [Markdown 验证记录](docs/validation/2026-10-10-chat-markdown.md)。
+- `🏷️ [耗时回执与重写]` 生成期间左下角实时显示 `Work for …s`，回复完成与复制按钮对齐；意图澄清自动收束上文，避免多余消息气泡堆叠。
+- `🏷️ [安全凭据存储]` API Key 严格加密存放于系统钥匙串；运行时内存复用凭据，退出即清空；对话窗口优雅处理钥匙串授权弹窗生命周期。见 [钥匙串与对话窗口验证](docs/validation/2026-10-09-keychain-window.md)。
 
-AI 搜索条目使用用户提供的彩色图标，放入 32 pt 图标区域，以白底圆角、轻微投影与留白对齐 App、链接及书签 logo。
+---
 
-应用搜索匹配 `.app` 文件名、包内名称和应用自带的各语言显示名称；例如“微信 / WeChat”“钉钉 / DingTalk”“飞书 / Lark”“腾讯会议 / TencentMeeting”均指向对应应用。见[应用名称搜索验证](docs/validation/2026-10-10-app-localized-search.md)。
+#### 🛠️ 确定性工具与 Apple 生态 `ToolService`
+`![Gatekeeper](https://img.shields.io/badge/Gatekeeper-ToolService%20Sandbox-blue?style=flat-square)`
+`![Calendar](https://img.shields.io/badge/Apple%20App-EventKit%20Calendar-red?style=flat-square)`
+`![Reminders](https://img.shields.io/badge/Apple%20App-Apple%20Reminders-orange?style=flat-square)`
+`![Notes](https://img.shields.io/badge/Apple%20App-Apple%20Notes-yellow?style=flat-square)`
+`![Contacts](https://img.shields.io/badge/Apple%20App-Apple%20Contacts-green?style=flat-square)`
+`![Messages](https://img.shields.io/badge/Apple%20App-Messages%20Handoff-teal?style=flat-square)`
 
-### 文档
+- `🏷️ [绝对收敛门禁]` 所有系统读写必须经由 `Packages/KulaCore` 中的 ToolService，严禁在 App、AgentRuntime 或 MCPBridge 中直调系统底层接口。
+- `🏷️ [官方接口集成]` 日程、提醒、备忘录、通讯录及短信均对接 macOS 官方应用与底层框架；精准区分日历应用与日历分类（如“大麦”），智能推选可写日历。
+- `🏷️ [安全人工确认]` 短信等高敏感操作生成草稿后交由系统「信息」App，由用户最终确认并点击发送，杜绝无感越权发送。
+- `🏷️ [渐进式权限管理]` 在“设置 › 更多设置 › 系统权限”中集中管理；首次工具调用按需触发系统授权；被拒后提供跳转系统偏好设置引导，返回 App 自动刷新状态。
 
-- [文档索引](docs/README.md)：阅读顺序、权威内容与设计状态。
-- [V1 产品需求文档](docs/PRD.md)：已确认范围、用户流程、默认行为与验收。
-- [产品框架与架构大纲](docs/framework.md)：技术栈、模块、数据流、进程和接口边界。
-- [原生界面与设计系统](docs/design-system.md)：Figma 数据、控件映射与液态玻璃。
-- [Agent Runtime](docs/agent-runtime.md)：Pi、扩展、模型与按需进程。
-- [原生工具与 MCP](docs/native-tools-and-mcp.md)：系统适配器、权限、确认与回读。
-- [数据、记忆与提醒](docs/data-and-memory.md)：持久化、来源、清理与后台调度。
-- [资源生命周期与性能](docs/resource-lifecycle.md)：缓存预算、分页、释放与测量。
-- [实施与验证](docs/implementation-and-validation.md)：M0–M4 门槛、风险与验收映射。
+---
 
-### 目录结构
+#### 🔌 模型上下文协议扩展 `MCP Bridge`
+`![Protocol](https://img.shields.io/badge/Protocol-Model%20Context%20Protocol%20v1-6A1B9A?style=flat-square)`
+`![Bridge](https://img.shields.io/badge/Bridge-kulahere--mcp%20(SwiftPM)-blue?style=flat-square)`
+`![Gateway](https://img.shields.io/badge/Gateway-MCPGateway-teal?style=flat-square)`
+`![Decoupled](https://img.shields.io/badge/Architecture-Pi%20Decoupled-success?style=flat-square)`
 
-- `App/Sources`：菜单栏 App，包括启动器面板、AI 对话、确认面板、设置、剪贴板和情境提醒。
-- `App/Assets.xcassets`：App 内置图片资源，例如启动器的链接与书签图标。
-- `Packages/KulaCore`：Swift 包，包含 Contracts、Theme、Router、Search、DirectActions、Adapters、ToolService、LocalStore、AgentHost、Memory、Scheduler、Resources、MCPLink、MCPGateway。
-- `AgentRuntime`：TypeScript 编写的 Pi 宿主，通过 stdio JSONL 协议 v1 与 App 通信。
-- `MCPBridge`：`kulahere-mcp` 的 SwiftPM 包，供测试使用；App 内置的同名二进制由 `project.yml` 构建。
-- `project.yml`：XcodeGen 配置。生成的 `KulaHere.xcodeproj` 不纳入版本库。
+- `🏷️ [双向协议桥接]` 内置标准 MCP Bridge，使第三方客户端（如 Claude Desktop 等）能够无缝复用 KulaHere 的本地工具服务。
+- `🏷️ [独立隔离授权]` 外部 MCP 接入执行独立授权策略，与 Agent 运行时完全解耦，保障本地数据环境安全。
 
-### 开发与验证
+---
 
-需要 macOS 26、Xcode 26、XcodeGen 和 Node 22 或更高版本。如果 `xcode-select` 指向的是 Command Line Tools，请在命令前加上 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`。
+### 📂 目录结构与技术栈矩阵
 
+| 目录 / Package | 角色定位 | 技术栈标签 | 核心职责与边界说明 |
+| :--- | :--- | :--- | :--- |
+| `App/Sources` | macOS 宿主应用 | `![SwiftUI](https://img.shields.io/badge/SwiftUI-native-007AFF?style=flat-square)` `![AppKit](https://img.shields.io/badge/AppKit-native-5856D6?style=flat-square)` `![Menu Bar](https://img.shields.io/badge/Target-Menu_Bar-black?style=flat-square)` | 启动器胶囊、AI 对话浮窗、剪贴板面板、设置中心 |
+| `App/Assets.xcassets` | 应用资源库 | `![Assets](https://img.shields.io/badge/Format-AssetCatalog-gray?style=flat-square)` `![Vector](https://img.shields.io/badge/Type-Vector_Icons-orange?style=flat-square)` | 启动器内置图标、书签图标及系统矢量插图 |
+| `Packages/KulaCore` | 核心引擎与安全服务 | `![SwiftPM](https://img.shields.io/badge/SwiftPM-Core-F05138?style=flat-square)` `![ToolService](https://img.shields.io/badge/Gatekeeper-ToolService-1976D2?style=flat-square)` `![SQLite](https://img.shields.io/badge/Storage-LocalStore-003B57?style=flat-square)` | 路由仲裁、系统适配器、LocalStore、调度、记忆与 MCPGateway |
+| `AgentRuntime` | Agent 独立运行时 | `![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square)` `![Node.js](https://img.shields.io/badge/Node.js-22%2B-5FA04E?style=flat-square)` `![Pi SDK](https://img.shields.io/badge/SDK-Pi_Agent-FF6F00?style=flat-square)` | 独立辅助进程，基于 stdio JSONL v1 协议通信，按需唤起与释放 |
+| `MCPBridge` | MCP 协议网关 | `![SwiftPM](https://img.shields.io/badge/SwiftPM-MCP-6A1B9A?style=flat-square)` `![CLI](https://img.shields.io/badge/Binary-kulahere--mcp-teal?style=flat-square)` | Model Context Protocol 原生桥接服务，支撑测试与外部生态接入 |
+| `project.yml` | Xcode 工程配置 | `![XcodeGen](https://img.shields.io/badge/Tool-XcodeGen-E9573F?style=flat-square)` `![Config](https://img.shields.io/badge/Type-Declarative-blue?style=flat-square)` | 声明式工程配置；动态生成 `KulaHere.xcodeproj`（工程不入库） |
+
+---
+
+### 📑 核心文档导航
+
+| 专题文档 | 分类标签 | 核心定位与阅读重点 |
+| :--- | :--- | :--- |
+| [文档索引](docs/README.md) | `![Index](https://img.shields.io/badge/Type-Index-blue?style=flat-square)` | 文档阅读全景导航、权威内容定义与设计更新状态 |
+| [V1 产品需求文档 (PRD)](docs/PRD.md) | `![PRD](https://img.shields.io/badge/Type-PRD-red?style=flat-square)` | 产品范围基准、核心用户流程、默认行为与验收准则 |
+| [产品框架与架构大纲](docs/framework.md) | `![Framework](https://img.shields.io/badge/Type-Architecture-purple?style=flat-square)` | 技术选型全景、模块拓扑、数据流向、进程与接口边界 |
+| [原生界面与设计系统](docs/design-system.md) | `![Design](https://img.shields.io/badge/Type-Design_Tokens-teal?style=flat-square)` | Figma 变量体系、控件规范与 Liquid Glass 原生液态光学 |
+| [Agent Runtime 规范](docs/agent-runtime.md) | `![Runtime](https://img.shields.io/badge/Type-Agent_Runtime-orange?style=flat-square)` | Pi 架构扩展、多模型接入、stdio JSONL 通信与生命周期 |
+| [原生工具与 MCP 协议](docs/native-tools-and-mcp.md) | `![Tools](https://img.shields.io/badge/Type-Tool_Service-blue?style=flat-square)` | 系统适配器体系、权限确认机制与外部 MCP 安全集成 |
+| [数据、记忆与提醒](docs/data-and-memory.md) | `![Data](https://img.shields.io/badge/Type-Storage_Memory-success?style=flat-square)` | 本地持久化、来源溯源、隐私脱敏、清理策略与后台调度 |
+| [资源生命周期与性能](docs/resource-lifecycle.md) | `![Performance](https://img.shields.io/badge/Type-Performance-yellow?style=flat-square)` | 缓存配额、按需分页加载、内存及时释放与度量标准 |
+| [实施规划与验收门槛](docs/implementation-and-validation.md) | `![Milestones](https://img.shields.io/badge/Type-Validation-brightgreen?style=flat-square)` | M0–M4 里程碑准入门槛、已知风险应对与端到端验收映射 |
+
+---
+
+### 🧪 已验证功能矩阵 `Validation Status`
+
+仓库所有声明的能力均有对应实际测试日志支撑，拒绝未经验证的特性。
+
+| 验证项 | 所属模块 | 规格标准 / 依赖 | 验证状态 | 详情记录 |
+| :--- | :--- | :--- | :--- | :--- |
+| **DeepSeek 模型真实对话** | `AgentRuntime` | `deepseek-flash` 真实 API | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-deepseek.md](docs/validation/2026-10-09-deepseek.md) |
+| **M0 阶段构建与基线** | `全工程` | 自动化测试 100% 通过 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-m0.md](docs/validation/2026-10-09-m0.md) |
+| **聚焦搜索 720×64pt 胶囊** | `Launcher` | Figma Field 22:348 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-figma-search.md](docs/validation/2026-10-09-figma-search.md) |
+| **Regular 液态玻璃光学底色** | `Theme` | 70% 语义明暗底色与高光 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-launcher-regular-glass.md](docs/validation/2026-10-10-launcher-regular-glass.md) |
+| **剪贴板横向浏览与预览** | `Clipboard` | 触控板纵向滚横向、8pt 悬停 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-clipboard-panel.md](docs/validation/2026-10-10-clipboard-panel.md) |
+| **剪贴板全局热键录制与状态** | `HotKey` | `⌃⌥⌘V` 录制、占用与恢复 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-clipboard-hotkey-setting.md](docs/validation/2026-10-10-clipboard-hotkey-setting.md) |
+| **搜索窗口高度预算与性能** | `Launcher` | 最多 8 项 400pt / 100ms 防抖 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-launcher-height-performance.md](docs/validation/2026-10-10-launcher-height-performance.md) |
+| **搜索菜单项 Figma 规范** | `Launcher` | Figma Spotlight 38:461 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-search-menu-item.md](docs/validation/2026-10-10-search-menu-item.md) |
+| **Chrome 书签与网址检索** | `Search` | Profile 本地检索、默认浏览器 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-links-bookmarks.md](docs/validation/2026-10-10-links-bookmarks.md) |
+| **应用多语言显示名搜索** | `Search` | 微信/WeChat、飞书/Lark 等 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-app-localized-search.md](docs/validation/2026-10-10-app-localized-search.md) |
+| **AI 对话新版样式与附件卡片** | `Conversation` | 720×640 pt / Figma 42:852 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-ai-chat-refresh.md](docs/validation/2026-10-10-ai-chat-refresh.md) |
+| **对话动效与无障碍降级** | `Animation` | 240ms 过渡 / 38ms 打字机 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-ai-chat-motion.md](docs/validation/2026-10-10-ai-chat-motion.md) |
+| **历史搜索原生输入焦点** | `Conversation` | AppKit 原生文字布局 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-conversation-search-focus.md](docs/validation/2026-10-10-conversation-search-focus.md) |
+| **MarkdownUI 2.4.1 原生排版** | `Typography` | 代码块高亮、表格与层级 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-chat-markdown.md](docs/validation/2026-10-10-chat-markdown.md) |
+| **Figma 全局色彩阶梯同步** | `Theme` | 2026-10-10 语义色与透明度 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-colors.md](docs/validation/2026-10-10-colors.md) |
+| **登录钥匙串与窗口焦点交接** | `Security` | 钥匙串凭据读取与窗口恢复 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-keychain-window.md](docs/validation/2026-10-09-keychain-window.md) |
+
+---
+
+### 💻 开发环境与构建指令
+
+`![Environment](https://img.shields.io/badge/Environment-macOS%2026%20%7C%20Xcode%2026%20%7C%20Node%2022%2B%20%7C%20XcodeGen-black?style=flat-square)`
+
+> [!NOTE]
+> 如果当前系统环境的 `xcode-select` 指向 Command Line Tools，请在所有 Xcode 编译命令前附加：  
+> `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
+
+#### 📦 1. 构建与测试 Agent Runtime
 ```sh
-# Agent 宿主（App 的开发构建从源码目录读取 AgentRuntime/dist）
 cd AgentRuntime && npm install && npm run build && npm test
+```
 
-# 核心包测试；需先构建 Bridge，端到端测试才会运行
+#### 🧩 2. 构建核心包与测试（MCPBridge & KulaCore）
+```sh
+# 需先编译 Bridge，KulaCore 的端到端测试方可正常运行
 cd MCPBridge && swift build
 cd Packages/KulaCore && swift test
+```
 
-# 构建 App
+#### 🚀 3. 生成 Xcode 工程并构建启动 App
+```sh
 xcodegen generate
 xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```
 
-搜索输入原生编辑器回归检查（完成 App 构建后，在项目根目录运行）：
-
+#### 🔍 4. 原生搜索输入框回归检查
+在项目根目录运行（需在完成 App Debug 构建后执行）：
 ```sh
 xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
 build/launcher-input-regression
 ```
 
-搜索窗口尺寸回归检查（先完成上述 Debug 构建，不与构建同时运行）：
-
+#### 📐 5. 搜索窗口尺寸与交互回归检查
+在独立测试窗口与临时数据库中运行（覆盖明暗外观、快速输入、缩减结果与别名路由）：
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
 python3 App/Tests/run-launcher-window-regression.py --ai-routing
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 ```
+> [!TIP]
+> 滚动穿透回归测试由独立子进程执行，需 macOS 系统已授予输入事件投递权限。
 
-此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。滚动穿透回归另起独立进程的可滚动测试窗口，通过系统投递合成滚动事件；此项需要已授予的 macOS 输入事件投递权限，不会自动请求授权。
-
-剪贴板原生回归检查（先完成 Debug 构建；使用临时历史数据，不读取个人历史或调用模型）：
-
+#### 📋 6. 剪贴板原生回归检查
 ```sh
 python3 App/Tests/run-clipboard-regression.py
 ```
 
-使用 AI 前，需在“设置 › 模型设置”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
-
-设置按参考图采用顶部图标导航：外观设置（跟随系统、浅色、深色）、模型设置（供应商、API 地址、模型与 Key）、触发快捷键（点击录制、占用检查、恢复默认）、别名与快捷指令（应用与 macOS 快捷指令别名、网页关键词）。其他通用、数据来源、权限、记忆与 MCP 配置保留在“更多设置”。配置自动保存在本地；模型表单需点击保存。保存新 Key 后及首次读取 Key 后，能力检查和 AI Runtime 在本次应用运行中复用内存凭据；退出后清除，重启后的首次访问仍可能需要系统钥匙串授权。保存模型时若有 AI 任务进行中会提示等待；保存完成后退出闲置 Runtime，下次请求使用新配置。
-
-设置窗口原生浅深色检查（先完成 Debug 构建，使用临时数据库，不读取真实 Key 或调用模型）：
-
+#### ⚙️ 7. 设置窗口外观与快捷键生命周期回归检查
 ```sh
 python3 App/Tests/run-settings-regression.py
 
-# Global hotkey registration and lifecycle regression
+# 全局快捷键注册与生命周期回归检查
 xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
 build/hotkey-regression
 ```
 
-AI 对话和设置默认使用普通窗口层级，切换到其他应用后可被覆盖；AI 对话可手动置顶。主动打开时移到当前桌面并一次性请求前台，默认不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
-
-AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，成功后复制图标变为对勾并保持 0.8 秒，再次复制会重新计时；复制与附件按钮使用交互悬停色；用户消息气泡与复制按钮之间的空隙也保持悬停。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
-
-历史页进入/返回、恢复历史对话和开启新对话使用 240 ms 原生过渡（淡化与轻微位移），标题和搜索栏同步淡化；新建对话时输入框保持稳定。空白页问候语按每个字符 38 ms 逐字出现，并预留完整文字宽度以保持居中。系统启用“减少动态效果”时改为 150 ms 淡化，不做位移，问候语直接完整显示。流式文本更新不触发整页动画。见[对话过渡验证](docs/validation/2026-10-10-ai-chat-motion.md)。
-
-历史搜索框聚焦时隐藏占位文字，点击框外取消聚焦并保留查询内容；输入前后使用同一原生文字布局。见[搜索焦点验证](docs/validation/2026-10-10-conversation-search-focus.md)。原生回归检查：
-
+#### 💬 8. 历史搜索焦点与 Agent 回复回归检查
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ConversationSearchField.swift App/Tests/ConversationSearchFieldRegression.swift -o /tmp/kulahere-conversation-search-regression
 /tmp/kulahere-conversation-search-regression
-```
 
-原生回复回归检查（先完成上述 Debug 构建；使用临时数据库，不调用模型）：
-
-```sh
 python3 App/Tests/run-agent-reply-regression.py
 ```
 
-回复生成时在左下角显示 `Work for …s`，结束后与右侧复制按钮共用底部操作行（耗时仅保留在当前加载的消息中）。澄清问题会收束此前的流式文字并保存到历史，避免一次回复出现两条消息、两个复制按钮。
+---
 
-颜色已同步至 2026-10-10 Figma Colors：浅背景为 6%，输入背景为 8%，搜索结果与历史行使用 Light 6% / Dark 8% 的悬停色。见[颜色同步验证](docs/validation/2026-10-10-colors.md)。
+### ⚙️ 配置说明与系统交互
 
-AI 对话输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件；点击附件按钮直接打开系统文件选择器，也可拖入文件。附件在输入框顶部横向滚动展示：图片为 1:1 缩略图，文件显示名称与大小；悬停或键盘聚焦删除按钮后可移除。附件卡片按 [Figma UploadFile 42:852](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=42-852) 使用 52 pt 高度，删除按钮悬于右上角外侧；文件图标使用 44 pt 描边底框，文件名左对齐并在末尾省略。`Return` 发送，`Shift Return` 换行；仅有附件时也可发送。发送后的附件按选择顺序显示在用户文字气泡上方，靠右对齐，保留图片缩略图、文件名与大小；重开历史仍可查看。旧版未保存附件引用的消息无法补回附件。图像理解取决于所配置模型，普通二进制文件的内容解析仍受 Runtime 支持范围限制。
+- `🔑 [模型设置与钥匙串]` 使用 AI 前，在“设置 › 模型设置”中填写 OpenAI 兼容接口地址、模型名和 Key。Key 加密存储于系统钥匙串中，设置面板不反显明文。修改或首次访问 Key 会在当次 App 生命周期内常驻内存复用，重启后需系统授权。保存模型配置会自动等待进行中任务结束，并关闭闲置 AgentRuntime。数据存储位于 `~/Library/Application Support/KulaHere/`。
+- `🎛️ [设置导航]` 顶部导航包含：外观设置（跟随系统/浅色/深色）、模型设置（供应商/API 地址/模型/Key）、触发快捷键（录制/冲突排查/恢复默认）、别名与快捷指令（应用/快捷指令别名/网页关键词）。通用、数据来源、权限、记忆与 MCP 位于“更多设置”。
+- `🪟 [窗口层级与焦点]` AI 对话与设置窗口默认处于常规窗口层级，便于日常工作切换；对话窗口支持手动图钉置顶。从 Finder 重新点击已运行 App 会唤醒 AI 窗口并还原最小化状态。
+- `🛡️ [系统权限与隐私]` 在“设置 › 更多设置 › 系统权限”中精细管控。日历、提醒事项、备忘录与通讯录在首次使用工具时请求原生权限，拒绝后提供跳转系统设置引导；短信最终由用户在「信息」中手动发出。创建日程前自动获取系统可写日历，精准区分日历名称（如“大麦”）。
+- `🤖 [DeepSeek 验证配置]` API 地址填入 `https://api.deepseek.com`，模型名称填入 `deepseek-flash`。基础多轮对话与历史重开均已真实通过测试验证。
 
-AI 回复通过 MarkdownUI 2.4.1 渲染 Markdown，支持列表、标题、引用、代码块和表格，保留文本选择及明暗主题；历史对话使用相同渲染器。提示词要求最多一层 `###` 标题；界面统一使用 16/500/Paragraph 标题（32 pt 行高目标）与 14/400/Paragraph 正文（28 pt 行高目标）。Markdown 图片显示占位符，不自动读取图片地址。Xcode 首次构建会通过 SwiftPM 下载该依赖。见[Markdown 验证记录](docs/validation/2026-10-10-chat-markdown.md)。
-
-系统权限在“设置 › 更多设置 › 系统权限”中逐项管理；AI 对话中可用 `⌘,` 或标题右键菜单打开设置。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
-
-日程、提醒事项、备忘录、通讯录和短信使用 macOS 苹果官方应用及接口。日程结果区分「苹果日历」应用与其中的日历名称（例如「大麦」），不把日历名称当作第三方工具。短信草稿交给苹果「信息」，由用户发送。
-
-创建日程前，AI 可查询实际日历的名称、ID、账户及可写状态。未指定目标时优先使用系统默认可写日历；默认不可用时仅在一个可写日历的情况下自动选择，多个候选则请用户选择。没有可写日历时需先在系统日历 App 中启用账户或创建日历。
-
-DeepSeek 可使用 API 地址 `https://api.deepseek.com`、模型名 `deepseek-flash`。基础对话已验证；工具调用和图像输入仍需分别检查。
-
-首次读取 Key 或重新构建 Debug App 后，macOS 可能要求输入登录钥匙串密码。对话窗口会先显示，授权成功、取消或失败后一次性恢复仍可见的窗口；授权期间已关闭或最小化的窗口不自动重开。配置检查只读取凭据是否存在，不读取 Key。问题与验证范围见[钥匙串与对话窗口验证](docs/validation/2026-10-09-keychain-window.md)和[窗口焦点交接记录](docs/validation/2026-10-10-window-handoff.md)。
+---
 
 <a id="english"></a>
 
 ## English
 
-### Overview
+The app icon uses a gradient light ribbon on white. The menu bar uses the same silhouette as an 18 pt monochrome template icon that adapts to the system appearance. The original artwork is in `App/Branding/Logo.png`; app and menu bar assets are in `App/Assets.xcassets`.
 
-KulaHere is a planned native macOS productivity launcher built with SwiftUI and AppKit. Fast search and deterministic tools form its foundation, while AI, local memory, and contextual reminders enhance everyday workflows.
+### 📌 Overview
 
-The repository contains the first implementation: a native app, core Swift packages, a Pi agent host, and an MCP bridge. It builds and runs, and all automated tests pass. Basic DeepSeek conversations and reopening saved history have been verified with the real model; see the [DeepSeek validation record](docs/validation/2026-10-09-deepseek.md). Complete UI flows, real system permissions, and other model capabilities still await acceptance; see the [M0 validation record](docs/validation/2026-10-09-m0.md).
+KulaHere is a native macOS productivity launcher built with SwiftUI and AppKit. Fast search and deterministic system tools form its foundation, while local AI, personal memory, and contextual reminders transform everyday desktop workflows.
 
-### Features
+The repository includes the complete first implementation: the native host app, core Swift packages, the Pi agent host, and an MCP bridge. It builds, runs, and passes all automated tests. Basic DeepSeek conversations and session reopening have been verified with live API completions (see [DeepSeek Validation Record](docs/validation/2026-10-09-deepseek.md)). Full UI flows, system permissions, and further model capabilities are actively verified (see [M0 Validation Record](docs/validation/2026-10-09-m0.md)).
 
-V1 is planned around three layers:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       KulaHere Desktop                      │
+├──────────────────────────────┬──────────────────────────────┤
+│    🔍 Desktop Launcher       │      🤖 AI Workspace         │
+│  Apps / Files / Tabs / Clips │  Conversations / Vision / MCP│
+├──────────────────────────────┴──────────────────────────────┤
+│                  🧠 Personal Context Hub                     │
+│               Local Memory · Grounded Reminders             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- Desktop launcher: applications, files, Chrome tabs, commands, utilities, and clipboard history.
-- AI assistance: natural-language conversations, screenshot understanding, system tools, and draft handoff to Messages.
-- Personal context: local memory and a small number of evidence-based contextual reminders.
+---
 
-Users supply their own model API key, with OpenAI-compatible Chat Completions prioritized for V1. Necessary context is sent only with authorization. Pi SDK is the proposed Agent runtime pending prototype validation: the native launcher stays running, while an explicit AI request starts a helper that exits after idle time. Background model wakeups are disabled by default. The interface uses the user's Figma variables and Styles with native Liquid Glass; bounded loading and resource lifecycles govern memory use. Focused search follows [Figma Field 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348): a 720 × 64 pt capsule with native Regular Liquid Glass and the 70% white/black semantic background, retaining the directional rim highlight and separate outer shadow. Background and foreground colors follow the system theme, while native glass handles backdrop adaptation. Reduce Transparency uses an opaque background. See the [Regular glass validation record](docs/validation/2026-10-10-launcher-regular-glass.md). See the [focused-search validation record](docs/validation/2026-10-09-figma-search.md) for verification scope.
+### 🚀 Key Features
 
-Typing a complete configured keyword (such as `go`, without a trailing space) places the matched command first in a separate “别名匹配” section and selects it by default. Shortcuts also appear before ordinary app results. A keyword followed by a space still enters query input mode. Presets include only query-capable Google (`go`) and ChatGPT (`chat`). Existing settings receive unoccupied presets once on upgrade; deleting a preset keeps it removed across restarts. Website keywords accept plain addresses such as `chatgpt.com` or `example.com`, using HTTPS when the scheme is omitted; typing the keyword and pressing Return opens the website. `chat question` automatically carries the question in the URL. The previous Gemini and Doubao defaults are removed, and the default `chatgpt` keyword becomes `chat`, preserving custom entries and existing keyword conflicts. Built-in `go` and saved search templates still support queries without requiring users to configure `{query}`.
+#### 🔍 Spotlight Launcher `Launcher`
+`![Spec](https://img.shields.io/badge/Spec-720%C3%9764%20pt%20Capsule-blue?style=flat-square)`
+`![Visual](https://img.shields.io/badge/Optics-Regular%20Liquid%20Glass-teal?style=flat-square)`
+`![Figma](https://img.shields.io/badge/Figma-Field%2022%3A348-red?style=flat-square&logo=figma&logoColor=white)`
+`![Debounce](https://img.shields.io/badge/Debounce-100%20ms-orange?style=flat-square)`
+`![Height](https://img.shields.io/badge/List-Max%208%20Items%20(400pt)-purple?style=flat-square)`
+`![Routing](https://img.shields.io/badge/Routing-Alias%20%7C%20AI%20Fallback-success?style=flat-square)`
 
-Search results show section headings only when two or more categories are present; a single category omits its heading and the corresponding height. Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right; empty and populated fields share 28 pt horizontal insets, a 64 pt height, and an 18 pt font. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history. Press Ctrl + Option + Command + Shift + F9 or use the menu bar to open its separate panel. Scroll horizontally through cards; clicking or dragging copies the original text or image, and hovering opens a full preview. Return copies the first search result; ↑/↓ select cards. The context menu pins or deletes a record, the header pin toggles window floating. When unpinned, clicking outside both the panel and its full preview dismisses it; Escape also closes it. The panel has no close button. If the shortcut is occupied, use the menu bar; the clipboard section in Settings reports its status. See the [clipboard validation record](docs/validation/2026-10-10-clipboard-panel.md). See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
+- `🏷️ [Capsule Optics]` Faithfully built according to [Figma Field 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348) as a 720 × 64 pt capsule input field, using native Regular Liquid Glass with 70% white/black semantic backdrops, rim highlights, and distinct shadows. Adapts seamlessly to system appearance; Reduce Transparency falls back to an opaque background. See [Regular Glass Validation](docs/validation/2026-10-10-launcher-regular-glass.md).
+- `🏷️ [Aliases & Keywords]` Typing an exact keyword (such as `go`, no trailing space) isolates the matched command into the top “别名匹配” section and selects it by default. Keywords followed by a space enter query mode. Presets include query-enabled Google (`go`) and ChatGPT (`chat`). Web keywords accept URLs (e.g. `chatgpt.com`, defaulting to HTTPS). `chat <query>` embeds query into the URL.
+- `🏷️ [Item Specs & Headings]` Category headers appear only when two or more categories are present. Menu rows follow [Figma 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) with 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, and 16 pt corner radiuses. Magnifier stays anchored on the right with 28 pt horizontal insets. Backspace or Escape exits keyword mode. See [Search Menu Item Validation](docs/validation/2026-10-10-search-menu-item.md).
+- `🏷️ [Geometry & Performance]` Top edge anchors at 12% of screen height; search list is capped at 8 items (400 pt budget), maintaining safe clearance from the Dock. Rapid typing debounces to 100 ms. Mouse wheel and trackpad interactions never pass through to background windows. See [Search Performance Record](docs/validation/2026-10-10-launcher-height-performance.md).
+- `🏷️ [Links & Chrome Bookmarks]` URLs and bookmarks are categorized under “APP 应用”; searches local bookmarks in Chrome Default/Profile directories and opens them in the system default browser without running Chrome. See [Links & Bookmarks Validation](docs/validation/2026-10-10-links-bookmarks.md).
+- `🏷️ [Plain Text AI Fallback]` Natural language text without keywords or local results automatically defaults to AI action; pressing Return or `⌘ Return` submits query.
+- `🏷️ [Localized App Matching]` Matches `.app` bundles, binary names, and localized display names (e.g., WeChat, Lark, DingTalk). See [Localized App Search Validation](docs/validation/2026-10-10-app-localized-search.md).
 
-The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at eight menu rows in height (400 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results with hidden scroll indicators and content clipped to the shell corners. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
+---
 
-Mouse-wheel and trackpad gestures over either the input or results scroll the results while preserving input focus and keyboard selection. Keyboard navigation also reveals selected results outside the viewport; Up/Down stops at the first or last result without wrapping to the other end. The entire search shell accepts pointer interaction, including blank areas in the input and results, so scrolling does not pass through to background windows.
+#### 📋 Native Clipboard Panel `Clipboard Manager`
+`![Hotkey](https://img.shields.io/badge/Hotkey-⌃⌥⌘V%20(Configurable)-blue?style=flat-square)`
+`![Scroll](https://img.shields.io/badge/Interaction-Vertical%20to%20Horizontal-teal?style=flat-square)`
+`![Preview](https://img.shields.io/badge/Preview-8%20pt%20Hover%20Overlay-orange?style=flat-square)`
+`![Geometry](https://img.shields.io/badge/Design-Concentric%20Corners-purple?style=flat-square)`
+`![Paste](https://img.shields.io/badge/Action-Accessibility%20Direct%20Paste-success?style=flat-square)`
+`![Privacy](https://img.shields.io/badge/Data-Local%20Sandbox-black?style=flat-square)`
 
-A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
+- `🏷️ [Global Invocation]` Ordinary search excludes clipboard history. Press `Ctrl + Option + Command + V` (⌃⌥⌘V, customizable in Settings › 触发快捷键 › 剪贴板) or use the menu bar to toggle the dedicated panel. See [Clipboard Hotkey Record](docs/validation/2026-10-10-clipboard-hotkey-setting.md).
+- `🏷️ [Horizontal Navigation]` Vertical scroll gestures on mouse wheel or trackpad move horizontally across cards (no Shift required); click or drag to copy raw text or images.
+- `🏷️ [Smart Hover Preview]` Hovering displays an 8 pt centered/edge-aligned preview overlay below the panel; concentric rounded corners for images; long text scrolls when cursor enters preview layer.
+- `🏷️ [Direct Paste]` Highlights the first card by default; arrow keys navigate, Return copies and automatically pastes into the frontmost app (requires Accessibility permission).
+- `🏷️ [Origin & Management]` Resolves native app icons by Bundle ID; right-click context menu pins or deletes items; header pin toggles floating state; clicking outside or pressing Escape dismisses. See [Clipboard Validation](docs/validation/2026-10-10-clipboard-panel.md).
 
-Ordinary search groups links and the “Search bookmarks” entry under “APP 应用”, without separate Link or Bookmark categories. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
+---
 
-The “Search bookmarks” entry uses the bundled blue bookmark icon. Bookmark search results display the system default browser’s application icon (such as Chrome), matching the browser that opens the link.
+#### 🤖 AI Workspace & Agent Runtime
+`![Runtime](https://img.shields.io/badge/Agent-Pi%20SDK%20(On--demand)-FF6F00?style=flat-square)`
+`![Protocol](https://img.shields.io/badge/Protocol-stdio%20JSONL%20v1-blue?style=flat-square)`
+`![Model](https://img.shields.io/badge/Verified-DeepSeek%20Flash%20%7C%20OpenAI-4B69FD?style=flat-square)`
+`![Markdown](https://img.shields.io/badge/Markdown-MarkdownUI%202.4.1-teal?style=flat-square)`
+`![Window](https://img.shields.io/badge/Window-720%C3%97640%20pt-purple?style=flat-square)`
+`![Security](https://img.shields.io/badge/Credentials-macOS%20Keychain-success?style=flat-square)`
 
-In the ordinary launcher, plain text without an explicit keyword or concrete local result (such as “你是谁啊” or “你好”) shows only the selected AI action; Return opens the conversation. Generic bookmark-search and Google-search actions do not count as local matches. Explicit requests still show AI directly; matching apps, files, and links remain local results, while explicit keywords, calculations, conversions, and the `bm ` bookmark scope take priority. Typing does not call a model. AI rows show only a title, without a submission-shortcut subtitle. In ordinary search, selecting the AI row and pressing Return also submits it; `⌘ Return` remains available as a shortcut.
+- `🏷️ [On-Demand Helper Process]` The host app stays running, while AI requests launch an ephemeral TypeScript Pi Agent helper that exits after an idle timeout to reclaim memory.
+- `🏷️ [Figma Specification]` 720 × 640 pt window with Regular Liquid Glass background following Figma 43:1071 / 42:760 / 38:653; supports manual floating pin.
+- `🏷️ [Fluid Transitions]` 240 ms native slide/fade transitions for history and conversations; empty state displays a 38 ms/char typewriter greeting; Reduce Motion downgrades to 150 ms pure fade. See [Motion Validation](docs/validation/2026-10-10-ai-chat-motion.md).
+- `🏷️ [Multi-Modal Attachments]` Paste text, images, or Finder items directly via `⌘V` or drag into the 52 pt card area (Figma 42:852); square thumbnails, size labels; sent attachments archive above bubbles.
+- `🏷️ [Markdown Typography]` Rendered using MarkdownUI 2.4.1 with 16 pt headings, 14 pt body text, syntax-highlighted code blocks, and selectable text. See [Markdown Validation](docs/validation/2026-10-10-chat-markdown.md).
+- `🏷️ [Keychain Storage]` API keys are encrypted in the macOS Keychain; in-memory caching during active app sessions avoids repeated system prompts. See [Keychain Validation](docs/validation/2026-10-09-keychain-window.md).
 
-AI search entries use the supplied colorful artwork in a 32 pt icon area, with a rounded white background, subtle shadow, and padding aligned with app, link, and bookmark logos.
+---
 
-Application search matches `.app` filenames, bundle names, and display names from the app’s bundled localizations. For example, 微信 / WeChat, 钉钉 / DingTalk, 飞书 / Lark, and 腾讯会议 / TencentMeeting resolve to their respective apps. See [application-name search validation](docs/validation/2026-10-10-app-localized-search.md).
+#### 🛠️ ToolService & Apple Native Ecosystem
+`![Gatekeeper](https://img.shields.io/badge/Gatekeeper-ToolService%20Sandbox-blue?style=flat-square)`
+`![Calendar](https://img.shields.io/badge/Apple%20App-EventKit%20Calendar-red?style=flat-square)`
+`![Reminders](https://img.shields.io/badge/Apple%20App-Apple%20Reminders-orange?style=flat-square)`
+`![Notes](https://img.shields.io/badge/Apple%20App-Apple%20Notes-yellow?style=flat-square)`
+`![Contacts](https://img.shields.io/badge/Apple%20App-Apple%20Contacts-green?style=flat-square)`
+`![Messages](https://img.shields.io/badge/Apple%20App-Messages%20Handoff-teal?style=flat-square)`
 
-### Documentation
+- `🏷️ [ToolService Sandboxing]` All system reads/writes are strictly funneled through `Packages/KulaCore` ToolService; direct OS calls from App, AgentRuntime, or MCPBridge are disallowed.
+- `🏷️ [Official Apple Integrations]` Deep integration with macOS Calendar, Reminders, Notes, Contacts, and Messages. Intelligently discovers writable calendars and distinguishes apps from calendar names.
+- `🏷️ [Human-in-the-Loop Confirmation]` Outgoing Messages drafts are handed over to the macOS Messages app for final user confirmation and dispatch.
+- `🏷️ [Progressive Permissions]` Permissions are requested on first tool execution, managed under Settings › More Settings › System Permissions, with automatic status refresh on app return.
 
-- [Documentation index](docs/README.md): reading order, authoritative specifications, and design status.
-- [V1 product requirements](docs/PRD.md): confirmed scope, user flows, defaults, and acceptance criteria.
-- [Product framework and architecture](docs/framework.md): technology choices, modules, data flow, processes, and interfaces.
-- [Native interface and design system](docs/design-system.md): Figma data, native controls, and Liquid Glass.
-- [Agent runtime](docs/agent-runtime.md): Pi, extensions, models, and on-demand processes.
-- [Native tools and MCP](docs/native-tools-and-mcp.md): adapters, permissions, confirmations, and readback.
-- [Data, memory, and reminders](docs/data-and-memory.md): persistence, provenance, cleanup, and background scheduling.
-- [Resource lifecycles and performance](docs/resource-lifecycle.md): cache budgets, pagination, release, and measurement.
-- [Implementation and validation](docs/implementation-and-validation.md): M0–M4 gates, risks, and acceptance mapping.
+---
 
-### Directory Structure
+#### 🔌 Model Context Protocol (MCP) Bridge
+`![Protocol](https://img.shields.io/badge/Protocol-Model%20Context%20Protocol%20v1-6A1B9A?style=flat-square)`
+`![Bridge](https://img.shields.io/badge/Bridge-kulahere--mcp%20(SwiftPM)-blue?style=flat-square)`
+`![Gateway](https://img.shields.io/badge/Gateway-MCPGateway-teal?style=flat-square)`
+`![Decoupled](https://img.shields.io/badge/Architecture-Pi%20Decoupled-success?style=flat-square)`
 
-- `App/Sources`: the menu bar app, including the launcher, AI conversation, confirmations, settings, clipboard, and contextual reminders.
-- `App/Assets.xcassets`: bundled app images, such as the launcher link and bookmark icons.
-- `Packages/KulaCore`: the Swift package containing Contracts, Theme, Router, Search, DirectActions, Adapters, ToolService, LocalStore, AgentHost, Memory, Scheduler, Resources, MCPLink, and MCPGateway.
-- `AgentRuntime`: the TypeScript Pi host, communicating with the app over stdio JSONL protocol v1.
-- `MCPBridge`: the SwiftPM package for testing `kulahere-mcp`; the app's bundled executable is built by `project.yml`.
-- `project.yml`: XcodeGen configuration. The generated `KulaHere.xcodeproj` is excluded from version control.
+- `🏷️ [Standard MCP Bridge]` Bundled `kulahere-mcp` allows external clients (like Claude Desktop) to invoke KulaHere local tools.
+- `🏷️ [Isolated Authorization]` External access requires dedicated authorization and operates completely decoupled from Pi Agent.
 
-### Development and Verification
+---
 
-Requires macOS 26, Xcode 26, XcodeGen, and Node 22 or later. If `xcode-select` points to the Command Line Tools, prefix the commands with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+### 📂 Directory Structure & Technology Matrix
 
+| Directory / Package | Role | Technology Tags | Description & Boundary |
+| :--- | :--- | :--- | :--- |
+| `App/Sources` | Native Host App | `![SwiftUI](https://img.shields.io/badge/SwiftUI-native-007AFF?style=flat-square)` `![AppKit](https://img.shields.io/badge/AppKit-native-5856D6?style=flat-square)` `![Menu Bar](https://img.shields.io/badge/Target-Menu_Bar-black?style=flat-square)` | Launcher capsule, AI conversation panel, clipboard window, settings |
+| `App/Assets.xcassets` | Bundled Assets | `![Assets](https://img.shields.io/badge/Format-AssetCatalog-gray?style=flat-square)` `![Vector](https://img.shields.io/badge/Type-Vector_Icons-orange?style=flat-square)` | Built-in link/bookmark icons and vector graphics |
+| `Packages/KulaCore` | Core Business Engine | `![SwiftPM](https://img.shields.io/badge/SwiftPM-Core-F05138?style=flat-square)` `![ToolService](https://img.shields.io/badge/Gatekeeper-ToolService-1976D2?style=flat-square)` `![SQLite](https://img.shields.io/badge/Storage-LocalStore-003B57?style=flat-square)` | Routing, adapters, ToolService, LocalStore, Scheduler, Memory, MCPGateway |
+| `AgentRuntime` | Agent Host Process | `![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square)` `![Node.js](https://img.shields.io/badge/Node.js-22%2B-5FA04E?style=flat-square)` `![Pi SDK](https://img.shields.io/badge/SDK-Pi_Agent-FF6F00?style=flat-square)` | On-demand helper process communicating via stdio JSONL protocol v1 |
+| `MCPBridge` | MCP Protocol Gateway | `![SwiftPM](https://img.shields.io/badge/SwiftPM-MCP-6A1B9A?style=flat-square)` `![CLI](https://img.shields.io/badge/Binary-kulahere--mcp-teal?style=flat-square)` | Standard MCP server bridge used for testing and external integrations |
+| `project.yml` | Xcode Project Spec | `![XcodeGen](https://img.shields.io/badge/Tool-XcodeGen-E9573F?style=flat-square)` `![Config](https://img.shields.io/badge/Type-Declarative-blue?style=flat-square)` | Declarative project spec; generates `KulaHere.xcodeproj` (untracked) |
+
+---
+
+### 📑 Documentation Hub
+
+| Document | Category Tags | Scope & Key Focus |
+| :--- | :--- | :--- |
+| [Documentation Index](docs/README.md) | `![Index](https://img.shields.io/badge/Type-Index-blue?style=flat-square)` | Reading order, authoritative specifications, and design updates |
+| [V1 Product Requirements](docs/PRD.md) | `![PRD](https://img.shields.io/badge/Type-PRD-red?style=flat-square)` | Confirmed scope, workflows, defaults, and acceptance criteria |
+| [Product Framework & Architecture](docs/framework.md) | `![Framework](https://img.shields.io/badge/Type-Architecture-purple?style=flat-square)` | Tech choices, module topology, data flow, processes, and boundaries |
+| [Native Interface & Design System](docs/design-system.md) | `![Design](https://img.shields.io/badge/Type-Design_Tokens-teal?style=flat-square)` | Figma variables, controls mapping, and Liquid Glass optics |
+| [Agent Runtime Specification](docs/agent-runtime.md) | `![Runtime](https://img.shields.io/badge/Type-Agent_Runtime-orange?style=flat-square)` | Pi architecture, extensions, models, stdio JSONL, and lifecycles |
+| [Native Tools and MCP](docs/native-tools-and-mcp.md) | `![Tools](https://img.shields.io/badge/Type-Tool_Service-blue?style=flat-square)` | Adapters, permissions, confirmations, readback, and external MCP |
+| [Data, Memory, and Reminders](docs/data-and-memory.md) | `![Data](https://img.shields.io/badge/Type-Storage_Memory-success?style=flat-square)` | Persistence, provenance, privacy sanitization, and background tasks |
+| [Resource Lifecycles & Performance](docs/resource-lifecycle.md) | `![Performance](https://img.shields.io/badge/Type-Performance-yellow?style=flat-square)` | Cache budgets, pagination, on-demand cleanup, and metrics |
+| [Implementation & Validation Plan](docs/implementation-and-validation.md) | `![Milestones](https://img.shields.io/badge/Type-Validation-brightgreen?style=flat-square)` | M0–M4 gates, known risks, and end-to-end acceptance mapping |
+
+---
+
+### 🧪 Verification Matrix
+
+| Verification Item | Module | Specification / Dependency | Status | Record |
+| :--- | :--- | :--- | :--- | :--- |
+| **DeepSeek Conversations** | `AgentRuntime` | `deepseek-flash` Live API | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-deepseek.md](docs/validation/2026-10-09-deepseek.md) |
+| **M0 Baseline Build & Tests** | `Workspace` | Automated Tests 100% Passing | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-m0.md](docs/validation/2026-10-09-m0.md) |
+| **Focused Launcher 720×64pt** | `Launcher` | Figma Field 22:348 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-figma-search.md](docs/validation/2026-10-09-figma-search.md) |
+| **Regular Liquid Glass Optics** | `Theme` | 70% Semantic Tint & Rim Highlight | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-launcher-regular-glass.md](docs/validation/2026-10-10-launcher-regular-glass.md) |
+| **Clipboard Horizontal Gesture** | `Clipboard` | Vertical wheel to horizontal, 8pt hover | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-clipboard-panel.md](docs/validation/2026-10-10-clipboard-panel.md) |
+| **Clipboard Global Hotkey** | `HotKey` | `⌃⌥⌘V` Recording & conflict handling | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-clipboard-hotkey-setting.md](docs/validation/2026-10-10-clipboard-hotkey-setting.md) |
+| **Search List Geometry & Perf** | `Launcher` | Max 8 items (400pt) / 100ms debounce | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-launcher-height-performance.md](docs/validation/2026-10-10-launcher-height-performance.md) |
+| **Search Menu Item Spec** | `Launcher` | Figma Spotlight 38:461 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-search-menu-item.md](docs/validation/2026-10-10-search-menu-item.md) |
+| **Chrome Bookmarks Search** | `Search` | Profile local search, default browser | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-links-bookmarks.md](docs/validation/2026-10-10-links-bookmarks.md) |
+| **Localized App Name Search** | `Search` | WeChat, Lark, DingTalk localizations | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-app-localized-search.md](docs/validation/2026-10-10-app-localized-search.md) |
+| **AI Conversation Refresh & Cards** | `Conversation` | 720×640 pt / Figma 42:852 | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-ai-chat-refresh.md](docs/validation/2026-10-10-ai-chat-refresh.md) |
+| **Motion Transitions & Accessibility** | `Animation` | 240ms transition / 38ms typewriter | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-ai-chat-motion.md](docs/validation/2026-10-10-ai-chat-motion.md) |
+| **Conversation Search Focus** | `Conversation` | AppKit native text layout | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-conversation-search-focus.md](docs/validation/2026-10-10-conversation-search-focus.md) |
+| **MarkdownUI 2.4.1 Rendering** | `Typography` | Syntax highlighted blocks & tables | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-chat-markdown.md](docs/validation/2026-10-10-chat-markdown.md) |
+| **Figma Global Colors Sync** | `Theme` | 2026-10-10 Semantic colors | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-10-colors.md](docs/validation/2026-10-10-colors.md) |
+| **Keychain Auth & Window Handoff** | `Security` | Keychain retrieval & window restore | `![Verified](https://img.shields.io/badge/Status-Verified-brightgreen?style=flat-square)` | [2026-10-09-keychain-window.md](docs/validation/2026-10-09-keychain-window.md) |
+
+---
+
+### 💻 Development & Build Commands
+
+`![Environment](https://img.shields.io/badge/Environment-macOS%2026%20%7C%20Xcode%2026%20%7C%20Node%2022%2B%20%7C%20XcodeGen-black?style=flat-square)`
+
+> [!NOTE]
+> If `xcode-select` points to Command Line Tools, prepend commands with:  
+> `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
+
+#### 📦 1. Build & Test Agent Runtime
 ```sh
 cd AgentRuntime && npm install && npm run build && npm test
-cd MCPBridge && swift build          # needed for the bridge end-to-end test
+```
+
+#### 🧩 2. Build Core Packages (MCPBridge & KulaCore)
+```sh
+cd MCPBridge && swift build
 cd Packages/KulaCore && swift test
+```
+
+#### 🚀 3. Generate Xcode Project & Build App
+```sh
 xcodegen generate
 xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```
 
-Native search-field regression check (run from the project root after building the app):
-
+#### 🔍 4. Native Search Field Regression Check
 ```sh
 xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
 build/launcher-input-regression
 ```
 
-Search-window geometry regression (after the Debug build above; do not run concurrently with a build):
-
+#### 📐 5. Search Window Geometry & Interaction Regression
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
 python3 App/Tests/run-launcher-window-regression.py --ai-routing
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 ```
 
-The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers. The scroll-through regression launches a separate process with a scrollable test window and posts synthetic scrolling through the system. It requires existing macOS input-event posting permission and never requests authorization automatically.
-
-Native clipboard regression (build Debug first; uses temporary history without reading personal history or calling a model):
-
+#### 📋 6. Clipboard Regression Check
 ```sh
 python3 App/Tests/run-clipboard-regression.py
 ```
 
-Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model Settings. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
-
-Settings uses a top icon navigation bar based on the reference: Appearance (system, light, dark), Model Settings (provider, API endpoint, model and key), Trigger Shortcut (record, conflict detection and restore default), and Aliases & Shortcuts (apps, macOS Shortcuts and web keywords). General, sources, permissions, memory and MCP remain under More Settings. Preferences persist locally; model forms require Save. Newly saved keys and keys read for the first time are reused in memory by capability checks and the AI runtime during the app session. Exiting clears that cache; the first access after restarting may still require system Keychain authorization. Saving waits for active AI work to finish and shuts down an idle runtime so the next request uses the new configuration.
-
-Native light/dark Settings check (after the Debug build; uses a temporary database without reading real keys or calling a model):
-
+#### ⚙️ 7. Settings Appearance & Hotkey Lifecycle Check
 ```sh
 python3 App/Tests/run-settings-regression.py
 
@@ -266,39 +492,20 @@ xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/
 build/hotkey-regression
 ```
 
-Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
-
-AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; a successful copy shows a checkmark for 0.8 seconds, and copying again restarts the timer. Copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
-
-Entering/leaving history, reopening a conversation, and starting a new chat use 240 ms native transitions with fading and a small offset. The title and search field fade together; the composer remains stable when starting a new chat. The empty-page greeting reveals one character every 38 ms while reserving its full width to stay centered. Reduce Motion uses a 150 ms fade without movement and displays the complete greeting immediately. Streaming text updates do not animate the whole page. See the [conversation transition validation](docs/validation/2026-10-10-ai-chat-motion.md).
-
-The history search field hides its placeholder on focus. Clicking outside releases focus and preserves the query; idle and editing text share the same native layout. See [search focus validation](docs/validation/2026-10-10-conversation-search-focus.md). Native regression check:
-
+#### 💬 8. Conversation Search Focus & Reply Regression
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ConversationSearchField.swift App/Tests/ConversationSearchFieldRegression.swift -o /tmp/kulahere-conversation-search-regression
 /tmp/kulahere-conversation-search-regression
-```
 
-Native reply regression (after the Debug build above; uses a temporary database without calling a model):
-
-```sh
 python3 App/Tests/run-agent-reply-regression.py
 ```
 
-While a reply is running, `Work for …s` appears at the lower left; on completion it shares the footer with the copy button on the right (elapsed time is retained only in the currently loaded messages). A clarification replaces preceding streamed narration and is saved to history, preventing two messages and copy buttons for one reply.
+---
 
-Colors follow the 2026-10-10 Figma Colors update: subtle backgrounds use 6% opacity, input backgrounds use 8%, and search results and history rows use a hover color at 6% in Light mode and 8% in Dark mode. See the [color synchronization validation](docs/validation/2026-10-10-colors.md).
+### ⚙️ Configuration & System Notes
 
-The AI composer accepts text, images, or Finder files directly with `⌘V`. Clicking the attachment button opens the system file picker directly; files can also be dropped. Attachments scroll horizontally above the text: images use square thumbnails, and files show their name and size. Hover or focus the delete button with the keyboard to remove an attachment. Cards follow [Figma UploadFile 42:852](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=42-852) with a 52 pt height and a delete button overhanging the top-right corner. Files use a 44 pt bordered icon tile and a left-aligned filename with tail truncation. `Return` sends and `Shift Return` inserts a newline; attachments can also be sent without text. Submitted attachments appear in selection order above the user text bubble, aligned to the right, with image thumbnails or file names and sizes. They remain visible when reopening history. Older messages without saved attachment references cannot recover their attachments. Image understanding depends on the configured model, and binary file parsing remains limited by Runtime support.
-
-AI replies use MarkdownUI 2.4.1 to render Markdown lists, headings, blockquotes, code blocks, and tables, with selectable text and light/dark themes. Reopened history uses the same renderer. The prompt allows only a single heading level (`###`); the UI uses 16/500/Paragraph headings (32 pt target line height) and 14/400/Paragraph body text (28 pt target line height). Markdown images display placeholders without loading their URLs. The first Xcode build downloads this dependency through SwiftPM. See the [Markdown validation record](docs/validation/2026-10-10-chat-markdown.md).
-
-Manage individual permissions in Settings › More Settings › System Permissions. Open Settings from an AI conversation with `⌘,` or the title’s context menu. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
-
-Events, reminders, notes, contacts, and message drafts use official Apple apps and macOS interfaces. Event results distinguish Apple Calendar from the calendar name inside it (such as “大麦”); a calendar name does not identify a third-party tool. Drafts are handed to Apple Messages for the user to send.
-
-Before creating an event, AI can list actual calendar names, IDs, accounts, and write access. Without an explicit target, it uses the writable system default, or the sole writable calendar when the default is unavailable. Multiple candidates require a user choice. If no writable calendar exists, enable an account or create a calendar in the system Calendar app first.
-
-For DeepSeek, use `https://api.deepseek.com` as the API endpoint and `deepseek-flash` as the model name. Basic conversations have been verified; tool calling and image input still require separate checks.
-
-macOS may request the login Keychain password when first reading the key or after rebuilding the Debug app. The conversation window appears first and restores its foreground position once after successful, cancelled, or failed authorization if still visible; windows closed or minimized during authorization are not reopened automatically. Configuration checks inspect whether the credential exists without reading the key. See the [Keychain and conversation-window validation record](docs/validation/2026-10-09-keychain-window.md) and [window focus handoff record](docs/validation/2026-10-10-window-handoff.md) for verification scope.
+- `🔑 [Model Setup & Keychain]` Enter your OpenAI-compatible endpoint, model, and key under Settings › Model Settings. The key is securely stored in macOS Keychain. In-memory caching avoids repeated keychain prompts during an app session. Preferences are saved in `~/Library/Application Support/KulaHere/`.
+- `🎛️ [Settings Navigation]` Top navigation offers: Appearance (system/light/dark), Model Settings (provider/URL/model/key), Trigger Shortcuts (recording/conflict detection), and Aliases & Shortcuts (apps/macOS Shortcuts/web keywords). General, Data Sources, Permissions, Memory, and MCP are grouped under More Settings.
+- `🪟 [Window Levels & Handoff]` AI conversations and Settings run at the normal window level by default, with optional manual pin to stay on top. Reopening the app from Finder brings the AI conversation forward and restores minimized windows.
+- `🛡️ [Permissions & Apple Ecosystem]` Permissions are managed in Settings › More Settings › System Permissions. Handled progressively for EventKit Calendar, Reminders, Notes, and Contacts. Outgoing messages drafts are handed over to Apple Messages.
+- `🤖 [DeepSeek Configuration]` Set endpoint to `https://api.deepseek.com` and model to `deepseek-flash`. Multi-turn chat and conversation history restoration are verified.

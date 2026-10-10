@@ -40,13 +40,14 @@ final class ClipboardMonitor {
         guard settings.clipboardEnabled, !snapshot.concealed else { return }
         if let bid = snapshot.sourceBundleID, settings.clipboardExcludedApps.contains(bid) { return }
         let sourceApp = snapshot.sourceName
+        let sourceBundleID = snapshot.sourceBundleID
         let store = ClipboardStore(app.store)
         let dir = app.store.clipboardDirectory
 
         if let text = snapshot.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let data = Data(text.utf8)
             try? store.insert(ClipboardItem(kind: .text, text: text, byteSize: data.count, sourceApp: sourceApp,
-                                            contentHash: Self.hash(data)))
+                                            sourceBundleID: sourceBundleID, contentHash: Self.hash(data)))
         } else if let data = snapshot.image, data.count <= Self.maxImageBytes {
             // Disk I/O and thumbnailing off the main thread.
             Task.detached(priority: .utility) {
@@ -57,7 +58,8 @@ final class ClipboardMonitor {
                 guard (try? data.write(to: file)) != nil else { return }
                 let hasThumb = ThumbnailService.writeThumbnail(from: file, to: thumb, maxPixelSize: 160)
                 try? store.insert(ClipboardItem(id: id, kind: .image, filePath: file.path, thumbPath: hasThumb ? thumb.path : nil,
-                                                byteSize: data.count, sourceApp: sourceApp, contentHash: Self.hash(data)))
+                                                byteSize: data.count, sourceApp: sourceApp, sourceBundleID: sourceBundleID,
+                                                contentHash: Self.hash(data)))
             }
         }
     }

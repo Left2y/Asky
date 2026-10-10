@@ -31,6 +31,7 @@ extension ShapeStyle where Self == ThemeColor {
     public static var kIcon: ThemeColor { ThemeColor("icon") }
     public static var kIconSubtle: ThemeColor { ThemeColor("iconSubtle") }
     public static var kBorder: ThemeColor { ThemeColor("border") }
+    public static var kBorderIntense: ThemeColor { ThemeColor("borderIntense") }
     public static var kBorderFocused: ThemeColor { ThemeColor("borderFocused") }
     public static var kBackground: ThemeColor { ThemeColor("background") }
     public static var kBackgroundSelected: ThemeColor { ThemeColor("backgroundSelected") }

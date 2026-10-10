@@ -245,13 +245,14 @@ public struct ClipboardItem: Sendable, Hashable, Identifiable {
     public var thumbPath: String?
     public var byteSize: Int
     public var sourceApp: String?
+    public var sourceBundleID: String?
     public var pinned: Bool
     public var contentHash: String
     public var createdAt: Date
 
     public init(id: String = UUID().uuidString, kind: ClipboardKind, text: String? = nil, filePath: String? = nil,
-                thumbPath: String? = nil, byteSize: Int, sourceApp: String? = nil, pinned: Bool = false,
-                contentHash: String, createdAt: Date = Date()) {
+                thumbPath: String? = nil, byteSize: Int, sourceApp: String? = nil, sourceBundleID: String? = nil,
+                pinned: Bool = false, contentHash: String, createdAt: Date = Date()) {
         self.id = id
         self.kind = kind
         self.text = text
@@ -259,6 +260,7 @@ public struct ClipboardItem: Sendable, Hashable, Identifiable {
         self.thumbPath = thumbPath
         self.byteSize = byteSize
         self.sourceApp = sourceApp
+        self.sourceBundleID = sourceBundleID
         self.pinned = pinned
         self.contentHash = contentHash
         self.createdAt = createdAt
@@ -275,14 +277,15 @@ public struct ClipboardStore: Sendable {
     public func insert(_ item: ClipboardItem) throws {
         try db.transaction {
             if let existing = try db.query("SELECT id FROM clipboard WHERE content_hash = ? LIMIT 1", [item.contentHash]).first?.string("id") {
-                try db.run("UPDATE clipboard SET created_at = ?, source_app = ? WHERE id = ?", [item.createdAt, item.sourceApp, existing])
+                try db.run("UPDATE clipboard SET created_at = ?, source_app = ?, source_bundle_id = ? WHERE id = ?",
+                           [item.createdAt, item.sourceApp, item.sourceBundleID, existing])
                 return
             }
             try db.run("""
-                INSERT INTO clipboard(id, kind, text, file_path, thumb_path, byte_size, source_app, pinned, content_hash, created_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO clipboard(id, kind, text, file_path, thumb_path, byte_size, source_app, source_bundle_id, pinned, content_hash, created_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)
                 """, [item.id, item.kind.rawValue, item.text, item.filePath, item.thumbPath, item.byteSize, item.sourceApp,
-                      item.pinned, item.contentHash, item.createdAt])
+                      item.sourceBundleID, item.pinned, item.contentHash, item.createdAt])
             if let t = item.text { try db.run("INSERT INTO clipboard_fts(id, text) VALUES(?,?)", [item.id, t]) }
         }
     }
@@ -353,7 +356,8 @@ public struct ClipboardStore: Sendable {
     static func decode(_ r: Row) -> ClipboardItem {
         ClipboardItem(id: r.string("id") ?? "", kind: ClipboardKind(rawValue: r.string("kind") ?? "") ?? .text,
                       text: r.string("text"), filePath: r.string("file_path"), thumbPath: r.string("thumb_path"),
-                      byteSize: r.int("byte_size") ?? 0, sourceApp: r.string("source_app"), pinned: r.bool("pinned"),
+                      byteSize: r.int("byte_size") ?? 0, sourceApp: r.string("source_app"),
+                      sourceBundleID: r.string("source_bundle_id"), pinned: r.bool("pinned"),
                       contentHash: r.string("content_hash") ?? "", createdAt: r.date("created_at") ?? .distantPast)
     }
 }

@@ -69,6 +69,8 @@ public enum Schema {
         """,
         // v2: attachment references belong to the submitted message, in selection order.
         "ALTER TABLE messages ADD COLUMN attachments_json TEXT NOT NULL DEFAULT '[]';",
+        // v3: bundle ID resolves source icons even when the app is not running or its name is localized.
+        "ALTER TABLE clipboard ADD COLUMN source_bundle_id TEXT;",
     ]
 
     public static func migrate(_ db: Database) throws {

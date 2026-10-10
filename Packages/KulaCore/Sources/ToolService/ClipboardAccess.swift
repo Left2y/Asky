@@ -27,15 +27,36 @@ public enum ClipboardAccess {
                         sourceName: app?.localizedName, sourceBundleID: app?.bundleIdentifier, concealed: concealed)
     }
 
-    public static func sourceIcon(named name: String?) -> NSImage? {
-        guard let name else { return nil }
-        if let icon = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name })?.icon { return icon }
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: name) {
-            return NSWorkspace.shared.icon(forFile: url.path)
+    private static var iconCache: [String: NSImage?] = [:]
+
+    /// Prefers the bundle ID; legacy rows only stored the (possibly localized) app name.
+    public static func sourceIcon(bundleID: String?, name: String?) -> NSImage? {
+        let key = (bundleID ?? "") + "|" + (name ?? "")
+        if let cached = iconCache[key] { return cached }
+        let icon = resolveIcon(bundleID: bundleID, name: name)
+        iconCache[key] = icon
+        return icon
+    }
+
+    private static func resolveIcon(bundleID: String?, name: String?) -> NSImage? {
+        let workspace = NSWorkspace.shared
+        if let bundleID, let url = workspace.urlForApplication(withBundleIdentifier: bundleID) {
+            return workspace.icon(forFile: url.path)
         }
-        for directory in ["/Applications", "/System/Applications", "/System/Applications/Utilities"] {
-            let path = URL(filePath: directory).appendingPathComponent(name + ".app").path
-            if FileManager.default.fileExists(atPath: path) { return NSWorkspace.shared.icon(forFile: path) }
+        guard let name, !name.isEmpty else { return nil }
+        if let icon = workspace.runningApplications.first(where: { $0.localizedName == name })?.icon { return icon }
+        if let url = workspace.urlForApplication(withBundleIdentifier: name) { return workspace.icon(forFile: url.path) }
+        let fm = FileManager.default
+        for directory in ["/Applications", "/System/Applications", "/System/Applications/Utilities",
+                          "/Applications/Utilities", fm.homeDirectoryForCurrentUser.appending(path: "Applications").path] {
+            let direct = URL(filePath: directory).appendingPathComponent(name + ".app").path
+            if fm.fileExists(atPath: direct) { return workspace.icon(forFile: direct) }
+            // Localized names (备忘录 → Notes.app) only match the display name.
+            for entry in (try? fm.contentsOfDirectory(atPath: directory)) ?? [] where entry.hasSuffix(".app") {
+                let path = URL(filePath: directory).appendingPathComponent(entry).path
+                let display = (fm.displayName(atPath: path) as NSString).deletingPathExtension
+                if display == name { return workspace.icon(forFile: path) }
+            }
         }
         return nil
     }
@@ -50,6 +71,18 @@ public enum ClipboardAccess {
         guard let path = item.filePath, let image = NSImage(contentsOfFile: path), let data = image.tiffRepresentation else { return false }
         pasteboard.clearContents()
         return pasteboard.setData(data, forType: .tiff)
+    }
+
+    /// Sends ⌘V to the frontmost app. Requires Accessibility; prompts once when missing.
+    public static func pasteIntoFrontmostApp() -> Bool {
+        guard AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary) else { return false }
+        let source = CGEventSource(stateID: .hidSystemState)
+        for down in [true, false] {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: down)
+            event?.flags = .maskCommand
+            event?.post(tap: .cghidEventTap)
+        }
+        return true
     }
 
     public static func dragProvider(for item: ClipboardItem) -> NSItemProvider? {

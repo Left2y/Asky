@@ -8,8 +8,29 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var hotKeyCode: UInt32 = UInt32(kVK_Space)
     var hotKeyModifiers: UInt32 = UInt32(optionKey)
     var hotKeyLabel = "⌥ Space"
+    var clipboardHotKeyCode: UInt32 = Self.defaultClipboardHotKey.code
+    var clipboardHotKeyModifiers: UInt32 = Self.defaultClipboardHotKey.modifiers
+    var clipboardHotKeyLabel = Self.defaultClipboardHotKey.label
     var aliases: [LauncherAlias] = []
     static let key = "app.preferences.v1"
+    static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_V), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘ V")
+
+    init() {}
+
+    // Saved preferences from older builds lack newer fields; fill defaults instead of discarding everything.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = SettingsPreferences()
+        appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
+        provider = try c.decodeIfPresent(String.self, forKey: .provider) ?? d.provider
+        hotKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .hotKeyCode) ?? d.hotKeyCode
+        hotKeyModifiers = try c.decodeIfPresent(UInt32.self, forKey: .hotKeyModifiers) ?? d.hotKeyModifiers
+        hotKeyLabel = try c.decodeIfPresent(String.self, forKey: .hotKeyLabel) ?? d.hotKeyLabel
+        clipboardHotKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .clipboardHotKeyCode) ?? d.clipboardHotKeyCode
+        clipboardHotKeyModifiers = try c.decodeIfPresent(UInt32.self, forKey: .clipboardHotKeyModifiers) ?? d.clipboardHotKeyModifiers
+        clipboardHotKeyLabel = try c.decodeIfPresent(String.self, forKey: .clipboardHotKeyLabel) ?? d.clipboardHotKeyLabel
+        aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
+    }
 }
 
 struct LauncherAlias: Codable, Equatable, Identifiable, Sendable {

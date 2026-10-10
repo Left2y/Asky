@@ -62,16 +62,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = registerHotKey(code: model.preferences.hotKeyCode, modifiers: model.preferences.hotKeyModifiers)
 
         clipboardWindow = ClipboardController(app: model)
-        do {
-            clipboardHotKey = try HotKey(keyCode: UInt32(kVK_F9), modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey)) { [weak self] in
-                self?.launcher.hide()
-                self?.clipboardWindow.toggle()
-            }
-        } catch HotKey.Failure.alreadyInUse {
-            model.clipboardHotKeyStatus = "Ctrl + Option + Command + Shift + F9 已被占用，请从菜单栏打开剪贴板。"
-        } catch {
-            model.clipboardHotKeyStatus = "剪贴板快捷键注册失败：\(error)。请从菜单栏打开。"
-        }
+        model.onClipboardHotKeyChange = { [weak self] code, modifiers in self?.registerClipboardHotKey(code: code, modifiers: modifiers) ?? false }
+        _ = registerClipboardHotKey(code: model.preferences.clipboardHotKeyCode, modifiers: model.preferences.clipboardHotKeyModifiers)
         installStatusItem()
         clipboard = ClipboardMonitor(app: model)
         clipboard.start()
@@ -122,14 +114,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func registerClipboardHotKey(code: UInt32, modifiers: UInt32) -> Bool {
+        let previous = model.preferences
+        let action: () -> Void = { [weak self] in
+            self?.launcher.hide()
+            self?.clipboardWindow.toggle()
+        }
+        clipboardHotKey?.unregister()
+        do {
+            clipboardHotKey = try HotKey(keyCode: code, modifiers: modifiers, action: action)
+            model.clipboardHotKeyStatus = "已注册"
+            return true
+        } catch HotKey.Failure.alreadyInUse {
+            model.clipboardHotKeyStatus = "组合键已被占用，请选择其他快捷键，或从菜单栏打开剪贴板。"
+        } catch {
+            model.clipboardHotKeyStatus = "快捷键注册失败：\(error)。请选择其他快捷键，或从菜单栏打开剪贴板。"
+        }
+        if code != previous.clipboardHotKeyCode || modifiers != previous.clipboardHotKeyModifiers {
+            clipboardHotKey = try? HotKey(keyCode: previous.clipboardHotKeyCode, modifiers: previous.clipboardHotKeyModifiers, action: action)
+        } else {
+            clipboardHotKey = nil
+        }
+        return false
+    }
+
     // MARK: Menu bar
 
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "KulaHere")
+        let icon = NSImage(named: "StatusIcon")
+        icon?.size = NSSize(width: 18, height: 18)
+        icon?.isTemplate = true
+        icon?.accessibilityDescription = "KulaHere"
+        item.button?.image = icon
+        item.button?.setAccessibilityLabel("KulaHere")
         let menu = NSMenu()
         menu.addItem(withTitle: "打开启动器", action: #selector(openLauncher), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "剪贴板历史（⌃⌥⌘⇧F9）", action: #selector(openClipboard), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "剪贴板历史", action: #selector(openClipboard), keyEquivalent: "").target = self
         menu.addItem(withTitle: "AI 对话", action: #selector(openAgent), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",").target = self

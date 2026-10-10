@@ -47,6 +47,18 @@ enum ClipboardRegression {
                 }
                 precondition(controller.items.count == 4)
                 precondition(panel().frame.height == 244)
+                precondition(controller.selection == 0, "first card is selected by default")
+                controller.moveSelection(1)
+                precondition(controller.selection == 1)
+                controller.moveSelection(-5)
+                precondition(controller.selection == 0)
+                let notes = ClipboardAccess.sourceIcon(bundleID: "com.apple.Notes", name: "备忘录")
+                precondition(notes != nil, "bundle ID resolves icons for apps that are not running")
+                // A vertical wheel event becomes horizontal so cards scroll without Shift.
+                let wheel = NSEvent(cgEvent: CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+                                                     wheel1: -60, wheel2: 0, wheel3: 0)!)!
+                let sideways = ClipboardScroll.horizontal(wheel)!
+                precondition(sideways.scrollingDeltaY == 0 && sideways.scrollingDeltaX == wheel.scrollingDeltaY)
                 panel().makeFirstResponder(nil)
                 for appearance in ["light", "dark"] {
                     controller.query = ""
@@ -63,12 +75,30 @@ enum ClipboardRegression {
                 precondition(panel().level == .floating)
                 controller.togglePinned()
                 precondition(panel().level == .normal)
-                controller.hover(picture, frame: panel().frame, inside: true)
-                try await Task.sleep(for: .milliseconds(450))
-                let preview = application.windows.first { $0.title == "剪贴板完整预览" }!
-                precondition(preview.isVisible)
+                @MainActor func card(_ minX: CGFloat) -> NSRect { NSRect(x: minX, y: panel().frame.minY + 12, width: 264, height: 160) }
+                @MainActor func previewFor(_ item: ClipboardItem, _ anchor: NSRect) async throws -> NSWindow {
+                    controller.hover(item, frame: anchor, inside: true)
+                    try await Task.sleep(for: .milliseconds(450))
+                    let window = application.windows.first { $0.title == "剪贴板完整预览" }!
+                    precondition(window.isVisible)
+                    return window
+                }
+                let middle = card(panel().frame.midX - 132)
+                var preview = try await previewFor(picture, middle)
                 precondition(preview.frame.minY >= preview.screen!.visibleFrame.minY)
+                precondition(abs(preview.frame.maxY - (panel().frame.minY - 8)) < 0.5, "preview sits 8 pt below the panel")
+                precondition(abs(preview.frame.midX - middle.midX) < 0.5, "preview is centered under the card")
                 try snapshot(preview, "image-preview")
+                let leftCard = card(panel().frame.minX + 12)
+                preview = try await previewFor(picture, leftCard)
+                precondition(abs(preview.frame.minX - leftCard.minX) < 0.5, "left edge card aligns preview left")
+                let rightCard = card(panel().frame.maxX - 12 - 264)
+                preview = try await previewFor(picture, rightCard)
+                precondition(abs(preview.frame.maxX - rightCard.maxX) < 0.5, "right edge card aligns preview right")
+                let long = controller.items.first { $0.contentHash == "long" }!
+                preview = try await previewFor(long, middle)
+                precondition(preview.frame.height <= 440, "long text is capped and scrolls")
+                try snapshot(preview, "text-preview")
                 controller.dismissPreview()
                 precondition(!preview.isVisible)
                 controller.delete(picture)

@@ -9,6 +9,30 @@ private final class ClipboardPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     override func cancelOperation(_ sender: Any?) { dismiss() }
+
+    /// Cards only scroll horizontally, so a vertical wheel/trackpad gesture scrolls them too (no Shift needed).
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel, let converted = ClipboardScroll.horizontal(event) { super.sendEvent(converted) }
+        else { super.sendEvent(event) }
+    }
+}
+
+enum ClipboardScroll {
+    /// Maps a mostly-vertical scroll event onto the horizontal axis; nil when it is already horizontal.
+    static func horizontal(_ event: NSEvent) -> NSEvent? {
+        guard abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX), let cg = event.cgEvent?.copy() else { return nil }
+        // Each setter recomputes related fields, so read everything first and write the pixel delta last.
+        let fixed = cg.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1)
+        let line = cg.getIntegerValueField(.scrollWheelEventDeltaAxis1)
+        let point = cg.getIntegerValueField(.scrollWheelEventPointDeltaAxis1)
+        cg.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: 0)
+        cg.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: fixed)
+        cg.setIntegerValueField(.scrollWheelEventDeltaAxis1, value: 0)
+        cg.setIntegerValueField(.scrollWheelEventDeltaAxis2, value: line)
+        cg.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: 0)
+        cg.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: point)
+        return NSEvent(cgEvent: cg)
+    }
 }
 
 @MainActor @Observable
@@ -20,10 +44,9 @@ final class ClipboardController {
     private var refreshTimer: Timer?
     private var localClickMonitor: Any?
     private var globalClickMonitor: Any?
-    var query = "" { didSet { selection = 0; keyboardSelection = false; refresh(); dismissPreview() } }
+    var query = "" { didSet { selection = 0; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
     var selection = 0
-    var keyboardSelection = false
     var pinned = false
     var status: String?
 
@@ -45,6 +68,14 @@ final class ClipboardController {
         panel.title = "剪贴板历史"
         preview.title = "剪贴板完整预览"
         panel.dismiss = { [weak self] in self?.hide() }
+        // A non-activating panel at .normal level sits behind the frontmost app's windows,
+        // so float while focused and only drop back when unpinned and focus moves elsewhere.
+        NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { if let self, !self.pinned { self.panel.level = .normal } }
+        }
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: panel, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.panel.level = .floating }
+        }
     }
 
     func toggle() { panel.isVisible ? hide() : show() }
@@ -60,7 +91,9 @@ final class ClipboardController {
                                   width: width, height: 244), display: false)
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
-        panel.makeKeyAndOrderFront(nil)
+        panel.level = .floating
+        panel.orderFrontRegardless()
+        panel.makeKey()
         monitorOutsideClicks()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
@@ -111,13 +144,24 @@ final class ClipboardController {
     func moveSelection(_ delta: Int) {
         guard !items.isEmpty else { return }
         selection = min(max(0, selection + delta), items.count - 1)
-        keyboardSelection = true
         dismissPreview()
     }
 
     func copySelection() {
         guard items.indices.contains(selection) else { return }
         copy(items[selection])
+    }
+
+    /// Return: copy the selected card, close the panel and paste into the app that was in front.
+    func pasteSelection() {
+        guard items.indices.contains(selection) else { return }
+        guard ClipboardAccess.copy(items[selection]) else { status = "无法复制：原始内容已不可用"; return }
+        hide()
+        // The panel never activates KulaHere, so the previous app is still frontmost and receives ⌘V.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(80))
+            _ = ClipboardAccess.pasteIntoFrontmostApp()
+        }
     }
 
     func togglePinned() {
@@ -185,14 +229,29 @@ final class ClipboardController {
     private func showPreview(_ item: ClipboardItem, anchor: NSRect) {
         guard let screen = panel.screen else { return }
         let image = item.filePath.flatMap { NSImage(contentsOfFile: $0) }
-        let available = screen.visibleFrame
-        let width = min(464.0, available.width - 32)
-        let imageHeight = image.map { width * $0.size.height / max(1, $0.size.width) } ?? 280
-        let height = min(max(120, imageHeight + 24), min(440, available.height - 32))
-        var y = panel.frame.minY - height - 16
-        if y < available.minY + 8 { y = panel.frame.maxY + 16 }
-        y = min(max(available.minY + 8, y), available.maxY - height - 8)
-        let x = min(max(available.minX + 8, anchor.midX - width / 2), available.maxX - width - 8)
+        let available = screen.visibleFrame.insetBy(dx: 8, dy: 8)
+        let width = min(464.0, available.width)
+        let maxHeight = min(440, available.height)
+        let contentHeight: CGFloat
+        if let image {
+            contentHeight = (width - 2 * ClipboardFullPreview.inset) * image.size.height / max(1, image.size.width)
+        } else {
+            let text = NSAttributedString(string: item.text ?? "原始图片已不可用", attributes: [.font: NSFont.systemFont(ofSize: 14)])
+            contentHeight = text.boundingRect(with: NSSize(width: width - 2 * ClipboardFullPreview.textInset, height: .greatestFiniteMagnitude),
+                                              options: [.usesLineFragmentOrigin, .usesFontLeading]).height
+                + 2 * (ClipboardFullPreview.textInset - ClipboardFullPreview.inset)
+        }
+        let height = min(max(80, contentHeight + 2 * ClipboardFullPreview.inset), maxHeight)
+        // Below the panel, 8 pt gap; flip above when the screen bottom is too close.
+        var y = panel.frame.minY - 8 - height
+        if y < available.minY { y = panel.frame.maxY + 8 }
+        y = min(max(available.minY, y), available.maxY - height)
+        // Centered under the card; near an edge, align to the card's left or right edge instead.
+        let bounds = NSRect(x: max(available.minX, panel.frame.minX), y: 0,
+                            width: min(available.maxX, panel.frame.maxX) - max(available.minX, panel.frame.minX), height: 0)
+        var x = anchor.midX - width / 2
+        if x < bounds.minX { x = anchor.minX } else if x + width > bounds.maxX { x = anchor.maxX - width }
+        x = min(max(available.minX, x), available.maxX - width)
         preview.setFrame(NSRect(x: x, y: y, width: width, height: height), display: false)
         preview.contentView = NSHostingView(rootView: ClipboardFullPreview(item: item, image: image)
             .onHover { [weak self] in self?.previewHover($0) })
@@ -214,7 +273,8 @@ private struct ClipboardHistoryView: View {
                                         placeholder: "Search your clipboard contents",
                                         placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
                                         backspaceOnEmpty: { false }, move: controller.moveSelection,
-                                        submit: { _ in controller.copySelection() })
+                                        moveHorizontal: controller.moveSelection,
+                                        submit: { _ in controller.pasteSelection() })
                         .frame(height: 24)
                 }
                 .padding(.horizontal, 16).frame(height: 36)
@@ -269,11 +329,14 @@ private struct ClipboardHistoryView: View {
 private struct ClipboardHistoryCard: View {
     let item: ClipboardItem
     let controller: ClipboardController
-    @State private var anchor = NSRect.zero
+    @State private var anchor: NSView?
+    private var selected: Bool {
+        controller.items.indices.contains(controller.selection) && controller.items[controller.selection].id == item.id
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                if let icon = ClipboardAccess.sourceIcon(named: item.sourceApp) {
+                if let icon = ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
                     Image(nsImage: icon).resizable().frame(width: 28, height: 28)
                 } else { Image(systemName: "doc.on.clipboard").frame(width: 28, height: 28) }
                 Spacer()
@@ -289,16 +352,14 @@ private struct ClipboardHistoryCard: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 12).frame(width: 264, height: 160)
         .background(ThemeColor.kBackground, in: RoundedRectangle(cornerRadius: 24))
-        .overlay { RoundedRectangle(cornerRadius: 24).stroke(ThemeColor.kBorder, lineWidth: 1) }
         .overlay {
-            if controller.keyboardSelection, controller.items.indices.contains(controller.selection),
-               controller.items[controller.selection].id == item.id {
-                RoundedRectangle(cornerRadius: 24).stroke(ThemeColor.kBorderFocused, lineWidth: 2)
-            }
+            RoundedRectangle(cornerRadius: 24)
+                .strokeBorder(selected ? ThemeColor.kBorderIntense : ThemeColor.kBorder, lineWidth: selected ? 2 : 1)
         }
         .background(ClipboardAnchor { anchor = $0 })
         .contentShape(RoundedRectangle(cornerRadius: 24))
-        .onHover { controller.hover(item, frame: anchor, inside: $0) }
+        // Read the frame at hover time: scrolling moves the card without re-laying it out.
+        .onHover { inside in controller.hover(item, frame: anchor.map(ClipboardAnchor.screenFrame) ?? .zero, inside: inside) }
         .onTapGesture { controller.copy(item) }
         .onDrag { controller.drag(item) }
         .contextMenu {
@@ -313,21 +374,30 @@ private struct ClipboardHistoryCard: View {
 }
 
 private struct ClipboardFullPreview: View {
+    static let radius: CGFloat = 24
+    static let inset: CGFloat = 8
+    static let textInset: CGFloat = 16
     let item: ClipboardItem
     let image: NSImage?
     var body: some View {
         Group {
             if let image {
-                Image(nsImage: image).resizable().scaledToFit().padding(12)
+                // Concentric with the outer shape: inner radius = outer radius − inset.
+                Image(nsImage: image).resizable().scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: Self.radius - Self.inset))
+                    .padding(Self.inset)
             } else {
-                ScrollView { Text(item.text ?? "原始图片已不可用").textStyle(.resultPrimary)
-                    .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(16) }
+                ScrollView {
+                    Text(item.text ?? "原始图片已不可用").textStyle(.resultPrimary)
+                        .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(Self.textInset)
+                }.scrollIndicators(.automatic)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
-        .background { ClipboardGlass(radius: 24) }
-        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .background { ClipboardGlass(radius: Self.radius) }
+        .clipShape(RoundedRectangle(cornerRadius: Self.radius))
+        .overlay { RoundedRectangle(cornerRadius: Self.radius).stroke(ThemeColor.kBorder, lineWidth: 1) }
     }
 }
 
@@ -343,17 +413,18 @@ private struct ClipboardGlass: View {
 }
 
 private struct ClipboardAnchor: NSViewRepresentable {
-    let update: (NSRect) -> Void
-    func makeNSView(context: Context) -> AnchorView { AnchorView() }
-    func updateNSView(_ view: AnchorView, context: Context) { view.update = update }
+    let attach: (NSView) -> Void
+    func makeNSView(context: Context) -> AnchorView {
+        let view = AnchorView()
+        DispatchQueue.main.async { attach(view) }
+        return view
+    }
+    func updateNSView(_ view: AnchorView, context: Context) {}
+    static func screenFrame(_ view: NSView) -> NSRect {
+        guard let window = view.window else { return .zero }
+        return window.convertToScreen(view.convert(view.bounds, to: nil))
+    }
     final class AnchorView: NSView {
-        var update: ((NSRect) -> Void)?
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
-        override func layout() {
-            super.layout()
-            guard let window else { return }
-            let frame = window.convertToScreen(convert(bounds, to: nil))
-            DispatchQueue.main.async { [weak self] in self?.update?(frame) }
-        }
     }
 }

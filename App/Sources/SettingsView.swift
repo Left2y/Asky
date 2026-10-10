@@ -77,44 +77,67 @@ private struct HotKeySettings: View {
         Form {
             Section("触发快捷键") {
                 LabeledContent("唤起启动器") {
-                    HotKeyRecorder(app: app).frame(width: 240, height: 34)
+                    HotKeyRecorder(label: app.preferences.hotKeyLabel, apply: setLauncher).frame(width: 240, height: 34)
                 }
                 Text(app.hotKeyStatus).foregroundStyle(.secondary)
-                Button("恢复默认 ⌥ Space") {
-                    if app.onHotKeyChange?(UInt32(kVK_Space), UInt32(optionKey)) == true {
-                        app.preferences.hotKeyCode = UInt32(kVK_Space)
-                        app.preferences.hotKeyModifiers = UInt32(optionKey)
-                        app.preferences.hotKeyLabel = "⌥ Space"
-                    }
+                Button("恢复默认 ⌥ Space") { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
+            }
+            Section("剪贴板") {
+                LabeledContent("打开剪贴板历史") {
+                    HotKeyRecorder(label: app.preferences.clipboardHotKeyLabel, apply: setClipboard).frame(width: 240, height: 34)
                 }
+                Text(app.clipboardHotKeyStatus).foregroundStyle(.secondary)
+                let d = SettingsPreferences.defaultClipboardHotKey
+                Button("恢复默认 \(d.label)") { setClipboard(d.code, d.modifiers, d.label) }
             }
         }.formStyle(.grouped)
+    }
+
+    @discardableResult private func setLauncher(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
+        guard app.onHotKeyChange?(code, modifiers) == true else { return false }
+        app.preferences.hotKeyCode = code
+        app.preferences.hotKeyModifiers = modifiers
+        app.preferences.hotKeyLabel = label
+        return true
+    }
+
+    @discardableResult private func setClipboard(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
+        guard app.onClipboardHotKeyChange?(code, modifiers) == true else { return false }
+        app.preferences.clipboardHotKeyCode = code
+        app.preferences.clipboardHotKeyModifiers = modifiers
+        app.preferences.clipboardHotKeyLabel = label
+        return true
     }
 }
 
 private struct HotKeyRecorder: NSViewRepresentable {
-    let app: AppModel
-    func makeNSView(context: Context) -> Recorder { Recorder(app: app) }
+    let label: String
+    let apply: (UInt32, UInt32, String) -> Bool
+    func makeNSView(context: Context) -> Recorder { Recorder(label: label, apply: apply) }
     func updateNSView(_ view: Recorder, context: Context) {
-        if !view.recording { view.title = app.preferences.hotKeyLabel + " · 点击录制" }
+        view.label = label
+        view.apply = apply
+        if !view.recording { view.title = label + " · 点击录制" }
     }
     final class Recorder: NSButton {
-        let app: AppModel
+        var label: String
+        var apply: (UInt32, UInt32, String) -> Bool
         var recording = false
         override var acceptsFirstResponder: Bool { true }
-        init(app: AppModel) {
-            self.app = app
+        init(label: String, apply: @escaping (UInt32, UInt32, String) -> Bool) {
+            self.label = label
+            self.apply = apply
             super.init(frame: .zero)
             bezelStyle = .rounded
             target = self
             action = #selector(begin)
-            title = app.preferences.hotKeyLabel + " · 点击录制"
+            title = label + " · 点击录制"
         }
         required init?(coder: NSCoder) { fatalError() }
         @objc func begin() { recording = true; title = "按下组合键，Esc 取消"; window?.makeFirstResponder(self) }
         override func resignFirstResponder() -> Bool {
             recording = false
-            title = app.preferences.hotKeyLabel + " · 点击录制"
+            title = label + " · 点击录制"
             return super.resignFirstResponder()
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -134,13 +157,22 @@ private struct HotKeyRecorder: NSViewRepresentable {
             for (flag, carbon, symbol) in [(NSEvent.ModifierFlags.control, controlKey, "⌃"), (.option, optionKey, "⌥"), (.shift, shiftKey, "⇧"), (.command, cmdKey, "⌘")] {
                 if flags.contains(flag) { modifiers |= UInt32(carbon); label += symbol }
             }
-            label += event.keyCode == 49 ? " Space" : " " + (event.charactersIgnoringModifiers?.uppercased() ?? "Key \(event.keyCode)")
-            if app.onHotKeyChange?(UInt32(event.keyCode), modifiers) == true {
-                app.preferences.hotKeyCode = UInt32(event.keyCode)
-                app.preferences.hotKeyModifiers = modifiers
-                app.preferences.hotKeyLabel = label
+            label += " " + Self.keyName(event)
+            if apply(UInt32(event.keyCode), modifiers, label) {
                 window?.makeFirstResponder(nil)
+            } else {
+                title = "已被占用，换一个组合键"
             }
+        }
+        // charactersIgnoringModifiers is mangled by ⌥ (e.g. ⌥V → √), so use the layout-independent key name where possible.
+        static func keyName(_ event: NSEvent) -> String {
+            let special: [Int: String] = [kVK_Space: "Space", kVK_Return: "Return", kVK_Tab: "Tab", kVK_Delete: "Delete",
+                                          kVK_LeftArrow: "←", kVK_RightArrow: "→", kVK_UpArrow: "↑", kVK_DownArrow: "↓",
+                                          kVK_F1: "F1", kVK_F2: "F2", kVK_F3: "F3", kVK_F4: "F4", kVK_F5: "F5", kVK_F6: "F6",
+                                          kVK_F7: "F7", kVK_F8: "F8", kVK_F9: "F9", kVK_F10: "F10", kVK_F11: "F11", kVK_F12: "F12"]
+            if let name = special[Int(event.keyCode)] { return name }
+            let chars = event.characters(byApplyingModifiers: []) ?? event.charactersIgnoringModifiers ?? ""
+            return chars.isEmpty ? "Key \(event.keyCode)" : chars.uppercased()
         }
     }
 }
@@ -208,7 +240,7 @@ private struct GeneralSettings: View {
                 Text("仅在输入以 > 开头并按 ↩ 时运行；交互式命令转到“终端”。").textStyle(.secondary)
             }
             Section("剪贴板") {
-                Text(app.clipboardHotKeyStatus).textStyle(.secondary)
+                Text("快捷键：\(app.preferences.clipboardHotKeyLabel)（在“触发快捷键”中修改）").textStyle(.secondary)
                 Toggle("记录剪贴板历史", isOn: $app.settings.clipboardEnabled)
                 Text("保留 30 天、上限 200 MiB，固定项不删除；密码管理器与标记为隐藏的内容不记录。").textStyle(.secondary)
                 TextField("排除的应用 Bundle ID（逗号分隔）", text: Binding(

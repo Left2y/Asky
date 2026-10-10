@@ -25,7 +25,8 @@ export function systemPrompt(now: Date = new Date()): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const lines = EXTENSION_WHITELIST.flatMap((e) => e.promptGuidelines);
   return [
-    "你是 KulaHere，macOS 上的个人助理。用简洁的中文回答。",
+    "你是 Asky，macOS 上的个人助理。用简洁的中文回答。",
+    "产品已从 KulaHere 更名为 Asky。自我介绍和提及当前产品时统一使用 Asky，即使历史对话中使用了旧名称。",
     `当前本地时间：${now.toString()}（时区 ${tz}）。日期时间参数使用 ISO 8601 并带时区偏移。`,
     "回复使用 Markdown。最多使用一层标题：需要标题时统一使用 ###，不要使用 #、##、其他级别或嵌套标题；简短回复无需标题。",
     "规则：",

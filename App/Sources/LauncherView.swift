@@ -229,14 +229,14 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // Blur the actual desktop before applying the unchanged 70% fill.
-            // Clear glass alone leaves background text recognizable in the field.
-            // Keep frost, fill and glass separate from the editable content.
+            // Frost removes background text detail; the lighter semantic veil
+            // preserves broad desktop colors beneath the native glass highlights.
             ZStack {
                 if !reduceTransparency {
                     LauncherBackdropFrost()
                 }
-                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true)
+                    .opacity(reduceTransparency ? 1 : (colorScheme == .dark ? 0.45 : 0.35)))
                     .glassEffect(reduceTransparency ? .identity : .clear, in: shellShape)
             }
             .clipShape(shellShape)
@@ -258,7 +258,7 @@ struct LauncherView: View {
             // directly in the padded canvas, without negative layout padding.
             shellShape.fill(.black)
                 .padding(LauncherLayout.shadowPadding)
-                .shadow(color: .black.opacity(0.12), radius: LauncherLayout.shadowRadius,
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.40 : 0.24), radius: LauncherLayout.shadowRadius,
                         x: 0, y: LauncherLayout.shadowOffsetY)
                 .mask {
                     Rectangle().overlay {
@@ -307,7 +307,7 @@ private struct LauncherBackdropFrost: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.blendingMode = .behindWindow
-        view.material = .hudWindow
+        view.material = .menu
         view.state = .active
         return view
     }

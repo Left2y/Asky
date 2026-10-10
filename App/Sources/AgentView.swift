@@ -88,7 +88,7 @@ struct AgentView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
+            Rectangle().fill(ThemeColor.kBorder.color(for: colorScheme)).frame(height: 1)
             if showingHistory {
                 history
             } else {
@@ -97,11 +97,15 @@ struct AgentView: View {
                     .padding(.horizontal, 12).padding(.bottom, 12)
             }
         }
-        .foregroundStyle(ThemeColor.kText)
-        .background(shape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency)))
-        .glassEffect(reduceTransparency ? .identity : .regular, in: shape)
+        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
+        // Keep the shell material behind the content so it does not flatten
+        // the header's independent glass controls into the window surface.
+        .background {
+            shape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                .glassEffect(reduceTransparency ? .identity : .regular, in: shape)
+        }
         .clipShape(shape)
-        .overlay(shape.strokeBorder(ThemeColor.kBorder, lineWidth: 1).allowsHitTesting(false))
+        .overlay(shape.strokeBorder(ThemeColor.kBorder.color(for: colorScheme), lineWidth: 1).allowsHitTesting(false))
         .ignoresSafeArea()
         .onExitCommand { if showingHistory { showingHistory = false } else { close() } }
         .background {
@@ -116,16 +120,22 @@ struct AgentView: View {
                 Image(systemName: showingHistory ? "chevron.left" : "list.bullet")
                     .frame(width: 20, height: 20)
             }
-            .buttonStyle(AgentHeaderButtonStyle())
+            .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
             .accessibilityLabel(showingHistory ? "返回对话" : "历史对话")
             .keyboardShortcut("h", modifiers: [.command, .shift])
             if showingHistory {
                 HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 17)).frame(width: 17, height: 20)
+                        .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
                     TextField("搜索对话", text: $historyQuery).textFieldStyle(.plain).textStyle(.input)
                 }
-                .padding(.horizontal, 16).frame(height: 32)
-                .background(ThemeColor.kBackground, in: .capsule)
+                .padding(.horizontal, 16).frame(maxWidth: .infinity).frame(height: 36)
+                .background {
+                    Capsule().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                        .glassEffect(reduceTransparency ? .identity : .regular, in: .capsule)
+                        .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+                }
             } else {
                 Text(model.conversations.first { $0.id == model.conversationID }?.title ?? "新对话")
                     .textStyle(AgentLayout.title).lineLimit(1).frame(maxWidth: .infinity)
@@ -135,10 +145,11 @@ struct AgentView: View {
                     }
             }
             Button(action: close) { Image(systemName: "xmark").frame(width: 20, height: 20) }
-                .buttonStyle(AgentHeaderButtonStyle()).accessibilityLabel("关闭对话窗口")
+                .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme)).accessibilityLabel("关闭对话窗口")
                 .keyboardShortcut("w", modifiers: .command)
         }
         .padding(12)
+        .frame(height: showingHistory ? 60 : 56)
     }
 
     private var history: some View {
@@ -160,19 +171,23 @@ struct AgentView: View {
                     }
                 }
             }
-            .textStyle(AgentLayout.message).padding(.horizontal, 12).padding(.bottom, 12)
+            .textStyle(AgentLayout.message).padding(.horizontal, 12).padding(.vertical, 12)
         }
         .frame(maxHeight: .infinity)
     }
 }
 
 private struct AgentHeaderButtonStyle: ButtonStyle {
+    let colorScheme: ColorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 14)).foregroundStyle(ThemeColor.kIcon)
+        configuration.label.font(.system(size: 17)).foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
             .padding(6).frame(width: 32, height: 32)
-            .background(ThemeColor.kBackground, in: .circle)
-            .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: .circle)
+            .background {
+                Circle().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                    .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: .circle)
+                    .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+            }
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
@@ -218,7 +233,7 @@ private struct Transcript: View {
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
-                .padding(.horizontal, 32).padding(.bottom, 12)
+                .padding(.horizontal, 32).padding(.vertical, 12)
             }
             .onChange(of: model.items.count) { proxy.scrollTo("bottom") }
             .onChange(of: model.streaming) { proxy.scrollTo("bottom") }

@@ -58,7 +58,7 @@ public actor AgentHost {
 
     private let launcher: Launcher
     private let toolHandler: ToolHandler
-    private let configProvider: @Sendable () throws -> RuntimeLaunchConfig?
+    private let configProvider: @Sendable () async throws -> RuntimeLaunchConfig?
     private let toolsProvider: @Sendable () async -> [ToolDefinition]
     private let config: AgentHostConfig
 
@@ -83,7 +83,7 @@ public actor AgentHost {
     public private(set) var launchCount = 0
 
     public init(config: AgentHostConfig = .init(), launcher: @escaping Launcher,
-                configProvider: @escaping @Sendable () throws -> RuntimeLaunchConfig?,
+                configProvider: @escaping @Sendable () async throws -> RuntimeLaunchConfig?,
                 toolsProvider: @escaping @Sendable () async -> [ToolDefinition],
                 toolHandler: @escaping ToolHandler) {
         self.config = config
@@ -156,7 +156,7 @@ public actor AgentHost {
     }
 
     private func launch() async throws -> any RuntimeProcess {
-        guard let cfg = try configProvider() else { throw AgentHostError.notConfigured }
+        guard let cfg = try await configProvider() else { throw AgentHostError.notConfigured }
         state = .starting
         let p: any RuntimeProcess
         do { p = try launcher() } catch {

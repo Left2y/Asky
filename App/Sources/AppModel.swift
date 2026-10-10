@@ -71,6 +71,7 @@ final class AppModel {
     }
     @ObservationIgnored var onSettingsChange: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationFinished: (() -> Void)?
+    @ObservationIgnored var onModelAuthenticationStarted: (() -> Void)?
     var keywords: KeywordRegistry {
         didSet { store.setCodableSetting("keywords", keywords) }
     }
@@ -141,10 +142,14 @@ final class AppModel {
             do {
                 key = try keychain.read(account: cfg.credentialRef, allowInteraction: false)
             } catch let error as Keychain.KeychainError where error.requiresAuthentication {
-                // AgentHost runs this off the main actor. Restore the explicit AI request's
-                // window when the system authorization dialog releases focus.
-                defer { Task { @MainActor [weak self] in self?.onModelAuthenticationFinished?() } }
-                key = try keychain.read(account: cfg.credentialRef)
+                await MainActor.run { [weak self] in self?.onModelAuthenticationStarted?() }
+                do {
+                    key = try keychain.read(account: cfg.credentialRef)
+                } catch {
+                    await MainActor.run { [weak self] in self?.onModelAuthenticationFinished?() }
+                    throw error
+                }
+                await MainActor.run { [weak self] in self?.onModelAuthenticationFinished?() }
             }
             guard let key, !key.isEmpty else { throw AgentHostError.credentialMissing }
             return RuntimeLaunchConfig(baseURL: cfg.baseURL.absoluteString, model: cfg.modelName, apiKey: key)

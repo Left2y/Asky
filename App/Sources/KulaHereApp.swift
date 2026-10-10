@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var pressure: MemoryPressureMonitor?
     private var terminating = false
+    private let windowPresentation = WindowPresentation()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { model = try AppModel() } catch {
@@ -42,7 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onOpenSettings = { [weak self] in self?.openSettings() }
         launcherModel = LauncherModel(app: model)
         launcher = LauncherController(model: launcherModel)
-        agentWindow = AgentWindowController(model: AgentModel(app: model))
+        agentWindow = AgentWindowController(model: AgentModel(app: model), presentation: windowPresentation)
+        model.onModelAuthenticationStarted = { [weak self] in
+            self?.agentWindow.prepareForAuthentication()
+        }
         model.onModelAuthenticationFinished = { [weak self] in
             self?.agentWindow.restoreAfterAuthentication()
         }
@@ -111,22 +115,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openLauncher() { launcher.show() }
-    @objc private func openAgent() { agentWindow.show() }
+    @objc private func openAgent() {
+        launcher.hide()
+        agentWindow.show()
+    }
 
     @objc private func openSettings() {
         if settingsWindow == nil {
             let w = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: true)
             w.title = "KulaHere 设置"
-            w.level = .floating
-            w.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary]
+            w.level = .normal
+            w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: SettingsView(app: model, hotKeyStatus: hotKeyStatus))
             w.center()
             settingsWindow = w
         }
         launcher.hide()
-        NSApp.activate()
-        settingsWindow?.makeKeyAndOrderFront(nil)
-        settingsWindow?.orderFrontRegardless()
+        if let settingsWindow { windowPresentation.show(settingsWindow) }
     }
 }

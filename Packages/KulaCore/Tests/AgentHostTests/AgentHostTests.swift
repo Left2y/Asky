@@ -121,6 +121,29 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
 }
 
 @Suite(.timeLimit(.minutes(1))) struct AgentHostTests {
+    @Test func asynchronousCredentialFailureFinishesHandoffBeforeFailureEvent() async {
+        let handoffFinished = Mutex(false)
+        let launches = Launches()
+        let host = AgentHost(launcher: {
+            let p = FakeRuntime(pid: 1234, script: echoScript)
+            launches.list.withLock { $0.append(p) }
+            return p
+        }, configProvider: {
+            // Model authorization hands focus back on the main actor before
+            // the runtime reports a failed/cancelled credential request.
+            await MainActor.run { handoffFinished.withLock { $0 = true } }
+            throw AgentHostError.credentialMissing
+        }, toolsProvider: { [] }, toolHandler: { .init(requestID: $0.requestID, status: .completed) })
+        let stream = await host.submit(AgentRequest(sessionID: "s", text: "hello"))
+        var events: [AgentEvent] = []
+        for await event in stream {
+            if case .error = event { #expect(handoffFinished.withLock { $0 }) }
+            events.append(event)
+        }
+        #expect(finalState(events) == .failed)
+        #expect(launches.count == 0)
+    }
+
     @Test func credentialFailureIsPreservedAndDoesNotLaunchRuntime() async {
         let (host, launches) = makeHost(credentialError: .credentialMissing)
         let events = await collect(await host.submit(AgentRequest(sessionID: "s", text: "hello")))

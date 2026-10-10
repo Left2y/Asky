@@ -6,9 +6,14 @@ import Theme
 @MainActor
 final class AgentWindowController {
     private var window: NSWindow?
+    private let presentation: WindowPresentation
+    private var restoreAuthenticationWindow = false
     let model: AgentModel
 
-    init(model: AgentModel) { self.model = model }
+    init(model: AgentModel, presentation: WindowPresentation) {
+        self.model = model
+        self.presentation = presentation
+    }
 
     func show(prompt: String? = nil) {
         if window == nil {
@@ -19,7 +24,7 @@ final class AgentWindowController {
             w.title = "KulaHere AI"
             w.titlebarAppearsTransparent = true
             w.level = .normal
-            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.minSize = NSSize(width: WindowMetrics.agentMinSize.width, height: WindowMetrics.agentMinSize.height)
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: AgentView(model: model))
@@ -37,16 +42,20 @@ final class AgentWindowController {
         }
     }
 
+    func prepareForAuthentication() {
+        restoreAuthenticationWindow = window?.isVisible == true && window?.isMiniaturized == false
+        presentation.yieldToAuthentication()
+    }
+
     func restoreAfterAuthentication() {
-        guard model.isRunning else { return }
+        defer { restoreAuthenticationWindow = false }
+        guard restoreAuthenticationWindow, let window, window.isVisible, !window.isMiniaturized else { return }
         bringToFront()
     }
 
     private func bringToFront() {
         guard let window else { return }
-        if window.isMiniaturized { window.deminiaturize(nil) }
-        NSApp.activate()
-        window.makeKeyAndOrderFront(nil)
+        presentation.show(window)
     }
 }
 

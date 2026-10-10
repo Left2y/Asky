@@ -45,6 +45,28 @@ enum ClipboardRegression {
                     // Retain the controller while a human or computer-use inspects the actual window.
                     while true { try await Task.sleep(for: .seconds(1)); _ = controller.items.count }
                 }
+                var settingsOpened = 0
+                app.onOpenSettings = { settingsOpened += 1 }
+                let comma = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                            timestamp: 0, windowNumber: panel().windowNumber,
+                                            context: nil, characters: ",", charactersIgnoringModifiers: ",",
+                                            isARepeat: false, keyCode: 43)!
+                panel().sendEvent(comma)
+                precondition(settingsOpened == 1, "clipboard Cmd-comma must reach Settings")
+                let launcher = LauncherPanel()
+                launcher.onOpenSettings = { settingsOpened += 1 }
+                launcher.sendEvent(comma)
+                precondition(settingsOpened == 2, "launcher Cmd-comma must reach Settings")
+                let modifiedComma = NSEvent.keyEvent(with: .keyDown, location: .zero,
+                    modifierFlags: [.command, .shift], timestamp: 0, windowNumber: 0, context: nil,
+                    characters: "<", charactersIgnoringModifiers: ",", isARepeat: false, keyCode: 43)!
+                precondition(!SettingsShortcut.matches(modifiedComma), "extra modifiers must not open Settings")
+                if CommandLine.arguments.contains("--settings-shortcut") {
+                    controller.hide()
+                    try? FileManager.default.removeItem(at: root)
+                    print("Launcher and clipboard Cmd-comma event routing passed")
+                    exit(0)
+                }
                 precondition(controller.items.count == 4)
                 precondition(panel().frame.height == 244)
                 precondition(controller.selection == 0, "first card is selected by default")

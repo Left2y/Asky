@@ -251,6 +251,7 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 #### 📋 6. 剪贴板原生回归检查
 ```sh
 python3 App/Tests/run-clipboard-regression.py
+python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 ```
 
 #### ⚙️ 7. 设置窗口外观与快捷键生命周期回归检查
@@ -276,7 +277,7 @@ python3 App/Tests/run-agent-reply-regression.py
 
 - `🔑 [模型设置与钥匙串]` 使用 AI 前，在“设置 › 模型设置”中填写 OpenAI 兼容接口地址、模型名和 Key。Key 加密存储于系统钥匙串中，设置面板不反显明文。修改或首次访问 Key 会在当次 App 生命周期内常驻内存复用，重启后需系统授权。保存模型配置会自动等待进行中任务结束，并关闭闲置 AgentRuntime。数据存储位于 `~/Library/Application Support/KulaHere/`。
 - `🎛️ [设置导航]` 顶部导航包含：外观设置（跟随系统/浅色/深色）、模型设置（供应商/API 地址/模型/Key）、触发快捷键（录制/冲突排查/恢复默认）、别名与快捷指令（应用/快捷指令别名/网页关键词）。通用、数据来源、权限、记忆与 MCP 位于“更多设置”。
-- `🪟 [窗口层级与焦点]` AI 对话与设置窗口默认处于常规窗口层级，便于日常工作切换；对话窗口支持手动图钉置顶。从 Finder 重新点击已运行 App 会唤醒 AI 窗口并还原最小化状态。
+- `🪟 [窗口层级与焦点]` AI 对话与设置窗口默认处于常规窗口层级，便于日常工作切换；对话窗口支持手动图钉置顶。搜索框或剪贴板面板获得键盘焦点时，按 `⌘,` 可直接打开设置。设置打开期间显示 Dock 图标，关闭后恢复菜单栏常驻；点击 Dock 图标会回到设置。从 Finder 重新点击已运行 App 时，如设置未打开，则唤醒 AI 窗口并还原最小化状态。
 - `🛡️ [系统权限与隐私]` 在“设置 › 更多设置 › 系统权限”中精细管控。日历、提醒事项、备忘录与通讯录在首次使用工具时请求原生权限，拒绝后提供跳转系统设置引导；短信最终由用户在「信息」中手动发出。创建日程前自动获取系统可写日历，精准区分日历名称（如“大麦”）。
 - `🤖 [DeepSeek 验证配置]` API 地址填入 `https://api.deepseek.com`，模型名称填入 `deepseek-flash`。基础多轮对话与历史重开均已真实通过测试验证。
 
@@ -481,6 +482,7 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 #### 📋 6. Clipboard Regression Check
 ```sh
 python3 App/Tests/run-clipboard-regression.py
+python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 ```
 
 #### ⚙️ 7. Settings Appearance & Hotkey Lifecycle Check
@@ -506,6 +508,6 @@ python3 App/Tests/run-agent-reply-regression.py
 
 - `🔑 [Model Setup & Keychain]` Enter your OpenAI-compatible endpoint, model, and key under Settings › Model Settings. The key is securely stored in macOS Keychain. In-memory caching avoids repeated keychain prompts during an app session. Preferences are saved in `~/Library/Application Support/KulaHere/`.
 - `🎛️ [Settings Navigation]` Top navigation offers: Appearance (system/light/dark), Model Settings (provider/URL/model/key), Trigger Shortcuts (recording/conflict detection), and Aliases & Shortcuts (apps/macOS Shortcuts/web keywords). General, Data Sources, Permissions, Memory, and MCP are grouped under More Settings.
-- `🪟 [Window Levels & Handoff]` AI conversations and Settings run at the normal window level by default, with optional manual pin to stay on top. Reopening the app from Finder brings the AI conversation forward and restores minimized windows.
+- `🪟 [Window Levels & Handoff]` AI conversations and Settings run at the normal window level by default, with optional manual pin to stay on top. Press `⌘,` while the search field or clipboard panel has keyboard focus to open Settings directly. The Dock icon appears while Settings is open and disappears when it closes; clicking the Dock icon returns to Settings. Reopening the app from Finder brings the AI conversation forward and restores minimized windows when Settings is closed.
 - `🛡️ [Permissions & Apple Ecosystem]` Permissions are managed in Settings › More Settings › System Permissions. Handled progressively for EventKit Calendar, Reminders, Notes, and Contacts. Outgoing messages drafts are handed over to Apple Messages.
 - `🤖 [DeepSeek Configuration]` Set endpoint to `https://api.deepseek.com` and model to `deepseek-flash`. Multi-turn chat and conversation history restoration are verified.

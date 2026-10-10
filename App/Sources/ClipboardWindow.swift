@@ -6,12 +6,14 @@ import Theme
 
 private final class ClipboardPanel: NSPanel {
     var dismiss: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     override func cancelOperation(_ sender: Any?) { dismiss() }
 
     /// Cards only scroll horizontally, so a vertical wheel/trackpad gesture scrolls them too (no Shift needed).
     override func sendEvent(_ event: NSEvent) {
+        if SettingsShortcut.matches(event) { onOpenSettings(); return }
         if event.type == .scrollWheel, let converted = ClipboardScroll.horizontal(event) { super.sendEvent(converted) }
         else { super.sendEvent(event) }
     }
@@ -68,6 +70,7 @@ final class ClipboardController {
         panel.title = "剪贴板历史"
         preview.title = "剪贴板完整预览"
         panel.dismiss = { [weak self] in self?.hide() }
+        panel.onOpenSettings = { [weak app] in app?.openSettings() }
         // A non-activating panel at .normal level sits behind the frontmost app's windows,
         // so float while focused and only drop back when unpinned and focus moves elsewhere.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in

@@ -48,3 +48,12 @@ final class WindowPresentation: NSObject {
         if notification.object as? NSWindow === pendingWindow { pendingWindow = nil }
     }
 }
+
+/// Handle settings before a non-activating panel forwards keys to its field editor.
+enum SettingsShortcut {
+    static func matches(_ event: NSEvent) -> Bool {
+        event.type == .keyDown
+            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command
+            && event.charactersIgnoringModifiers == ","
+    }
+}

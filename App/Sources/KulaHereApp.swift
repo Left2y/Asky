@@ -17,7 +17,7 @@ enum KulaHereMain {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var model: AppModel!
     private var launcher: LauncherController!
     private var launcherModel: LauncherModel!
@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onOpenSettings = { [weak self] in self?.openSettings() }
         launcherModel = LauncherModel(app: model)
         launcher = LauncherController(model: launcherModel)
+        launcher.onOpenSettings = { [weak self] in self?.openSettings() }
         agentWindow = AgentWindowController(model: AgentModel(app: model), presentation: windowPresentation)
         model.onModelAuthenticationStarted = { [weak self] in
             self?.agentWindow.prepareForAuthentication()
@@ -79,7 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        agentWindow?.show()
+        if let settingsWindow, settingsWindow.isVisible {
+            windowPresentation.show(settingsWindow)
+        } else {
+            agentWindow?.show()
+        }
         return true
     }
 
@@ -167,6 +172,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         agentWindow.show()
     }
 
+    func windowWillClose(_ notification: Notification) {
+        guard notification.object as? NSWindow === settingsWindow else { return }
+        NSApp.setActivationPolicy(.accessory)
+    }
+
     @objc private func openSettings() {
         if settingsWindow == nil {
             let w = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: true)
@@ -174,11 +184,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             w.level = .normal
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.isReleasedWhenClosed = false
+            w.delegate = self
             w.contentView = NSHostingView(rootView: SettingsView(app: model))
             w.center()
             settingsWindow = w
         }
         launcher.hide()
+        clipboardWindow.hide()
+        NSApp.setActivationPolicy(.regular)
         if let settingsWindow { windowPresentation.show(settingsWindow) }
     }
 }

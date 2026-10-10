@@ -36,6 +36,7 @@ private enum LauncherLayout {
 final class LauncherPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onBlur: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0,
@@ -56,6 +57,7 @@ final class LauncherPanel: NSPanel {
     }
 
     override func sendEvent(_ event: NSEvent) {
+        if SettingsShortcut.matches(event) { onOpenSettings(); return }
         if event.type == .scrollWheel,
            routeScrollWheel(event, at: event.locationInWindow) { return }
         super.sendEvent(event)
@@ -108,6 +110,11 @@ final class LauncherController {
         }
         panel.onBlur = { [weak self] in self?.hide() }
         model.onHide = { [weak self] in self?.hide() }
+    }
+
+    var onOpenSettings: () -> Void {
+        get { panel.onOpenSettings }
+        set { panel.onOpenSettings = newValue }
     }
 
     var isVisible: Bool { panel.isVisible }

@@ -28,7 +28,7 @@ V1 规划包含三个层次：
 
 搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 8 个菜单项的高度（400 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示，隐藏滚动指示条，内容裁切在外壳圆角内。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
 
-鼠标指针位于输入框或结果区时，支持滚轮与触控板滚动结果；滚动保持输入焦点与键盘选择。键盘导航也会将屏外选中项滚入视野。搜索外壳整体接收鼠标交互，输入区与结果区的空白位置也不会将滚动穿透到背景窗口。
+鼠标指针位于输入框或结果区时，支持滚轮与触控板滚动结果；滚动保持输入焦点与键盘选择。键盘导航也会将屏外选中项滚入视野；↑/↓ 到达首项或末项时停住，不循环切换到另一端。搜索外壳整体接收鼠标交互，输入区与结果区的空白位置也不会将滚动穿透到背景窗口。
 
 独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
 
@@ -172,7 +172,7 @@ Search results show section headings only when two or more categories are presen
 
 The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at eight menu rows in height (400 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results with hidden scroll indicators and content clipped to the shell corners. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
 
-Mouse-wheel and trackpad gestures over either the input or results scroll the results while preserving input focus and keyboard selection. Keyboard navigation also reveals selected results outside the viewport. The entire search shell accepts pointer interaction, including blank areas in the input and results, so scrolling does not pass through to background windows.
+Mouse-wheel and trackpad gestures over either the input or results scroll the results while preserving input focus and keyboard selection. Keyboard navigation also reveals selected results outside the viewport; Up/Down stops at the first or last result without wrapping to the other end. The entire search shell accepts pointer interaction, including blank areas in the input and results, so scrolling does not pass through to background windows.
 
 A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
 

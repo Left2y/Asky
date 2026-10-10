@@ -244,7 +244,7 @@ enum LauncherWindowRegression {
         try require(model.selection == selection && editor.string == text && panel.firstResponder === editor,
                     "scrolling must preserve selection, text and input focus")
         let target = model.results.lastIndex { $0.source == .file }!
-        let steps = (target - selection + model.results.count) % model.results.count
+        let steps = target - selection
         let field = searchField(in: content)!
         for _ in 0..<steps {
             _ = (field.delegate as? LauncherSearchField.Coordinator)?.control(
@@ -253,9 +253,33 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(200))
         try require(model.selection == target, "keyboard navigation must remain available")
         try require(scroll.contentView.bounds.origin.y > 0, "keyboard must reveal an offscreen selection")
+        let coordinator = field.delegate as! LauncherSearchField.Coordinator
+        for _ in 0..<(model.results.count + 3) {
+            _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        try require(model.selection == model.results.count - 1, "repeated Down must stop at the last result")
+        let bottom = scroll.contentView.bounds.origin.y
+        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        try await Task.sleep(for: .milliseconds(200))
+        try require(scroll.contentView.bounds.origin.y == bottom, "Down at the last result must not scroll back to the top")
+        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
+        try require(model.selection == model.results.count - 2, "Up must move away from the last result")
+        for _ in 0..<(model.results.count + 3) {
+            _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        try require(model.selection == 0, "repeated Up must stop at the first result")
+        let top = scroll.contentView.bounds.origin.y
+        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
+        try await Task.sleep(for: .milliseconds(200))
+        try require(scroll.contentView.bounds.origin.y == top, "Up at the first result must not scroll back to the bottom")
+        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        try require(model.selection == 1 && panel.firstResponder === editor,
+                    "Down must move away from the first result while preserving input focus")
         model.selection = selection
         try await Task.sleep(for: .milliseconds(200))
-        print("wheel/precise forward/reverse over rows/input, focus and keyboard checks passed")
+        print("wheel/precise forward/reverse over rows/input, focus and bounded keyboard navigation checks passed")
     }
 
     private static func runScrollBackground() {

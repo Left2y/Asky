@@ -315,7 +315,7 @@ final class LauncherModel {
 
     func move(_ delta: Int) {
         guard !results.isEmpty else { return }
-        selection = (selection + delta + results.count) % results.count
+        selection = min(max(selection + delta, 0), results.count - 1)
     }
 
     /// Return executes the selection; ⌘Return explicitly submits to AI.

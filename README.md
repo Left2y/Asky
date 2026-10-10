@@ -68,6 +68,8 @@ AI 对话和设置均使用普通窗口层级，切换到其他应用后可被�
 
 AI 对话按 Figma UI 页中的 38:555 / 38:654 实现为 720 × 640 pt 玻璃窗口。左上角切换历史与搜索，附件菜单提供新对话和设置；工具调用以对应工具的 SF Symbol 和状态文字展示。见[对话样式验证](docs/validation/2026-10-10-ai-chat-design.md)。
 
+AI 回复通过 MarkdownUI 2.4.1 渲染 Markdown，支持列表、标题、引用、代码块和表格，保留文本选择及明暗主题；历史对话使用相同渲染器。Markdown 图片显示占位符，不自动读取图片地址。Xcode 首次构建会通过 SwiftPM 下载该依赖。见[Markdown 验证记录](docs/validation/2026-10-10-chat-markdown.md)。
+
 系统权限在“设置 › 系统权限”中逐项管理，AI 对话附件菜单也提供设置入口。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
 
 日程、提醒事项、备忘录、通讯录和短信使用 macOS 苹果官方应用及接口。日程结果区分「苹果日历」应用与其中的日历名称（例如「大麦」），不把日历名称当作第三方工具。短信草稿交给苹果「信息」，由用户发送。
@@ -138,6 +140,8 @@ Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible
 Both AI conversation and Settings use the normal window level, so other applications can cover them when you switch. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
 AI conversations follow Figma UI nodes 38:555 / 38:654 in a 720 × 640 pt glass window. The top-left button opens searchable history; the attachment menu includes new chat and settings. Tool calls display the corresponding SF Symbol with status text. See the [conversation design validation](docs/validation/2026-10-10-ai-chat-design.md).
+
+AI replies use MarkdownUI 2.4.1 to render Markdown lists, headings, blockquotes, code blocks, and tables, with selectable text and light/dark themes. Reopened history uses the same renderer. Markdown images display placeholders without loading their URLs. The first Xcode build downloads this dependency through SwiftPM. See the [Markdown validation record](docs/validation/2026-10-10-chat-markdown.md).
 
 Manage individual permissions in Settings › System Permissions, also accessible from the AI conversation attachment menu. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
 

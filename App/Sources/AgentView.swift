@@ -255,7 +255,8 @@ private struct ChatBubble: View {
             HStack { Spacer(minLength: 60); bubble.padding(.horizontal, 12).padding(.vertical, 10)
                 .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
         case .assistant:
-            bubble.frame(maxWidth: .infinity, alignment: .leading)
+            ChatMarkdownView(text: item.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
         case .tool(let status):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: item.toolSymbol).frame(width: 20)

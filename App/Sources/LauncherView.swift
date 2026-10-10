@@ -161,8 +161,6 @@ struct LauncherView: View {
                     commandIcon
                         .frame(width: 24, height: 24)
                         .accessibilityLabel(model.commandInput?.command.name ?? "关键词命令")
-                } else if !hasInput {
-                    searchIcon
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -175,7 +173,7 @@ struct LauncherView: View {
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: hasInput ? 26 : 24)
-                if hasInput { searchIcon }
+                searchIcon
             }
             .padding(.leading, hasInput ? 28 : LauncherLayout.inputLeadingPadding)
             .padding(.trailing, hasInput ? 28 : LauncherLayout.inputTrailingPadding)

@@ -4,6 +4,30 @@ import Theme
 
 private final class ComposerTextView: NSTextView {
     var pasteAttachment: () -> Bool = { false }
+    // This accessory app has no standard Edit menu. Handle the responder's
+    // paste shortcut directly, including image-only pasteboards that plain
+    // NSTextView would otherwise mark as unavailable.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "v" {
+            paste(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "v" {
+            paste(nil)
+        } else { super.keyDown(with: event) }
+    }
+
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(paste(_:)) { return true }
+        return super.validateUserInterfaceItem(item)
+    }
+
     override func paste(_ sender: Any?) {
         if !pasteAttachment() { super.paste(sender) }
     }
@@ -23,6 +47,7 @@ struct ComposerTextEditor: NSViewRepresentable {
         let scroll = NSScrollView()
         let editor = ComposerTextView()
         editor.isRichText = false
+        editor.allowsUndo = true
         editor.importsGraphics = false
         editor.drawsBackground = false
         editor.font = .systemFont(ofSize: 16)

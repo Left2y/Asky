@@ -232,7 +232,7 @@ final class AgentModel {
 
     func attach(fileURL url: URL) {
         do { addAttachment(try ComposerAttachmentService.importFile(url, into: app.store.attachmentsDirectory)) }
-        catch { attachmentError(error) }
+        catch { reportAttachmentError(error) }
     }
 
     private func addAttachment(_ preview: ComposerAttachmentService.Preview) {
@@ -252,11 +252,11 @@ final class AgentModel {
         if !files.isEmpty { files.forEach { attach(fileURL: $0) }; return true }
         guard let image = ComposerAttachmentService.pastedImage() else { return false }
         do { addAttachment(try ComposerAttachmentService.importImage(image, into: app.store.attachmentsDirectory)) }
-        catch { attachmentError(error) }
+        catch { reportAttachmentError(error) }
         return true
     }
 
-    private func attachmentError(_ error: Error) {
+    func reportAttachmentError(_ error: Error) {
         appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "添加附件失败：\(error.localizedDescription)"))
     }
 

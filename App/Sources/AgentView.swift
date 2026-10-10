@@ -350,10 +350,10 @@ private struct Composer: View {
         }
         .padding(.vertical, 12)
         .background(ThemeColor.kInput, in: .rect(cornerRadius: 24))
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true) { r in
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.data, .image, .text], allowsMultipleSelection: true) { r in
             switch r {
             case .success(let urls): urls.forEach { model.attach(fileURL: $0) }
-            case .failure: break
+            case .failure(let error): model.reportAttachmentError(error)
             }
         }
         .dropDestination(for: URL.self) { urls, _ in

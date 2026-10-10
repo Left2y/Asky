@@ -270,6 +270,7 @@ private struct ResultList: View {
 private struct ResultRow: View {
     let result: SearchResult
     let selected: Bool
+    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -284,8 +285,10 @@ private struct ResultRow: View {
         }
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)
-        .background(selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
+        .background(hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
+                        selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: 8))
+        .onHover { hovering = $0 }
     }
 
     @ViewBuilder private var icon: some View {

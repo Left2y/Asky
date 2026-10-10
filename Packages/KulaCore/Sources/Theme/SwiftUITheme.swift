@@ -37,6 +37,7 @@ extension ShapeStyle where Self == ThemeColor {
     public static var kBackgroundNeutral: ThemeColor { ThemeColor("backgroundNeutral") }
     public static var kBackgroundPrimary: ThemeColor { ThemeColor("backgroundPrimary") }
     public static var kInput: ThemeColor { ThemeColor("input") }
+    public static var kInteractionHover: ThemeColor { ThemeColor("interactionHover") }
 }
 
 extension TextStyle {

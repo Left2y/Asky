@@ -1,6 +1,6 @@
 import Foundation
 
-/// Design data snapshot from Figma (docs/design-system.md appendix, checked 2026-10-09).
+/// Design data snapshot from Figma (docs/design-system.md appendix, colors checked 2026-10-10).
 /// Source names are preserved verbatim; native code maps them to normalized names.
 public struct RGBA: Sendable, Hashable {
     public var red: Double, green: Double, blue: Double, alpha: Double
@@ -65,16 +65,17 @@ public enum SemanticColors {
         "backgroundDisbled": ("Palette/black2", "Palette/white2"),
         "backgroundPrimary": ("Palette/black100", "Palette/white100"),
         "backgroundPrimaryHover": ("Palette/black80", "Palette/white80"),
-        "backgroundPrimarySubtle": ("Palette/black4", "Palette/white4"),
+        "backgroundPrimarySubtle": ("Palette/black6", "Palette/white6"),
         "backgroundNegative": ("Palette/red", "Palette/red"),
         "backgroundPositive": ("Palette/green", "Palette/green"),
-        "backgroundNeutral": ("Palette/black4", "Palette/white4"),
+        "backgroundNeutral": ("Palette/black6", "Palette/white6"),
         "backgroundNeutralHover": ("Palette/black8", "Palette/white8"),
         "backgroundNeutralIntense": ("Palette/black20", "Palette/white20"),
         "backgroundSelected": ("Colors/backgroundPrimarySubtle", "Colors/backgroundPrimarySubtle"),
         "backgroundSelectedIntense": ("Colors/backgroundPrimary", "Colors/backgroundPrimary"),
         "Overlay": ("Palette/black20", "Palette/black60"),
-        "Input": ("Palette/black4", "Palette/white4"),
+        "Input": ("Palette/black8", "Palette/white8"),
+        "InteractionHover": ("Palette/black6", "Palette/white8"),
     ]
 
     /// Explicit native-name → source-name mapping (keeps source spelling such as `backgroundDisbled`).
@@ -84,9 +85,11 @@ public enum SemanticColors {
         m["backgroundDisabled"] = "backgroundDisbled"
         m["overlay"] = "Overlay"
         m["input"] = "Input"
+        m["interactionHover"] = "InteractionHover"
         m.removeValue(forKey: "backgroundDisbled")
         m.removeValue(forKey: "Overlay")
         m.removeValue(forKey: "Input")
+        m.removeValue(forKey: "InteractionHover")
         return m
     }()
 

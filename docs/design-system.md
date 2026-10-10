@@ -17,7 +17,7 @@
 | Border | 3 | Default；0 / 1 / 2 |
 | Radius | 10 | Default；0、4、8、12、16、24、32、40、48、99999 |
 | Opacity | 1 | Default；disabled = 30 |
-| Colors | 39 | Light / Dark；语义颜色与别名 |
+| Colors | 40 | Light / Dark；语义颜色与别名，2026-10-10 更新 |
 
 后续指定的[聚焦搜索 Field，node 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348)为启动器收起状态的设计依据：720 × 60、左 24 / 右 20 留白、12 间距、17 pt `magnifyingglass`（21 × 22 图标槽）、16/400/Default 输入和 “Search” 提示。此节点替代之前的输入区尺寸与玻璃处理。
 
@@ -36,7 +36,9 @@
 | Opacity | disabled 30 是百分比，原生归一化为 0.3；同时设置真实禁用状态 |
 | Styles | 保留“字号 / 字重 / Default 或 Paragraph”的来源关系；不要把行高当文字框固定高度 |
 
-语义颜色先递归解析别名，再按模式取得基础值；原生代码名可规范化，但维护明确映射。源名称 backgroundDisbled 保留原拼写，代码可映射到 backgroundDisabled；Overlay 与 Input 的大写同样在来源记录中保留，不偷偷改写 Figma。
+语义颜色先递归解析别名，再按模式取得基础值；原生代码名可规范化，但维护明确映射。源名称 backgroundDisbled 保留原拼写，代码可映射到 backgroundDisabled；Overlay、Input 与 InteractionHover 的大写同样在来源记录中保留，原生分别映射为 overlay、input、interactionHover，不偷偷改写 Figma。
+
+2026-10-10 只读复核 Colors 与 Palette：Colors 共 40 项，文件变量总数为 107，Palette 未变。backgroundPrimarySubtle 与 backgroundNeutral 的 Light / Dark 透明度从 4% 调为 6%，Input 从 4% 调为 8%；新增 InteractionHover（Light = Palette/black6，Dark = Palette/white8）。此变量绑定于 Spotlight item 悬停变体 38:459 / 38:460 和 Session history 悬停变体 43:1134，原生结果行和历史行按鼠标悬停使用，键盘选择仍使用原有选择语义。见[颜色同步验证](validation/2026-10-10-colors.md)。
 
 行高是设计目标。SwiftUI 的 lineSpacing 不直接等于总行高，应核对字体度量、基线、中英混排与原生控件内部排版；不能为了完全相等的数字裁切文字。字号与行高在正常大小下按源值应用，并保持系统文本放大与辅助功能可用。
 
@@ -224,16 +226,17 @@ node 22:348 将 `Fill + Shadow` 与 `Glass Effect` 分层；Figma 使用 70% `Co
 | backgroundDisbled | Palette/black2 | Palette/white2 |
 | backgroundPrimary | Palette/black100 | Palette/white100 |
 | backgroundPrimaryHover | Palette/black80 | Palette/white80 |
-| backgroundPrimarySubtle | Palette/black4 | Palette/white4 |
+| backgroundPrimarySubtle | Palette/black6 | Palette/white6 |
 | backgroundNegative | Palette/red | Palette/red |
 | backgroundPositive | Palette/green | Palette/green |
-| backgroundNeutral | Palette/black4 | Palette/white4 |
+| backgroundNeutral | Palette/black6 | Palette/white6 |
 | backgroundNeutralHover | Palette/black8 | Palette/white8 |
 | backgroundNeutralIntense | Palette/black20 | Palette/white20 |
 | backgroundSelected | Colors/backgroundPrimarySubtle | Colors/backgroundPrimarySubtle |
 | backgroundSelectedIntense | Colors/backgroundPrimary | Colors/backgroundPrimary |
 | Overlay | Palette/black20 | Palette/black60 |
-| Input | Palette/black4 | Palette/white4 |
+| Input | Palette/black8 | Palette/white8 |
+| InteractionHover | Palette/black6 | Palette/white8 |
 
 ### 文字 Styles 完整表
 

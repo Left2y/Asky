@@ -189,14 +189,19 @@ private struct AgentHeaderButtonStyle: ButtonStyle {
 
 private struct AgentHistoryRowStyle: ButtonStyle {
     var selected = false
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.padding(.horizontal, 16).padding(.vertical, 12)
             .contentShape(.rect(cornerRadius: 12))
             .background {
-                if selected || configuration.isPressed {
+                if isEnabled && (hovering || configuration.isPressed) {
+                    RoundedRectangle(cornerRadius: 12).fill(ThemeColor.kInteractionHover)
+                } else if selected {
                     RoundedRectangle(cornerRadius: 12).fill(ThemeColor.kBackgroundNeutral)
                 }
             }
+            .onHover { hovering = $0 }
     }
 }
 

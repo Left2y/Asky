@@ -23,6 +23,8 @@ private enum LauncherLayout {
     static let dividerHeight: CGFloat = 1
     // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
     static let rowHeight: CGFloat = 50
+    static let maxVisibleResults = 6
+    static let sectionHeaderHeight: CGFloat = 52
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 13
     static let listBottomPadding: CGFloat = 12
@@ -290,8 +292,11 @@ private struct ResultList: View {
 
     private var height: CGFloat {
         let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight
-        let headers = showsHeaders ? CGFloat(sections.count) * 52 : 0
-        return min(rows + headers + LauncherLayout.listBottomPadding, maxHeight)
+        let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
+        // Headers share the six-row budget so scrolling past them cannot reveal
+        // more than six items. Short result lists still size to their content.
+        let sixRowHeight = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
+        return min(rows + headers + LauncherLayout.listBottomPadding, sixRowHeight, maxHeight)
     }
 
     var body: some View {
@@ -306,7 +311,7 @@ private struct ResultList: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 16)
                                     .padding(.top, 16).padding(.bottom, 12)
-                                    .frame(height: 52)
+                                    .frame(height: LauncherLayout.sectionHeaderHeight)
                             }
                             ForEach(Array(model.results.enumerated()).filter { $0.element.source == source }, id: \.element.id) { i, r in
                                 Button {

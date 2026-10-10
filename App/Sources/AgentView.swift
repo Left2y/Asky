@@ -526,17 +526,10 @@ private struct Composer: View {
                 }
                 .scrollIndicators(.hidden).frame(height: 58)
             }
-            ZStack(alignment: .topLeading) {
-                if model.draft.isEmpty && !editorFocused {
-                    Text("输入你的任务").textStyle(AgentLayout.message)
-                        .foregroundStyle(ThemeColor.kTextSubtlest).padding(.top, 4)
-                        .allowsHitTesting(false)
-                }
-                ComposerTextEditor(text: $model.draft, height: $editorHeight,
-                    isFocused: $editorFocused,
-                    pasteAttachment: { model.pasteAttachments() }, submit: { model.send() })
-                    .frame(height: editorHeight)
-            }
+            ComposerTextEditor(text: $model.draft, height: $editorHeight,
+                isFocused: $editorFocused,
+                pasteAttachment: { model.pasteAttachments() }, submit: { model.send() })
+                .frame(height: editorHeight)
             .padding(.horizontal, 20)
             HStack {
                 Button { importing = true } label: {

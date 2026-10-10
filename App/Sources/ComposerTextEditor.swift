@@ -5,6 +5,31 @@ import Theme
 private final class ComposerTextView: NSTextView {
     var pasteAttachment: () -> Bool = { false }
     var focusChanged: (Bool) -> Void = { _ in }
+    var placeholderColor: NSColor = .placeholderTextColor {
+        didSet { needsDisplay = true }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard string.isEmpty, !hasMarkedText(), let font, let textContainer else { return }
+        // Use TextKit for both the hint and input so their first glyph and
+        // baseline agree, including the insertion point in an empty editor.
+        let storage = NSTextStorage(string: "输入你的任务", attributes: [
+            .font: font, .foregroundColor: placeholderColor
+        ])
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(containerSize: textContainer.containerSize)
+        container.lineFragmentPadding = textContainer.lineFragmentPadding
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        let glyphs = layout.glyphRange(for: container)
+        layout.drawGlyphs(forGlyphRange: glyphs, at: textContainerOrigin)
+    }
+
+    override func didChangeText() {
+        super.didChangeText()
+        needsDisplay = true
+    }
 
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
@@ -67,6 +92,7 @@ struct ComposerTextEditor: NSViewRepresentable {
         editor.drawsBackground = false
         editor.font = .systemFont(ofSize: 14)
         editor.textContainerInset = NSSize(width: 0, height: 4)
+        editor.textContainer?.lineFragmentPadding = 0
         editor.minSize = NSSize(width: 0, height: 44)
         editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         editor.isVerticallyResizable = true
@@ -95,8 +121,12 @@ struct ComposerTextEditor: NSViewRepresentable {
         editor.setFrameSize(NSSize(width: scroll.contentSize.width, height: max(44, editor.frame.height)))
         editor.pasteAttachment = pasteAttachment
         editor.textColor = NSColor(ThemeColor.kText.color(for: colorScheme))
+        editor.placeholderColor = NSColor(ThemeColor.kTextSubtlest.color(for: colorScheme))
         editor.insertionPointColor = editor.textColor ?? .labelColor
-        if editor.string != text && !editor.hasMarkedText() { editor.string = text }
+        if editor.string != text && !editor.hasMarkedText() {
+            editor.string = text
+            editor.needsDisplay = true
+        }
         context.coordinator.updateHeight()
     }
 

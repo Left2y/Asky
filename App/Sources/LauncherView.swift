@@ -22,7 +22,7 @@ private enum LauncherLayout {
     static let rowHeight: CGFloat = 64
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 12
-    static let listVerticalPadding: CGFloat = 12
+    static let listBottomPadding: CGFloat = 12
     static let rowHorizontalPadding: CGFloat = 16
 }
 
@@ -293,7 +293,7 @@ private struct ResultList: View {
     private var height: CGFloat {
         let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight
         let headers = showsHeaders ? CGFloat(sections.count) * 52 : 0
-        return min(rows + headers + LauncherLayout.listVerticalPadding * 2, maxHeight)
+        return min(rows + headers + LauncherLayout.listBottomPadding, maxHeight)
     }
 
     var body: some View {
@@ -324,7 +324,7 @@ private struct ResultList: View {
                     }
                 }
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
-                .padding(.vertical, LauncherLayout.listVerticalPadding)
+                .padding(.bottom, LauncherLayout.listBottomPadding)
             }
             .frame(height: height)
             .onChange(of: model.selection) { _, s in proxy.scrollTo(s) }

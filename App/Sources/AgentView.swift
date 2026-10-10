@@ -273,7 +273,7 @@ private struct AgentHeaderButtonStyle: ButtonStyle {
     let colorScheme: ColorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 17)).foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
+        configuration.label.font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
             .padding(6).frame(width: 32, height: 32)
             .background {
                 Circle().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
@@ -478,7 +478,7 @@ private struct ChatBubble: View {
         } label: {
             Group {
                 if copyFeedbackID != nil {
-                    Image(systemName: "checkmark").font(.system(size: 16, weight: .medium))
+                    Image(systemName: "checkmark").font(.system(size: 14, weight: .medium))
                 } else {
                     Image("ChatCopy")
                 }

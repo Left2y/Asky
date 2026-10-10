@@ -54,7 +54,7 @@ struct ComposerAttachmentCard: View {
         .overlay(alignment: .topTrailing) {
             if let remove {
                 Button(action: remove) {
-                    Image(systemName: "xmark").font(TextStyle(size: 12, weight: 500, mode: .default).font)
+                    Image(systemName: "xmark").font(TextStyle(size: 14, weight: 500, mode: .default).font)
                         .foregroundStyle(ThemeColor("iconInverted").color(for: colorScheme))
                         .frame(width: 20, height: 20)
                         .background(ThemeColor.kBackgroundPrimary, in: .circle)

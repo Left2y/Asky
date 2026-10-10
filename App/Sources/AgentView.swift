@@ -236,6 +236,23 @@ private struct AgentHistoryRowStyle: ButtonStyle {
     }
 }
 
+private struct AgentIconButtonStyle: ButtonStyle {
+    var cornerRadius: CGFloat = 8
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(.rect(cornerRadius: cornerRadius))
+            .background {
+                if isEnabled && (hovering || configuration.isPressed) {
+                    RoundedRectangle(cornerRadius: cornerRadius).fill(ThemeColor.kInteractionHover)
+                }
+            }
+            .onHover { hovering = $0 }
+    }
+}
+
 private struct Transcript: View {
     let model: AgentModel
 
@@ -294,6 +311,7 @@ private struct Transcript: View {
 private struct ChatBubble: View {
     let item: ChatItem
     @State private var hovering = false
+    @State private var copyHovering = false
     @FocusState private var copyFocused: Bool
 
     var body: some View {
@@ -302,9 +320,15 @@ private struct ChatBubble: View {
             VStack(alignment: .trailing, spacing: 8) {
                 HStack { Spacer(minLength: 40); bubble.padding(.horizontal, 12).padding(.vertical, 10)
                     .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
-                copyButton.opacity(hovering || copyFocused ? 1 : 0)
+                copyButton
+                    .onHover { copyHovering = $0 }
+                    .opacity(hovering || copyHovering || copyFocused ? 1 : 0)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+            // Include the empty action row and the gap below the bubble in
+            // hover tracking, so moving to Copy never hides it mid-gesture.
+            .contentShape(.rect)
             .onHover { hovering = $0 }
         case .assistant:
             VStack(alignment: .leading, spacing: 16) {
@@ -334,7 +358,7 @@ private struct ChatBubble: View {
         } label: {
             Image("ChatCopy").frame(width: 16, height: 16).padding(6)
         }
-        .buttonStyle(.plain).focused($copyFocused).foregroundStyle(ThemeColor("iconSubtlest"))
+        .buttonStyle(AgentIconButtonStyle()).focused($copyFocused).foregroundStyle(ThemeColor("iconSubtlest"))
         .accessibilityLabel("复制消息")
     }
 
@@ -376,20 +400,11 @@ private struct Composer: View {
             }
             .padding(.horizontal, 20)
             HStack {
-                Menu {
-                    Button("选择文件或图片…") { importing = true }
-                    Button("截取屏幕") { model.captureScreen() }
-                    Button("粘贴剪贴板文本") {
-                        if let s = NSPasteboard.general.string(forType: .string) { model.attachText(s) }
-                    }
-                    Divider()
-                    Button("新对话") { model.open(nil) }.disabled(model.isRunning)
-                    Button("设置…") { model.openSettings() }
-                } label: {
+                Button { importing = true } label: {
                     Image(systemName: "paperclip").font(.system(size: 17)).frame(width: 32, height: 32)
                 }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .accessibilityLabel("添加附件与对话操作")
+                .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
+                .accessibilityLabel("选择文件或图片")
                 Spacer()
                 Button { if model.isRunning { model.stop() } else { model.send() } } label: {
                     Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")

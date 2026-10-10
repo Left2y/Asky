@@ -94,15 +94,15 @@ python3 App/Tests/run-launcher-window-regression.py --ai-routing
 
 AI 对话和设置默认使用普通窗口层级，切换到其他应用后可被覆盖；AI 对话可手动置顶。主动打开时移到当前桌面并一次性请求前台，默认不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
 
-AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，附件菜单保留设置入口。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
+AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，复制与附件按钮使用交互悬停色；用户消息气泡与复制按钮之间的空隙也保持悬停。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
 
 颜色已同步至 2026-10-10 Figma Colors：浅背景为 6%，输入背景为 8%，搜索结果与历史行使用 Light 6% / Dark 8% 的悬停色。见[颜色同步验证](docs/validation/2026-10-10-colors.md)。
 
-AI 对话输入框支持 `⌘V` 粘贴图片或 Finder 文件，也可通过附件菜单选择文件或拖入文件。附件在输入框顶部横向滚动展示：图片为 1:1 缩略图，文件显示名称与大小；悬停或键盘聚焦删除按钮后可移除。`Return` 发送，`Shift Return` 换行；仅有附件时也可发送。图像理解取决于所配置模型，普通二进制文件的内容解析仍受 Runtime 支持范围限制。
+AI 对话输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件；点击附件按钮直接打开系统文件选择器，也可拖入文件。附件在输入框顶部横向滚动展示：图片为 1:1 缩略图，文件显示名称与大小；悬停或键盘聚焦删除按钮后可移除。`Return` 发送，`Shift Return` 换行；仅有附件时也可发送。图像理解取决于所配置模型，普通二进制文件的内容解析仍受 Runtime 支持范围限制。
 
 AI 回复通过 MarkdownUI 2.4.1 渲染 Markdown，支持列表、标题、引用、代码块和表格，保留文本选择及明暗主题；历史对话使用相同渲染器。Markdown 图片显示占位符，不自动读取图片地址。Xcode 首次构建会通过 SwiftPM 下载该依赖。见[Markdown 验证记录](docs/validation/2026-10-10-chat-markdown.md)。
 
-系统权限在“设置 › 系统权限”中逐项管理，AI 对话附件菜单也提供设置入口。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
+系统权限在“设置 › 系统权限”中逐项管理；AI 对话中可用 `⌘,` 或标题右键菜单打开设置。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
 
 日程、提醒事项、备忘录、通讯录和短信使用 macOS 苹果官方应用及接口。日程结果区分「苹果日历」应用与其中的日历名称（例如「大麦」），不把日历名称当作第三方工具。短信草稿交给苹果「信息」，由用户发送。
 
@@ -199,15 +199,15 @@ Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible
 
 Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
-AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied, and settings remains in the attachment menu. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
+AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
 
 Colors follow the 2026-10-10 Figma Colors update: subtle backgrounds use 6% opacity, input backgrounds use 8%, and search results and history rows use a hover color at 6% in Light mode and 8% in Dark mode. See the [color synchronization validation](docs/validation/2026-10-10-colors.md).
 
-The AI composer accepts images or Finder files with `⌘V`, file selection from the attachment menu, and dropped files. Attachments scroll horizontally above the text: images use square thumbnails, and files show their name and size. Hover or focus the delete button with the keyboard to remove an attachment. `Return` sends and `Shift Return` inserts a newline; attachments can also be sent without text. Image understanding depends on the configured model, and binary file parsing remains limited by Runtime support.
+The AI composer accepts text, images, or Finder files directly with `⌘V`. Clicking the attachment button opens the system file picker directly; files can also be dropped. Attachments scroll horizontally above the text: images use square thumbnails, and files show their name and size. Hover or focus the delete button with the keyboard to remove an attachment. `Return` sends and `Shift Return` inserts a newline; attachments can also be sent without text. Image understanding depends on the configured model, and binary file parsing remains limited by Runtime support.
 
 AI replies use MarkdownUI 2.4.1 to render Markdown lists, headings, blockquotes, code blocks, and tables, with selectable text and light/dark themes. Reopened history uses the same renderer. Markdown images display placeholders without loading their URLs. The first Xcode build downloads this dependency through SwiftPM. See the [Markdown validation record](docs/validation/2026-10-10-chat-markdown.md).
 
-Manage individual permissions in Settings › System Permissions, also accessible from the AI conversation attachment menu. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
+Manage individual permissions in Settings › System Permissions. Open Settings from an AI conversation with `⌘,` or the title’s context menu. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
 
 Events, reminders, notes, contacts, and message drafts use official Apple apps and macOS interfaces. Event results distinguish Apple Calendar from the calendar name inside it (such as “大麦”); a calendar name does not identify a third-party tool. Drafts are handed to Apple Messages for the user to send.
 

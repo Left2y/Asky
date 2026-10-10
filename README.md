@@ -24,7 +24,7 @@ V1 规划包含三个层次：
 
 完整输入已配置关键词（如 `go`，不加空格）时，匹配命令独立显示在最前面的「别名匹配」组并默认选中；快捷指令组也排在普通应用结果之前。关键词加空格后仍进入查询输入模式。
 
-搜索结果仅在同时存在两个及以上分类时显示组标题；单一分类隐藏标题并释放对应高度。搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧；空输入与有输入统一使用 28 pt 左右内边距、64 pt 高度与 18 pt 字号。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；按 Ctrl + Option + C 打开独立剪贴板面板，或从菜单栏打开。横向滚动查看卡片，点击或拖拽卡片会复制原始文字或图片，悬停显示完整预览。搜索后按 Return 复制首项，↑/↓ 切换卡片；右键可固定或删除记录，顶部图钉切换窗口置顶，Escape 关闭。快捷键占用时可从菜单栏打开，设置的剪贴板区域显示状态。见[剪贴板验证记录](docs/validation/2026-10-10-clipboard-panel.md)。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
+搜索结果仅在同时存在两个及以上分类时显示组标题；单一分类隐藏标题并释放对应高度。搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧；空输入与有输入统一使用 28 pt 左右内边距、64 pt 高度与 18 pt 字号。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；按 Ctrl + Option + Command + Shift + F9 打开独立剪贴板面板，或从菜单栏打开。横向滚动查看卡片，点击或拖拽卡片会复制原始文字或图片，悬停显示完整预览。搜索后按 Return 复制首项，↑/↓ 切换卡片；右键可固定或删除记录，顶部图钉切换窗口置顶，Escape 关闭。快捷键占用时可从菜单栏打开，设置的剪贴板区域显示状态。见[剪贴板验证记录](docs/validation/2026-10-10-clipboard-panel.md)。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
 
 搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 8 个菜单项的高度（400 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示，隐藏滚动指示条，内容裁切在外壳圆角内。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
 
@@ -110,6 +110,10 @@ python3 App/Tests/run-clipboard-regression.py
 
 ```sh
 python3 App/Tests/run-settings-regression.py
+
+# Global hotkey registration and lifecycle regression
+xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
+build/hotkey-regression
 ```
 
 AI 对话和设置默认使用普通窗口层级，切换到其他应用后可被覆盖；AI 对话可手动置顶。主动打开时移到当前桌面并一次性请求前台，默认不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
@@ -162,7 +166,7 @@ Users supply their own model API key, with OpenAI-compatible Chat Completions pr
 
 Typing a complete configured keyword (such as `go`, without a trailing space) places the matched command first in a separate “别名匹配” section and selects it by default. Shortcuts also appear before ordinary app results. A keyword followed by a space still enters query input mode.
 
-Search results show section headings only when two or more categories are present; a single category omits its heading and the corresponding height. Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right; empty and populated fields share 28 pt horizontal insets, a 64 pt height, and an 18 pt font. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history. Press Ctrl + Option + C or use the menu bar to open its separate panel. Scroll horizontally through cards; clicking or dragging copies the original text or image, and hovering opens a full preview. Return copies the first search result; ↑/↓ select cards. The context menu pins or deletes a record, the header pin toggles window floating, and Escape closes the panel. If the shortcut is occupied, use the menu bar; the clipboard section in Settings reports its status. See the [clipboard validation record](docs/validation/2026-10-10-clipboard-panel.md). See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
+Search results show section headings only when two or more categories are present; a single category omits its heading and the corresponding height. Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right; empty and populated fields share 28 pt horizontal insets, a 64 pt height, and an 18 pt font. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history. Press Ctrl + Option + Command + Shift + F9 or use the menu bar to open its separate panel. Scroll horizontally through cards; clicking or dragging copies the original text or image, and hovering opens a full preview. Return copies the first search result; ↑/↓ select cards. The context menu pins or deletes a record, the header pin toggles window floating, and Escape closes the panel. If the shortcut is occupied, use the menu bar; the clipboard section in Settings reports its status. See the [clipboard validation record](docs/validation/2026-10-10-clipboard-panel.md). See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
 
 The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at eight menu rows in height (400 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results with hidden scroll indicators and content clipped to the shell corners. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
 
@@ -243,6 +247,10 @@ Native light/dark Settings check (after the Debug build; uses a temporary databa
 
 ```sh
 python3 App/Tests/run-settings-regression.py
+
+# Global hotkey registration and lifecycle regression
+xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
+build/hotkey-regression
 ```
 
 Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.

@@ -63,12 +63,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         clipboardWindow = ClipboardController(app: model)
         do {
-            clipboardHotKey = try HotKey(keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | optionKey)) { [weak self] in
+            clipboardHotKey = try HotKey(keyCode: UInt32(kVK_F9), modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey)) { [weak self] in
                 self?.launcher.hide()
                 self?.clipboardWindow.toggle()
             }
+        } catch HotKey.Failure.alreadyInUse {
+            model.clipboardHotKeyStatus = "Ctrl + Option + Command + Shift + F9 已被占用，请从菜单栏打开剪贴板。"
         } catch {
-            model.clipboardHotKeyStatus = "Ctrl + Option + C 已被占用，请从菜单栏打开剪贴板。"
+            model.clipboardHotKeyStatus = "剪贴板快捷键注册失败：\(error)。请从菜单栏打开。"
         }
         installStatusItem()
         clipboard = ClipboardMonitor(app: model)
@@ -127,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "KulaHere")
         let menu = NSMenu()
         menu.addItem(withTitle: "打开启动器", action: #selector(openLauncher), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "剪贴板历史（⌃⌥C）", action: #selector(openClipboard), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "剪贴板历史（⌃⌥⌘⇧F9）", action: #selector(openClipboard), keyEquivalent: "").target = self
         menu.addItem(withTitle: "AI 对话", action: #selector(openAgent), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",").target = self

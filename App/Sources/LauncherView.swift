@@ -352,7 +352,7 @@ private struct ResultList: View {
 
     private var sections: [SearchSource] {
         var seen = Set<SearchSource>()
-        return model.results.compactMap { seen.insert($0.source).inserted ? $0.source : nil }
+        return model.results.compactMap { seen.insert(Self.section(for: $0.source)).inserted ? Self.section(for: $0.source) : nil }
     }
 
     private var showsHeaders: Bool { model.commandInput == nil }
@@ -382,7 +382,7 @@ private struct ResultList: View {
                                     .padding(.top, 16).padding(.bottom, 12)
                                     .frame(height: LauncherLayout.sectionHeaderHeight)
                             }
-                            ForEach(Array(model.results.enumerated()).filter { $0.element.source == source }, id: \.element.id) { i, r in
+                            ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element.source) == source }, id: \.element.id) { i, r in
                                 Button {
                                     model.selection = i
                                     model.submit(.executeSelection)
@@ -417,6 +417,13 @@ private struct ResultList: View {
             .onChange(of: model.selection) { _, s in
                 if model.results.indices.contains(s) { proxy.scrollTo(model.results[s].id) }
             }
+        }
+    }
+
+    private static func section(for source: SearchSource) -> SearchSource {
+        switch source {
+        case .app, .link, .bookmark: .app
+        default: source
         }
     }
 

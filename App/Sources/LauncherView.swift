@@ -173,11 +173,20 @@ struct LauncherView: View {
     @State private var statusHeight: CGFloat = 0
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     private var shellShape: RoundedRectangle {
         // At 64 pt high, the 32 pt corners already form the empty capsule.
         // Keep one material shape identity when results appear/disappear.
         RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous)
+    }
+
+    private var shellGlass: Glass {
+        // Regular glass adapts to bright desktop colors. Tint through the native
+        // material in Dark mode so the fixed native field foreground stays legible.
+        colorScheme == .dark
+            ? .regular.tint(ThemeColor.kBackground.color(for: colorScheme, opaque: true).opacity(0.55))
+            : .regular
     }
 
     private var hasInput: Bool { !model.query.isEmpty }
@@ -229,28 +238,37 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // Frost removes background text detail; the lighter semantic veil
-            // preserves broad desktop colors beneath the native glass highlights.
-            ZStack {
-                if !reduceTransparency {
-                    LauncherBackdropFrost()
-                }
-                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true)
-                    .opacity(reduceTransparency ? 1 : (colorScheme == .dark ? 0.45 : 0.35)))
-                    .glassEffect(reduceTransparency ? .identity : .clear, in: shellShape)
+            if reduceTransparency {
+                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
             }
-            .clipShape(shellShape)
-            .allowsHitTesting(false)
         }
-        // Glass highlights alone disappear over light backdrops. Keep a semantic
-        // outline above the material, inset so the panel does not clip its edge.
+        // Apply one optical surface to the content itself. A second backdrop
+        // material or solid fill would flatten the native refraction and frost.
+        .environment(\.colorScheme, colorScheme)
+        .glassEffect(reduceTransparency ? .identity : shellGlass, in: shellShape)
         .overlay {
-            shellShape
-                .stroke((hasInput ? ThemeColor.kBorder : ThemeColor.kBorderFocused).color(for: colorScheme),
-                        lineWidth: CGFloat(BorderWidth.values["borderWidth1"] ?? 1))
-                .padding(0.5)
+            if reduceTransparency || colorSchemeContrast == .increased {
+                shellShape.strokeBorder(
+                    (hasInput ? ThemeColor.kBorder : ThemeColor.kBorderFocused).color(for: colorScheme),
+                    lineWidth: 1
+                )
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+            } else {
+                // Figma light comes from the upper left (-45 degrees). Keep the
+                // directional rim separate from the system's optical surface.
+                shellShape.strokeBorder(
+                    LinearGradient(stops: [
+                        .init(color: .white.opacity(0.80), location: 0),
+                        .init(color: .white.opacity(0.24), location: 0.30),
+                        .init(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.08), location: 0.65),
+                        .init(color: .white.opacity(0.32), location: 1)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 1
+                )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
         }
         .padding(LauncherLayout.shadowPadding)
         .background {
@@ -300,19 +318,6 @@ struct LauncherView: View {
             .padding(.horizontal, 28)
     }
 
-}
-
-/// The behind-window material blurs other windows, rather than the input/results.
-private struct LauncherBackdropFrost: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.blendingMode = .behindWindow
-        view.material = .menu
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
 private struct ResultList: View {

@@ -355,7 +355,7 @@ private struct ResultList: View {
         return model.results.compactMap { seen.insert(Self.section(for: $0.source)).inserted ? Self.section(for: $0.source) : nil }
     }
 
-    private var showsHeaders: Bool { model.commandInput == nil }
+    private var showsHeaders: Bool { model.commandInput == nil && sections.count > 1 }
 
     private var height: CGFloat {
         let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight

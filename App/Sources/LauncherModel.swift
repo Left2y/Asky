@@ -231,6 +231,14 @@ final class LauncherModel {
 
     private func publish() {
         var merged = direct + ResultMerger.merge(batches, limit: 40)
+        // Generic search shortcuts are not local matches. Plain text with no
+        // concrete target falls back to AI regardless of its wording.
+        if commandInput == nil, case .search = router.route(query) {
+            let hasLocalMatch = merged.contains {
+                $0.source != .keyword && $0.source != .askAI && $0.target.kind != "bookmark-search"
+            }
+            if !hasLocalMatch { merged = [] }
+        }
         if commandInput == nil, !merged.contains(where: { $0.source == .askAI }),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
         let order: [SearchSource] = [.link, .app, .file, .bookmark, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]

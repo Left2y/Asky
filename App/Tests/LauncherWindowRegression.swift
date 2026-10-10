@@ -6,10 +6,12 @@ private struct WindowSearchProvider: SearchProvider {
     let source: SearchSource
     let delay: Duration
     let count: Int
+    var matchingQueries: Set<String>? = nil
 
     func search(_ query: String, limit: Int) async -> [SearchResult] {
         try? await Task.sleep(for: delay)
-        guard !Task.isCancelled, query != "empty" else { return [] }
+        guard !Task.isCancelled, query != "empty",
+              matchingQueries.map({ $0.contains(query) }) ?? true else { return [] }
         // Every successive prefix has the same result geometry.
         return (0..<min(count, limit)).map {
             SearchResult(source: source, target: TargetRef(kind: "test", identifier: "\(source)-\($0)"),
@@ -60,13 +62,19 @@ enum LauncherWindowRegression {
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [
-            WindowSearchProvider(source: .app, delay: .milliseconds(300), count: 8),
+            WindowSearchProvider(source: .app, delay: .milliseconds(300), count: 8,
+                                 matchingQueries: ["Safari", "kimi"]),
             WindowSearchProvider(source: .bookmark, delay: .milliseconds(10), count: 4),
         ])
         var submitted: [String] = []
         model.onAskAI = { submitted.append($0) }
         let controller = LauncherController(model: model)
         controller.show()
+        if let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel {
+            panel.onBlur = {}
+            // Keep the routing test independent of typing in the user's app.
+            panel.orderOut(nil)
+        }
         defer { controller.hide() }
         let prompt = "帮我梳理一下日程"
         model.query = "Safari"
@@ -79,8 +87,23 @@ enum LauncherWindowRegression {
         try require(model.results[0].subtitle.isEmpty, "AI row must have no shortcut subtitle")
         try await Task.sleep(for: .milliseconds(450))
         try require(model.results.count == 1, "cancelled local batches must not replace the AI selection")
+        if let panel = NSApp.windows.first(where: { $0 is LauncherPanel }) as? LauncherPanel {
+            try require(abs(panel.frame.height - 391) <= 1,
+                        "single AI category must omit the 52 pt header from native window height")
+        }
         model.submit(.executeSelection)
         try require(submitted == [prompt], "ordinary Return must hand the prompt to AI once")
+        for text in ["你是谁啊", "你好", "随便聊聊", "我今天有点累", "明天有什么安排"] {
+            model.query = text
+            try require(model.results.count == 1 && model.results.first?.source == .askAI,
+                        "unmatched plain text must immediately default to AI without phrase rules")
+            try await Task.sleep(for: .milliseconds(450))
+            try require(model.results.count == 1 && model.results.first?.source == .askAI && model.selection == 0,
+                        "empty local batches must leave only AI, not generic bookmark or Google actions")
+            try require(submitted.last != text, "typing plain text must not send")
+            model.submit(.executeSelection)
+            try require(submitted.last == text, "Return must submit unmatched plain text: expected \(text), got \(submitted.last ?? "nil")")
+        }
         model.query = "kimi"
         try await Task.sleep(for: .milliseconds(450))
         try require(model.results.first?.source == .app, "bare names must keep local search first")

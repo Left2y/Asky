@@ -5,6 +5,7 @@ import Search
 import DirectActions
 import LocalStore
 import Adapters
+import ToolService
 
 /// Shortcut names, listed once per panel session (the `shortcuts` CLI is slow to spawn).
 final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
@@ -72,12 +73,15 @@ final class LauncherModel {
 
     func rebuildProviders() {
         let reader = SettingsReader(store: app.store)
-        var providers: [any SearchProvider] = [apps, shortcuts,
+        var providers: [any SearchProvider] = [apps, shortcuts, LinksProvider(),
             SpotlightProvider(settings: {
                 let s = reader.load()
                 return (s.fileScopes.map { URL(filePath: $0) }, s.excludedDirectories)
             })]
-        if app.settings.enabledSources.contains(.chrome) { providers.append(chrome) }
+        if app.settings.enabledSources.contains(.chrome) {
+            providers.append(chrome)
+            providers.append(ChromeBookmarksProvider())
+        }
         coordinator = SearchCoordinator(providers: providers)
     }
 
@@ -179,7 +183,7 @@ final class LauncherModel {
     private func publish() {
         var merged = direct + ResultMerger.merge(batches, limit: 40)
         if commandInput == nil, let ask = router.askAIResult(for: query) { merged.append(ask) }
-        let order: [SearchSource] = [.app, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
+        let order: [SearchSource] = [.link, .app, .file, .bookmark, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
         merged = order.flatMap { source in merged.filter { $0.source == source } }
         results = merged
         selection = min(selection, max(0, results.count - 1))
@@ -228,8 +232,8 @@ final class LauncherModel {
             NSPasteboard.general.setString(s, forType: .string)
             onHide()
         case .openURL(let url):
-            NSWorkspace.shared.open(url)
-            onHide()
+            if ToolService.openLauncherURL(url) { onHide() }
+            else { status = "无法打开链接，请检查网址或默认浏览器。" }
         case .runTerminal(let command):
             runTerminal(command)
         case .runShortcut(let name):

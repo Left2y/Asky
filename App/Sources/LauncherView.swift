@@ -323,6 +323,8 @@ private struct ResultList: View {
         switch source {
         case .app: "APP 应用"
         case .file: "文件文档"
+        case .link: "链接"
+        case .bookmark: "书签"
         case .chromeTab: "Chrome 标签页"
         case .shortcut: "快捷指令"
         case .keyword: "默认搜索"
@@ -391,6 +393,8 @@ private struct ResultRow: View {
     static func symbol(_ s: SearchSource) -> String {
         switch s {
         case .chromeTab, .keyword: "globe"
+        case .link: "link"
+        case .bookmark: "bookmark"
         case .clipboard: "doc.on.clipboard"
         case .calculator: "equal.square"
         case .conversion: "arrow.left.arrow.right"

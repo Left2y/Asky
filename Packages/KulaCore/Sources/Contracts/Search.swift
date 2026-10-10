@@ -6,7 +6,28 @@ public enum ContractVersion {
 }
 
 public enum SearchSource: String, Sendable, Codable, CaseIterable {
-    case app, file, chromeTab, clipboard, keyword, calculator, conversion, currency, terminal, shortcut, askAI
+    case app, file, link, bookmark, chromeTab, clipboard, keyword, calculator, conversion, currency, terminal, shortcut, askAI
+}
+
+/// Only web URLs may become launcher links; arbitrary schemes are never inferred.
+public enum LauncherWebURL {
+    public static func parse(_ text: String) -> URL? {
+        let input = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty, !input.contains(where: { $0.isWhitespace }) else { return nil }
+        let explicit = input.lowercased().hasPrefix("https://") || input.lowercased().hasPrefix("http://")
+        guard let components = URLComponents(string: explicit ? input : "https://" + input),
+              let scheme = components.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              let host = components.host, !host.isEmpty,
+              components.user == nil, components.password == nil,
+              components.port.map({ (1...65535).contains($0) }) ?? true else { return nil }
+        if !explicit {
+            let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+            guard labels.count >= 2, labels.allSatisfy({ !$0.isEmpty && !$0.hasPrefix("-") && !$0.hasSuffix("-") &&
+                $0.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" } }),
+                  let suffix = labels.last, suffix.count >= 2, suffix.allSatisfy(\.isLetter) else { return nil }
+        }
+        return components.url
+    }
 }
 
 /// Stable reference to a concrete target; verified again before execution.

@@ -84,7 +84,7 @@ final class LockedState: Sendable {
 /// Merges batches for display: dedupes by result id and orders by score, then source priority.
 public struct ResultMerger: Sendable {
     public static let sourceOrder: [SearchSource] = [
-        .calculator, .conversion, .currency, .keyword, .terminal, .app, .chromeTab, .shortcut, .file, .clipboard, .askAI,
+        .calculator, .conversion, .currency, .keyword, .terminal, .link, .app, .bookmark, .chromeTab, .shortcut, .file, .clipboard, .askAI,
     ]
 
     public static func merge(_ batches: [SearchBatch], limit: Int = 40) -> [SearchResult] {

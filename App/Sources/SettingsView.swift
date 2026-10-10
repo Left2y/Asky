@@ -95,7 +95,7 @@ private struct SourceSettings: View {
     @State private var folder = ""
 
     static let labels: [(DataSourceID, String)] = [
-        (.calendar, "日历"), (.reminders, "提醒事项"), (.notes, "备忘录"), (.contacts, "通讯录"), (.chrome, "Chrome 标签"),
+        (.calendar, "日历"), (.reminders, "提醒事项"), (.notes, "备忘录"), (.contacts, "通讯录"), (.chrome, "Chrome 标签与书签"),
         (.shortcuts, "快捷指令"), (.messages, "信息（仅草稿交接）"), (.memory, "个人记忆"), (.maps, "路线时间（MapKit）"),
     ]
 

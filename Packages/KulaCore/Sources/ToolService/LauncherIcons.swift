@@ -1,6 +1,10 @@
 import AppKit
+import Contracts
 
 extension ToolService {
+    @MainActor public static func openLauncherURL(_ url: URL) -> Bool {
+        return NSWorkspace.shared.open(url)
+    }
     /// Presentation-only system reads stay in the native service boundary.
     @MainActor public static func launcherIcon(filePath: String) -> NSImage {
         NSWorkspace.shared.icon(forFile: filePath)

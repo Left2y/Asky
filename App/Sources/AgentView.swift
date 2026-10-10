@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import Contracts
 import Theme
+import ToolService
 
 private final class AgentWindow: NSWindow {
     override var canBecomeKey: Bool { true }
@@ -36,7 +37,8 @@ final class AgentWindowController {
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.minSize = NSSize(width: WindowMetrics.agentMinSize.width, height: WindowMetrics.agentMinSize.height)
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: AgentView(model: model, close: { [weak w] in w?.close() }))
+            w.contentView = NSHostingView(rootView: AgentView(model: model, close: { [weak w] in w?.close() },
+                setPinned: { [weak w] pinned in w?.level = pinned ? .floating : .normal }))
             w.center()
             window = w
         }
@@ -69,15 +71,17 @@ final class AgentWindowController {
 }
 
 private enum AgentLayout {
-    // Figma UI page 22:293, conversation 38:555 and history 38:654.
+    // Figma UI page 22:293, new chat 43:1072, conversation 42:761 and history 38:654.
     static let radius: CGFloat = 32
-    static let message = TextStyle(size: 16, weight: 400, mode: .default)
+    static let message = TextStyle(size: 14, weight: 400, mode: .default)
     static let title = TextStyle(size: 18, weight: 500, mode: .default)
 }
 
 struct AgentView: View {
     @Bindable var model: AgentModel
     var close: () -> Void = {}
+    var setPinned: (Bool) -> Void = { _ in }
+    @State private var pinned = false
     @State private var showingHistory = false
     @State private var historyQuery = ""
     @Environment(\.colorScheme) private var colorScheme
@@ -92,7 +96,13 @@ struct AgentView: View {
             if showingHistory {
                 history
             } else {
-                Transcript(model: model)
+                if model.items.isEmpty && model.streaming.isEmpty && !model.isRunning {
+                    Text("Hey，what’s up?")
+                        .textStyle(TextStyle(size: 24, weight: 500, mode: .default))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Transcript(model: model)
+                }
                 Composer(model: model)
                     .padding(.horizontal, 12).padding(.bottom, 12)
             }
@@ -116,13 +126,21 @@ struct AgentView: View {
 
     private var header: some View {
         HStack(spacing: 40) {
-            Button { showingHistory.toggle(); model.reloadConversations() } label: {
-                Image(systemName: showingHistory ? "chevron.left" : "list.bullet")
-                    .frame(width: 20, height: 20)
+            HStack(spacing: 12) {
+                Button { showingHistory.toggle(); model.reloadConversations() } label: {
+                    Image(systemName: showingHistory ? "chevron.left" : "list.bullet")
+                        .frame(width: 20, height: 20)
+                }
+                .accessibilityLabel(showingHistory ? "返回对话" : "历史对话")
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                Button { model.open(nil); showingHistory = false } label: {
+                    Image(systemName: "pencil").frame(width: 20, height: 20)
+                }
+                .disabled(model.isRunning)
+                .accessibilityLabel("新对话")
+                .keyboardShortcut("n", modifiers: .command)
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
-            .accessibilityLabel(showingHistory ? "返回对话" : "历史对话")
-            .keyboardShortcut("h", modifiers: [.command, .shift])
             if showingHistory {
                 HStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
@@ -144,9 +162,17 @@ struct AgentView: View {
                         Button("设置…") { model.openSettings() }
                     }
             }
-            Button(action: close) { Image(systemName: "xmark").frame(width: 20, height: 20) }
-                .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme)).accessibilityLabel("关闭对话窗口")
-                .keyboardShortcut("w", modifiers: .command)
+            HStack(spacing: 12) {
+                Button { pinned.toggle(); setPinned(pinned) } label: {
+                    Image(systemName: pinned ? "pin.fill" : "pin").frame(width: 20, height: 20)
+                }
+                .accessibilityLabel(pinned ? "取消置顶" : "置顶窗口")
+                .accessibilityValue(pinned ? "已置顶" : "未置顶")
+                Button(action: close) { Image(systemName: "xmark").frame(width: 20, height: 20) }
+                    .accessibilityLabel("关闭对话窗口")
+                    .keyboardShortcut("w", modifiers: .command)
+            }
+            .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
         }
         .padding(12)
         .frame(height: showingHistory ? 60 : 56)
@@ -154,10 +180,15 @@ struct AgentView: View {
 
     private var history: some View {
         ScrollView {
-            LazyVStack(spacing: 2) {
+            LazyVStack(spacing: 0) {
                 ForEach(model.conversations.filter { historyQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(historyQuery) }) { c in
                     Button { model.open(c.id); showingHistory = false } label: {
-                        Text(c.title).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 12) {
+                            Text(c.title).lineLimit(1).truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(c.updatedAt, format: .dateTime.year().month(.twoDigits).day(.twoDigits))
+                                .foregroundStyle(ThemeColor.kTextSubtlest).fixedSize()
+                        }
                     }
                     .buttonStyle(AgentHistoryRowStyle(selected: model.conversationID == c.id))
                     .disabled(model.isRunning)
@@ -192,7 +223,7 @@ private struct AgentHistoryRowStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     @State private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.padding(.horizontal, 16).padding(.vertical, 12)
+        configuration.label.padding(.horizontal, 16).frame(height: 48)
             .contentShape(.rect(cornerRadius: 12))
             .background {
                 if isEnabled && (hovering || configuration.isPressed) {
@@ -223,7 +254,7 @@ private struct Transcript: View {
                                     .buttonStyle(.link)
                             }
                         }
-                        .padding(.top, index == 0 ? 0 : Self.spacing(before: item))
+                        .padding(.top, index == 0 ? 0 : Self.spacing(before: item, after: model.items[index - 1]))
                     }
                     if !model.streaming.isEmpty {
                         ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: model.streaming)).padding(.top, 12)
@@ -240,11 +271,10 @@ private struct Transcript: View {
         }
     }
 
-    private static func spacing(before item: ChatItem) -> CGFloat {
-        switch item.kind {
-        case .assistant: 12
-        default: 20
-        }
+    private static func spacing(before item: ChatItem, after previous: ChatItem) -> CGFloat {
+        if case .user = item.kind { return 20 }
+        if case .user = previous.kind { return 4 }
+        return 16
     }
 
     static func label(_ s: AgentTaskState) -> String {
@@ -263,15 +293,27 @@ private struct Transcript: View {
 
 private struct ChatBubble: View {
     let item: ChatItem
+    @State private var hovering = false
+    @FocusState private var copyFocused: Bool
 
     var body: some View {
         switch item.kind {
         case .user:
-            HStack { Spacer(minLength: 60); bubble.padding(.horizontal, 12).padding(.vertical, 10)
-                .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
+            VStack(alignment: .trailing, spacing: 8) {
+                HStack { Spacer(minLength: 40); bubble.padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
+                copyButton.opacity(hovering || copyFocused ? 1 : 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .onHover { hovering = $0 }
         case .assistant:
-            ChatMarkdownView(text: item.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 16) {
+                ChatMarkdownView(text: item.text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if item.id != "streaming" {
+                    HStack { Spacer(); copyButton }
+                }
+            }
         case .tool(let status):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: item.toolSymbol).frame(width: 20)
@@ -286,6 +328,16 @@ private struct ChatBubble: View {
         }
     }
 
+    private var copyButton: some View {
+        Button {
+            MessageClipboard.copy(item.text)
+        } label: {
+            Image("ChatCopy").frame(width: 16, height: 16).padding(6)
+        }
+        .buttonStyle(.plain).focused($copyFocused).foregroundStyle(ThemeColor("iconSubtlest"))
+        .accessibilityLabel("复制消息")
+    }
+
     private var bubble: some View {
         Text(LocalizedStringKey(item.text)).textStyle(AgentLayout.message).textSelection(.enabled)
     }
@@ -294,7 +346,7 @@ private struct ChatBubble: View {
 private struct Composer: View {
     @Bindable var model: AgentModel
     @State private var importing = false
-    @State private var editorHeight: CGFloat = 48
+    @State private var editorHeight: CGFloat = 44
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -310,11 +362,11 @@ private struct Composer: View {
                     }
                     .padding(.horizontal, 12).padding(.vertical, 4)
                 }
-                .scrollIndicators(.hidden).frame(height: 96)
+                .scrollIndicators(.hidden).frame(height: 52)
             }
             ZStack(alignment: .topLeading) {
                 if model.draft.isEmpty {
-                    Text("输入你的任务").textStyle(.input)
+                    Text("输入你的任务").textStyle(AgentLayout.message)
                         .foregroundStyle(ThemeColor.kTextSubtlest).padding(.top, 4)
                         .allowsHitTesting(false)
                 }
@@ -332,7 +384,6 @@ private struct Composer: View {
                     }
                     Divider()
                     Button("新对话") { model.open(nil) }.disabled(model.isRunning)
-                        .keyboardShortcut("n", modifiers: .command)
                     Button("设置…") { model.openSettings() }
                 } label: {
                     Image(systemName: "paperclip").font(.system(size: 17)).frame(width: 32, height: 32)
@@ -353,7 +404,7 @@ private struct Composer: View {
             }
             .padding(.horizontal, 12)
         }
-        .padding(.vertical, 12)
+        .padding(.top, 16).padding(.bottom, 12)
         .background(ThemeColor.kInput, in: .rect(cornerRadius: 24))
         .fileImporter(isPresented: $importing, allowedContentTypes: [.data, .image, .text], allowsMultipleSelection: true) { r in
             switch r {

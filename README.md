@@ -92,9 +92,9 @@ python3 App/Tests/run-launcher-window-regression.py --ai-routing
 
 使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
 
-AI 对话和设置均使用普通窗口层级，切换到其他应用后可被覆盖；主动打开时移到当前桌面并一次性请求前台，不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
+AI 对话和设置默认使用普通窗口层级，切换到其他应用后可被覆盖；AI 对话可手动置顶。主动打开时移到当前桌面并一次性请求前台，默认不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
 
-AI 对话按 Figma UI 页中的 38:555 / 38:654 实现为 720 × 640 pt 玻璃窗口。左上角切换历史与搜索，附件菜单提供新对话和设置；工具调用以对应工具的 SF Symbol 和状态文字展示。见[对话样式验证](docs/validation/2026-10-10-ai-chat-design.md)。
+AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，附件菜单保留设置入口。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
 
 颜色已同步至 2026-10-10 Figma Colors：浅背景为 6%，输入背景为 8%，搜索结果与历史行使用 Light 6% / Dark 8% 的悬停色。见[颜色同步验证](docs/validation/2026-10-10-colors.md)。
 
@@ -197,9 +197,9 @@ The check uses a separate test window, a temporary database, and delayed synthet
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
 
-Both AI conversation and Settings use the normal window level, so other applications can cover them when you switch. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
+Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
-AI conversations follow Figma UI nodes 38:555 / 38:654 in a 720 × 640 pt glass window. The top-left button opens searchable history; the attachment menu includes new chat and settings. Tool calls display the corresponding SF Symbol with status text. See the [conversation design validation](docs/validation/2026-10-10-ai-chat-design.md).
+AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied, and settings remains in the attachment menu. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
 
 Colors follow the 2026-10-10 Figma Colors update: subtle backgrounds use 6% opacity, input backgrounds use 8%, and search results and history rows use a hover color at 6% in Light mode and 8% in Dark mode. See the [color synchronization validation](docs/validation/2026-10-10-colors.md).
 

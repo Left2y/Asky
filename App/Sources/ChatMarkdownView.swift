@@ -11,8 +11,20 @@ struct ChatMarkdownView: View {
         Markdown(text)
             .markdownTheme(.basic)
             .markdownTextStyle {
-                FontSize(16)
+                FontSize(14)
                 ForegroundColor(ThemeColor("text").color(for: colorScheme))
+            }
+            .markdownBlockStyle(\.heading1) { configuration in
+                configuration.label.markdownTextStyle { FontSize(16); FontWeight(.medium) }
+                    .markdownMargin(top: 16, bottom: 16)
+            }
+            .markdownBlockStyle(\.heading2) { configuration in
+                configuration.label.markdownTextStyle { FontSize(16); FontWeight(.medium) }
+                    .markdownMargin(top: 16, bottom: 16)
+            }
+            .markdownBlockStyle(\.heading3) { configuration in
+                configuration.label.markdownTextStyle { FontSize(16); FontWeight(.medium) }
+                    .markdownMargin(top: 16, bottom: 16)
             }
             .markdownTextStyle(\.link) {
                 ForegroundColor(.accentColor)

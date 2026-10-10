@@ -22,25 +22,26 @@ struct ComposerAttachmentCard: View {
                         Image(systemName: "photo").font(.system(size: 28))
                     }
                 }
-                .frame(width: 88, height: 88).clipped()
+                .frame(width: 52, height: 52).clipped()
             } else {
-                HStack(spacing: 10) {
-                    Image(systemName: attachment.kind == .text ? "doc.text" : "doc")
-                        .font(.system(size: 28, weight: .light))
+                HStack(spacing: 12) {
+                    Image(systemName: "text.document")
+                        .font(.system(size: 22, weight: .regular))
                         .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(name).textStyle(.input).lineLimit(1).truncationMode(.middle)
+                        .frame(width: 44, height: 44)
+                        .background(ThemeColor.kBackground, in: .rect(cornerRadius: 8))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(name).textStyle(TextStyle(size: 14, weight: 500, mode: .default)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 128)
                         Text(ByteCountFormatter.string(fromByteCount: Int64(attachment.byteSize), countStyle: .file))
                             .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest.color(for: colorScheme))
                     }
-                    Spacer(minLength: 0)
                 }
-                .padding(12).frame(width: 220, height: 88)
+                .padding(.leading, 4).padding(.trailing, 20).padding(.vertical, 4).frame(height: 52)
             }
         }
         .background(ThemeColor.kBackgroundNeutral.color(for: colorScheme))
-        .clipShape(.rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(ThemeColor.kBorder.color(for: colorScheme), lineWidth: 1))
+        .clipShape(.rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(ThemeColor.kBorder.color(for: colorScheme), lineWidth: 1))
         .overlay(alignment: .topTrailing) {
             Button(action: remove) {
                 Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))

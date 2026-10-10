@@ -39,7 +39,14 @@ struct TerminalSession: Identifiable {
 
 @MainActor @Observable
 final class LauncherModel {
-    var query = "" { didSet { if query != oldValue { update() } } }
+    private var inputState = LauncherInputState()
+    var query: String {
+        get { inputState.rawQuery }
+        set {
+            inputState.replaceRawQuery(newValue, keywords: app.keywords)
+            update()
+        }
+    }
     private(set) var results: [SearchResult] = []
     var selection = 0
     private(set) var terminal: TerminalSession?
@@ -91,20 +98,27 @@ final class LauncherModel {
     private var router: IntentRouter { IntentRouter(keywords: app.keywords) }
 
     var commandInput: (command: KeywordCommand, text: String)? {
-        app.keywords.matchInput(query).map { (command: $0.0, text: $0.1) }
+        inputState.command.map { (command: $0, text: inputState.text) }
     }
 
     var inputText: String {
-        get { commandInput?.text ?? query }
+        get { inputState.text }
         set {
-            if let command = commandInput?.command { query = command.keyword + " " + newValue }
-            else { query = newValue }
+            inputState.edit(newValue, keywords: app.keywords)
+            update()
         }
     }
 
     func leaveCommand() {
-        guard let input = commandInput else { return }
-        query = input.text
+        guard commandInput != nil else { return }
+        inputState.leaveCommand()
+        update()
+    }
+
+    func backspaceOnEmptyInput() -> Bool {
+        guard inputState.backspaceOnEmptyText() else { return false }
+        update()
+        return true
     }
 
     func keyword(for result: SearchResult) -> String? {

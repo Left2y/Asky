@@ -134,10 +134,8 @@ final class LauncherController {
 }
 
 struct LauncherView: View {
-    private static let searchPlaceholder = "Search"
     @Bindable var model: LauncherModel
     var onHeightChange: (CGFloat) -> Void = { _ in }
-    @FocusState private var focused: Bool
     @State private var statusHeight: CGFloat = 0
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -164,26 +162,17 @@ struct LauncherView: View {
                 } else if !hasInput {
                     searchIcon
                 }
-                TextField(Self.searchPlaceholder, text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
-                          prompt: Text(focused ? "" : Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest.color(for: colorScheme)))
-                    .textFieldStyle(.plain)
-                    .textStyle(hasInput ? TextStyle(size: 18, weight: 400, mode: .default) : .input)
-                    .tint(ThemeColor.kIcon.color(for: colorScheme))
-                    .accessibilityLabel("搜索应用、文件、标签页或命令")
-                    .focused($focused)
-                    .onSubmit { model.submit(.executeSelection) }
-                    .onKeyPress(.delete) {
-                        guard model.commandInput != nil, model.inputText.isEmpty else { return .ignored }
-                        model.leaveCommand()
-                        return .handled
-                    }
-                    .onKeyPress(.upArrow) { model.move(-1); return .handled }
-                    .onKeyPress(.downArrow) { model.move(1); return .handled }
-                    .onKeyPress(.return, phases: .down) { press in
-                        guard press.modifiers.contains(.command) else { return .ignored }
-                        model.submit(.submitToAI)
-                        return .handled
-                    }
+                LauncherSearchField(
+                    text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
+                    fontSize: hasInput ? 18 : 16,
+                    textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
+                    placeholder: "",
+                    backspaceOnEmpty: model.backspaceOnEmptyInput,
+                    move: model.move,
+                    submit: { model.submit($0 ? .submitToAI : .executeSelection) }
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: hasInput ? 26 : 24)
                 if hasInput { searchIcon }
             }
             .padding(.leading, hasInput ? 28 : LauncherLayout.inputLeadingPadding)
@@ -251,7 +240,6 @@ struct LauncherView: View {
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
         }
-        .onAppear { focused = true }
     }
     private var searchIcon: some View {
         Image(systemName: "magnifyingglass")

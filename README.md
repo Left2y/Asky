@@ -26,6 +26,8 @@ V1 规划包含三个层次：
 
 独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
 
+普通搜索也显示“链接”和“书签”分类，使用现有 `link` / `bookmark` 系统图标。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
+
 ### 文档
 
 - [文档索引](docs/README.md)：阅读顺序、权威内容与设计状态。
@@ -62,6 +64,13 @@ cd Packages/KulaCore && swift test
 xcodegen generate
 xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/KulaHere.app
+```
+
+搜索输入原生编辑器回归检查（完成 App 构建后，在项目根目录运行）：
+
+```sh
+xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
+build/launcher-input-regression
 ```
 
 使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
@@ -110,6 +119,8 @@ Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVn
 
 A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
 
+Ordinary search also includes Link and Bookmark categories using the existing `link` / `bookmark` system icons. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
+
 ### Documentation
 
 - [Documentation index](docs/README.md): reading order, authoritative specifications, and design status.
@@ -141,6 +152,13 @@ cd Packages/KulaCore && swift test
 xcodegen generate
 xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/KulaHere.app
+```
+
+Native search-field regression check (run from the project root after building the app):
+
+```sh
+xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
+build/launcher-input-regression
 ```
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.

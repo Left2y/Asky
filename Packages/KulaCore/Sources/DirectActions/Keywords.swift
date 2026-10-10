@@ -48,11 +48,18 @@ public struct KeywordRegistry: Sendable, Codable, Equatable {
 
     /// Matches "go SwiftUI" → (go, "SwiftUI").
     public func match(_ input: String) -> (KeywordCommand, String)? {
-        let trimmed = input.trimmingCharacters(in: .whitespaces)
+        guard let (cmd, text) = matchInput(input) else { return nil }
+        let query = text.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty ? nil : (cmd, query)
+    }
+
+    /// A completed keyword followed by a space enters command input, even before a query is typed.
+    public func matchInput(_ input: String) -> (KeywordCommand, String)? {
+        let trimmed = String(input.drop(while: { $0.isWhitespace }))
         guard let space = trimmed.firstIndex(of: " ") else { return nil }
         let kw = String(trimmed[..<space])
-        let q = trimmed[space...].trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty, let cmd = commands.first(where: { $0.keyword.caseInsensitiveCompare(kw) == .orderedSame }) else { return nil }
+        let q = String(trimmed[trimmed.index(after: space)...])
+        guard let cmd = commands.first(where: { $0.keyword.caseInsensitiveCompare(kw) == .orderedSame }) else { return nil }
         return (cmd, q)
     }
 }

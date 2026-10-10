@@ -71,7 +71,6 @@ final class LauncherModel {
                 return (s.fileScopes.map { URL(filePath: $0) }, s.excludedDirectories)
             })]
         if app.settings.enabledSources.contains(.chrome) { providers.append(chrome) }
-        if app.settings.clipboardEnabled { providers.append(ClipboardProvider(store: ClipboardStore(app.store))) }
         coordinator = SearchCoordinator(providers: providers)
     }
 
@@ -91,10 +90,41 @@ final class LauncherModel {
 
     private var router: IntentRouter { IntentRouter(keywords: app.keywords) }
 
+    var commandInput: (command: KeywordCommand, text: String)? {
+        app.keywords.matchInput(query).map { (command: $0.0, text: $0.1) }
+    }
+
+    var inputText: String {
+        get { commandInput?.text ?? query }
+        set {
+            if let command = commandInput?.command { query = command.keyword + " " + newValue }
+            else { query = newValue }
+        }
+    }
+
+    func leaveCommand() {
+        guard let input = commandInput else { return }
+        query = input.text
+    }
+
+    func keyword(for result: SearchResult) -> String? {
+        guard result.source == .keyword else { return nil }
+        return commandInput?.command.keyword ?? app.keywords.commands.first {
+            $0.url(for: query.trimmingCharacters(in: .whitespacesAndNewlines))?.absoluteString == result.target.identifier
+        }?.keyword
+    }
+
     private func update() {
         status = nil
-        let route = router.route(query)
+        let route = commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
         direct = router.directResults(for: route)
+        if case .search(let text) = route {
+            direct += app.keywords.commands.compactMap { command in
+                guard let url = command.url(for: text) else { return nil }
+                return SearchResult(source: .keyword, target: TargetRef(kind: "url", identifier: url.absoluteString),
+                                    title: command.name, actions: [.openURL(url)], score: 0)
+            }
+        }
         batches = []
         currencyTask?.cancel()
         if case .currency(let q) = route {
@@ -134,7 +164,9 @@ final class LauncherModel {
 
     private func publish() {
         var merged = direct + ResultMerger.merge(batches, limit: 40)
-        if let ask = router.askAIResult(for: query) { merged.append(ask) }
+        if commandInput == nil, let ask = router.askAIResult(for: query) { merged.append(ask) }
+        let order: [SearchSource] = [.app, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
+        merged = order.flatMap { source in merged.filter { $0.source == source } }
         results = merged
         selection = min(selection, max(0, results.count - 1))
     }

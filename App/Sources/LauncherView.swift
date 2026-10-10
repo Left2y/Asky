@@ -3,6 +3,7 @@ import SwiftUI
 import Contracts
 import Theme
 import Router
+import ToolService
 
 private enum LauncherLayout {
     // Figma Field 22:348: 720 × 60, 24/20 insets, 12 gap, 17 pt SF Symbol.
@@ -18,16 +19,17 @@ private enum LauncherLayout {
     static let shadowPadding: CGFloat = 132
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
-    static let rowHeight: CGFloat = 44
-    static let rowSpacing: CGFloat = 2
+    static let rowHeight: CGFloat = 64
+    static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 12
-    static let listVerticalPadding: CGFloat = 10
-    static let rowHorizontalPadding: CGFloat = 12
+    static let listVerticalPadding: CGFloat = 12
+    static let rowHorizontalPadding: CGFloat = 16
 }
 
 /// Floating, non-activating launcher panel that still takes key focus for the input field.
 final class LauncherPanel: NSPanel {
     var onEscape: () -> Void = {}
+    var onBlur: () -> Void = {}
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0,
@@ -52,7 +54,7 @@ final class LauncherPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) { onEscape() }
     override func resignKey() {
         super.resignKey()
-        onEscape()
+        onBlur()
     }
 }
 
@@ -66,7 +68,12 @@ final class LauncherController {
 
     init(model: LauncherModel) {
         self.model = model
-        panel.onEscape = { [weak self] in self?.hide() }
+        panel.onEscape = { [weak self] in
+            guard let self else { return }
+            if self.model.commandInput != nil { self.model.leaveCommand() }
+            else { self.hide() }
+        }
+        panel.onBlur = { [weak self] in self?.hide() }
         model.onHide = { [weak self] in self?.hide() }
     }
 
@@ -136,7 +143,7 @@ struct LauncherView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var shellShape: AnyShape {
-        if model.terminal != nil || !model.results.isEmpty || model.status != nil {
+        if hasInput || model.terminal != nil || !model.results.isEmpty || model.status != nil {
             AnyShape(RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous))
         } else {
             // The design system's radius99999 maps to a real capsule.
@@ -144,21 +151,32 @@ struct LauncherView: View {
         }
     }
 
+    private var hasInput: Bool { !model.query.isEmpty }
+    private var inputHeight: CGFloat { hasInput ? 64 : LauncherLayout.inputHeight }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: LauncherLayout.inputSpacing) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
-                    .foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
-                    .frame(width: 21, height: 22)
-                TextField(Self.searchPlaceholder, text: $model.query,
+                if model.commandInput != nil {
+                    commandIcon
+                        .frame(width: 24, height: 24)
+                        .accessibilityLabel(model.commandInput?.command.name ?? "关键词命令")
+                } else if !hasInput {
+                    searchIcon
+                }
+                TextField(Self.searchPlaceholder, text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
                           prompt: Text(focused ? "" : Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest.color(for: colorScheme)))
                     .textFieldStyle(.plain)
-                    .textStyle(.input)
+                    .textStyle(hasInput ? TextStyle(size: 18, weight: 400, mode: .default) : .input)
                     .tint(ThemeColor.kIcon.color(for: colorScheme))
                     .accessibilityLabel("搜索应用、文件、标签页或命令")
                     .focused($focused)
                     .onSubmit { model.submit(.executeSelection) }
+                    .onKeyPress(.delete) {
+                        guard model.commandInput != nil, model.inputText.isEmpty else { return .ignored }
+                        model.leaveCommand()
+                        return .handled
+                    }
                     .onKeyPress(.upArrow) { model.move(-1); return .handled }
                     .onKeyPress(.downArrow) { model.move(1); return .handled }
                     .onKeyPress(.return, phases: .down) { press in
@@ -166,18 +184,19 @@ struct LauncherView: View {
                         model.submit(.submitToAI)
                         return .handled
                     }
+                if hasInput { searchIcon }
             }
-            .padding(.leading, LauncherLayout.inputLeadingPadding)
-            .padding(.trailing, LauncherLayout.inputTrailingPadding)
-            .frame(height: LauncherLayout.inputHeight)
+            .padding(.leading, hasInput ? 28 : LauncherLayout.inputLeadingPadding)
+            .padding(.trailing, hasInput ? 28 : LauncherLayout.inputTrailingPadding)
+            .frame(height: inputHeight)
 
             if let t = model.terminal {
-                Divider().frame(height: LauncherLayout.dividerHeight)
+                inputDivider
                 TerminalOutputView(session: t, stop: model.stopTerminal)
             } else if !model.results.isEmpty {
-                Divider().frame(height: LauncherLayout.dividerHeight)
+                inputDivider
                 ResultList(model: model, maxHeight: WindowMetrics.launcherMaxHeight
-                           - LauncherLayout.inputHeight - LauncherLayout.dividerHeight - statusHeight)
+                           - inputHeight - LauncherLayout.dividerHeight - statusHeight)
             }
             if let s = model.status {
                 Text(s).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
@@ -203,7 +222,7 @@ struct LauncherView: View {
         // outline above the material, inset so the panel does not clip its edge.
         .overlay {
             shellShape
-                .stroke(ThemeColor.kBorderFocused.color(for: colorScheme),
+                .stroke((hasInput ? ThemeColor.kBorder : ThemeColor.kBorderFocused).color(for: colorScheme),
                         lineWidth: CGFloat(BorderWidth.values["borderWidth1"] ?? 1))
                 .padding(0.5)
                 .allowsHitTesting(false)
@@ -234,28 +253,74 @@ struct LauncherView: View {
         }
         .onAppear { focused = true }
     }
+    private var searchIcon: some View {
+        Image(systemName: "magnifyingglass")
+            .font(.system(size: hasInput ? 17 : LauncherLayout.searchIconSize, weight: .regular))
+            .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
+            .frame(width: hasInput ? 19 : 21, height: hasInput ? 24 : 22)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var commandIcon: some View {
+        if let command = model.commandInput?.command,
+           let url = command.url(for: ""),
+           let icon = ToolService.launcherBrowserIcon(for: url) {
+            Image(nsImage: icon).resizable().scaledToFit()
+        } else {
+            Image(systemName: "globe").font(.system(size: 20)).foregroundStyle(ThemeColor.kIcon)
+        }
+    }
+
+    private var inputDivider: some View {
+        Rectangle().fill(ThemeColor.kBorder)
+            .frame(height: LauncherLayout.dividerHeight)
+            .padding(.horizontal, 28)
+    }
+
 }
 
 private struct ResultList: View {
     @Bindable var model: LauncherModel
     let maxHeight: CGFloat
 
+    private var sections: [SearchSource] {
+        var seen = Set<SearchSource>()
+        return model.results.compactMap { seen.insert($0.source).inserted ? $0.source : nil }
+    }
+
+    private var showsHeaders: Bool { model.commandInput == nil }
+
     private var height: CGFloat {
-        let count = model.results.count
-        let rows = CGFloat(count) * LauncherLayout.rowHeight
-        let gaps = CGFloat(max(0, count - 1)) * LauncherLayout.rowSpacing
-        return min(rows + gaps + LauncherLayout.listVerticalPadding * 2, maxHeight)
+        let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight
+        let headers = showsHeaders ? CGFloat(sections.count) * 52 : 0
+        return min(rows + headers + LauncherLayout.listVerticalPadding * 2, maxHeight)
     }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: LauncherLayout.rowSpacing) {
-                    ForEach(Array(model.results.enumerated()), id: \.element.id) { i, r in
-                        ResultRow(result: r, selected: i == model.selection)
+                LazyVStack(spacing: 0) {
+                    ForEach(sections, id: \.self) { source in
+                        if showsHeaders {
+                            Text(Self.title(source)).font(.system(size: 16))
+                                .foregroundStyle(ThemeColor.kTextSubtle)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 16).padding(.bottom, 12)
+                                .frame(height: 52)
+                        }
+                        ForEach(Array(model.results.enumerated()).filter { $0.element.source == source }, id: \.element.id) { i, r in
+                            Button {
+                                model.selection = i
+                                model.submit(.executeSelection)
+                            } label: {
+                                ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(r.title)
+                            .accessibilityAddTraits(i == model.selection ? .isSelected : [])
                             .id(i)
-                            .contentShape(Rectangle())
-                            .onTapGesture { model.selection = i; model.submit(.executeSelection) }
+                        }
                     }
                 }
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
@@ -265,46 +330,80 @@ private struct ResultList: View {
             .onChange(of: model.selection) { _, s in proxy.scrollTo(s) }
         }
     }
+
+    private static func title(_ source: SearchSource) -> String {
+        switch source {
+        case .app: "APP 应用"
+        case .file: "文件文档"
+        case .chromeTab: "Chrome 标签页"
+        case .shortcut: "快捷指令"
+        case .keyword: "默认搜索"
+        case .askAI: "AI"
+        case .calculator, .conversion, .currency: "计算与换算"
+        case .terminal: "终端命令"
+        case .clipboard: "剪贴板"
+        }
+    }
 }
 
 private struct ResultRow: View {
     let result: SearchResult
     let selected: Bool
+    let keyword: String?
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            icon.frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(result.title).textStyle(.resultPrimary).lineLimit(1)
-                if !result.subtitle.isEmpty {
-                    Text(result.subtitle).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle).lineLimit(1)
+        HStack(spacing: 12) {
+            icon.frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    Text(keyword == nil ? result.title : result.title.components(separatedBy: "：").first ?? result.title)
+                        .font(.system(size: 18)).lineLimit(1)
+                    if let keyword {
+                        Text(keyword).font(.system(size: 16))
+                            .foregroundStyle(ThemeColor.kTextSubtle)
+                            .padding(.horizontal, 6)
+                            .frame(height: 24)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ThemeColor("borderIntense"), lineWidth: 1))
+                    }
+                }
+                .frame(height: 26, alignment: .leading)
+                if keyword == nil, !result.subtitle.isEmpty {
+                    Text(result.source == .app ? result.target.identifier : result.subtitle)
+                        .font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
+                        .frame(height: 22, alignment: .leading)
                 }
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)
         .background(hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
                         selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
-                    in: RoundedRectangle(cornerRadius: 8))
+                    in: RoundedRectangle(cornerRadius: 24))
+        .contentShape(RoundedRectangle(cornerRadius: 24))
         .onHover { hovering = $0 }
     }
 
     @ViewBuilder private var icon: some View {
         switch result.source {
         case .app, .file:
-            Image(nsImage: NSWorkspace.shared.icon(forFile: result.target.identifier)).resizable()
+            Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+        case .keyword:
+            if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
+                Image(nsImage: icon).resizable().scaledToFit()
+            } else {
+                Image(systemName: "globe").font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
+            }
         default:
-            Image(systemName: Self.symbol(result.source)).foregroundStyle(ThemeColor.kIcon)
+            Image(systemName: Self.symbol(result.source)).font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
         }
     }
 
     static func symbol(_ s: SearchSource) -> String {
         switch s {
-        case .chromeTab: "globe"
+        case .chromeTab, .keyword: "globe"
         case .clipboard: "doc.on.clipboard"
-        case .keyword: "link"
         case .calculator: "equal.square"
         case .conversion: "arrow.left.arrow.right"
         case .currency: "dollarsign.arrow.circlepath"

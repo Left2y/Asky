@@ -40,6 +40,21 @@ import DirectActions
         #expect(rows.first?.target.identifier.contains("swift%20testing") == true)
     }
 
+    @Test func commandInputRequiresCompletedTokenAndPreservesEmptyScope() {
+        let registry = KeywordRegistry()
+        #expect(registry.matchInput("go") == nil)
+        #expect(registry.matchInput("google query") == nil)
+        #expect(registry.matchInput("GO ")?.0.keyword == "go")
+        #expect(registry.matchInput("go ")?.1 == "")
+        #expect(registry.match("go ") == nil)
+        #expect(registry.matchInput("go Who ")?.1 == "Who ")
+        #expect(registry.match("go Who ")?.1 == "Who")
+        #expect(registry.matchInput(" go Who is fantuan?")?.1 == "Who is fantuan?")
+        let custom = KeywordRegistry(commands: [KeywordCommand(keyword: "saf", name: "Safari", urlTemplate: "https://www.google.com/search?q={query}")])
+        #expect(custom.matchInput("saf Who is fantuan?")?.0.name == "Safari")
+        #expect(custom.matchInput("saf Who is fantuan?")?.1 == "Who is fantuan?")
+    }
+
     @Test func plainTextIsSearchWithAskAIAction() {
         #expect(router.route("Safari") == .search(query: "Safari"))
         let ai = router.askAIResult(for: "Safari")

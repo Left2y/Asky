@@ -230,17 +230,25 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // An opaque semantic base keeps desktop colors out of the shell.
-            // Render the surface lighting locally so the field and icons retain
-            // the same contrast regardless of the window behind the launcher.
-            shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
-            if !reduceTransparency {
-                shellShape.fill(
-                    LinearGradient(colors: [
-                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.06),
-                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.02)
-                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
+            // Clear glass preserves background blur and lensing without the
+            // regular material's independent light/dark adaptation. Keep the
+            // neutral veil and all foreground colors tied to the system theme.
+            if reduceTransparency {
+                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
+            } else {
+                shellShape.fill(.clear)
+                    .glassEffect(.clear, in: shellShape)
+                    // Blend some unfiltered desktop detail back through the
+                    // optical layer; a fully weighted glass layer over-frosts
+                    // dense text behind this short floating search field.
+                    .opacity(0.82)
+                    .overlay {
+                        shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true)
+                            .opacity(colorScheme == .dark ? 0.60 : 0.48))
+                    }
+                    .environment(\.colorScheme, colorScheme)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
         .overlay {
@@ -253,7 +261,7 @@ struct LauncherView: View {
                 .accessibilityHidden(true)
             } else {
                 // Figma light comes from the upper left (-45 degrees). Keep the
-                // directional rim separate from the fixed neutral surface.
+                // directional rim separate from the transparent optical surface.
                 shellShape.strokeBorder(
                     LinearGradient(stops: [
                         .init(color: .white.opacity(0.80), location: 0),

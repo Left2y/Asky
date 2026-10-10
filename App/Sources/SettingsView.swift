@@ -208,6 +208,7 @@ private struct GeneralSettings: View {
                 Text("仅在输入以 > 开头并按 ↩ 时运行；交互式命令转到“终端”。").textStyle(.secondary)
             }
             Section("剪贴板") {
+                Text(app.clipboardHotKeyStatus).textStyle(.secondary)
                 Toggle("记录剪贴板历史", isOn: $app.settings.clipboardEnabled)
                 Text("保留 30 天、上限 200 MiB，固定项不删除；密码管理器与标记为隐藏的内容不记录。").textStyle(.secondary)
                 TextField("排除的应用 Bundle ID（逗号分隔）", text: Binding(

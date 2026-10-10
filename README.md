@@ -24,7 +24,7 @@ V1 规划包含三个层次：
 
 完整输入已配置关键词（如 `go`，不加空格）时，匹配命令独立显示在最前面的「别名匹配」组并默认选中；快捷指令组也排在普通应用结果之前。关键词加空格后仍进入查询输入模式。
 
-搜索结果仅在同时存在两个及以上分类时显示组标题；单一分类隐藏标题并释放对应高度。搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧；空输入与有输入统一使用 28 pt 左右内边距、64 pt 高度与 18 pt 字号。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；剪贴板独立快捷键与面板待下一份设计。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
+搜索结果仅在同时存在两个及以上分类时显示组标题；单一分类隐藏标题并释放对应高度。搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧；空输入与有输入统一使用 28 pt 左右内边距、64 pt 高度与 18 pt 字号。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；按 Ctrl + Option + C 打开独立剪贴板面板，或从菜单栏打开。横向滚动查看卡片，点击或拖拽卡片会复制原始文字或图片，悬停显示完整预览。搜索后按 Return 复制首项，↑/↓ 切换卡片；右键可固定或删除记录，顶部图钉切换窗口置顶，Escape 关闭。快捷键占用时可从菜单栏打开，设置的剪贴板区域显示状态。见[剪贴板验证记录](docs/validation/2026-10-10-clipboard-panel.md)。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
 
 搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 8 个菜单项的高度（400 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示，隐藏滚动指示条，内容裁切在外壳圆角内。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
 
@@ -96,6 +96,12 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 
 此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。滚动穿透回归另起独立进程的可滚动测试窗口，通过系统投递合成滚动事件；此项需要已授予的 macOS 输入事件投递权限，不会自动请求授权。
 
+剪贴板原生回归检查（先完成 Debug 构建；使用临时历史数据，不读取个人历史或调用模型）：
+
+```sh
+python3 App/Tests/run-clipboard-regression.py
+```
+
 使用 AI 前，需在“设置 › 模型设置”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
 
 设置按参考图采用顶部图标导航：外观设置（跟随系统、浅色、深色）、模型设置（供应商、API 地址、模型与 Key）、触发快捷键（点击录制、占用检查、恢复默认）、别名与快捷指令（应用与 macOS 快捷指令别名、网页关键词）。其他通用、数据来源、权限、记忆与 MCP 配置保留在“更多设置”。配置自动保存在本地；模型表单需点击保存。保存新 Key 后及首次读取 Key 后，能力检查和 AI Runtime 在本次应用运行中复用内存凭据；退出后清除，重启后的首次访问仍可能需要系统钥匙串授权。保存模型时若有 AI 任务进行中会提示等待；保存完成后退出闲置 Runtime，下次请求使用新配置。
@@ -156,7 +162,7 @@ Users supply their own model API key, with OpenAI-compatible Chat Completions pr
 
 Typing a complete configured keyword (such as `go`, without a trailing space) places the matched command first in a separate “别名匹配” section and selects it by default. Shortcuts also appear before ordinary app results. A keyword followed by a space still enters query input mode.
 
-Search results show section headings only when two or more categories are present; a single category omits its heading and the corresponding height. Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right; empty and populated fields share 28 pt horizontal insets, a 64 pt height, and an 18 pt font. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history; its separate shortcut and panel await the next design. See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
+Search results show section headings only when two or more categories are present; a single category omits its heading and the corresponding height. Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right; empty and populated fields share 28 pt horizontal insets, a 64 pt height, and an 18 pt font. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history. Press Ctrl + Option + C or use the menu bar to open its separate panel. Scroll horizontally through cards; clicking or dragging copies the original text or image, and hovering opens a full preview. Return copies the first search result; ↑/↓ select cards. The context menu pins or deletes a record, the header pin toggles window floating, and Escape closes the panel. If the shortcut is occupied, use the menu bar; the clipboard section in Settings reports its status. See the [clipboard validation record](docs/validation/2026-10-10-clipboard-panel.md). See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
 
 The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at eight menu rows in height (400 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results with hidden scroll indicators and content clipped to the shell corners. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
 
@@ -222,6 +228,12 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 ```
 
 The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers. The scroll-through regression launches a separate process with a scrollable test window and posts synthetic scrolling through the system. It requires existing macOS input-event posting permission and never requests authorization automatically.
+
+Native clipboard regression (build Debug first; uses temporary history without reading personal history or calling a model):
+
+```sh
+python3 App/Tests/run-clipboard-regression.py
+```
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model Settings. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
 

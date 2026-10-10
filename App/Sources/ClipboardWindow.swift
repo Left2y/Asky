@@ -1,0 +1,333 @@
+import AppKit
+import SwiftUI
+import LocalStore
+import ToolService
+import Theme
+
+private final class ClipboardPanel: NSPanel {
+    var dismiss: () -> Void = {}
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+    override func cancelOperation(_ sender: Any?) { dismiss() }
+}
+
+@MainActor @Observable
+final class ClipboardController {
+    private let app: AppModel
+    private let panel: ClipboardPanel
+    private let preview: NSPanel
+    private var hoverTask: Task<Void, Never>?
+    private var refreshTimer: Timer?
+    var query = "" { didSet { selection = 0; keyboardSelection = false; refresh(); dismissPreview() } }
+    var items: [ClipboardItem] = []
+    var selection = 0
+    var keyboardSelection = false
+    var pinned = false
+    var status: String?
+
+    init(app: AppModel) {
+        self.app = app
+        panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 900, height: 244),
+                               styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        preview = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        for window in [panel, preview] {
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.hasShadow = false
+            window.level = .floating
+            window.hidesOnDeactivate = false
+            window.isReleasedWhenClosed = false
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        }
+        panel.level = .normal
+        panel.title = "剪贴板历史"
+        preview.title = "剪贴板完整预览"
+        panel.dismiss = { [weak self] in self?.hide() }
+    }
+
+    func toggle() { panel.isVisible ? hide() : show() }
+
+    func show() {
+        query = ""
+        status = nil
+        refresh()
+        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        if let frame = screen?.visibleFrame {
+            let width = min(900, frame.width - 32)
+            panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
+                                  width: width, height: 244), display: false)
+        }
+        panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
+        panel.makeKeyAndOrderFront(nil)
+        refreshTimer?.invalidate()
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+    }
+
+    func hide() {
+        dismissPreview()
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        panel.orderOut(nil)
+        panel.contentView = nil
+        items = []
+    }
+
+    func refresh() {
+        let store = ClipboardStore(app.store)
+        let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let next = value.isEmpty ? store.recent(limit: 100) : store.search(value, limit: 100)
+        if next != items { items = next; selection = min(selection, max(0, next.count - 1)) }
+    }
+
+    func moveSelection(_ delta: Int) {
+        guard !items.isEmpty else { return }
+        selection = min(max(0, selection + delta), items.count - 1)
+        keyboardSelection = true
+        dismissPreview()
+    }
+
+    func copySelection() {
+        guard items.indices.contains(selection) else { return }
+        copy(items[selection])
+    }
+
+    func togglePinned() {
+        pinned.toggle()
+        panel.level = pinned ? .floating : .normal
+        if !pinned { dismissPreview() }
+    }
+
+    func copy(_ item: ClipboardItem) {
+        status = ClipboardAccess.copy(item) ? "已复制" : "无法复制：原始内容已不可用"
+    }
+
+    func drag(_ item: ClipboardItem) -> NSItemProvider {
+        dismissPreview()
+        guard let provider = ClipboardAccess.dragProvider(for: item) else {
+            status = "无法拖拽：原始内容已不可用"
+            return NSItemProvider()
+        }
+        copy(item)
+        return provider
+    }
+
+    func pinItem(_ item: ClipboardItem) {
+        do { try ClipboardStore(app.store).setPinned(item.id, !item.pinned); refresh() }
+        catch { status = "无法更新固定状态" }
+    }
+
+    func delete(_ item: ClipboardItem) {
+        do {
+            let paths = try ClipboardStore(app.store).delete(ids: [item.id])
+            ClipboardMonitor.removeFiles(paths)
+            dismissPreview()
+            refresh()
+        } catch { status = "无法删除这条记录" }
+    }
+
+    func hover(_ item: ClipboardItem, frame: NSRect, inside: Bool) {
+        hoverTask?.cancel()
+        hoverTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(inside ? 300 : 200))
+            guard !Task.isCancelled, let self, self.panel.isVisible else { return }
+            if inside { self.showPreview(item, anchor: frame) }
+            else { self.dismissPreview() }
+        }
+    }
+
+    func previewHover(_ inside: Bool) {
+        hoverTask?.cancel()
+        if !inside {
+            hoverTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
+                self?.dismissPreview()
+            }
+        }
+    }
+
+    func dismissPreview() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        preview.orderOut(nil)
+        preview.contentView = nil
+    }
+
+    private func showPreview(_ item: ClipboardItem, anchor: NSRect) {
+        guard let screen = panel.screen else { return }
+        let image = item.filePath.flatMap { NSImage(contentsOfFile: $0) }
+        let available = screen.visibleFrame
+        let width = min(464.0, available.width - 32)
+        let imageHeight = image.map { width * $0.size.height / max(1, $0.size.width) } ?? 280
+        let height = min(max(120, imageHeight + 24), min(440, available.height - 32))
+        var y = panel.frame.minY - height - 16
+        if y < available.minY + 8 { y = panel.frame.maxY + 16 }
+        y = min(max(available.minY + 8, y), available.maxY - height - 8)
+        let x = min(max(available.minX + 8, anchor.midX - width / 2), available.maxX - width - 8)
+        preview.setFrame(NSRect(x: x, y: y, width: width, height: height), display: false)
+        preview.contentView = NSHostingView(rootView: ClipboardFullPreview(item: item, image: image)
+            .onHover { [weak self] in self?.previewHover($0) })
+        preview.orderFrontRegardless()
+    }
+}
+
+private struct ClipboardHistoryView: View {
+    @Bindable var controller: ClipboardController
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 40) {
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
+                    LauncherSearchField(text: $controller.query, fontSize: 16,
+                                        textColor: NSColor(ThemeColor.kText.color(for: scheme)),
+                                        accessibilityLabel: "搜索剪贴板历史",
+                                        placeholder: "Search your clipboard contents",
+                                        placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
+                                        backspaceOnEmpty: { false }, move: controller.moveSelection,
+                                        submit: { _ in controller.copySelection() })
+                        .frame(height: 24)
+                }
+                .padding(.horizontal, 16).frame(height: 36)
+                .background(ThemeColor.kBackground, in: Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+                HStack(spacing: 12) {
+                    action(controller.pinned ? "pin.fill" : "pin", title: "固定窗口", run: controller.togglePinned)
+                    action("xmark", title: "关闭剪贴板", run: controller.hide)
+                }
+            }.padding(12)
+            Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
+            if controller.items.isEmpty {
+                VStack(spacing: 8) {
+                    Text(controller.query.isEmpty ? "暂无剪贴板历史" : "没有匹配的内容")
+                    Text("复制文字或图片后会显示在这里").textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 12) {
+                            ForEach(controller.items) { item in ClipboardHistoryCard(item: item, controller: controller).id(item.id) }
+                        }.padding(12)
+                    }.scrollIndicators(.hidden)
+                    .onChange(of: controller.selection) { _, index in
+                        if controller.items.indices.contains(index) { proxy.scrollTo(controller.items[index].id, anchor: .center) }
+                    }
+                }
+            }
+        }
+        .foregroundStyle(ThemeColor.kText)
+        .background { ClipboardGlass(radius: 32) }
+        .clipShape(RoundedRectangle(cornerRadius: 32))
+        .overlay(alignment: .bottom) {
+            if let status = controller.status {
+                Text(status).textStyle(.secondary).padding(.horizontal, 12).padding(.vertical, 4)
+                    .background(.regularMaterial, in: Capsule()).padding(.bottom, 4)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onExitCommand { controller.hide() }
+        .accessibilityValue(controller.status ?? "")
+    }
+
+    private func action(_ symbol: String, title: String, run: @escaping () -> Void) -> some View {
+        Button(action: run) { Image(systemName: symbol).frame(width: 32, height: 32) }
+            .buttonStyle(.plain).foregroundStyle(ThemeColor.kIconSubtle)
+            .background(ThemeColor.kBackground, in: Circle())
+            .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+            .accessibilityLabel(title).help(title)
+    }
+}
+
+private struct ClipboardHistoryCard: View {
+    let item: ClipboardItem
+    let controller: ClipboardController
+    @State private var anchor = NSRect.zero
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                if let icon = ClipboardAccess.sourceIcon(named: item.sourceApp) {
+                    Image(nsImage: icon).resizable().frame(width: 28, height: 28)
+                } else { Image(systemName: "doc.on.clipboard").frame(width: 28, height: 28) }
+                Spacer()
+                if item.pinned { Image(systemName: "pin.fill").font(.caption).foregroundStyle(ThemeColor.kIconSubtle) }
+            }
+            if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
+                Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                Text(item.text ?? "图片不可用").textStyle(.resultPrimary).lineLimit(4)
+                    .frame(width: 232, height: 96, alignment: .topLeading).clipped()
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12).frame(width: 264, height: 160)
+        .background(ThemeColor.kBackground, in: RoundedRectangle(cornerRadius: 24))
+        .overlay { RoundedRectangle(cornerRadius: 24).stroke(ThemeColor.kBorder, lineWidth: 1) }
+        .overlay {
+            if controller.keyboardSelection, controller.items.indices.contains(controller.selection),
+               controller.items[controller.selection].id == item.id {
+                RoundedRectangle(cornerRadius: 24).stroke(ThemeColor.kBorderFocused, lineWidth: 2)
+            }
+        }
+        .background(ClipboardAnchor { anchor = $0 })
+        .contentShape(RoundedRectangle(cornerRadius: 24))
+        .onHover { controller.hover(item, frame: anchor, inside: $0) }
+        .onTapGesture { controller.copy(item) }
+        .onDrag { controller.drag(item) }
+        .contextMenu {
+            Button("复制") { controller.copy(item) }
+            Button(item.pinned ? "取消固定" : "固定记录") { controller.pinItem(item) }
+            Button("删除", role: .destructive) { controller.delete(item) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.kind == .image ? "图片，\(item.sourceApp ?? "未知来源")" : String((item.text ?? "").prefix(200)))
+        .accessibilityAction(named: "复制") { controller.copy(item) }
+    }
+}
+
+private struct ClipboardFullPreview: View {
+    let item: ClipboardItem
+    let image: NSImage?
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image).resizable().scaledToFit().padding(12)
+            } else {
+                ScrollView { Text(item.text ?? "原始图片已不可用").textStyle(.resultPrimary)
+                    .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(16) }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(ThemeColor.kText)
+        .background { ClipboardGlass(radius: 24) }
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+}
+
+private struct ClipboardGlass: View {
+    let radius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var opaque
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius)
+        if opaque { shape.fill(ThemeColor.kBackground.color(for: scheme, opaque: true)) }
+        else { shape.fill(ThemeColor.kBackground).glassEffect(.regular, in: shape) }
+    }
+}
+
+private struct ClipboardAnchor: NSViewRepresentable {
+    let update: (NSRect) -> Void
+    func makeNSView(context: Context) -> AnchorView { AnchorView() }
+    func updateNSView(_ view: AnchorView, context: Context) { view.update = update }
+    final class AnchorView: NSView {
+        var update: ((NSRect) -> Void)?
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func layout() {
+            super.layout()
+            guard let window else { return }
+            let frame = window.convertToScreen(convert(bounds, to: nil))
+            DispatchQueue.main.async { [weak self] in self?.update?(frame) }
+        }
+    }
+}

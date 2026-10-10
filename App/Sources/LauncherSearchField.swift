@@ -6,7 +6,9 @@ struct LauncherSearchField: NSViewRepresentable {
     @Binding var text: String
     var fontSize: CGFloat
     var textColor: NSColor
+    var accessibilityLabel = "搜索应用、文件、标签页或命令"
     var placeholder: String
+    var placeholderColor: NSColor? = nil
     var backspaceOnEmpty: () -> Bool
     var move: (Int) -> Void
     var submit: (Bool) -> Void
@@ -19,7 +21,7 @@ struct LauncherSearchField: NSViewRepresentable {
         field.drawsBackground = false
         field.focusRingType = .none
         field.delegate = context.coordinator
-        field.setAccessibilityLabel("搜索应用、文件、标签页或命令")
+        field.setAccessibilityLabel(accessibilityLabel)
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         DispatchQueue.main.async { [weak field] in
@@ -45,7 +47,10 @@ struct LauncherSearchField: NSViewRepresentable {
             let font = NSFont.systemFont(ofSize: parent.fontSize)
             if field.font != font { field.font = font }
             if field.textColor != parent.textColor { field.textColor = parent.textColor }
-            if field.placeholderString != parent.placeholder { field.placeholderString = parent.placeholder }
+            if let color = parent.placeholderColor {
+                let value = NSAttributedString(string: parent.placeholder, attributes: [.foregroundColor: color, .font: font])
+                if field.placeholderAttributedString != value { field.placeholderAttributedString = value }
+            } else if field.placeholderString != parent.placeholder { field.placeholderString = parent.placeholder }
         }
 
         func controlTextDidChange(_ notification: Notification) {

@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Resources
+import Carbon.HIToolbox
 
 @main
 @MainActor
@@ -22,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var launcherModel: LauncherModel!
     private var agentWindow: AgentWindowController!
     private var clipboard: ClipboardMonitor!
+    private var clipboardWindow: ClipboardController!
+    private var clipboardHotKey: HotKey?
     private var reminders: ProactiveReminders!
     private var hotKey: HotKey?
     private var statusItem: NSStatusItem?
@@ -58,6 +61,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onHotKeyChange = { [weak self] code, modifiers in self?.registerHotKey(code: code, modifiers: modifiers) ?? false }
         _ = registerHotKey(code: model.preferences.hotKeyCode, modifiers: model.preferences.hotKeyModifiers)
 
+        clipboardWindow = ClipboardController(app: model)
+        do {
+            clipboardHotKey = try HotKey(keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | optionKey)) { [weak self] in
+                self?.launcher.hide()
+                self?.clipboardWindow.toggle()
+            }
+        } catch {
+            model.clipboardHotKeyStatus = "Ctrl + Option + C 已被占用，请从菜单栏打开剪贴板。"
+        }
         installStatusItem()
         clipboard = ClipboardMonitor(app: model)
         clipboard.start()
@@ -81,6 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !terminating, let model else { return .terminateNow }
         terminating = true
         clipboard?.stop()
+        clipboardWindow?.hide()
+        clipboardHotKey?.unregister()
         reminders?.stop()
         hotKey?.unregister()
         model.confirmations.rejectAll()
@@ -113,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "KulaHere")
         let menu = NSMenu()
         menu.addItem(withTitle: "打开启动器", action: #selector(openLauncher), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "剪贴板历史（⌃⌥C）", action: #selector(openClipboard), keyEquivalent: "").target = self
         menu.addItem(withTitle: "AI 对话", action: #selector(openAgent), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",").target = self
@@ -122,7 +137,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
-    @objc private func openLauncher() { launcher.show() }
+    @objc private func openLauncher() { clipboardWindow.hide(); launcher.show() }
+    @objc private func openClipboard() { launcher.hide(); clipboardWindow.show() }
     @objc private func openAgent() {
         launcher.hide()
         agentWindow.show()

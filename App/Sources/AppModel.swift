@@ -57,6 +57,7 @@ final class AppModel {
     var settingsTab = "appearance"
     let credentialSession = ModelCredentialSession()
     var hotKeyStatus = ""
+    var clipboardHotKeyStatus = "Ctrl + Option + C"
     @ObservationIgnored var onHotKeyChange: ((UInt32, UInt32) -> Bool)?
     var preferences: SettingsPreferences {
         didSet {

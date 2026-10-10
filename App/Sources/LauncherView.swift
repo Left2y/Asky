@@ -190,8 +190,16 @@ struct LauncherView: View {
         // Use the native frosted material to keep underlying window text from
         // competing with the input. Do not blend a fill into the sampled backdrop.
         .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
-        // Glass draws its own edge and shadow. Avoid
-        // rasterizing the backdrop-dependent material again for a SwiftUI shadow.
+        // Glass highlights alone disappear over light backdrops. Keep a semantic
+        // outline above the material, inset so the panel does not clip its edge.
+        .overlay {
+            shellShape
+                .stroke(ThemeColor.kBorderFocused.color(for: colorScheme),
+                        lineWidth: CGFloat(BorderWidth.values["borderWidth1"] ?? 1))
+                .padding(0.5)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

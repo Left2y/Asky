@@ -138,6 +138,10 @@ test("tool round trip, whitelist, intent mapping and in-memory credential", asyn
     assert.deepEqual(names, ["ask_user", "calendar_create", "memory_search"]);
     // Credential: injected key used; environment key ignored.
     assert.ok(mock.requests.every((r) => r.auth === `Bearer ${KEY}`));
+    // The formatting policy reaches the model through the real runtime.
+    const systemMessage = mock.requests[0].body.messages.find((m: any) => m.role === "system");
+    assert.ok(systemMessage.content.includes("最多使用一层标题"));
+    assert.ok(systemMessage.content.includes("统一使用 ###"));
     // Context snippets are delivered with provenance.
     assert.ok(JSON.stringify(mock.requests[0].body.messages).includes('source=\\"mem:1\\"'));
     // The second request carries the native status text.

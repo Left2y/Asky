@@ -7,24 +7,28 @@ struct ChatMarkdownView: View {
     let text: String
     @Environment(\.colorScheme) private var colorScheme
 
+    private static let bodyStyle = TextStyle(size: 14, weight: 400, mode: .paragraph)
+    private static let headingStyle = TextStyle(size: 16, weight: 500, mode: .paragraph)
+
     var body: some View {
         Markdown(text)
-            .markdownTheme(.basic)
+            // The default theme is basic; setting it here would override the block styles below.
             .markdownTextStyle {
-                FontSize(14)
+                FontSize(Self.bodyStyle.size)
+                FontWeight(.regular)
                 ForegroundColor(ThemeColor("text").color(for: colorScheme))
             }
-            .markdownBlockStyle(\.heading1) { configuration in
-                configuration.label.markdownTextStyle { FontSize(16); FontWeight(.medium) }
-                    .markdownMargin(top: 16, bottom: 16)
-            }
-            .markdownBlockStyle(\.heading2) { configuration in
-                configuration.label.markdownTextStyle { FontSize(16); FontWeight(.medium) }
-                    .markdownMargin(top: 16, bottom: 16)
-            }
-            .markdownBlockStyle(\.heading3) { configuration in
-                configuration.label.markdownTextStyle { FontSize(16); FontWeight(.medium) }
-                    .markdownMargin(top: 16, bottom: 16)
+            .markdownBlockStyle(\.heading1, body: Self.heading)
+            .markdownBlockStyle(\.heading2, body: Self.heading)
+            .markdownBlockStyle(\.heading3, body: Self.heading)
+            .markdownBlockStyle(\.heading4, body: Self.heading)
+            .markdownBlockStyle(\.heading5, body: Self.heading)
+            .markdownBlockStyle(\.heading6, body: Self.heading)
+            .markdownBlockStyle(\.paragraph) { configuration in
+                configuration.label
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(Self.bodyStyle.lineHeight - Self.bodyStyle.size * 1.2)
+                    .markdownMargin(top: 0, bottom: 14)
             }
             .markdownTextStyle(\.link) {
                 ForegroundColor(.accentColor)
@@ -47,6 +51,18 @@ struct ChatMarkdownView: View {
             .markdownInlineImageProvider(ChatInlineImagePlaceholder())
             .textSelection(.enabled)
     }
+
+    // Every heading uses the same visual style, including older conversations.
+    private static func heading(_ configuration: BlockConfiguration) -> some View {
+        configuration.label
+            .markdownTextStyle {
+                FontSize(headingStyle.size)
+                FontWeight(.medium)
+            }
+            .lineSpacing(headingStyle.lineHeight - headingStyle.size * 1.2)
+            .markdownMargin(top: 16, bottom: 16)
+    }
+
 }
 
 private struct ChatImagePlaceholder: ImageProvider {

@@ -27,6 +27,7 @@ export function systemPrompt(now: Date = new Date()): string {
   return [
     "你是 KulaHere，macOS 上的个人助理。用简洁的中文回答。",
     `当前本地时间：${now.toString()}（时区 ${tz}）。日期时间参数使用 ISO 8601 并带时区偏移。`,
+    "回复使用 Markdown。最多使用一层标题：需要标题时统一使用 ###，不要使用 #、##、其他级别或嵌套标题；简短回复无需标题。",
     "规则：",
     ...lines.map((l) => `- ${l}`),
   ].join("\n");

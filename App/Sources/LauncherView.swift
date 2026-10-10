@@ -349,7 +349,7 @@ private struct ResultList: View {
                     ForEach(sections, id: \.self) { source in
                         VStack(spacing: 0) {
                             if showsHeaders {
-                                Text(Self.title(source)).font(.system(size: 16))
+                                Text(Self.title(source)).font(.system(size: 14, weight: .regular))
                                     .foregroundStyle(ThemeColor.kTextSubtle)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 16)

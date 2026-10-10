@@ -86,26 +86,51 @@ struct AgentView: View {
     @State private var historyQuery = ""
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: AgentLayout.radius, style: .continuous) }
+    private var navigationAnimation: Animation { .easeInOut(duration: reduceMotion ? 0.15 : 0.24) }
+    private var historyTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .offset(x: -16))
+    }
+    private var conversationTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 8))
+    }
+    private var isEmptyConversation: Bool { model.items.isEmpty && model.streaming.isEmpty && !model.isRunning }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Rectangle().fill(ThemeColor.kBorder.color(for: colorScheme)).frame(height: 1)
-            if showingHistory {
-                history
-            } else {
-                if model.items.isEmpty && model.streaming.isEmpty && !model.isRunning {
-                    Text("Hey，what’s up?")
-                        .textStyle(TextStyle(size: 24, weight: 500, mode: .default))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                if showingHistory {
+                    history.transition(historyTransition).zIndex(1)
                 } else {
-                    Transcript(model: model)
+                    VStack(spacing: 0) {
+                        ZStack {
+                            if isEmptyConversation {
+                                AgentGreeting()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .transition(conversationTransition).zIndex(1)
+                            } else {
+                                Transcript(model: model)
+                                    .id(model.conversationID)
+                                    .transition(conversationTransition).zIndex(1)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // Animate navigation and the empty-state boundary, never token updates.
+                        .animation(navigationAnimation, value: model.conversationID)
+                        .animation(navigationAnimation, value: isEmptyConversation)
+                        Composer(model: model)
+                            .padding(.horizontal, 12).padding(.bottom, 12)
+                    }
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(x: 16)))
                 }
-                Composer(model: model)
-                    .padding(.horizontal, 12).padding(.bottom, 12)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .animation(navigationAnimation, value: showingHistory)
         }
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         // Keep the shell material behind the content so it does not flatten
@@ -141,27 +166,35 @@ struct AgentView: View {
                 .keyboardShortcut("n", modifiers: .command)
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
-            if showingHistory {
-                HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 17)).frame(width: 17, height: 20)
-                        .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
-                    TextField("搜索对话", text: $historyQuery).textFieldStyle(.plain).textStyle(.input)
-                }
-                .padding(.horizontal, 16).frame(maxWidth: .infinity).frame(height: 36)
-                .background {
-                    Capsule().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                        .glassEffect(reduceTransparency ? .identity : .regular, in: .capsule)
-                        .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
-                }
-            } else {
-                Text(model.conversations.first { $0.id == model.conversationID }?.title ?? "新对话")
-                    .textStyle(AgentLayout.title).lineLimit(1).frame(maxWidth: .infinity)
-                    .contextMenu {
-                        Button("新对话") { model.open(nil) }.disabled(model.isRunning)
-                        Button("设置…") { model.openSettings() }
+            ZStack {
+                if showingHistory {
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 17)).frame(width: 17, height: 20)
+                            .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
+                        TextField("搜索对话", text: $historyQuery).textFieldStyle(.plain).textStyle(.input)
                     }
+                    .padding(.horizontal, 16).frame(maxWidth: .infinity).frame(height: 36)
+                    .background {
+                        Capsule().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                            .glassEffect(reduceTransparency ? .identity : .regular, in: .capsule)
+                            .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+                    }
+                    .transition(.opacity)
+                } else {
+                    Text(model.conversations.first { $0.id == model.conversationID }?.title ?? "新对话")
+                        .textStyle(AgentLayout.title).lineLimit(1).frame(maxWidth: .infinity)
+                        .contextMenu {
+                            Button("新对话") { model.open(nil) }.disabled(model.isRunning)
+                            Button("设置…") { model.openSettings() }
+                        }
+                        .id(model.conversationID)
+                        .transition(.opacity)
+                }
             }
+            .frame(maxWidth: .infinity)
+            .animation(navigationAnimation, value: showingHistory)
+            .animation(navigationAnimation, value: model.conversationID)
             HStack(spacing: 12) {
                 Button { pinned.toggle(); setPinned(pinned) } label: {
                     Image(systemName: pinned ? "pin.fill" : "pin").frame(width: 20, height: 20)
@@ -176,6 +209,7 @@ struct AgentView: View {
         }
         .padding(12)
         .frame(height: showingHistory ? 60 : 56)
+        .animation(navigationAnimation, value: showingHistory)
     }
 
     private var history: some View {
@@ -200,6 +234,35 @@ struct AgentView: View {
             .textStyle(AgentLayout.message).padding(.horizontal, 12).padding(.vertical, 12)
         }
         .frame(maxHeight: .infinity)
+    }
+}
+
+private struct AgentGreeting: View {
+    private let greeting = "Hey，what’s up?"
+    @State private var visibleCount = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var revealedText: AttributedString {
+        var text = AttributedString(greeting)
+        let boundary = text.characters.index(text.startIndex, offsetBy: visibleCount)
+        text[boundary..<text.endIndex].foregroundColor = .clear
+        return text
+    }
+
+    var body: some View {
+        // Transparent unrevealed characters reserve the final line's width.
+        Text(revealedText)
+            .textStyle(TextStyle(size: 24, weight: 500, mode: .default))
+            .accessibilityLabel(greeting)
+            .task(id: reduceMotion) {
+                visibleCount = reduceMotion ? greeting.count : 0
+                guard !reduceMotion else { return }
+                for count in 1...greeting.count {
+                    do { try await Task.sleep(for: .milliseconds(38)) }
+                    catch { return }
+                    visibleCount = count
+                }
+            }
     }
 }
 
@@ -255,15 +318,33 @@ private struct AgentIconButtonStyle: ButtonStyle {
 
 private struct Transcript: View {
     let model: AgentModel
+    // Value snapshots let an outgoing transcript finish fading after model.open
+    // clears/replaces the active conversation. The live model still owns actions.
+    private let items: [ChatItem]
+    private let streaming: String
+    private let hasOlder: Bool
+    private let taskStartedAt: Date?
+    private let isRunning: Bool
+    private let state: AgentTaskState?
+
+    init(model: AgentModel) {
+        self.model = model
+        items = model.items
+        streaming = model.streaming
+        hasOlder = model.hasOlder
+        taskStartedAt = model.taskStartedAt
+        isRunning = model.isRunning
+        state = model.state
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if model.hasOlder {
+                    if hasOlder {
                         Button("加载更早的消息") { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
                     }
-                    ForEach(Array(model.items.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         VStack(alignment: .leading, spacing: 6) {
                             ChatBubble(item: item)
                             if item.needsPermissionSettings {
@@ -271,27 +352,28 @@ private struct Transcript: View {
                                     .buttonStyle(.link)
                             }
                         }
-                        .padding(.top, index == 0 ? 0 : Self.spacing(before: item, after: model.items[index - 1]))
+                        .padding(.top, index == 0 ? 0 : Self.spacing(before: item, after: items[index - 1]))
                     }
-                    if !model.streaming.isEmpty {
-                        ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: model.streaming)).padding(.top, 12)
+                    if !streaming.isEmpty {
+                        ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: streaming)).padding(.top, 12)
                     }
-                    if let started = model.taskStartedAt, model.isRunning {
+                    if let started = taskStartedAt, isRunning {
                         TimelineView(.periodic(from: started, by: 1)) { context in
                             Text("Work for \(max(0, Int(context.date.timeIntervalSince(started))))s")
                                 .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    if let s = model.state, model.isRunning {
+                    if let s = state, isRunning {
                         Text(Self.label(s)).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding(.horizontal, 32).padding(.vertical, 12)
             }
-            .onChange(of: model.items.count) { proxy.scrollTo("bottom") }
-            .onChange(of: model.streaming) { proxy.scrollTo("bottom") }
+            .onAppear { proxy.scrollTo("bottom") }
+            .onChange(of: items.count) { proxy.scrollTo("bottom") }
+            .onChange(of: streaming) { proxy.scrollTo("bottom") }
         }
     }
 
@@ -445,7 +527,7 @@ private struct Composer: View {
                 .scrollIndicators(.hidden).frame(height: 58)
             }
             ZStack(alignment: .topLeading) {
-                if model.draft.isEmpty {
+                if model.draft.isEmpty && !editorFocused {
                     Text("输入你的任务").textStyle(AgentLayout.message)
                         .foregroundStyle(ThemeColor.kTextSubtlest).padding(.top, 4)
                         .allowsHitTesting(false)

@@ -122,6 +122,8 @@ AI 对话和设置默认使用普通窗口层级，切换到其他应用后可�
 
 AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，成功后复制图标变为对勾并保持 0.8 秒，再次复制会重新计时；复制与附件按钮使用交互悬停色；用户消息气泡与复制按钮之间的空隙也保持悬停。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
 
+历史页进入/返回、恢复历史对话和开启新对话使用 240 ms 原生过渡（淡化与轻微位移），标题和搜索栏同步淡化；新建对话时输入框保持稳定。空白页问候语按每个字符 38 ms 逐字出现，并预留完整文字宽度以保持居中。系统启用“减少动态效果”时改为 150 ms 淡化，不做位移，问候语直接完整显示。流式文本更新不触发整页动画。见[对话过渡验证](docs/validation/2026-10-10-ai-chat-motion.md)。
+
 原生回复回归检查（先完成上述 Debug 构建；使用临时数据库，不调用模型）：
 
 ```sh
@@ -260,6 +262,8 @@ build/hotkey-regression
 Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
 AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; a successful copy shows a checkmark for 0.8 seconds, and copying again restarts the timer. Copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
+
+Entering/leaving history, reopening a conversation, and starting a new chat use 240 ms native transitions with fading and a small offset. The title and search field fade together; the composer remains stable when starting a new chat. The empty-page greeting reveals one character every 38 ms while reserving its full width to stay centered. Reduce Motion uses a 150 ms fade without movement and displays the complete greeting immediately. Streaming text updates do not animate the whole page. See the [conversation transition validation](docs/validation/2026-10-10-ai-chat-motion.md).
 
 Native reply regression (after the Debug build above; uses a temporary database without calling a model):
 

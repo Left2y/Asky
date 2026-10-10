@@ -6,10 +6,10 @@ import Router
 import ToolService
 
 private enum LauncherLayout {
-    // Figma Field 22:348: 720 × 60, 24/20 insets, 12 gap, 17 pt SF Symbol.
-    static let inputHeight: CGFloat = 60
-    static let inputLeadingPadding: CGFloat = 24
-    static let inputTrailingPadding: CGFloat = 20
+    // Keep empty and populated fields aligned to the populated search layout.
+    static let inputHeight: CGFloat = 64
+    static let inputLeadingPadding: CGFloat = 28
+    static let inputTrailingPadding: CGFloat = 28
     static let inputSpacing: CGFloat = 12
     static let searchIconSize: CGFloat = 17
     // Figma blur 80 maps to a 40 pt shadow radius. Reserve three radii
@@ -157,7 +157,7 @@ struct LauncherView: View {
     }
 
     private var hasInput: Bool { !model.query.isEmpty }
-    private var inputHeight: CGFloat { hasInput ? 64 : LauncherLayout.inputHeight }
+    private var inputHeight: CGFloat { LauncherLayout.inputHeight }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -169,7 +169,7 @@ struct LauncherView: View {
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
-                    fontSize: hasInput ? 18 : 16,
+                    fontSize: 18,
                     textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
                     placeholder: "",
                     backspaceOnEmpty: model.backspaceOnEmptyInput,
@@ -177,11 +177,11 @@ struct LauncherView: View {
                     submit: { model.submit($0 ? .submitToAI : .executeSelection) }
                 )
                 .frame(maxWidth: .infinity)
-                .frame(height: hasInput ? 26 : 24)
+                .frame(height: 26)
                 searchIcon
             }
-            .padding(.leading, hasInput ? 28 : LauncherLayout.inputLeadingPadding)
-            .padding(.trailing, hasInput ? 28 : LauncherLayout.inputTrailingPadding)
+            .padding(.leading, LauncherLayout.inputLeadingPadding)
+            .padding(.trailing, LauncherLayout.inputTrailingPadding)
             .frame(height: inputHeight)
 
             if let t = model.terminal {
@@ -248,9 +248,9 @@ struct LauncherView: View {
     }
     private var searchIcon: some View {
         Image(systemName: "magnifyingglass")
-            .font(.system(size: hasInput ? 17 : LauncherLayout.searchIconSize, weight: .regular))
+            .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
             .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
-            .frame(width: hasInput ? 19 : 21, height: hasInput ? 24 : 22)
+            .frame(width: 19, height: 24)
             .accessibilityHidden(true)
     }
 

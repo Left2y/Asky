@@ -101,7 +101,10 @@ final class LauncherController {
                     guard let self, self.contentID == id, self.hosting != nil else { return }
                     self.resize(to: height)
                 }
-            }))
+            }
+            // Layout changes before the asynchronous panel resize. Pin the shell
+            // to the top of the current host rather than centering it for a frame.
+            .frame(maxHeight: .infinity, alignment: .top)))
             // The controller owns the window frame; preferredContentSize alone does not resize it.
             view.sizingOptions = []
             panel.contentView = view

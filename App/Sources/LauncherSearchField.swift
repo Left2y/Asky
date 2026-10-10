@@ -31,15 +31,22 @@ struct LauncherSearchField: NSViewRepresentable {
 
     func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.parent = self
-        field.font = .systemFont(ofSize: fontSize)
-        field.textColor = textColor
-        field.placeholderString = placeholder
+        context.coordinator.configure(field)
         context.coordinator.synchronize(field)
     }
 
     @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: LauncherSearchField
         init(_ parent: LauncherSearchField) { self.parent = parent }
+
+        func configure(_ field: NSTextField) {
+            // AppKit forwards these setters to the live field editor. Reapplying
+            // identical attributes on every result batch resets its layout/caret.
+            let font = NSFont.systemFont(ofSize: parent.fontSize)
+            if field.font != font { field.font = font }
+            if field.textColor != parent.textColor { field.textColor = parent.textColor }
+            if field.placeholderString != parent.placeholder { field.placeholderString = parent.placeholder }
+        }
 
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField,

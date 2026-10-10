@@ -1,6 +1,22 @@
 import AppKit
 import SwiftUI
 
+@MainActor
+private final class TrackingTextField: NSTextField {
+    var fontWrites = 0
+    var colorWrites = 0
+    var placeholderWrites = 0
+    override var font: NSFont? {
+        didSet { fontWrites += 1 }
+    }
+    override var textColor: NSColor? {
+        didSet { colorWrites += 1 }
+    }
+    override var placeholderString: String? {
+        didSet { placeholderWrites += 1 }
+    }
+}
+
 /// Standalone AppKit regression check; compile alongside LauncherSearchField.swift.
 @main
 @MainActor
@@ -25,8 +41,9 @@ enum LauncherSearchFieldRegression {
         let coordinator = LauncherSearchField.Coordinator(parent)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 64),
                               styleMask: [.borderless], backing: .buffered, defer: false)
-        let field = NSTextField(frame: NSRect(x: 0, y: 10, width: 400, height: 26))
+        let field = TrackingTextField(frame: NSRect(x: 0, y: 10, width: 400, height: 26))
         field.delegate = coordinator
+        coordinator.configure(field)
         window.contentView?.addSubview(field)
         precondition(window.makeFirstResponder(field), "field must become first responder")
         guard let editor = field.currentEditor() as? NSTextView else {
@@ -52,6 +69,26 @@ enum LauncherSearchFieldRegression {
         editor.insertText("Safari", replacementRange: editor.selectedRange())
         coordinator.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: field))
         precondition(text == "Safari" && !scoped, "ordinary search must resume")
+
+        // Async search batches trigger representable updates while editing.
+        // They must not write editor attributes or move a mid-text selection.
+        editor.setSelectedRange(NSRange(location: 2, length: 2))
+        let writes = (field.fontWrites, field.colorWrites, field.placeholderWrites)
+        for _ in 0..<40 {
+            coordinator.configure(field)
+            coordinator.synchronize(field)
+        }
+        precondition(field.fontWrites == writes.0 && field.colorWrites == writes.1
+                     && field.placeholderWrites == writes.2, "unchanged appearance must not reset editor attributes")
+        precondition(field.currentEditor() === editor, "updates must preserve the active editor")
+        precondition(editor.selectedRange() == NSRange(location: 2, length: 2), "updates must preserve selection")
+
+        coordinator.parent.fontSize = 20
+        coordinator.parent.textColor = .secondaryLabelColor
+        coordinator.parent.placeholder = "Search"
+        coordinator.configure(field)
+        precondition(field.font?.pointSize == 20 && field.textColor == .secondaryLabelColor
+                     && field.placeholderString == "Search", "actual appearance changes must still apply")
         print("LauncherSearchField native regression checks passed")
         window.close()
     }

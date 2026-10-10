@@ -124,6 +124,13 @@ AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 �
 
 历史页进入/返回、恢复历史对话和开启新对话使用 240 ms 原生过渡（淡化与轻微位移），标题和搜索栏同步淡化；新建对话时输入框保持稳定。空白页问候语按每个字符 38 ms 逐字出现，并预留完整文字宽度以保持居中。系统启用“减少动态效果”时改为 150 ms 淡化，不做位移，问候语直接完整显示。流式文本更新不触发整页动画。见[对话过渡验证](docs/validation/2026-10-10-ai-chat-motion.md)。
 
+历史搜索框聚焦时隐藏占位文字，点击框外取消聚焦并保留查询内容；输入前后使用同一原生文字布局。见[搜索焦点验证](docs/validation/2026-10-10-conversation-search-focus.md)。原生回归检查：
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ConversationSearchField.swift App/Tests/ConversationSearchFieldRegression.swift -o /tmp/kulahere-conversation-search-regression
+/tmp/kulahere-conversation-search-regression
+```
+
 原生回复回归检查（先完成上述 Debug 构建；使用临时数据库，不调用模型）：
 
 ```sh
@@ -264,6 +271,13 @@ Both AI conversation and Settings use the normal window level by default, so oth
 AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; a successful copy shows a checkmark for 0.8 seconds, and copying again restarts the timer. Copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
 
 Entering/leaving history, reopening a conversation, and starting a new chat use 240 ms native transitions with fading and a small offset. The title and search field fade together; the composer remains stable when starting a new chat. The empty-page greeting reveals one character every 38 ms while reserving its full width to stay centered. Reduce Motion uses a 150 ms fade without movement and displays the complete greeting immediately. Streaming text updates do not animate the whole page. See the [conversation transition validation](docs/validation/2026-10-10-ai-chat-motion.md).
+
+The history search field hides its placeholder on focus. Clicking outside releases focus and preserves the query; idle and editing text share the same native layout. See [search focus validation](docs/validation/2026-10-10-conversation-search-focus.md). Native regression check:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ConversationSearchField.swift App/Tests/ConversationSearchFieldRegression.swift -o /tmp/kulahere-conversation-search-regression
+/tmp/kulahere-conversation-search-regression
+```
 
 Native reply regression (after the Debug build above; uses a temporary database without calling a model):
 

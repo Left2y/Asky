@@ -172,7 +172,10 @@ struct AgentView: View {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 17)).frame(width: 17, height: 20)
                             .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
-                        TextField("搜索对话", text: $historyQuery).textFieldStyle(.plain).textStyle(.input)
+                        ConversationSearchField(text: $historyQuery,
+                            textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
+                            placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: colorScheme)))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 16).frame(maxWidth: .infinity).frame(height: 36)
                     .background {

@@ -230,26 +230,12 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // Clear glass preserves background blur and lensing without the
-            // regular material's independent light/dark adaptation. Keep the
-            // neutral veil and all foreground colors tied to the system theme.
-            if reduceTransparency {
-                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
-            } else {
-                shellShape.fill(.clear)
-                    .glassEffect(.clear, in: shellShape)
-                    // Blend some unfiltered desktop detail back through the
-                    // optical layer; a fully weighted glass layer over-frosts
-                    // dense text behind this short floating search field.
-                    .opacity(0.82)
-                    .overlay {
-                        // Preserve the Figma background token: white70 / black70.
-                        shellShape.fill(ThemeColor.kBackground.color(for: colorScheme))
-                    }
-                    .environment(\.colorScheme, colorScheme)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
+            shellShape
+                .fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
+                .environment(\.colorScheme, colorScheme)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .overlay {
             if reduceTransparency || colorSchemeContrast == .increased {

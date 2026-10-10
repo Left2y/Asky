@@ -82,9 +82,9 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 搜索浮窗的最新材质以用户 2026-10-10 提供的玻璃截图为视觉依据：光照方向 -45°、强度 80%、Refraction 50、Depth 40、Dispersion 48、Frost 50、Splay 32。这些数值是 Figma 的渲染参数，不是 macOS 的公开玻璃参数，不能逐项写入原生材质。Figma 连接在本轮返回 Unknown tool，未重新读取节点。
 
-用户随后明确要求搜索框的主题亮暗跟随系统，并通过另一款搜索框截图强调仍需背景透视与磨砂玻璃。中性不透明底色被否定，搜索框已改为 `.clear` Liquid Glass 和半透明语义遮罩；用户再次明确要求恢复原有 70% 黑／白底色，直接使用 `background` 变量的 Palette/white70 / Palette/black70；不再自定义 0.48 / 0.60 alpha。用户继续反馈磨砂过强后，玻璃光学层覆盖比例由 1 降为 0.82，遮罩独立绘制，允许少量未过滤的背景文字轮廓透出；该值是合成比例，不是高斯模糊半径。玻璃仅作用于背景，输入与图标在前景按系统颜色模式解析。Clear 不含 Regular 的独立亮暗适配，仍允许背景色与轮廓透出，不承诺玻璃在不同背景下 RGB 完全相同。依据：[Apple Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/) 的 Regular / Clear 说明。
+用户最终明确要求直接使用 Regular 玻璃材质。搜索框背景使用 `.glassEffect(.regular, in: shellShape)`，底色保留 `background` 变量的 Palette/white70 / Palette/black70，不再使用 Clear、光学层透明度或独立遮罩。前景输入和图标按系统颜色模式解析；原生 Regular 负责材质适配，不再承诺它不会根据背景独立调整亮暗。
 
-1 pt 左上方定向边缘高光和外部投影保留。减少透明度时关闭玻璃、使用不透明语义背景；提高对比度或减少透明度时使用语义边框。NSPanel 自带矩形阴影保持关闭，外部阴影在外壳之外绘制并挖去内部：半径 40 pt、Y 12 pt，浅色 alpha 0.24、深色 0.40；四周 132 pt 透明画布防止裁切。输入行为和窗口几何未在本轮修改。实际检查见[半透明玻璃记录](validation/2026-10-10-launcher-background-70.md)；此前[颜色稳定性记录](validation/2026-10-10-launcher-stable-surface.md)描述的是已替换的不透明方案。
+减少透明度关闭玻璃并使用不透明语义背景；提高对比度或减少透明度时使用语义边框。保留现有边缘高光、外部阴影与窗口几何。当前验证见[Regular 玻璃记录](validation/2026-10-10-launcher-regular-glass.md)；此前 Clear 和 82% 光学层方案已替换。
 
 - 浮动入口外壳、导航、工具栏与关键操作适合玻璃；使用系统协调的效果容器，避免各层独立叠加。
 - 对话正文、长文本与结果内容保持清晰阅读层，不能把每个卡片都做成玻璃。

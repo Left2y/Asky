@@ -155,11 +155,6 @@ struct AgentView: View {
     private var history: some View {
         ScrollView {
             LazyVStack(spacing: 2) {
-                Button { model.open(nil); showingHistory = false } label: {
-                    Label("新对话", systemImage: "square.and.pencil").frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .disabled(model.isRunning)
-                .buttonStyle(AgentHistoryRowStyle())
                 ForEach(model.conversations.filter { historyQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(historyQuery) }) { c in
                     Button { model.open(c.id); showingHistory = false } label: {
                         Text(c.title).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)

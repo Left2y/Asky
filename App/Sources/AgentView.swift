@@ -456,14 +456,14 @@ private struct Composer: View {
             .padding(.horizontal, 20)
             HStack {
                 Button { importing = true } label: {
-                    Image(systemName: "paperclip").font(.system(size: 17)).frame(width: 32, height: 32)
+                    Image(systemName: "paperclip").font(.system(size: 14)).frame(width: 32, height: 32)
                 }
                 .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
                 .accessibilityLabel("选择文件或图片")
                 Spacer()
                 Button { if model.isRunning { model.stop() } else { model.send() } } label: {
                     Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")
-                        .font(.system(size: 16, weight: .medium)).frame(width: 32, height: 32)
+                        .font(.system(size: 14, weight: .medium)).frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(ThemeColor("iconInverted"))

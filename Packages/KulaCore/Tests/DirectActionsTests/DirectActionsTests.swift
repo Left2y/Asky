@@ -87,6 +87,52 @@ import Foundation
         #expect(reg.match("gh kula") == nil)
     }
 
+    @Test func plainWebsiteAddressesAndPersistence() throws {
+        var registry = KeywordRegistry()
+        try registry.upsert(KeywordCommand(keyword: " chat ", name: "ChatGPT", urlTemplate: " chatgpt.com "))
+        try registry.upsert(KeywordCommand(keyword: "gem", name: "Gemini", urlTemplate: "https://gemini.google.com/app"))
+        #expect(registry.commands.last?.url(for: "")?.absoluteString == "https://gemini.google.com/app")
+        let restored = try JSONDecoder().decode(KeywordRegistry.self, from: JSONEncoder().encode(registry))
+        let command = try #require(restored.commands.first { $0.keyword == "chat" })
+        #expect(command.url(for: "")?.absoluteString == "https://chatgpt.com")
+        #expect(command.url(for: "hello")?.query == "q=hello")
+        #expect(restored.matchInput("chat ")?.0 == command)
+    }
+
+    @Test func websitePresetsUpgradePreservesCustomEntries() throws {
+        let custom = KeywordCommand(keyword: "ChatGPT", name: "Custom", urlTemplate: "https://example.com")
+        var registry = KeywordRegistry(commands: [KeywordCommand.builtIn[0], custom])
+        registry.addMissingWebsitePresets(excluding: ["GEMINI"])
+        #expect(registry.commands.filter { $0.keyword.lowercased() == "chatgpt" } == [custom])
+        #expect(!registry.commands.contains { $0.keyword == "gemini" })
+        #expect(registry.commands.first { $0.keyword == "doubao" }?.url(for: "")?.absoluteString == "https://www.doubao.com/chat/")
+        let upgraded = registry
+        registry.addMissingWebsitePresets(excluding: ["gemini"])
+        #expect(registry == upgraded)
+        #expect(KeywordRegistry().commands.count == 4)
+    }
+
+    @Test func chatGPTCarriesQueryWithoutUserTemplate() throws {
+        let command = KeywordCommand.websitePresets[0]
+        #expect(command.supportsQuery)
+        let url = try #require(command.url(for: "中文 & + # / ?"))
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.first { $0.name == "q" }?.value == "中文 & + # / ?")
+        #expect(url.absoluteString.contains("%2B"))
+        #expect(command.url(for: "")?.query == nil)
+        #expect(!KeywordCommand.websitePresets[1].supportsQuery)
+        #expect(!KeywordCommand.websitePresets[2].supportsQuery)
+    }
+
+    @Test func rejectsInvalidWebsiteAddresses() {
+        for address in ["", "https://", "file:///tmp/a", "javascript:alert(1)", "not a website", "https://user:pass@example.com"] {
+            var registry = KeywordRegistry()
+            #expect(throws: KeywordRegistry.RegistryError.invalidTemplate) {
+                try registry.upsert(KeywordCommand(keyword: "site", name: "Site", urlTemplate: address))
+            }
+        }
+    }
+
     @Test func encodesQuerySafely() throws {
         let url = try #require(KeywordCommand.builtIn[0].url(for: "a&b=c #d"))
         #expect(url.query?.contains("a%26b%3Dc%20%23d") == true)

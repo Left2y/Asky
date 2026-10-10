@@ -91,8 +91,15 @@ final class AppModel {
         self.store = store
         let reader = SettingsReader(store: store)
         settings = reader.load()
-        preferences = store.codableSetting(SettingsPreferences.key, as: SettingsPreferences.self) ?? SettingsPreferences()
-        keywords = store.codableSetting("keywords", as: KeywordRegistry.self) ?? KeywordRegistry()
+        let savedPreferences = store.codableSetting(SettingsPreferences.key, as: SettingsPreferences.self) ?? SettingsPreferences()
+        preferences = savedPreferences
+        var savedKeywords = store.codableSetting("keywords", as: KeywordRegistry.self) ?? KeywordRegistry()
+        if store.codableSetting("websitePresetsInstalled", as: Bool.self) != true {
+            savedKeywords.addMissingWebsitePresets(excluding: Set(savedPreferences.aliases.map(\.alias)))
+            store.setCodableSetting("keywords", savedKeywords)
+            store.setCodableSetting("websitePresetsInstalled", true)
+        }
+        keywords = savedKeywords
         let confirmations = ConfirmationCenter()
         self.confirmations = confirmations
         memories = MemoryStore(store)

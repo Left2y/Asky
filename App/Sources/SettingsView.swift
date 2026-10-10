@@ -423,16 +423,20 @@ struct KeywordSettings: View {
     @Bindable var app: AppModel
     @State private var keyword = ""
     @State private var name = ""
-    @State private var template = ""
+    @State private var website = ""
     @State private var error: String?
 
     var body: some View {
         Form {
-            Section("关键词（输入“关键词 内容”后 ↩ 打开）") {
+            Section("网页关键词（输入关键词后 ↩ 打开）") {
                 ForEach(app.keywords.commands, id: \.keyword) { c in
                     HStack {
                         Text(c.keyword).font(.system(.body, design: .monospaced)).frame(width: 60, alignment: .leading)
-                        VStack(alignment: .leading) { Text(c.name); Text(c.urlTemplate).textStyle(.secondary).lineLimit(1) }
+                        VStack(alignment: .leading) {
+                            Text(c.name)
+                            Text(c.url(for: "")?.absoluteString ?? c.urlTemplate).textStyle(.secondary).lineLimit(1)
+                            Text(c.supportsQuery ? "支持：关键词 + 问题" : "仅打开网页，不传递问题").textStyle(.secondary)
+                        }
                         Spacer()
                         Button("删除") { app.keywords.remove(c.keyword) }
                     }
@@ -441,15 +445,22 @@ struct KeywordSettings: View {
             Section("添加") {
                 TextField("关键词", text: $keyword)
                 TextField("名称", text: $name)
-                TextField("URL 模板（包含 {query}）", text: $template)
+                TextField("网址（如 chatgpt.com 或 gemini.google.com）", text: $website)
+                Text("输入网址即可，省略 https:// 也可以。关键词后按回车打开网页。").textStyle(.secondary)
                 Button("保存") {
                     do {
                         guard !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(keyword.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }) else {
                             error = "这个别名已被应用或快捷指令使用。"; return
                         }
-                        try app.keywords.upsert(KeywordCommand(keyword: keyword, name: name.isEmpty ? keyword : name, urlTemplate: template))
-                        keyword = ""; name = ""; template = ""; error = nil
-                    } catch { self.error = "\(error)" }
+                        try app.keywords.upsert(KeywordCommand(keyword: keyword, name: name.isEmpty ? keyword : name, urlTemplate: website))
+                        keyword = ""; name = ""; website = ""; error = nil
+                    } catch KeywordRegistry.RegistryError.invalidTemplate {
+                        error = "请输入有效的网址，例如 chatgpt.com 或 https://gemini.google.com。"
+                    } catch KeywordRegistry.RegistryError.invalidKeyword {
+                        error = "关键词不能为空、不能包含空格，也不能使用 bm 或 >。"
+                    } catch KeywordRegistry.RegistryError.duplicate {
+                        error = "这个关键词已存在，请换一个。"
+                    } catch { self.error = "保存失败，请重试。" }
                 }
                 if let error { Text(error).foregroundStyle(ThemeColor.kTextNegative) }
             }

@@ -89,7 +89,8 @@ public struct IntentRouter: Sendable {
         case .keyword(let cmd, let q):
             guard let url = cmd.url(for: q) else { return [] }
             return [SearchResult(source: .keyword, target: TargetRef(kind: "url", identifier: url.absoluteString),
-                                 title: "\(cmd.name)：\(q)", subtitle: url.absoluteString, actions: [.openURL(url)], score: 100)]
+                                 title: cmd.supportsQuery ? "\(cmd.name)：\(q)" : "打开 \(cmd.name)",
+                                 subtitle: cmd.supportsQuery ? url.absoluteString : "仅打开网页，问题不会传递到网站", actions: [.openURL(url)], score: 100)]
         case .terminal(let cmd):
             return [SearchResult(source: .terminal, target: TargetRef(kind: "terminal", identifier: cmd),
                                  title: "运行：\(cmd)", subtitle: "显式终端命令 · ↩ 执行", actions: [.runTerminal(command: cmd)], score: 100)]

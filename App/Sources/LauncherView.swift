@@ -7,6 +7,8 @@ import ToolService
 
 private enum LauncherLayout {
     // Keep empty and populated fields aligned to the populated search layout.
+    static let topInsetFraction: CGFloat = 0.12
+    static let bottomClearance: CGFloat = 24
     static let inputHeight: CGFloat = 64
     static let inputLeadingPadding: CGFloat = 28
     static let inputTrailingPadding: CGFloat = 28
@@ -88,7 +90,7 @@ final class LauncherController {
         model.rebuildProviders()
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
-            availableShellHeight = min(CGFloat(WindowMetrics.launcherMaxHeight), floor(f.height * 0.78 - 24))
+            availableShellHeight = min(CGFloat(WindowMetrics.launcherMaxHeight), floor(f.height * (1 - LauncherLayout.topInsetFraction) - LauncherLayout.bottomClearance))
         }
         if hosting == nil {
             let id = UUID()
@@ -105,11 +107,11 @@ final class LauncherController {
             panel.contentView = view
             hosting = view
         }
-        // Screen with the mouse pointer (multi-display), upper third.
+        // Anchor near the top of the pointer screen, leaving room for results below.
         if let f = screen?.visibleFrame {
             let w = WindowMetrics.launcherWidth + LauncherLayout.shadowPadding * 2
             panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
-                                              y: f.maxY - f.height * 0.22 + LauncherLayout.shadowPadding))
+                                              y: f.maxY - f.height * LauncherLayout.topInsetFraction + LauncherLayout.shadowPadding))
         }
         panel.makeKeyAndOrderFront(nil)
     }

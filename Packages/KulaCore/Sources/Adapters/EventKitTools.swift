@@ -27,6 +27,9 @@ public final class EventKitBridge: @unchecked Sendable {
             "id": .string(e.eventIdentifier ?? ""), "title": .string(e.title ?? ""),
             "start": .string(Args.iso(e.startDate)), "end": .string(Args.iso(e.endDate)),
             "allDay": .bool(e.isAllDay), "calendar": .string(e.calendar?.title ?? ""),
+            "application": .string("Apple Calendar"),
+            "calendarID": .string(e.calendar?.calendarIdentifier ?? ""),
+            "account": .string(e.calendar?.source?.title ?? ""),
             "writable": .bool(e.calendar?.allowsContentModifications ?? false),
             "recurring": .bool(e.hasRecurrenceRules),
         ]
@@ -53,7 +56,7 @@ public struct CalendarListTool: ToolAdapter {
     public init(_ ek: EventKitBridge) { self.ek = ek }
 
     public var definition: ToolDefinition {
-        ToolDefinition(name: "calendar_list_calendars", summary: "列出实际可用日历、ID、账户、是否可写和系统默认日历；创建前可用来选择目标",
+        ToolDefinition(name: "calendar_list_calendars", summary: "列出苹果日历中的实际日历名称、ID、账户、是否可写和系统默认日历；名称不代表其他应用",
                        inputSchema: Args.schema([:], required: []), source: .calendar, effect: .read,
                        confirmation: .never, externallyExposable: true)
     }
@@ -63,7 +66,8 @@ public struct CalendarListTool: ToolAdapter {
         ek.store.refreshSourcesIfNecessary()
         let defaultID = ek.store.defaultCalendarForNewEvents?.calendarIdentifier
         return AdapterOutput(output: .array(ek.store.calendars(for: .event).map {
-            ["id": .string($0.calendarIdentifier), "name": .string($0.title),
+            ["application": .string("Apple Calendar"),
+             "id": .string($0.calendarIdentifier), "name": .string($0.title),
              "account": .string($0.source.title), "writable": .bool($0.allowsContentModifications),
              "isDefault": .bool($0.calendarIdentifier == defaultID)]
         }))
@@ -137,7 +141,7 @@ public struct CalendarCreateTool: ToolAdapter {
         }
         var changes = ["新建「\(title)」", "\(Args.iso(start)) – \(Args.iso(end))"]
         if let l = a["location"]?.stringValue { changes.append("地点：\(l)") }
-        return ConfirmationPreview(target: "日历「\(cal.title)」", changes: changes,
+        return ConfirmationPreview(target: "苹果日历 ·「\(cal.title)」", changes: changes,
                                    note: clashes.isEmpty ? nil : "与 \(clashes.count) 个日程时间重叠")
     }
 

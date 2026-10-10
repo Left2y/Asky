@@ -47,7 +47,7 @@
 
 ## 中文
 
-应用图标采用白底渐变光带 Logo；菜单栏使用同一轮廓的 18 pt 单色模板图标，随系统适配明暗外观。原图位于 `App/Branding/Logo.png`，应用与菜单栏资源位于 `App/Assets.xcassets`。
+应用图标采用白底渐变光带 Logo；菜单栏使用同一轮廓的 14 pt 单色模板图标，随系统适配明暗外观。原图位于 `App/Branding/Logo.png`，应用与菜单栏资源位于 `App/Assets.xcassets`。
 
 ### 📌 项目简介
 
@@ -286,7 +286,7 @@ python3 App/Tests/run-agent-reply-regression.py
 
 ## English
 
-The app icon uses a gradient light ribbon on white. The menu bar uses the same silhouette as an 18 pt monochrome template icon that adapts to the system appearance. The original artwork is in `App/Branding/Logo.png`; app and menu bar assets are in `App/Assets.xcassets`.
+The app icon uses a gradient light ribbon on white. The menu bar uses the same silhouette as a 14 pt monochrome template icon that adapts to the system appearance. The original artwork is in `App/Branding/Logo.png`; app and menu bar assets are in `App/Assets.xcassets`.
 
 ### 📌 Overview
 

@@ -143,7 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let icon = NSImage(named: "StatusIcon")
-        icon?.size = NSSize(width: 18, height: 18)
+        icon?.size = NSSize(width: 14, height: 14)
         icon?.isTemplate = true
         icon?.accessibilityDescription = "KulaHere"
         item.button?.image = icon

@@ -35,7 +35,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--ai-routing") {
+                    if CommandLine.arguments.contains("--alias-routing") {
+                        try await checkAliasRouting()
+                    } else if CommandLine.arguments.contains("--ai-routing") {
                         try await checkAIRouting()
                     } else {
                         try await checkWindow()
@@ -55,6 +57,63 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private static func checkAliasRouting() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-alias-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [
+            WindowSearchProvider(source: .app, delay: .milliseconds(10), count: 2),
+            WindowSearchProvider(source: .shortcut, delay: .milliseconds(250), count: 1),
+        ])
+        let controller = LauncherController(model: model)
+        controller.show()
+        let panel = NSApp.windows.first { $0 is LauncherPanel && $0.isVisible }
+        (panel as? LauncherPanel)?.onBlur = {}
+        defer { controller.hide() }
+        model.query = "GO"
+        try require(model.results.first?.target.kind == "keyword-match" && model.selection == 0,
+                    "exact case-insensitive keyword must be selected before provider batches")
+        try require(model.keyword(for: model.results[0]) == "go", "exact match must retain its badge")
+        try require(model.results[0].target.identifier == "https://www.google.com/search?q=",
+                    "bare keyword must open its command without searching for the alias itself")
+        for _ in 0..<60 {
+            if !model.isSearching { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try require(!model.isSearching, "search providers must finish within three seconds")
+        try require(model.results.prefix(2).map(\.source) == [.keyword, .shortcut] && model.selection == 0,
+                    "late app and shortcut batches must leave the alias first and selected")
+        if let view = panel?.contentView,
+           let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            if let png = bitmap.representation(using: .png, properties: [:]) {
+                let file = "build/launcher-alias-" + (NSApp.appearance?.name.rawValue ?? "default") + ".png"
+                try png.write(to: URL(filePath: file))
+            }
+        }
+        model.query = "Safari"
+        for _ in 0..<60 {
+            if !model.isSearching { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try require(!model.isSearching, "search providers must finish within three seconds")
+        try require(model.results.first?.source == .shortcut && model.selection == 0,
+                    "shortcut results must precede apps")
+        model.query = "go SwiftUI"
+        try require(model.commandInput != nil && model.results.count == 1 &&
+                    model.results[0].target.identifier.contains("q=SwiftUI"),
+                    "space must still enter the explicit keyword query mode")
+        model.query = "gopher"
+        for _ in 0..<60 {
+            if !model.isSearching { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try require(!model.isSearching, "search providers must finish within three seconds")
+        try require(!model.results.contains { $0.target.kind == "keyword-match" },
+                    "partial keywords must not count as exact aliases")
+        print("Exact alias, case folding, late batches, shortcut priority and spaced command passed")
     }
 
     private static func checkAIRouting() async throws {

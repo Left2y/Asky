@@ -350,9 +350,9 @@ private struct ResultList: View {
         let isSearching: Bool
     }
 
-    private var sections: [SearchSource] {
-        var seen = Set<SearchSource>()
-        return model.results.compactMap { seen.insert(Self.section(for: $0.source)).inserted ? Self.section(for: $0.source) : nil }
+    private var sections: [String] {
+        var seen = Set<String>()
+        return model.results.compactMap { seen.insert(Self.section(for: $0)).inserted ? Self.section(for: $0) : nil }
     }
 
     private var showsHeaders: Bool { model.commandInput == nil && sections.count > 1 }
@@ -375,14 +375,14 @@ private struct ResultList: View {
                     ForEach(sections, id: \.self) { source in
                         VStack(spacing: 0) {
                             if showsHeaders {
-                                Text(Self.title(source)).font(.system(size: 14, weight: .regular))
+                                Text(source).font(.system(size: 14, weight: .regular))
                                     .foregroundStyle(ThemeColor.kTextSubtle)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 16)
                                     .padding(.top, 16).padding(.bottom, 12)
                                     .frame(height: LauncherLayout.sectionHeaderHeight)
                             }
-                            ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element.source) == source }, id: \.element.id) { i, r in
+                            ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element) == source }, id: \.element.id) { i, r in
                                 Button {
                                     model.selection = i
                                     model.submit(.executeSelection)
@@ -420,10 +420,11 @@ private struct ResultList: View {
         }
     }
 
-    private static func section(for source: SearchSource) -> SearchSource {
-        switch source {
-        case .app, .link, .bookmark: .app
-        default: source
+    private static func section(for result: SearchResult) -> String {
+        if result.target.kind == "keyword-match" { return "别名匹配" }
+        switch result.source {
+        case .app, .link, .bookmark: return title(.app)
+        default: return title(result.source)
         }
     }
 

@@ -145,6 +145,9 @@ final class LauncherModel {
 
     func keyword(for result: SearchResult) -> String? {
         guard result.source == .keyword else { return nil }
+        if result.target.kind == "keyword-match" {
+            return app.keywords.commands.first { $0.url(for: "")?.absoluteString == result.target.identifier }?.keyword
+        }
         return commandInput?.command.keyword ?? app.keywords.commands.first {
             $0.url(for: query.trimmingCharacters(in: .whitespacesAndNewlines))?.absoluteString == result.target.identifier
         }?.keyword
@@ -161,8 +164,9 @@ final class LauncherModel {
         direct = router.directResults(for: route)
         if case .search(let text) = route {
             direct += app.keywords.commands.compactMap { command in
-                guard let url = command.url(for: text) else { return nil }
-                return SearchResult(source: .keyword, target: TargetRef(kind: "url", identifier: url.absoluteString),
+                let exact = command.keyword.caseInsensitiveCompare(text.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+                guard let url = command.url(for: exact ? "" : text) else { return nil }
+                return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
                                     title: command.name, actions: [.openURL(url)], score: 0)
             }
         }
@@ -235,14 +239,18 @@ final class LauncherModel {
         // concrete target falls back to AI regardless of its wording.
         if commandInput == nil, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
-                $0.source != .keyword && $0.source != .askAI && $0.target.kind != "bookmark-search"
+                ($0.source != .keyword || $0.target.kind == "keyword-match") && $0.source != .askAI && $0.target.kind != "bookmark-search"
             }
             if !hasLocalMatch { merged = [] }
         }
         if commandInput == nil, !merged.contains(where: { $0.source == .askAI }),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
         let order: [SearchSource] = [.link, .app, .file, .bookmark, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
-        merged = order.flatMap { source in merged.filter { $0.source == source } }
+        let priority = merged.filter { $0.target.kind == "keyword-match" || $0.source == .shortcut }
+        let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.source != .shortcut }
+        merged = priority.filter { $0.target.kind == "keyword-match" }
+            + priority.filter { $0.source == .shortcut }
+            + order.flatMap { source in remaining.filter { $0.source == source } }
         results = merged
         selection = min(selection, max(0, results.count - 1))
     }

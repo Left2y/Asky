@@ -438,9 +438,9 @@ private struct Composer: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 4)
+                    .padding(.horizontal, 20)
                 }
-                .scrollIndicators(.hidden).frame(height: 66)
+                .scrollIndicators(.hidden).frame(height: 58)
             }
             ZStack(alignment: .topLeading) {
                 if model.draft.isEmpty && !editorFocused {
@@ -474,7 +474,9 @@ private struct Composer: View {
             }
             .padding(.horizontal, 12)
         }
-        .padding(.top, 16).padding(.bottom, 12)
+        // Attachment cards reserve 6 pt above their visible edge for the delete button.
+        // Include that reserve in Figma's 16 pt top inset rather than adding it again.
+        .padding(.top, model.attachments.isEmpty ? 16 : 10).padding(.bottom, 12)
         .background(ThemeColor.kInput, in: .rect(cornerRadius: 24))
         .fileImporter(isPresented: $importing, allowedContentTypes: [.data, .image, .text], allowsMultipleSelection: true) { r in
             switch r {

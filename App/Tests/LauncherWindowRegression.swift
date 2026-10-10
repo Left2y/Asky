@@ -24,6 +24,10 @@ private struct WindowSearchProvider: SearchProvider {
 enum LauncherWindowRegression {
     static func main() {
         let application = NSApplication.shared
+        if CommandLine.arguments.contains("--scroll-background") {
+            runScrollBackground()
+            return
+        }
         application.setActivationPolicy(.accessory)
         Task { @MainActor in
             do {
@@ -104,6 +108,81 @@ enum LauncherWindowRegression {
         print("wheel/precise forward/reverse over rows/input, focus and keyboard checks passed")
     }
 
+    private static func runScrollBackground() {
+        let args = CommandLine.arguments
+        let report = URL(fileURLWithPath: args[2])
+        let frame = NSRect(x: Double(args[3])!, y: Double(args[4])!,
+                           width: Double(args[5])!, height: Double(args[6])!)
+        NSApp.setActivationPolicy(.regular)
+        let window = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let scroll = NSScrollView(frame: NSRect(origin: .zero, size: frame.size))
+        let document = NSTextView(frame: NSRect(x: 0, y: 0, width: frame.width, height: 5000))
+        document.string = String(repeating: "Synthetic background scroll target\n", count: 200)
+        scroll.documentView = document
+        window.contentView = scroll
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: 200))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                try? String(describing: scroll.contentView.bounds.origin.y).write(to: report, atomically: true, encoding: .utf8)
+            }
+        }
+        withExtendedLifetime((window, timer)) { NSApp.run() }
+    }
+
+    private static func checkSystemDelivery(controller: LauncherController, panel: LauncherPanel, content: NSView) async throws {
+        try require(CGPreflightPostEventAccess(), "system scroll test requires existing event-post access")
+        let report = FileManager.default.temporaryDirectory.appending(path: "KulaHere-scroll-\(UUID())")
+        let background = Process()
+        background.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        background.arguments = ["--scroll-background", report.path, String(describing: panel.frame.minX),
+                                String(describing: panel.frame.minY), String(describing: panel.frame.width), String(describing: panel.frame.height)]
+        background.terminationHandler = { _ in try? FileManager.default.removeItem(at: report) }
+        try background.run()
+        defer { background.terminate() }
+        for _ in 0..<100 {
+            if FileManager.default.fileExists(atPath: report.path) { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        controller.show()
+        let foreground = scrollView(in: content)!
+        foreground.contentView.scroll(to: NSPoint(x: 0, y: 200))
+        foreground.reflectScrolledClipView(foreground.contentView)
+        let oldPointer = CGEvent(source: nil)!.location
+        defer { CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: oldPointer,
+                        mouseButton: .left)?.post(tap: .cghidEventTap) }
+        let rect = panel.convertToScreen(foreground.convert(foreground.bounds, to: nil))
+        let points = [NSPoint(x: rect.midX, y: rect.midY),
+                      NSPoint(x: rect.midX, y: rect.maxY + 32),
+                      NSPoint(x: rect.minX + 3, y: rect.midY)]
+        for units in [CGScrollEventUnit.line, .pixel] {
+            for location in points {
+                foreground.contentView.scroll(to: NSPoint(x: 0, y: 200))
+                foreground.reflectScrolledClipView(foreground.contentView)
+                let point = CGPoint(x: location.x, y: NSScreen.screens[0].frame.maxY - location.y)
+                CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point,
+                        mouseButton: .left)?.post(tap: .cghidEventTap)
+                try await Task.sleep(for: .milliseconds(200))
+                print("hit point=\(location) panelFrame=\(panel.frame) key=\(panel.isKeyWindow) active=\(NSApp.isActive)")
+                let backBefore = try String(contentsOf: report, encoding: .utf8)
+                let frontBefore = foreground.contentView.bounds.origin.y
+                let event = CGEvent(scrollWheelEvent2Source: nil, units: units, wheelCount: 1,
+                                    wheel1: units == .line ? -5 : -80, wheel2: 0, wheel3: 0)!
+                event.location = point
+                event.post(tap: .cghidEventTap)
+                try await Task.sleep(for: .milliseconds(700))
+                let backAfter = try String(contentsOf: report, encoding: .utf8)
+                print("system delivery front=\(frontBefore)->\(foreground.contentView.bounds.origin.y) background=\(backBefore)->\(backAfter)")
+                try require(foreground.contentView.bounds.origin.y != frontBefore, "system wheel must reach launcher")
+                try require(backAfter == backBefore, "background app must not scroll under launcher")
+            }
+        }
+    }
+
     private static func checkWindow() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-window-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
@@ -152,6 +231,7 @@ enum LauncherWindowRegression {
             try require(abs(baseline.height - expectedHeight) <= 1,
                         "long results must use the increased 400 pt list budget within screen bounds")
         }
+        try await checkSystemDelivery(controller: controller, panel: panel, content: content)
         try await checkScrolling(panel: panel, content: content, model: model, editor: editor)
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))

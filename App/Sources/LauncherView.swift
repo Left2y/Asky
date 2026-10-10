@@ -254,12 +254,15 @@ struct LauncherView: View {
         .frame(width: WindowMetrics.launcherWidth)
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
+        // Blank input/result areas must belong to the shell's pointer region.
+        .contentShape(shellShape)
         .background {
             shellShape
                 .fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                // Keep the glass hit-testable: disabling its interaction lets
+                // WindowServer target another app through otherwise blank areas.
                 .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
                 .environment(\.colorScheme, colorScheme)
-                .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
         .overlay {

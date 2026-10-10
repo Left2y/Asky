@@ -26,7 +26,7 @@ V1 规划包含三个层次：
 
 搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 6 个菜单项的高度（300 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
 
-鼠标指针位于输入框或结果区时，支持滚轮与触控板滚动结果；滚动保持输入焦点与键盘选择。键盘导航也会将屏外选中项滚入视野。
+鼠标指针位于输入框或结果区时，支持滚轮与触控板滚动结果；滚动保持输入焦点与键盘选择。键盘导航也会将屏外选中项滚入视野。搜索外壳整体接收鼠标交互，输入区与结果区的空白位置也不会将滚动穿透到背景窗口。
 
 独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
 
@@ -83,7 +83,7 @@ build/launcher-input-regression
 python3 App/Tests/run-launcher-window-regression.py
 ```
 
-此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。
+此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。滚动穿透回归另起独立进程的可滚动测试窗口，通过系统投递合成滚动事件；此项需要已授予的 macOS 输入事件投递权限，不会自动请求授权。
 
 使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
 
@@ -131,7 +131,7 @@ Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVn
 
 The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at six menu rows in height (300 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
 
-Mouse-wheel and trackpad gestures over either the input or results scroll the results while preserving input focus and keyboard selection. Keyboard navigation also reveals selected results outside the viewport.
+Mouse-wheel and trackpad gestures over either the input or results scroll the results while preserving input focus and keyboard selection. Keyboard navigation also reveals selected results outside the viewport. The entire search shell accepts pointer interaction, including blank areas in the input and results, so scrolling does not pass through to background windows.
 
 A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
 
@@ -183,7 +183,7 @@ Search-window geometry regression (after the Debug build above; do not run concu
 python3 App/Tests/run-launcher-window-regression.py
 ```
 
-The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers.
+The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers. The scroll-through regression launches a separate process with a scrollable test window and posts synthetic scrolling through the system. It requires existing macOS input-event posting permission and never requests authorization automatically.
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
 

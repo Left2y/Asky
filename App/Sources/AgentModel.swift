@@ -12,6 +12,22 @@ struct ChatItem: Identifiable, Hashable {
     var kind: Kind
     var text: String
     var needsPermissionSettings = false
+    var toolName: String? = nil
+
+    var toolSymbol: String {
+        let name = toolName ?? ""
+        switch name {
+        case let n where n.hasPrefix("calendar_"): return "calendar"
+        case let n where n.hasPrefix("reminders_"): return "checklist"
+        case let n where n.hasPrefix("notes_"): return "note.text"
+        case let n where n.hasPrefix("contacts_"): return "person.crop.circle"
+        case let n where n.hasPrefix("messages_"): return "message"
+        case let n where n.hasPrefix("chrome_"): return "globe"
+        case let n where n.hasPrefix("shortcuts_"): return "square.stack.3d.up"
+        case "memory_search": return "brain"
+        default: return "gearshape"
+        }
+    }
 }
 
 @MainActor @Observable
@@ -142,7 +158,7 @@ final class AgentModel {
             streaming = ""
             if let m = try? store.append(conversationID: cid, role: "assistant", text: text) { appendTrimmed(Self.item(m)) }
         case .toolCall(_, let req):
-            appendTrimmed(ChatItem(id: req.requestID, kind: .tool(nil), text: "调用 \(req.tool)…"))
+            appendTrimmed(ChatItem(id: req.requestID, kind: .tool(nil), text: "调用 \(req.tool)…", toolName: req.tool))
         case .toolResult(_, let r):
             let text = "\(Self.statusLabel(r.status))\(r.error.map { "：\($0.message)" } ?? "")"
             if let i = items.lastIndex(where: { $0.id == r.requestID }) {

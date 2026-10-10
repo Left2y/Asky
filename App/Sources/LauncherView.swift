@@ -19,11 +19,13 @@ private enum LauncherLayout {
     static let shadowPadding: CGFloat = 132
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
-    static let rowHeight: CGFloat = 64
+    // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
+    static let rowHeight: CGFloat = 50
     static let rowSpacing: CGFloat = 0
-    static let listHorizontalPadding: CGFloat = 12
+    static let listHorizontalPadding: CGFloat = 13
     static let listBottomPadding: CGFloat = 12
     static let rowHorizontalPadding: CGFloat = 16
+    static let rowCornerRadius = CGFloat(Radius.values["radius16"] ?? 16)
 }
 
 /// Floating, non-activating launcher panel that still takes key focus for the input field.
@@ -344,24 +346,29 @@ private struct ResultRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            icon.frame(width: 40, height: 40)
+            icon.frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 8) {
                     Text(keyword == nil ? result.title : result.title.components(separatedBy: "：").first ?? result.title)
-                        .font(.system(size: 18)).lineLimit(1)
+                        .font(.system(size: 14)).lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(ThemeColor.kText)
                     if let keyword {
-                        Text(keyword).font(.system(size: 16))
+                        Text(keyword).font(.system(size: 14)).lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                             .foregroundStyle(ThemeColor.kTextSubtle)
                             .padding(.horizontal, 6)
-                            .frame(height: 24)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ThemeColor("borderIntense"), lineWidth: 1))
+                            .frame(height: 22)
+                            .background(ThemeColor.kBackgroundNeutral,
+                                        in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
-                .frame(height: 26, alignment: .leading)
+                .frame(height: 22, alignment: .leading)
                 if keyword == nil, !result.subtitle.isEmpty {
                     Text(result.source == .app ? result.target.identifier : result.subtitle)
-                        .font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
-                        .frame(height: 22, alignment: .leading)
+                        .font(.system(size: 12)).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(height: 20, alignment: .leading)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -370,8 +377,8 @@ private struct ResultRow: View {
         .frame(height: LauncherLayout.rowHeight)
         .background(hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
                         selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
-                    in: RoundedRectangle(cornerRadius: 24))
-        .contentShape(RoundedRectangle(cornerRadius: 24))
+                    in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
+        .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .onHover { hovering = $0 }
     }
 

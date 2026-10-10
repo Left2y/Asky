@@ -68,4 +68,49 @@ final class BatchSink {
         let r = await p.search("kula", limit: 5)
         #expect(r.map(\.title) == ["Kula Notes"])
     }
+
+    @Test func appsProviderMatchesLocalizedAndEnglishNames() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for (english, chinese, localization) in [("WeChat", "微信", "zh-Hans"), ("DingTalk", "钉钉", "zh_CN")] {
+            let contents = root.appendingPathComponent("\(english).app/Contents")
+            let resources = contents.appendingPathComponent("Resources/\(localization).lproj")
+            try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+            let info: [String: String] = ["CFBundleName": english, "CFBundleIdentifier": "test.\(english)",
+                                         "CFBundleDevelopmentRegion": "en", "CFBundlePackageType": "APPL"]
+            try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+                .write(to: contents.appendingPathComponent("Info.plist"))
+            if english == "DingTalk" {
+                try "\"CFBundleDisplayName\" = \"\(chinese)\";".data(using: .utf16)!
+                    .write(to: resources.appendingPathComponent("InfoPlist.strings"))
+            } else {
+                try PropertyListSerialization.data(fromPropertyList: ["CFBundleDisplayName": chinese], format: .xml, options: 0)
+                    .write(to: resources.appendingPathComponent("InfoPlist.strings"))
+            }
+        }
+        let provider = AppsProvider(roots: [root, root])
+        for (english, chinese) in [("WeChat", "微信"), ("DingTalk", "钉钉")] {
+            for query in [english, chinese] {
+                let results = await provider.search(query, limit: 5)
+                #expect(results.count == 1)
+                #expect(results.first.map { URL(fileURLWithPath: $0.target.identifier).lastPathComponent } == "\(english).app")
+            }
+        }
+        #expect(await provider.search("不存在的应用", limit: 5).isEmpty)
+    }
+
+    @Test func appsProviderIncludesFinderHiddenAppsButSkipsDotEntries() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var app = root.appendingPathComponent("VisibleSearch.app")
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isHidden = true
+        try app.setResourceValues(values)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".Internal.app"), withIntermediateDirectories: true)
+        let provider = AppsProvider(roots: [root])
+        #expect(await provider.search("VisibleSearch", limit: 5).count == 1)
+        #expect(await provider.search("Internal", limit: 5).isEmpty)
+    }
+
 }

@@ -8,7 +8,12 @@ import LocalStore
 public final class AppsProvider: SearchProvider {
     public let source = SearchSource.app
     private let roots: [URL]
-    private let index = Mutex<[(name: String, path: String)]?>(nil)
+    private struct IndexedApp {
+        let name: String
+        let path: String
+        let searchNames: Set<String>
+    }
+    private let index = Mutex<[IndexedApp]?>(nil)
     private let usage = Mutex<[String: Date]>([:])
 
     public init(roots: [URL] = AppsProvider.defaultRoots) { self.roots = roots }
@@ -29,7 +34,7 @@ public final class AppsProvider: SearchProvider {
         var scored: [(SearchResult, Double)] = []
         for app in apps {
             if Task.isCancelled { return [] }
-            guard var s = FuzzyMatch.score(query, in: app.name) else { continue }
+            guard var s = app.searchNames.compactMap({ FuzzyMatch.score(query, in: $0) }).max() else { continue }
             if let last = recent[app.path] { s += max(0, 0.1 - now.timeIntervalSince(last) / (86400 * 70)) }
             let r = SearchResult(source: .app, target: TargetRef(kind: "app", identifier: app.path), title: app.name,
                                  subtitle: "应用", actions: [.open, .revealInFinder], score: s)
@@ -38,22 +43,50 @@ public final class AppsProvider: SearchProvider {
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
     }
 
-    private func loadIndex() -> [(name: String, path: String)] {
+    private func loadIndex() -> [IndexedApp] {
         if let cached = index.withLock({ $0 }) { return cached }
-        var out: [(String, String)] = []
+        var out: [IndexedApp] = []
         var seen = Set<String>()
         let fm = FileManager.default
         for root in roots {
-            guard let items = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil,
-                                                          options: [.skipsHiddenFiles]) else { continue }
-            for u in items where u.pathExtension == "app" {
-                let name = u.deletingPathExtension().lastPathComponent
-                if seen.insert(u.path).inserted { out.append((name, u.path)) }
+            // Safari's public .app symlink can carry Finder's hidden flag. Keep such
+            // launchable applications while excluding dot-prefixed internal entries.
+            guard let items = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { continue }
+            for u in items where u.pathExtension == "app" && !u.lastPathComponent.hasPrefix(".") {
+                guard seen.insert(u.path).inserted else { continue }
+                out.append(indexedApp(at: u))
             }
         }
         index.withLock { $0 = out }
         return out
     }
+
+    private func indexedApp(at url: URL) -> IndexedApp {
+        let fileName = url.deletingPathExtension().lastPathComponent
+        let bundle = Bundle(url: url)
+        let keys = ["CFBundleDisplayName", "CFBundleName"]
+        let localizedNames = keys.compactMap { bundle?.localizedInfoDictionary?[$0] as? String }
+            .filter { !$0.isEmpty }
+        let bundleNames = keys.compactMap { bundle?.infoDictionary?[$0] as? String }
+            .filter { !$0.isEmpty }
+        var names = Set([fileName] + localizedNames + bundleNames)
+        // Index the app's own translations, even when macOS uses a different language.
+        // InfoPlist.strings may be XML/binary plists or OpenStep strings in UTF-16.
+        let resources = url.appendingPathComponent("Contents/Resources", isDirectory: true)
+        let localizations = (try? FileManager.default.contentsOfDirectory(
+            at: resources, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        for localization in localizations where localization.pathExtension == "lproj" {
+            guard let data = try? Data(contentsOf: localization.appendingPathComponent("InfoPlist.strings")),
+                  let dictionary = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+            else { continue }
+            for key in keys {
+                if let name = dictionary[key] as? String, !name.isEmpty { names.insert(name) }
+            }
+        }
+        return IndexedApp(name: localizedNames.first ?? bundleNames.first ?? fileName,
+                          path: url.path, searchNames: names)
+    }
+
 }
 
 /// File-name search through Spotlight (NSMetadataQuery), restricted to configured scopes and

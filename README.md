@@ -40,6 +40,8 @@ V1 规划包含三个层次：
 
 AI 搜索条目使用用户提供的彩色图标，放入 32 pt 图标区域，以白底圆角、轻微投影与留白对齐 App、链接及书签 logo。
 
+应用搜索匹配 `.app` 文件名、包内名称和应用自带的各语言显示名称；例如“微信 / WeChat”“钉钉 / DingTalk”“飞书 / Lark”“腾讯会议 / TencentMeeting”均指向对应应用。见[应用名称搜索验证](docs/validation/2026-10-10-app-localized-search.md)。
+
 ### 文档
 
 - [文档索引](docs/README.md)：阅读顺序、权威内容与设计状态。
@@ -181,6 +183,8 @@ The “Search bookmarks” entry uses the bundled blue bookmark icon. Bookmark s
 In the ordinary launcher, plain text without an explicit keyword or concrete local result (such as “你是谁啊” or “你好”) shows only the selected AI action; Return opens the conversation. Generic bookmark-search and Google-search actions do not count as local matches. Explicit requests still show AI directly; matching apps, files, and links remain local results, while explicit keywords, calculations, conversions, and the `bm ` bookmark scope take priority. Typing does not call a model. AI rows show only a title, without a submission-shortcut subtitle. In ordinary search, selecting the AI row and pressing Return also submits it; `⌘ Return` remains available as a shortcut.
 
 AI search entries use the supplied colorful artwork in a 32 pt icon area, with a rounded white background, subtle shadow, and padding aligned with app, link, and bookmark logos.
+
+Application search matches `.app` filenames, bundle names, and display names from the app’s bundled localizations. For example, 微信 / WeChat, 钉钉 / DingTalk, 飞书 / Lark, and 腾讯会议 / TencentMeeting resolve to their respective apps. See [application-name search validation](docs/validation/2026-10-10-app-localized-search.md).
 
 ### Documentation
 

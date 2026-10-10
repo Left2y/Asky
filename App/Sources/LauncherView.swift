@@ -243,8 +243,8 @@ struct LauncherView: View {
                     // dense text behind this short floating search field.
                     .opacity(0.82)
                     .overlay {
-                        shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true)
-                            .opacity(colorScheme == .dark ? 0.60 : 0.48))
+                        // Preserve the Figma background token: white70 / black70.
+                        shellShape.fill(ThemeColor.kBackground.color(for: colorScheme))
                     }
                     .environment(\.colorScheme, colorScheme)
                     .allowsHitTesting(false)

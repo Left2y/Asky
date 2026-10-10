@@ -65,9 +65,8 @@ struct ComposerAttachmentCard: View {
                 .offset(x: attachment.kind == .image ? 6 : 8, y: -6)
             }
         }
-        // Reserve the overhanging control inside the scroll content's bounds.
+        // Reserve vertical overhang here; the row reserves trailing space once.
         .padding(.top, remove == nil ? 0 : 6)
-        .padding(.trailing, remove == nil ? 0 : attachment.kind == .image ? 6 : 8)
         .contentShape(.rect)
         .onHover { hovering = $0 }
         .task(id: attachment) {

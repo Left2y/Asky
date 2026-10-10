@@ -430,7 +430,7 @@ private struct Composer: View {
         VStack(alignment: .leading, spacing: 12) {
             if !model.attachments.isEmpty {
                 ScrollView(.horizontal) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         ForEach(model.attachments) { attachment in
                             ComposerAttachmentCard(attachment: attachment,
                                 thumbnail: model.attachmentThumbnails[attachment.id]) {
@@ -438,6 +438,8 @@ private struct Composer: View {
                             }
                         }
                     }
+                    // Keep the last delete button inside the scroll content without widening each gap.
+                    .padding(.trailing, 8)
                     .padding(.horizontal, 20)
                 }
                 .scrollIndicators(.hidden).frame(height: 58)

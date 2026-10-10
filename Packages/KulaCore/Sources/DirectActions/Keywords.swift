@@ -44,9 +44,7 @@ public struct KeywordCommand: Sendable, Codable, Hashable, Identifiable {
     }
 
     public static let websitePresets: [KeywordCommand] = [
-        KeywordCommand(keyword: "chatgpt", name: "ChatGPT", urlTemplate: "https://chatgpt.com"),
-        KeywordCommand(keyword: "gemini", name: "Gemini", urlTemplate: "https://gemini.google.com"),
-        KeywordCommand(keyword: "doubao", name: "豆包", urlTemplate: "https://www.doubao.com/chat/"),
+        KeywordCommand(keyword: "chat", name: "ChatGPT", urlTemplate: "https://chatgpt.com"),
     ]
 
     public static let builtIn: [KeywordCommand] = [
@@ -78,6 +76,24 @@ public struct KeywordRegistry: Sendable, Codable, Equatable {
     public mutating func addMissingWebsitePresets(excluding aliases: Set<String> = []) {
         let occupied = Set(commands.map { $0.keyword.lowercased() }).union(aliases.map { $0.lowercased() })
         commands.append(contentsOf: KeywordCommand.websitePresets.filter { !occupied.contains($0.keyword.lowercased()) })
+    }
+
+    /// Remove retired defaults and shorten the original ChatGPT keyword without overwriting custom entries.
+    public mutating func migrateQueryPresets(excluding aliases: Set<String> = []) {
+        let retired = [
+            KeywordCommand(keyword: "gemini", name: "Gemini", urlTemplate: "https://gemini.google.com"),
+            KeywordCommand(keyword: "doubao", name: "豆包", urlTemplate: "https://www.doubao.com/chat/"),
+        ]
+        commands.removeAll { retired.contains($0) }
+        let old = KeywordCommand(keyword: "chatgpt", name: "ChatGPT", urlTemplate: "https://chatgpt.com")
+        if commands.contains(old) {
+            let occupied = commands.contains { $0.keyword.caseInsensitiveCompare("chat") == .orderedSame }
+                || aliases.contains { $0.caseInsensitiveCompare("chat") == .orderedSame }
+            if !occupied {
+                commands.removeAll { $0 == old }
+                commands.append(KeywordCommand.websitePresets[0])
+            }
+        }
     }
 
     public mutating func remove(_ keyword: String) { commands.removeAll { $0.keyword == keyword } }

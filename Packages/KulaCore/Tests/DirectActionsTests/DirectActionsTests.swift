@@ -88,7 +88,7 @@ import Foundation
     }
 
     @Test func plainWebsiteAddressesAndPersistence() throws {
-        var registry = KeywordRegistry()
+        var registry = KeywordRegistry(commands: [])
         try registry.upsert(KeywordCommand(keyword: " chat ", name: "ChatGPT", urlTemplate: " chatgpt.com "))
         try registry.upsert(KeywordCommand(keyword: "gem", name: "Gemini", urlTemplate: "https://gemini.google.com/app"))
         #expect(registry.commands.last?.url(for: "")?.absoluteString == "https://gemini.google.com/app")
@@ -100,16 +100,16 @@ import Foundation
     }
 
     @Test func websitePresetsUpgradePreservesCustomEntries() throws {
-        let custom = KeywordCommand(keyword: "ChatGPT", name: "Custom", urlTemplate: "https://example.com")
+        let custom = KeywordCommand(keyword: "CHAT", name: "Custom", urlTemplate: "https://example.com")
         var registry = KeywordRegistry(commands: [KeywordCommand.builtIn[0], custom])
         registry.addMissingWebsitePresets(excluding: ["GEMINI"])
-        #expect(registry.commands.filter { $0.keyword.lowercased() == "chatgpt" } == [custom])
+        #expect(registry.commands.filter { $0.keyword.lowercased() == "chat" } == [custom])
         #expect(!registry.commands.contains { $0.keyword == "gemini" })
-        #expect(registry.commands.first { $0.keyword == "doubao" }?.url(for: "")?.absoluteString == "https://www.doubao.com/chat/")
+        #expect(!registry.commands.contains { $0.keyword == "doubao" })
         let upgraded = registry
         registry.addMissingWebsitePresets(excluding: ["gemini"])
         #expect(registry == upgraded)
-        #expect(KeywordRegistry().commands.count == 4)
+        #expect(KeywordRegistry().commands.count == 2)
     }
 
     @Test func chatGPTCarriesQueryWithoutUserTemplate() throws {
@@ -120,8 +120,21 @@ import Foundation
         #expect(components.queryItems?.first { $0.name == "q" }?.value == "中文 & + # / ?")
         #expect(url.absoluteString.contains("%2B"))
         #expect(command.url(for: "")?.query == nil)
-        #expect(!KeywordCommand.websitePresets[1].supportsQuery)
-        #expect(!KeywordCommand.websitePresets[2].supportsQuery)
+        #expect(KeywordCommand.websitePresets.allSatisfy { $0.supportsQuery })
+    }
+
+    @Test func migratesRetiredDefaultsAndShortKeyword() {
+        let old = KeywordCommand(keyword: "chatgpt", name: "ChatGPT", urlTemplate: "https://chatgpt.com")
+        let retired = KeywordCommand(keyword: "gemini", name: "Gemini", urlTemplate: "https://gemini.google.com")
+        let custom = KeywordCommand(keyword: "doubao", name: "Custom", urlTemplate: "https://example.com/search?q={query}")
+        var registry = KeywordRegistry(commands: [old, retired, custom])
+        registry.migrateQueryPresets()
+        #expect(registry.commands == [custom, KeywordCommand.websitePresets[0]])
+        registry.migrateQueryPresets()
+        #expect(registry.commands == [custom, KeywordCommand.websitePresets[0]])
+        var conflict = KeywordRegistry(commands: [old])
+        conflict.migrateQueryPresets(excluding: ["CHAT"])
+        #expect(conflict.commands == [old])
     }
 
     @Test func rejectsInvalidWebsiteAddresses() {

@@ -445,7 +445,7 @@ struct KeywordSettings: View {
             Section("添加") {
                 TextField("关键词", text: $keyword)
                 TextField("名称", text: $name)
-                TextField("网址（如 chatgpt.com 或 gemini.google.com）", text: $website)
+                TextField("网址（如 chatgpt.com）", text: $website)
                 Text("输入网址即可，省略 https:// 也可以。关键词后按回车打开网页。").textStyle(.secondary)
                 Button("保存") {
                     do {
@@ -455,7 +455,7 @@ struct KeywordSettings: View {
                         try app.keywords.upsert(KeywordCommand(keyword: keyword, name: name.isEmpty ? keyword : name, urlTemplate: website))
                         keyword = ""; name = ""; website = ""; error = nil
                     } catch KeywordRegistry.RegistryError.invalidTemplate {
-                        error = "请输入有效的网址，例如 chatgpt.com 或 https://gemini.google.com。"
+                        error = "请输入有效的网址，例如 chatgpt.com 或 https://example.com。"
                     } catch KeywordRegistry.RegistryError.invalidKeyword {
                         error = "关键词不能为空、不能包含空格，也不能使用 bm 或 >。"
                     } catch KeywordRegistry.RegistryError.duplicate {

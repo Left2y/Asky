@@ -99,6 +99,11 @@ final class AppModel {
             store.setCodableSetting("keywords", savedKeywords)
             store.setCodableSetting("websitePresetsInstalled", true)
         }
+        if store.codableSetting("queryPresetsMigrated", as: Bool.self) != true {
+            savedKeywords.migrateQueryPresets(excluding: Set(savedPreferences.aliases.map(\.alias)))
+            store.setCodableSetting("keywords", savedKeywords)
+            store.setCodableSetting("queryPresetsMigrated", true)
+        }
         keywords = savedKeywords
         let confirmations = ConfirmationCenter()
         self.confirmations = confirmations

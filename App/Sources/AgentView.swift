@@ -276,6 +276,13 @@ private struct Transcript: View {
                     if !model.streaming.isEmpty {
                         ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: model.streaming)).padding(.top, 12)
                     }
+                    if let started = model.taskStartedAt, model.isRunning {
+                        TimelineView(.periodic(from: started, by: 1)) { context in
+                            Text("Work for \(max(0, Int(context.date.timeIntervalSince(started))))s")
+                                .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                     if let s = model.state, model.isRunning {
                         Text(Self.label(s)).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                     }
@@ -336,7 +343,14 @@ private struct ChatBubble: View {
                 ChatMarkdownView(text: item.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if item.id != "streaming" {
-                    HStack { Spacer(); copyButton }
+                    HStack {
+                        if let seconds = item.workSeconds {
+                            Text("Work for \(seconds)s").textStyle(.secondary)
+                                .foregroundStyle(ThemeColor.kTextSubtlest)
+                        }
+                        Spacer()
+                        copyButton
+                    }
                 }
             }
         case .tool(let status):

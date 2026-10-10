@@ -102,6 +102,14 @@ AI 对话和设置默认使用普通窗口层级，切换到其他应用后可�
 
 AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，成功后复制图标变为对勾并保持 3 秒，再次复制会重新计时；复制与附件按钮使用交互悬停色；用户消息气泡与复制按钮之间的空隙也保持悬停。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
 
+原生回复回归检查（先完成上述 Debug 构建；使用临时数据库，不调用模型）：
+
+```sh
+python3 App/Tests/run-agent-reply-regression.py
+```
+
+回复生成时在左下角显示 `Work for …s`，结束后与右侧复制按钮共用底部操作行（耗时仅保留在当前加载的消息中）。澄清问题会收束此前的流式文字并保存到历史，避免一次回复出现两条消息、两个复制按钮。
+
 颜色已同步至 2026-10-10 Figma Colors：浅背景为 6%，输入背景为 8%，搜索结果与历史行使用 Light 6% / Dark 8% 的悬停色。见[颜色同步验证](docs/validation/2026-10-10-colors.md)。
 
 AI 对话输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件；点击附件按钮直接打开系统文件选择器，也可拖入文件。附件在输入框顶部横向滚动展示：图片为 1:1 缩略图，文件显示名称与大小；悬停或键盘聚焦删除按钮后可移除。附件卡片按 [Figma UploadFile 42:852](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=42-852) 使用 52 pt 高度，删除按钮悬于右上角外侧；文件图标使用 44 pt 描边底框，文件名左对齐并在末尾省略。`Return` 发送，`Shift Return` 换行；仅有附件时也可发送。图像理解取决于所配置模型，普通二进制文件的内容解析仍受 Runtime 支持范围限制。
@@ -212,6 +220,14 @@ Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible
 Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
 AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; a successful copy shows a checkmark for 3 seconds, and copying again restarts the timer. Copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
+
+Native reply regression (after the Debug build above; uses a temporary database without calling a model):
+
+```sh
+python3 App/Tests/run-agent-reply-regression.py
+```
+
+While a reply is running, `Work for …s` appears at the lower left; on completion it shares the footer with the copy button on the right (elapsed time is retained only in the currently loaded messages). A clarification replaces preceding streamed narration and is saved to history, preventing two messages and copy buttons for one reply.
 
 Colors follow the 2026-10-10 Figma Colors update: subtle backgrounds use 6% opacity, input backgrounds use 8%, and search results and history rows use a hover color at 6% in Light mode and 8% in Dark mode. See the [color synchronization validation](docs/validation/2026-10-10-colors.md).
 

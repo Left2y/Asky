@@ -14,6 +14,7 @@ struct ChatItem: Identifiable, Hashable {
     var text: String
     var needsPermissionSettings = false
     var toolName: String? = nil
+    var workSeconds: Int? = nil
 
     var toolSymbol: String {
         let name = toolName ?? ""
@@ -43,6 +44,8 @@ final class AgentModel {
     private(set) var items: [ChatItem] = []
     private(set) var streaming = ""
     private(set) var taskID: String?
+    private(set) var taskStartedAt: Date?
+    private var responseStartIndex = 0
     private(set) var state: AgentTaskState?
     private(set) var hasOlder = false
     var draft = ""
@@ -103,7 +106,9 @@ final class AgentModel {
     private func appendTrimmed(_ item: ChatItem) {
         items.append(item)
         if items.count > Self.window {
-            items.removeFirst(items.count - Self.window)
+            let removed = items.count - Self.window
+            items.removeFirst(removed)
+            responseStartIndex = max(0, responseStartIndex - removed)
             hasOlder = true
             oldestSeq = nil
         }
@@ -139,9 +144,7 @@ final class AgentModel {
         let request = AgentRequest(sessionID: cid, text: text, attachments: attachments, context: context)
         attachments = []
         attachmentThumbnails = [:]
-        taskID = request.taskID
-        state = .starting
-        streaming = ""
+        beginResponse(taskID: request.taskID)
         streamTask = Task {
             let stream = await agent.submit(request)
             for await event in stream { handle(event, conversationID: cid) }
@@ -154,7 +157,15 @@ final class AgentModel {
         Task { await agent.cancel(taskID: id) }
     }
 
-    private func handle(_ event: AgentEvent, conversationID cid: String) {
+    func beginResponse(taskID: String, now: Date = Date()) {
+        self.taskID = taskID
+        taskStartedAt = now
+        responseStartIndex = items.count
+        state = .starting
+        streaming = ""
+    }
+
+    func handle(_ event: AgentEvent, conversationID cid: String) {
         switch event {
         case .taskState(_, let s):
             state = s
@@ -175,7 +186,12 @@ final class AgentModel {
                 appendTrimmed(ChatItem(id: r.requestID, kind: .tool(r.status), text: text, needsPermissionSettings: r.error?.code == .permissionDenied || r.error?.code == .sourceDisabled))
             }
         case .clarification(_, let q):
-            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .assistant, text: q))
+            // The clarification is the authoritative reply for this turn. Do not
+            // flush earlier model narration as another reply when the stream ends.
+            streaming = ""
+            if let m = try? store.append(conversationID: cid, role: "assistant", text: q) {
+                appendTrimmed(Self.item(m))
+            }
         case .confirmationRequired:
             state = .awaitingConfirmation
         case .error(_, let msg):
@@ -185,7 +201,7 @@ final class AgentModel {
         }
     }
 
-    private func finishTask(conversationID cid: String) {
+    func finishTask(conversationID cid: String) {
         if !streaming.isEmpty {
             if let m = try? store.append(conversationID: cid, role: "assistant", text: streaming) { appendTrimmed(Self.item(m)) }
             streaming = ""
@@ -193,6 +209,11 @@ final class AgentModel {
         if state == .pendingVerification {
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .notice, text: "任务中断，涉及写入的结果待核实；请勿假定已完成。"))
         }
+        if let started = taskStartedAt,
+           let index = items.indices.last(where: { $0 >= responseStartIndex && items[$0].kind == .assistant }) {
+            items[index].workSeconds = max(0, Int(Date().timeIntervalSince(started)))
+        }
+        taskStartedAt = nil
         taskID = nil
         streamTask = nil
         if let agent = app.agent {

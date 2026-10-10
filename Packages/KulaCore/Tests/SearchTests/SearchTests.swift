@@ -99,6 +99,37 @@ final class BatchSink {
         #expect(await provider.search("不存在的应用", limit: 5).isEmpty)
     }
 
+    @Test func appsProviderMatchesSystemLoctableNames() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for (app, format) in [("Phone", PropertyListSerialization.PropertyListFormat.binary),
+                              ("Notes", PropertyListSerialization.PropertyListFormat.xml)] {
+            let contents = root.appendingPathComponent("\(app).app/Contents")
+            let resources = contents.appendingPathComponent("Resources")
+            try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+            try PropertyListSerialization.data(fromPropertyList: ["CFBundleName": app], format: .xml, options: 0)
+                .write(to: contents.appendingPathComponent("Info.plist"))
+            let table: [String: Any] = [
+                "en": ["CFBundleDisplayName": app],
+                "zh_CN": ["CFBundleDisplayName": app == "Phone" ? "电话" : "备忘录"],
+                "zh_TW": ["CFBundleName": app == "Phone" ? "電話" : "備忘錄"],
+                "fr": ["CFBundleDisplayName": ""],
+                "meta": "ignored", "invalid": ["CFBundleName": 42],
+                "copyright": ["NSHumanReadableCopyright": "DoNotIndexThis"]
+            ]
+            try PropertyListSerialization.data(fromPropertyList: table, format: format, options: 0)
+                .write(to: resources.appendingPathComponent("InfoPlist.loctable"))
+        }
+        let provider = AppsProvider(roots: [root])
+        for (query, app) in [("电话", "Phone"), ("電話", "Phone"), ("Phone", "Phone"),
+                             ("备忘录", "Notes"), ("備忘錄", "Notes"), ("Notes", "Notes")] {
+            let results = await provider.search(query, limit: 5)
+            #expect(results.count == 1)
+            #expect(results.first.map { URL(fileURLWithPath: $0.target.identifier).lastPathComponent } == "\(app).app")
+        }
+        #expect(await provider.search("DoNotIndexThis", limit: 5).isEmpty)
+    }
+
     @Test func appsProviderIncludesFinderHiddenAppsButSkipsDotEntries() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

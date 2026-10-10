@@ -12,7 +12,7 @@ if not (products / "Search.o").exists():
     sys.exit("Build the Debug app with the README command first.")
 
 sources = ["SettingsPreferences", "AppModel", "ClipboardMonitor", "ConfirmationCenter", "LauncherModel",
-           "LauncherSearchField", "LauncherView"]
+           "LauncherSearchField", "LauncherView", "WindowPresentation"]
 command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
            "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
 maps = root / "build/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps"

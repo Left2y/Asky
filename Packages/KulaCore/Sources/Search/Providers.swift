@@ -65,7 +65,7 @@ public final class AppsProvider: SearchProvider {
         let fileName = url.deletingPathExtension().lastPathComponent
         let bundle = Bundle(url: url)
         let keys = ["CFBundleDisplayName", "CFBundleName"]
-        let localizedNames = keys.compactMap { bundle?.localizedInfoDictionary?[$0] as? String }
+        var localizedNames = keys.compactMap { bundle?.localizedInfoDictionary?[$0] as? String }
             .filter { !$0.isEmpty }
         let bundleNames = keys.compactMap { bundle?.infoDictionary?[$0] as? String }
             .filter { !$0.isEmpty }
@@ -73,6 +73,23 @@ public final class AppsProvider: SearchProvider {
         // Index the app's own translations, even when macOS uses a different language.
         // InfoPlist.strings may be XML/binary plists or OpenStep strings in UTF-16.
         let resources = url.appendingPathComponent("Contents/Resources", isDirectory: true)
+        // Modern system apps use language-keyed loctables instead of lproj strings.
+        // Index only app-name fields, not unrelated localized UI strings.
+        if let data = try? Data(contentsOf: resources.appendingPathComponent("InfoPlist.loctable")),
+           let table = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
+            let languages = table.compactMap { $0.value is [String: Any] ? $0.key : nil }.sorted()
+            for language in languages {
+                guard let dictionary = table[language] as? [String: Any] else { continue }
+                for key in keys {
+                    if let name = dictionary[key] as? String, !name.isEmpty { names.insert(name) }
+                }
+            }
+            if let language = Bundle.preferredLocalizations(from: languages).first,
+               let dictionary = table[language] as? [String: Any] {
+                let preferredNames = keys.compactMap { dictionary[$0] as? String }.filter { !$0.isEmpty }
+                if !preferredNames.isEmpty { localizedNames = preferredNames }
+            }
+        }
         let localizations = (try? FileManager.default.contentsOfDirectory(
             at: resources, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
         for localization in localizations where localization.pathExtension == "lproj" {

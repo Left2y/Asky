@@ -28,7 +28,7 @@ KulaHere 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索
 
 ### 核心能力
 
-- **聚焦搜索**：搜索应用、文件、Chrome 标签页与本地书签，支持应用别名、网页关键词、计算和换算。
+- **聚焦搜索**：搜索应用、文件、Chrome 标签页与本地书签，读取应用自带的本地化名称（含系统应用的 `InfoPlist.loctable`），支持应用别名、网页关键词、计算和换算。
 - **剪贴板历史**：独立面板浏览文本与图片，悬停 1.5 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
 - **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。
 - **系统工具**：通过 ToolService 统一处理系统读写与授权；集成日历、提醒事项、备忘录和通讯录，信息草稿交由系统 App 确认发送。
@@ -88,6 +88,7 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
 python3 App/Tests/run-launcher-window-regression.py --ai-routing
+python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
@@ -124,7 +125,7 @@ The project is under active development. The repository includes the native app,
 
 ### Features
 
-- **Focused search**: Find apps, files, Chrome tabs, and local bookmarks, with app aliases, web keywords, calculations, and unit conversions.
+- **Focused search**: Find apps, files, Chrome tabs, and local bookmarks, using each app’s localized names (including system app `InfoPlist.loctable` resources), with app aliases, web keywords, calculations, and unit conversions.
 - **Clipboard history**: Browse text and images in a dedicated panel with full previews after hovering for 1.5 seconds, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
 - **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle.
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.
@@ -184,6 +185,7 @@ After the Debug build in Quick Start, run native regression checks. Some interac
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
 python3 App/Tests/run-launcher-window-regression.py --ai-routing
+python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay

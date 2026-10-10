@@ -36,7 +36,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--alias-routing") {
+                    if CommandLine.arguments.contains("--system-app-names") {
+                        try await checkSystemAppNames()
+                    } else if CommandLine.arguments.contains("--alias-routing") {
                         try await checkAliasRouting()
                     } else if CommandLine.arguments.contains("--ai-routing") {
                         try await checkAIRouting()
@@ -58,6 +60,39 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private static func checkSystemAppNames() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-system-names-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [AppsProvider()])
+        let controller = LauncherController(model: model)
+        controller.show()
+        let panel = NSApp.windows.first { $0 is LauncherPanel && $0.isVisible }
+        (panel as? LauncherPanel)?.onBlur = {}
+        defer { controller.hide() }
+        for (query, file) in [("电话", "Phone.app"), ("备忘录", "Notes.app"),
+                              ("计算器", "Calculator.app"), ("系统设置", "System Settings.app")] {
+            model.query = query
+            for _ in 0..<60 {
+                if !model.isSearching { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            try require(!model.isSearching, "system app search must finish")
+            try require(model.results.contains { $0.source == .app &&
+                URL(fileURLWithPath: $0.target.identifier).lastPathComponent == file },
+                "missing system app for \(query)")
+            print("\(query) => \(file) passed")
+            if query == "电话", let view = panel?.contentView,
+               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                if let png = bitmap.representation(using: .png, properties: [:]) {
+                    try png.write(to: URL(filePath: "build/launcher-system-names-" +
+                        (NSApp.appearance?.name.rawValue ?? "default") + ".png"))
+                }
+            }
+        }
     }
 
     private static func checkAliasRouting() async throws {

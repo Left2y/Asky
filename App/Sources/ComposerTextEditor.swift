@@ -4,6 +4,20 @@ import Theme
 
 private final class ComposerTextView: NSTextView {
     var pasteAttachment: () -> Bool = { false }
+    var focusChanged: (Bool) -> Void = { _ in }
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted { focusChanged(true) }
+        return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let accepted = super.resignFirstResponder()
+        if accepted { focusChanged(false) }
+        return accepted
+    }
+
     // This accessory app has no standard Edit menu. Handle the responder's
     // paste shortcut directly, including image-only pasteboards that plain
     // NSTextView would otherwise mark as unavailable.
@@ -37,6 +51,7 @@ private final class ComposerTextView: NSTextView {
 struct ComposerTextEditor: NSViewRepresentable {
     @Binding var text: String
     @Binding var height: CGFloat
+    @Binding var isFocused: Bool
     var pasteAttachment: () -> Bool
     var submit: () -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -59,6 +74,9 @@ struct ComposerTextEditor: NSViewRepresentable {
         editor.autoresizingMask = [.width]
         editor.textContainer?.widthTracksTextView = true
         editor.delegate = context.coordinator
+        editor.focusChanged = { [weak coordinator = context.coordinator] focused in
+            DispatchQueue.main.async { coordinator?.parent.isFocused = focused }
+        }
         editor.setAccessibilityLabel("消息输入")
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true

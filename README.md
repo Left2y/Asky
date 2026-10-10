@@ -100,7 +100,7 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 
 AI 对话和设置默认使用普通窗口层级，切换到其他应用后可被覆盖；AI 对话可手动置顶。主动打开时移到当前桌面并一次性请求前台，默认不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
 
-AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，复制与附件按钮使用交互悬停色；用户消息气泡与复制按钮之间的空隙也保持悬停。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
+AI 对话按 Figma UI 页的新聊天 43:1071、对话 42:760、历史 38:653 实现为 720 × 640 pt 窗口，背景使用与搜索相同的 Regular Liquid Glass。顶部提供历史、新对话、置顶与关闭按钮；默认普通窗口层级，置顶可手动开关。空对话显示居中问候，历史行显示更新时间，正文与输入使用 14 pt 字号，输入框默认高 116 pt。消息支持复制，成功后复制图标变为对勾并保持 3 秒，再次复制会重新计时；复制与附件按钮使用交互悬停色；用户消息气泡与复制按钮之间的空隙也保持悬停。见[新对话样式验证](docs/validation/2026-10-10-ai-chat-refresh.md)。
 
 颜色已同步至 2026-10-10 Figma Colors：浅背景为 6%，输入背景为 8%，搜索结果与历史行使用 Light 6% / Dark 8% 的悬停色。见[颜色同步验证](docs/validation/2026-10-10-colors.md)。
 
@@ -211,7 +211,7 @@ Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible
 
 Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
-AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
+AI conversations follow the updated Figma new chat 43:1071, conversation 42:760, and history 38:653 in a 720 × 640 pt window, using the same Regular Liquid Glass background as search. The header provides history, new chat, pin, and close controls; the window uses the normal level by default, with optional pinning. Empty chats show a centered greeting, history rows show update dates, and body text and input use 14 pt type with a default 116 pt composer. Messages can be copied; a successful copy shows a checkmark for 3 seconds, and copying again restarts the timer. Copy and attachment buttons use the interaction hover color. Hover remains active across the gap between a user bubble and its copy button. See the [updated conversation validation](docs/validation/2026-10-10-ai-chat-refresh.md).
 
 Colors follow the 2026-10-10 Figma Colors update: subtle backgrounds use 6% opacity, input backgrounds use 8%, and search results and history rows use a hover color at 6% in Light mode and 8% in Dark mode. See the [color synchronization validation](docs/validation/2026-10-10-colors.md).
 

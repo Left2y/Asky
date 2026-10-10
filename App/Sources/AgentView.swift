@@ -312,6 +312,7 @@ private struct ChatBubble: View {
     let item: ChatItem
     @State private var hovering = false
     @State private var copyHovering = false
+    @State private var copyFeedbackID: UUID?
     @FocusState private var copyFocused: Bool
 
     var body: some View {
@@ -322,7 +323,7 @@ private struct ChatBubble: View {
                     .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
                 copyButton
                     .onHover { copyHovering = $0 }
-                    .opacity(hovering || copyHovering || copyFocused ? 1 : 0)
+                    .opacity(hovering || copyHovering || copyFocused || copyFeedbackID != nil ? 1 : 0)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -354,12 +355,32 @@ private struct ChatBubble: View {
 
     private var copyButton: some View {
         Button {
-            MessageClipboard.copy(item.text)
+            if MessageClipboard.copy(item.text) {
+                copyFeedbackID = UUID()
+            }
         } label: {
-            Image("ChatCopy").frame(width: 16, height: 16).padding(6)
+            Group {
+                if copyFeedbackID != nil {
+                    Image(systemName: "checkmark").font(.system(size: 16, weight: .medium))
+                } else {
+                    Image("ChatCopy")
+                }
+            }
+            .frame(width: 16, height: 16).padding(6)
         }
         .buttonStyle(AgentIconButtonStyle()).focused($copyFocused).foregroundStyle(ThemeColor("iconSubtlest"))
-        .accessibilityLabel("复制消息")
+        .accessibilityLabel(copyFeedbackID != nil ? "已复制" : "复制消息")
+        .task(id: copyFeedbackID) {
+            guard let feedbackID = copyFeedbackID else { return }
+            do {
+                try await Task.sleep(for: .seconds(3))
+            } catch {
+                return
+            }
+            if copyFeedbackID == feedbackID {
+                copyFeedbackID = nil
+            }
+        }
     }
 
     private var bubble: some View {
@@ -371,6 +392,7 @@ private struct Composer: View {
     @Bindable var model: AgentModel
     @State private var importing = false
     @State private var editorHeight: CGFloat = 44
+    @State private var editorFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -389,12 +411,13 @@ private struct Composer: View {
                 .scrollIndicators(.hidden).frame(height: 52)
             }
             ZStack(alignment: .topLeading) {
-                if model.draft.isEmpty {
+                if model.draft.isEmpty && !editorFocused {
                     Text("输入你的任务").textStyle(AgentLayout.message)
                         .foregroundStyle(ThemeColor.kTextSubtlest).padding(.top, 4)
                         .allowsHitTesting(false)
                 }
                 ComposerTextEditor(text: $model.draft, height: $editorHeight,
+                    isFocused: $editorFocused,
                     pasteAttachment: { model.pasteAttachments() }, submit: { model.send() })
                     .frame(height: editorHeight)
             }

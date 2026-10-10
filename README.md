@@ -96,7 +96,15 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 
 此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。滚动穿透回归另起独立进程的可滚动测试窗口，通过系统投递合成滚动事件；此项需要已授予的 macOS 输入事件投递权限，不会自动请求授权。
 
-使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
+使用 AI 前，需在“设置 › 模型设置”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
+
+设置按参考图采用顶部图标导航：外观设置（跟随系统、浅色、深色）、模型设置（供应商、API 地址、模型与 Key）、触发快捷键（点击录制、占用检查、恢复默认）、别名与快捷指令（应用与 macOS 快捷指令别名、网页关键词）。其他通用、数据来源、权限、记忆与 MCP 配置保留在“更多设置”。配置自动保存在本地；模型表单需点击保存。保存新 Key 后及首次读取 Key 后，能力检查和 AI Runtime 在本次应用运行中复用内存凭据；退出后清除，重启后的首次访问仍可能需要系统钥匙串授权。保存模型时若有 AI 任务进行中会提示等待；保存完成后退出闲置 Runtime，下次请求使用新配置。
+
+设置窗口原生浅深色检查（先完成 Debug 构建，使用临时数据库，不读取真实 Key 或调用模型）：
+
+```sh
+python3 App/Tests/run-settings-regression.py
+```
 
 AI 对话和设置默认使用普通窗口层级，切换到其他应用后可被覆盖；AI 对话可手动置顶。主动打开时移到当前桌面并一次性请求前台，默认不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
 
@@ -116,7 +124,7 @@ AI 对话输入框支持 `⌘V` 直接粘贴文本、图片或 Finder 文件；�
 
 AI 回复通过 MarkdownUI 2.4.1 渲染 Markdown，支持列表、标题、引用、代码块和表格，保留文本选择及明暗主题；历史对话使用相同渲染器。Markdown 图片显示占位符，不自动读取图片地址。Xcode 首次构建会通过 SwiftPM 下载该依赖。见[Markdown 验证记录](docs/validation/2026-10-10-chat-markdown.md)。
 
-系统权限在“设置 › 系统权限”中逐项管理；AI 对话中可用 `⌘,` 或标题右键菜单打开设置。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
+系统权限在“设置 › 更多设置 › 系统权限”中逐项管理；AI 对话中可用 `⌘,` 或标题右键菜单打开设置。日历、提醒事项和通讯录在首次工具使用时请求授权；拒绝后可打开对应系统设置，返回 App 时自动刷新状态。授权失败的工具行提供“管理权限”入口；授权后需重新发送请求，不自动重放写入。备忘录还需在“数据来源”中添加允许访问的账户和文件夹。
 
 日程、提醒事项、备忘录、通讯录和短信使用 macOS 苹果官方应用及接口。日程结果区分「苹果日历」应用与其中的日历名称（例如「大麦」），不把日历名称当作第三方工具。短信草稿交给苹果「信息」，由用户发送。
 
@@ -215,7 +223,15 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 
 The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers. The scroll-through regression launches a separate process with a scrollable test window and posts synthetic scrolling through the system. It requires existing macOS input-event posting permission and never requests authorization automatically.
 
-Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
+Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model Settings. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
+
+Settings uses a top icon navigation bar based on the reference: Appearance (system, light, dark), Model Settings (provider, API endpoint, model and key), Trigger Shortcut (record, conflict detection and restore default), and Aliases & Shortcuts (apps, macOS Shortcuts and web keywords). General, sources, permissions, memory and MCP remain under More Settings. Preferences persist locally; model forms require Save. Newly saved keys and keys read for the first time are reused in memory by capability checks and the AI runtime during the app session. Exiting clears that cache; the first access after restarting may still require system Keychain authorization. Saving waits for active AI work to finish and shuts down an idle runtime so the next request uses the new configuration.
+
+Native light/dark Settings check (after the Debug build; uses a temporary database without reading real keys or calling a model):
+
+```sh
+python3 App/Tests/run-settings-regression.py
+```
 
 Both AI conversation and Settings use the normal window level by default, so other applications can cover them when you switch. AI conversation can be pinned manually. Explicitly opening a window moves it to the current desktop and requests the foreground once; it does not stay above other applications unless pinned. Reopening the running app from Finder brings up the AI window and restores it if minimized. Building does not replace a running process; quit the old process and open the new build before checking changes.
 
@@ -235,7 +251,7 @@ The AI composer accepts text, images, or Finder files directly with `⌘V`. Clic
 
 AI replies use MarkdownUI 2.4.1 to render Markdown lists, headings, blockquotes, code blocks, and tables, with selectable text and light/dark themes. Reopened history uses the same renderer. Markdown images display placeholders without loading their URLs. The first Xcode build downloads this dependency through SwiftPM. See the [Markdown validation record](docs/validation/2026-10-10-chat-markdown.md).
 
-Manage individual permissions in Settings › System Permissions. Open Settings from an AI conversation with `⌘,` or the title’s context menu. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
+Manage individual permissions in Settings › More Settings › System Permissions. Open Settings from an AI conversation with `⌘,` or the title’s context menu. Calendar, Reminders and Contacts request access on first tool use. After denial, open the corresponding System Settings pane; permission status refreshes when the app regains focus. Failed tool rows offer a permission settings shortcut. Send the request again after granting access; writes are never replayed automatically. Notes also requires an allowed account and folder in Data Sources.
 
 Events, reminders, notes, contacts, and message drafts use official Apple apps and macOS interfaces. Event results distinguish Apple Calendar from the calendar name inside it (such as “大麦”); a calendar name does not identify a third-party tool. Drafts are handed to Apple Messages for the user to send.
 

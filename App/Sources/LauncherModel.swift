@@ -18,7 +18,7 @@ final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
     func search(_ query: String, limit: Int) async -> [SearchResult] {
         var all = lock.withLock { names }
         if all == nil {
-            all = await ShortcutsService.list()
+            all = await ToolService.listLauncherShortcuts()
             lock.withLock { names = all }
         }
         return (all ?? []).compactMap { name -> SearchResult? in
@@ -190,6 +190,14 @@ final class LauncherModel {
                 return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
                                     title: command.name, actions: [.openURL(url)], score: 0)
             }
+            let aliasQuery = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            direct += app.preferences.aliases.compactMap { item in
+                guard item.alias.caseInsensitiveCompare(aliasQuery) == .orderedSame else { return nil }
+                let action: ResultAction = item.kind == "shortcut" ? .runShortcut(name: item.target) : .open
+                return SearchResult(source: .keyword, target: TargetRef(kind: "launcher-alias", identifier: item.target),
+                                    title: item.alias, subtitle: item.kind == "app" ? URL(filePath: item.target).deletingPathExtension().lastPathComponent : item.target,
+                                    actions: [action], score: 100)
+            }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             if bookmarkCoordinator != nil, !trimmed.isEmpty {
                 direct.append(SearchResult(source: .bookmark, target: TargetRef(kind: Self.bookmarkSearchKind, identifier: trimmed),
@@ -289,16 +297,16 @@ final class LauncherModel {
         // concrete target falls back to AI regardless of its wording.
         if !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
-                ($0.source != .keyword || $0.target.kind == "keyword-match") && $0.source != .askAI && $0.target.kind != "bookmark-search"
+                ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias")) && $0.source != .askAI && $0.target.kind != "bookmark-search"
             }
             if !hasLocalMatch { merged = [] }
         }
         if !hasScope, !merged.contains(where: { $0.source == .askAI }),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
         let order: [SearchSource] = [.app, .link, .bookmark, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
-        let priority = merged.filter { $0.target.kind == "keyword-match" || $0.source == .shortcut }
-        let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.source != .shortcut }
-        merged = priority.filter { $0.target.kind == "keyword-match" }
+        let priority = merged.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") || $0.source == .shortcut }
+        let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.target.kind != "launcher-alias" && $0.source != .shortcut }
+        merged = priority.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") }
             + priority.filter { $0.source == .shortcut }
             + order.flatMap { source in remaining.filter { $0.source == source } }
         results = merged
@@ -341,8 +349,13 @@ final class LauncherModel {
             }
             let url = URL(filePath: r.target.identifier)
             if r.source == .app { apps.recordLaunch(path: url.path) }
-            NSWorkspace.shared.open(url)
-            onHide()
+            if r.target.kind == "launcher-alias" {
+                if ToolService.openLauncherApplication(url) { onHide() }
+                else { status = "应用已移动或无法打开，请更新别名。" }
+            } else {
+                NSWorkspace.shared.open(url)
+                onHide()
+            }
         case .revealInFinder:
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: r.target.identifier)])
             onHide()
@@ -389,7 +402,7 @@ final class LauncherModel {
     private func runShortcut(_ name: String) {
         status = "正在运行快捷指令：\(name)…"
         Task {
-            for await state in ShortcutsService.run(name: name) {
+            for await state in ToolService.runLauncherShortcut(name: name) {
                 status = "\(name)：\(state)"
             }
         }

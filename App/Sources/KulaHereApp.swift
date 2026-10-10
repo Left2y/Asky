@@ -24,7 +24,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboard: ClipboardMonitor!
     private var reminders: ProactiveReminders!
     private var hotKey: HotKey?
-    private var hotKeyStatus = ""
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var pressure: MemoryPressureMonitor?
@@ -55,14 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.agentWindow.show(prompt: prompt)
         }
 
-        do {
-            hotKey = try HotKey { [weak self] in self?.launcher.toggle() }
-            hotKeyStatus = "已注册。"
-        } catch HotKey.Failure.alreadyInUse {
-            hotKeyStatus = "⌥Space 已被其他应用占用；请从菜单栏图标打开启动器。"
-        } catch {
-            hotKeyStatus = "快捷键注册失败：\(error)"
-        }
+        NSApp.appearance = model.preferences.appearance == "system" ? nil : NSAppearance(named: model.preferences.appearance == "dark" ? .darkAqua : .aqua)
+        model.onHotKeyChange = { [weak self] code, modifiers in self?.registerHotKey(code: code, modifiers: modifiers) ?? false }
+        _ = registerHotKey(code: model.preferences.hotKeyCode, modifiers: model.preferences.hotKeyModifiers)
 
         installStatusItem()
         clipboard = ClipboardMonitor(app: model)
@@ -98,6 +92,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
+    private func registerHotKey(code: UInt32, modifiers: UInt32) -> Bool {
+        let previous = model.preferences
+        hotKey?.unregister()
+        do {
+            hotKey = try HotKey(keyCode: code, modifiers: modifiers) { [weak self] in self?.launcher.toggle() }
+            model.hotKeyStatus = "已注册"
+            return true
+        } catch {
+            model.hotKeyStatus = "组合键已被占用或无法注册，请选择其他快捷键。"
+            hotKey = try? HotKey(keyCode: previous.hotKeyCode, modifiers: previous.hotKeyModifiers) { [weak self] in self?.launcher.toggle() }
+            return false
+        }
+    }
+
     // MARK: Menu bar
 
     private func installStatusItem() {
@@ -127,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             w.level = .normal
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(app: model, hotKeyStatus: hotKeyStatus))
+            w.contentView = NSHostingView(rootView: SettingsView(app: model))
             w.center()
             settingsWindow = w
         }

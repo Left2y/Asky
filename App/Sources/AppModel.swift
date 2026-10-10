@@ -54,7 +54,16 @@ final class AppModel {
     private var mcpServer: MCPLinkServer?
     private(set) var mcpServerError: String?
 
-    var settingsTab = "general"
+    var settingsTab = "appearance"
+    let credentialSession = ModelCredentialSession()
+    var hotKeyStatus = ""
+    @ObservationIgnored var onHotKeyChange: ((UInt32, UInt32) -> Bool)?
+    var preferences: SettingsPreferences {
+        didSet {
+            store.setCodableSetting(SettingsPreferences.key, preferences)
+            NSApp.appearance = preferences.appearance == "system" ? nil : NSAppearance(named: preferences.appearance == "dark" ? .darkAqua : .aqua)
+        }
+    }
     @ObservationIgnored var onOpenSettings: (() -> Void)?
 
     func openSettings(permissions: Bool = false) {
@@ -81,6 +90,7 @@ final class AppModel {
         self.store = store
         let reader = SettingsReader(store: store)
         settings = reader.load()
+        preferences = store.codableSetting(SettingsPreferences.key, as: SettingsPreferences.self) ?? SettingsPreferences()
         keywords = store.codableSetting("keywords", as: KeywordRegistry.self) ?? KeywordRegistry()
         let confirmations = ConfirmationCenter()
         self.confirmations = confirmations
@@ -135,22 +145,11 @@ final class AppModel {
         let runtimeDir = store.root.appending(path: "runtime")
         let launcher = NodeRuntimeLauncher(nodePath: node, entryScript: entry, dataDirectory: runtimeDir.path,
                                            stderrLog: store.root.appending(path: "runtime-stderr.log").path)
-        let store = store, keychain = keychain, tools = tools
+        let store = store, tools = tools
         return AgentHost(launcher: launcher.launcher, configProvider: { [weak self] in
             guard let cfg = store.codableSetting(ModelSettings.configKey, as: ModelConfiguration.self) else { return nil }
-            let key: String?
-            do {
-                key = try keychain.read(account: cfg.credentialRef, allowInteraction: false)
-            } catch let error as Keychain.KeychainError where error.requiresAuthentication {
-                await MainActor.run { [weak self] in self?.onModelAuthenticationStarted?() }
-                do {
-                    key = try keychain.read(account: cfg.credentialRef)
-                } catch {
-                    await MainActor.run { [weak self] in self?.onModelAuthenticationFinished?() }
-                    throw error
-                }
-                await MainActor.run { [weak self] in self?.onModelAuthenticationFinished?() }
-            }
+            guard let self else { return nil }
+            let key = try await self.readModelCredential(account: cfg.credentialRef)
             guard let key, !key.isEmpty else { throw AgentHostError.credentialMissing }
             return RuntimeLaunchConfig(baseURL: cfg.baseURL.absoluteString, model: cfg.modelName, apiKey: key)
         }, toolsProvider: {
@@ -158,6 +157,12 @@ final class AppModel {
         }, toolHandler: { request in
             await tools.submit(request)
         })
+    }
+
+    func readModelCredential(account: String) async throws -> String? {
+        try await credentialSession.read(account: account, keychain: keychain,
+            started: { [weak self] in await MainActor.run { self?.onModelAuthenticationStarted?() } },
+            finished: { [weak self] in await MainActor.run { self?.onModelAuthenticationFinished?() } })
     }
 
     var modelConfiguration: ModelConfiguration? {

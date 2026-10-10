@@ -1,6 +1,7 @@
 import AppKit
 import Contracts
 import Search
+import LocalStore
 
 private struct WindowSearchProvider: SearchProvider {
     let source: SearchSource
@@ -113,6 +114,33 @@ enum LauncherWindowRegression {
         try require(!model.isSearching, "search providers must finish within three seconds")
         try require(!model.results.contains { $0.target.kind == "keyword-match" },
                     "partial keywords must not count as exact aliases")
+        app.preferences.aliases = [LauncherAlias(alias: "sc", kind: "shortcut", target: "Daily")]
+        model.query = "SC"
+        try await Task.sleep(for: .milliseconds(500))
+        try require(model.results.first?.target.kind == "launcher-alias" &&
+                    model.results.first?.primaryAction == .runShortcut(name: "Daily"),
+                    "configured shortcut aliases must survive late search batches and remain selected")
+        let restored = try AppModel(root: root)
+        try require(restored.preferences.aliases == app.preferences.aliases,
+                    "aliases must survive app reload")
+        app.preferences.appearance = "dark"
+        app.preferences.hotKeyLabel = "⌃⌥ Space"
+        let reloaded = try AppModel(root: root)
+        try require(reloaded.preferences.appearance == "dark" && reloaded.preferences.hotKeyLabel == "⌃⌥ Space",
+                    "appearance and hotkey preferences must survive reload")
+        NSApp.appearance = NSAppearance(named: .aqua)
+        let credentials = ModelCredentialSession()
+        let fakeKeychain = Keychain(service: "app.kulahere.nonexistent-regression")
+        await credentials.remember("synthetic", account: "model")
+        for _ in 0..<2 {
+            let value = try await credentials.read(account: "model", keychain: fakeKeychain,
+                started: { fatalError("cached credentials must not request authorization") }, finished: {})
+            try require(value == "synthetic", "capability checks and runtime must share session credentials")
+        }
+        await credentials.remember("replacement", account: "model")
+        let replacement = try await credentials.read(account: "model", keychain: fakeKeychain,
+            started: { fatalError("a freshly saved key must not request authorization") }, finished: {})
+        try require(replacement == "replacement", "saving a new key must update the session credential")
         print("Exact alias, case folding, late batches, shortcut priority and spaced command passed")
     }
 

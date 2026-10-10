@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import Carbon.HIToolbox
 import Contracts
 import LocalStore
 import DirectActions
@@ -11,19 +12,160 @@ import ToolService
 
 struct SettingsView: View {
     @Bindable var app: AppModel
-    let hotKeyStatus: String
+    private static let tabs: [(String, String, String)] = [
+        ("appearance", "外观设置", "circle.lefthalf.filled"),
+        ("model", "模型设置", "sparkles"),
+        ("hotkey", "触发快捷键", "keyboard"),
+        ("keywords", "别名与快捷指令", "command"),
+        ("advanced", "更多设置", "gearshape")
+    ]
 
     var body: some View {
-        TabView(selection: $app.settingsTab) {
-            Tab("通用", systemImage: "gearshape", value: "general") { GeneralSettings(app: app, hotKeyStatus: hotKeyStatus) }
-            Tab("数据来源", systemImage: "square.stack", value: "sources") { SourceSettings(app: app) }
-            Tab("系统权限", systemImage: "lock.shield", value: "permissions") { PermissionSettings() }
-            Tab("模型", systemImage: "sparkles", value: "model") { ModelSettingsView(app: app) }
-            Tab("关键词", systemImage: "link", value: "keywords") { KeywordSettings(app: app) }
-            Tab("记忆", systemImage: "brain", value: "memory") { MemorySettings(app: app) }
-            Tab("外部 MCP", systemImage: "point.3.connected.trianglepath.dotted", value: "mcp") { MCPSettings(app: app) }
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                ForEach(Self.tabs, id: \.0) { id, title, icon in
+                    Button { app.settingsTab = id } label: {
+                        VStack(spacing: 7) {
+                            Image(systemName: icon).font(.system(size: 25, weight: .regular))
+                            Text(title).font(.system(size: 12))
+                        }
+                        .frame(width: id == "keywords" ? 122 : 100, height: 76)
+                        .foregroundStyle(app.settingsTab == id ? Color.accentColor : Color.secondary)
+                        .background {
+                            if app.settingsTab == id {
+                                RoundedRectangle(cornerRadius: 16).fill(.background)
+                                    .shadow(color: .black.opacity(0.07), radius: 12, y: 3)
+                            }
+                        }
+                    }.buttonStyle(.plain)
+                }
+            }.padding(.vertical, 14).frame(maxWidth: .infinity).background(.bar)
+            Divider()
+            Group {
+                switch app.settingsTab {
+                case "appearance": AppearanceSettings(app: app)
+                case "model": ModelSettingsView(app: app)
+                case "hotkey": HotKeySettings(app: app)
+                case "keywords": AliasSettings(app: app)
+                default: AdvancedSettings(app: app)
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 640, height: 500)
+        .frame(width: 760, height: 590)
+    }
+}
+
+private struct AppearanceSettings: View {
+    @Bindable var app: AppModel
+    var body: some View {
+        Form {
+            Section("外观") {
+                Picker("应用主题", selection: $app.preferences.appearance) {
+                    Text("跟随系统").tag("system")
+                    Text("浅色").tag("light")
+                    Text("深色").tag("dark")
+                }.pickerStyle(.segmented)
+                Text("应用于启动器、AI 对话与设置窗口。").foregroundStyle(.secondary)
+            }
+        }.formStyle(.grouped)
+    }
+}
+
+private struct HotKeySettings: View {
+    @Bindable var app: AppModel
+    var body: some View {
+        Form {
+            Section("触发快捷键") {
+                LabeledContent("唤起启动器") {
+                    HotKeyRecorder(app: app).frame(width: 240, height: 34)
+                }
+                Text(app.hotKeyStatus).foregroundStyle(.secondary)
+                Button("恢复默认 ⌥ Space") {
+                    if app.onHotKeyChange?(UInt32(kVK_Space), UInt32(optionKey)) == true {
+                        app.preferences.hotKeyCode = UInt32(kVK_Space)
+                        app.preferences.hotKeyModifiers = UInt32(optionKey)
+                        app.preferences.hotKeyLabel = "⌥ Space"
+                    }
+                }
+            }
+        }.formStyle(.grouped)
+    }
+}
+
+private struct HotKeyRecorder: NSViewRepresentable {
+    let app: AppModel
+    func makeNSView(context: Context) -> Recorder { Recorder(app: app) }
+    func updateNSView(_ view: Recorder, context: Context) {
+        if !view.recording { view.title = app.preferences.hotKeyLabel + " · 点击录制" }
+    }
+    final class Recorder: NSButton {
+        let app: AppModel
+        var recording = false
+        override var acceptsFirstResponder: Bool { true }
+        init(app: AppModel) {
+            self.app = app
+            super.init(frame: .zero)
+            bezelStyle = .rounded
+            target = self
+            action = #selector(begin)
+            title = app.preferences.hotKeyLabel + " · 点击录制"
+        }
+        required init?(coder: NSCoder) { fatalError() }
+        @objc func begin() { recording = true; title = "按下组合键，Esc 取消"; window?.makeFirstResponder(self) }
+        override func resignFirstResponder() -> Bool {
+            recording = false
+            title = app.preferences.hotKeyLabel + " · 点击录制"
+            return super.resignFirstResponder()
+        }
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            guard recording else { return super.performKeyEquivalent(with: event) }
+            keyDown(with: event)
+            return true
+        }
+        override func keyDown(with event: NSEvent) {
+            guard recording else { return }
+            if event.keyCode == 53 { window?.makeFirstResponder(nil); return }
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard !flags.intersection([.command, .option, .control]).isEmpty else {
+                title = "请包含 ⌘、⌥ 或 ⌃"; return
+            }
+            var modifiers: UInt32 = 0
+            var label = ""
+            for (flag, carbon, symbol) in [(NSEvent.ModifierFlags.control, controlKey, "⌃"), (.option, optionKey, "⌥"), (.shift, shiftKey, "⇧"), (.command, cmdKey, "⌘")] {
+                if flags.contains(flag) { modifiers |= UInt32(carbon); label += symbol }
+            }
+            label += event.keyCode == 49 ? " Space" : " " + (event.charactersIgnoringModifiers?.uppercased() ?? "Key \(event.keyCode)")
+            if app.onHotKeyChange?(UInt32(event.keyCode), modifiers) == true {
+                app.preferences.hotKeyCode = UInt32(event.keyCode)
+                app.preferences.hotKeyModifiers = modifiers
+                app.preferences.hotKeyLabel = label
+                window?.makeFirstResponder(nil)
+            }
+        }
+    }
+}
+
+private struct AdvancedSettings: View {
+    @Bindable var app: AppModel
+    @State private var section = "general"
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("更多设置", selection: $section) {
+                Text("通用").tag("general")
+                Text("数据来源").tag("sources")
+                Text("系统权限").tag("permissions")
+                Text("记忆").tag("memory")
+                Text("外部 MCP").tag("mcp")
+            }.pickerStyle(.segmented).padding()
+            switch section {
+            case "sources": SourceSettings(app: app)
+            case "permissions": PermissionSettings()
+            case "memory": MemorySettings(app: app)
+            case "mcp": MCPSettings(app: app)
+            default: GeneralSettings(app: app)
+            }
+        }.onAppear { if app.settingsTab == "permissions" { section = "permissions" } }
+         .onChange(of: app.settingsTab) { _, tab in if tab == "permissions" { section = "permissions" } }
     }
 }
 
@@ -31,17 +173,12 @@ struct SettingsView: View {
 
 private struct GeneralSettings: View {
     @Bindable var app: AppModel
-    let hotKeyStatus: String
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
     @State private var newScope = ""
 
     var body: some View {
         Form {
-            Section("快捷键") {
-                LabeledContent("唤起启动器", value: "⌥ Space")
-                Text(hotKeyStatus).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
-            }
             Section {
                 Toggle("登录时启动", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
@@ -138,6 +275,7 @@ private struct SourceSettings: View {
 
 private struct ModelSettingsView: View {
     let app: AppModel
+    @State private var provider = "custom"
     @State private var baseURL = ""
     @State private var model = ""
     @State private var key = ""
@@ -147,27 +285,38 @@ private struct ModelSettingsView: View {
 
     var body: some View {
         Form {
-            Section("OpenAI 兼容接口") {
+            Section("供应商与模型") {
+                Picker("供应商", selection: Binding(get: { provider }, set: { value in
+                    provider = value
+                    if value == "openai" { baseURL = "https://api.openai.com/v1"; model = "" }
+                    if value == "deepseek" { baseURL = "https://api.deepseek.com"; model = "" }
+                })) {
+                    Text("自定义（OpenAI 兼容）").tag("custom")
+                    Text("OpenAI").tag("openai")
+                    Text("DeepSeek").tag("deepseek")
+                }
+
                 TextField("API 地址", text: $baseURL, prompt: Text("https://api.example.com/v1"))
                 TextField("模型名", text: $model)
                 SecureField("API Key（留空保留已保存的 Key）", text: $key)
             }
             Section {
                 HStack {
-                    Button("保存") { save() }
-                    Button("检查能力") { Task { await check() } }.disabled(checking || app.modelConfiguration == nil)
+                    Button("保存") { Task { await save() } }
+                    Button("检查已保存配置") { Task { await check() } }.disabled(checking || app.modelConfiguration == nil)
                     if checking { ProgressView().controlSize(.small) }
                 }
                 if let message { Text(message).textStyle(.secondary) }
                 if let c = capabilities ?? app.modelConfiguration?.capabilities {
-                    LabeledContent("文本", value: c.text.rawValue)
-                    LabeledContent("工具调用", value: c.tools.rawValue)
-                    LabeledContent("图像输入", value: c.image.rawValue)
+                    LabeledContent("文本", value: capabilityLabel(c.text))
+                    LabeledContent("工具调用", value: capabilityLabel(c.tools))
+                    LabeledContent("图像输入", value: capabilityLabel(c.image))
                 }
             }
         }
         .formStyle(.grouped)
         .onAppear {
+            provider = app.preferences.provider
             if let c = app.modelConfiguration {
                 baseURL = c.baseURL.absoluteString
                 model = c.modelName
@@ -175,21 +324,39 @@ private struct ModelSettingsView: View {
         }
     }
 
-    private func save() {
-        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespaces)), url.scheme == "https" || url.host == "localhost" || url.host == "127.0.0.1",
-              !model.trimmingCharacters(in: .whitespaces).isEmpty else {
+    private func capabilityLabel(_ value: CapabilityStatus) -> String {
+        switch value {
+        case .available: "可用"
+        case .unavailable: "不可用"
+        case .unknown: "未检查"
+        }
+    }
+
+    private func save() async {
+        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let host = url.host, !host.isEmpty, url.user == nil, url.password == nil,
+              url.scheme == "https" || (url.scheme == "http" && ["localhost", "127.0.0.1"].contains(host)),
+              !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             message = "请填写有效的 https 地址与模型名。"
             return
         }
         do {
+            if let agent = app.agent, await agent.state == .busy {
+                message = "请等待当前 AI 任务结束后保存模型设置。"; return
+            }
             let account = app.modelConfiguration?.credentialRef ?? ModelSettings.keyAccount
             guard !key.isEmpty || app.keychain.contains(account: account) else {
                 message = "请填写 API Key；留空只会保留已保存的 Key。"
                 return
             }
-            if !key.isEmpty { try app.keychain.set(key, account: account) }
-            app.modelConfiguration = ModelConfiguration(baseURL: url, modelName: model, credentialRef: account)
+            if !key.isEmpty {
+                try app.keychain.set(key, account: account)
+                await app.credentialSession.remember(key, account: account)
+            }
+            app.preferences.provider = provider
+            app.modelConfiguration = ModelConfiguration(baseURL: url, modelName: model.trimmingCharacters(in: .whitespacesAndNewlines), credentialRef: account)
             key = ""
+            await app.agent?.shutdown()
             capabilities = nil
             message = "已保存。"
         } catch {
@@ -198,15 +365,21 @@ private struct ModelSettingsView: View {
     }
 
     private func check() async {
-        guard var cfg = app.modelConfiguration, let key = app.keychain.get(account: cfg.credentialRef) else { return }
+        guard var cfg = app.modelConfiguration else { return }
         checking = true
         defer { checking = false }
-        let caps = await ModelCapabilityCheck.run(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
-        cfg.capabilities = caps
-        app.modelConfiguration = cfg
-        capabilities = caps
-        message = "检查完成（\(caps.checkedAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "")）。"
+        do {
+            guard let key = try await app.readModelCredential(account: cfg.credentialRef) else {
+                message = "请先保存 API Key。"; return
+            }
+            let caps = await ModelCapabilityCheck.run(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
+            cfg.capabilities = caps
+            app.modelConfiguration = cfg
+            capabilities = caps
+            message = "检查完成。"
+        } catch { message = error.localizedDescription }
     }
+
 }
 
 /// Three minimal chat-completions probes. A failing probe marks only that capability unavailable.
@@ -245,7 +418,7 @@ enum ModelCapabilityCheck {
 
 // MARK: Keywords
 
-private struct KeywordSettings: View {
+struct KeywordSettings: View {
     @Bindable var app: AppModel
     @State private var keyword = ""
     @State private var name = ""
@@ -270,6 +443,9 @@ private struct KeywordSettings: View {
                 TextField("URL 模板（包含 {query}）", text: $template)
                 Button("保存") {
                     do {
+                        guard !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(keyword.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }) else {
+                            error = "这个别名已被应用或快捷指令使用。"; return
+                        }
                         try app.keywords.upsert(KeywordCommand(keyword: keyword, name: name.isEmpty ? keyword : name, urlTemplate: template))
                         keyword = ""; name = ""; template = ""; error = nil
                     } catch { self.error = "\(error)" }

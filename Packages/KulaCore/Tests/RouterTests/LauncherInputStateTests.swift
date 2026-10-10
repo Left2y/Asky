@@ -19,6 +19,15 @@ import DirectActions
         #expect(state.rawQuery == "go Who is fantuan?")
     }
 
+    @Test func inputMethodSpaceConsumesKeywordImmediately() {
+        var state = LauncherInputState()
+        state.edit("go\u{3000}", keywords: keywords)
+        #expect(state.command?.keyword == "go")
+        #expect(state.text.isEmpty)
+        state.edit("kimi", keywords: keywords)
+        #expect(state.rawQuery == "go kimi")
+    }
+
     @Test func emptyBackspaceClearsCommandAndOrdinarySearchResumes() {
         var state = LauncherInputState()
         state.edit("go ", keywords: keywords)

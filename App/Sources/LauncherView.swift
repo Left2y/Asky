@@ -67,6 +67,7 @@ final class LauncherController {
     private var hosting: NSHostingView<AnyView>?
     private var contentID = UUID()
     private var hiding = false
+    private var availableShellHeight = CGFloat(WindowMetrics.launcherMaxHeight)
 
     init(model: LauncherModel) {
         self.model = model
@@ -85,10 +86,14 @@ final class LauncherController {
 
     func show() {
         model.rebuildProviders()
+        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        if let f = screen?.visibleFrame {
+            availableShellHeight = min(CGFloat(WindowMetrics.launcherMaxHeight), floor(f.height * 0.78 - 24))
+        }
         if hosting == nil {
             let id = UUID()
             contentID = id
-            let view = NSHostingView(rootView: AnyView(LauncherView(model: model) { [weak self] height in
+            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight) { [weak self] height in
                 // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
                 Task { @MainActor [weak self] in
                     guard let self, self.contentID == id, self.hosting != nil else { return }
@@ -101,7 +106,6 @@ final class LauncherController {
             hosting = view
         }
         // Screen with the mouse pointer (multi-display), upper third.
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
             let w = WindowMetrics.launcherWidth + LauncherLayout.shadowPadding * 2
             panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
@@ -112,7 +116,7 @@ final class LauncherController {
 
     private func resize(to contentHeight: CGFloat) {
         let shadowSpace = LauncherLayout.shadowPadding * 2
-        let height = min(WindowMetrics.launcherMaxHeight + shadowSpace,
+        let height = min(availableShellHeight + shadowSpace,
                          max(LauncherLayout.inputHeight + shadowSpace, ceil(contentHeight)))
         var frame = panel.frame
         guard frame.height != height else { return }
@@ -137,6 +141,7 @@ final class LauncherController {
 
 struct LauncherView: View {
     @Bindable var model: LauncherModel
+    var maxShellHeight: CGFloat = CGFloat(WindowMetrics.launcherMaxHeight)
     var onHeightChange: (CGFloat) -> Void = { _ in }
     @State private var statusHeight: CGFloat = 0
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -184,7 +189,7 @@ struct LauncherView: View {
                 TerminalOutputView(session: t, stop: model.stopTerminal)
             } else if !model.results.isEmpty {
                 inputDivider
-                ResultList(model: model, maxHeight: WindowMetrics.launcherMaxHeight
+                ResultList(model: model, maxHeight: maxShellHeight
                            - inputHeight - LauncherLayout.dividerHeight - statusHeight)
             }
             if let s = model.status {
@@ -289,25 +294,27 @@ private struct ResultList: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(sections, id: \.self) { source in
-                        if showsHeaders {
-                            Text(Self.title(source)).font(.system(size: 16))
-                                .foregroundStyle(ThemeColor.kTextSubtle)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 16).padding(.bottom, 12)
-                                .frame(height: 52)
-                        }
-                        ForEach(Array(model.results.enumerated()).filter { $0.element.source == source }, id: \.element.id) { i, r in
-                            Button {
-                                model.selection = i
-                                model.submit(.executeSelection)
-                            } label: {
-                                ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r))
+                        VStack(spacing: 0) {
+                            if showsHeaders {
+                                Text(Self.title(source)).font(.system(size: 16))
+                                    .foregroundStyle(ThemeColor.kTextSubtle)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 16).padding(.bottom, 12)
+                                    .frame(height: 52)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(r.title)
-                            .accessibilityAddTraits(i == model.selection ? .isSelected : [])
-                            .id(i)
+                            ForEach(Array(model.results.enumerated()).filter { $0.element.source == source }, id: \.element.id) { i, r in
+                                Button {
+                                    model.selection = i
+                                    model.submit(.executeSelection)
+                                } label: {
+                                    ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(r.title)
+                                .accessibilityAddTraits(i == model.selection ? .isSelected : [])
+                                .id(r.id)
+                            }
                         }
                     }
                 }
@@ -315,7 +322,9 @@ private struct ResultList: View {
                 .padding(.bottom, LauncherLayout.listBottomPadding)
             }
             .frame(height: height)
-            .onChange(of: model.selection) { _, s in proxy.scrollTo(s) }
+            .onChange(of: model.selection) { _, s in
+                if model.results.indices.contains(s) { proxy.scrollTo(model.results[s].id) }
+            }
         }
     }
 

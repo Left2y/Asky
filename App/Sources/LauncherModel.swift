@@ -60,6 +60,7 @@ final class LauncherModel {
     private var coordinator: SearchCoordinator
     private var batches: [SearchBatch] = []
     private var direct: [SearchResult] = []
+    private var searchTask: Task<Void, Never>?
     private var currencyTask: Task<Void, Never>?
     private var terminalTask: Task<Void, Never>?
     var onHide: () -> Void = {}
@@ -88,6 +89,7 @@ final class LauncherModel {
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
         coordinator.cancel()
+        searchTask?.cancel()
         currencyTask?.cancel()
         batches = []
         direct = []
@@ -134,6 +136,9 @@ final class LauncherModel {
 
     private func update() {
         status = nil
+        selection = 0
+        searchTask?.cancel()
+        coordinator.cancel()
         let route = commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
         direct = router.directResults(for: route)
         if case .search(let text) = route {
@@ -155,10 +160,16 @@ final class LauncherModel {
             }
         }
         if router.includesSearch(route) {
-            _ = coordinator.query(query) { [weak self] batch in
-                guard let self else { return }
-                self.batches.append(batch)
-                self.publish()
+            let text = query
+            searchTask = Task { [weak self] in
+                do { try await Task.sleep(for: .milliseconds(100)) }
+                catch { return }
+                guard let self, !Task.isCancelled else { return }
+                self.coordinator.query(text) { [weak self] batch in
+                    guard let self else { return }
+                    self.batches.append(batch)
+                    self.publish()
+                }
             }
         } else {
             coordinator.cancel()

@@ -24,6 +24,8 @@ V1 规划包含三个层次：
 
 搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧，包括空输入状态。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；剪贴板独立快捷键与面板待下一份设计。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
 
+搜索列表按当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
+
 独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
 
 普通搜索也显示“链接”和“书签”分类，使用现有 `link` / `bookmark` 系统图标。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
@@ -116,6 +118,8 @@ V1 is planned around three layers:
 Users supply their own model API key, with OpenAI-compatible Chat Completions prioritized for V1. Necessary context is sent only with authorization. Pi SDK is the proposed Agent runtime pending prototype validation: the native launcher stays running, while an explicit AI request starts a helper that exits after idle time. Background model wakeups are disabled by default. The interface uses the user's Figma variables and Styles with native Liquid Glass; bounded loading and resource lifecycles govern memory use. Focused search follows [Figma Field 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348): a 720 × 60 pt capsule with separate background fill and native glass layers. See the [focused-search validation record](docs/validation/2026-10-09-figma-search.md) for verification scope.
 
 Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right of the field, including when the input is empty. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history; its separate shortcut and panel await the next design. See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
+
+The search list is limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
 
 A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
 

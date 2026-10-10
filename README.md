@@ -30,7 +30,9 @@ V1 规划包含三个层次：
 
 独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
 
-普通搜索中的链接与「搜索书签」入口统一放在「APP 应用」分组，不单独显示链接或书签分类，使用现有 `link` / `bookmark` 系统图标。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
+普通搜索中的链接与「搜索书签」入口统一放在「APP 应用」分组，不单独显示链接或书签分类。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
+
+书签搜索结果显示系统默认浏览器的应用图标（例如 Chrome），与打开该链接的浏览器一致。
 
 ### 文档
 
@@ -135,7 +137,9 @@ Mouse-wheel and trackpad gestures over either the input or results scroll the re
 
 A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
 
-Ordinary search groups links and the “Search bookmarks” entry under “APP 应用”, without separate Link or Bookmark categories, using the existing `link` / `bookmark` system icons. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
+Ordinary search groups links and the “Search bookmarks” entry under “APP 应用”, without separate Link or Bookmark categories. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
+
+Bookmark search results display the system default browser’s application icon (such as Chrome), matching the browser that opens the link.
 
 ### Documentation
 

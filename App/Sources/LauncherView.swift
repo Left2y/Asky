@@ -492,7 +492,7 @@ private struct ResultRow: View {
         switch result.source {
         case .app, .file:
             Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
-        case .keyword:
+        case .bookmark, .keyword:
             if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()
             } else {

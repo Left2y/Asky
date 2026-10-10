@@ -59,6 +59,8 @@ final class LauncherModel {
     private let chrome = ChromeTabsProvider()
     private let shortcuts = ShortcutsProvider()
     private var coordinator: SearchCoordinator
+    /// Bookmarks are searched only inside the `bm` scope, never in default search.
+    private var bookmarkCoordinator: SearchCoordinator?
     private let searchProviders: [any SearchProvider]?
     private var searchProviderCount = 0
     private var searchSources: Set<SearchSource> = []
@@ -80,20 +82,29 @@ final class LauncherModel {
 
     func rebuildProviders() {
         if let searchProviders {
-            searchProviderCount = searchProviders.count
-            searchSources = Set(searchProviders.map(\.source))
-            coordinator = SearchCoordinator(providers: searchProviders)
+            let general = searchProviders.filter { $0.source != .bookmark }
+            let marks = searchProviders.filter { $0.source == .bookmark }
+            searchProviderCount = general.count
+            searchSources = Set(general.map(\.source))
+            coordinator = SearchCoordinator(providers: general)
+            bookmarkCoordinator = marks.isEmpty ? nil : SearchCoordinator(providers: marks)
             return
         }
         let reader = SettingsReader(store: app.store)
-        var providers: [any SearchProvider] = [apps, shortcuts, LinksProvider(),
+        let useChrome = app.settings.enabledSources.contains(.chrome)
+        let links = LinksProvider(knownSites: { [chrome] in
+            useChrome ? ChromeBookmarkService.load().map(\.url) + chrome.cachedURLs : []
+        })
+        var providers: [any SearchProvider] = [apps, shortcuts, links,
             SpotlightProvider(settings: {
                 let s = reader.load()
                 return (s.fileScopes.map { URL(filePath: $0) }, s.excludedDirectories)
             })]
-        if app.settings.enabledSources.contains(.chrome) {
+        if useChrome {
             providers.append(chrome)
-            providers.append(ChromeBookmarksProvider())
+            bookmarkCoordinator = SearchCoordinator(providers: [ChromeBookmarksProvider()])
+        } else {
+            bookmarkCoordinator = nil
         }
         searchProviderCount = providers.count
         searchSources = Set(providers.map(\.source))
@@ -103,6 +114,7 @@ final class LauncherModel {
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
         coordinator.cancel()
+        bookmarkCoordinator?.cancel()
         searchTask?.cancel()
         currencyTask?.cancel()
         batches = []
@@ -123,6 +135,9 @@ final class LauncherModel {
         inputState.command.map { (command: $0, text: inputState.text) }
     }
 
+    var isBookmarkScope: Bool { inputState.bookmarks }
+    var hasScope: Bool { inputState.hasScope }
+
     var inputText: String {
         get { inputState.text }
         set {
@@ -132,7 +147,7 @@ final class LauncherModel {
     }
 
     func leaveCommand() {
-        guard commandInput != nil else { return }
+        guard hasScope else { return }
         inputState.leaveCommand()
         update()
     }
@@ -158,6 +173,12 @@ final class LauncherModel {
         selection = 0
         searchTask?.cancel()
         coordinator.cancel()
+        bookmarkCoordinator?.cancel()
+        currencyTask?.cancel()
+        if inputState.bookmarks {
+            searchBookmarks(inputState.text)
+            return
+        }
         let route = commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
         isSearching = router.includesSearch(route) && searchProviderCount > 0
         remainingSearchProviders = isSearching ? searchProviderCount : 0
@@ -169,9 +190,13 @@ final class LauncherModel {
                 return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
                                     title: command.name, actions: [.openURL(url)], score: 0)
             }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if bookmarkCoordinator != nil, !trimmed.isEmpty {
+                direct.append(SearchResult(source: .bookmark, target: TargetRef(kind: Self.bookmarkSearchKind, identifier: trimmed),
+                                           title: "搜索书签", subtitle: trimmed, actions: [.open], score: 0))
+            }
         }
         batches = router.includesSearch(route) ? retainedBatches(for: query) : []
-        currencyTask?.cancel()
         if case .currency(let q) = route {
             let exchange = app.exchange
             currencyTask = Task { [weak self] in
@@ -198,6 +223,31 @@ final class LauncherModel {
             }
         } else {
             coordinator.cancel()
+        }
+        publish()
+    }
+
+    private static let bookmarkSearchKind = "bookmark-search"
+
+    private func searchBookmarks(_ text: String) {
+        direct = []
+        batches = []
+        let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        isSearching = hasText && bookmarkCoordinator != nil
+        remainingSearchProviders = isSearching ? 1 : 0
+        if isSearching, let coordinator = bookmarkCoordinator {
+            searchTask = Task { [weak self] in
+                do { try await Task.sleep(for: .milliseconds(100)) }
+                catch { return }
+                guard let self, !Task.isCancelled else { return }
+                coordinator.query(text) { [weak self] batch in
+                    guard let self, self.inputState.bookmarks else { return }
+                    self.batches = [batch]
+                    self.remainingSearchProviders = 0
+                    self.isSearching = false
+                    self.publish()
+                }
+            }
         }
         publish()
     }
@@ -237,15 +287,15 @@ final class LauncherModel {
         var merged = direct + ResultMerger.merge(batches, limit: 40)
         // Generic search shortcuts are not local matches. Plain text with no
         // concrete target falls back to AI regardless of its wording.
-        if commandInput == nil, case .search = router.route(query) {
+        if !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
                 ($0.source != .keyword || $0.target.kind == "keyword-match") && $0.source != .askAI && $0.target.kind != "bookmark-search"
             }
             if !hasLocalMatch { merged = [] }
         }
-        if commandInput == nil, !merged.contains(where: { $0.source == .askAI }),
+        if !hasScope, !merged.contains(where: { $0.source == .askAI }),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
-        let order: [SearchSource] = [.link, .app, .file, .bookmark, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
+        let order: [SearchSource] = [.app, .link, .bookmark, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
         let priority = merged.filter { $0.target.kind == "keyword-match" || $0.source == .shortcut }
         let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.source != .shortcut }
         merged = priority.filter { $0.target.kind == "keyword-match" }
@@ -275,6 +325,11 @@ final class LauncherModel {
 
     func execute(_ r: SearchResult, action: ResultAction?) {
         guard let action else { return }
+        if r.target.kind == Self.bookmarkSearchKind {
+            inputState.enterBookmarks(r.target.identifier)
+            update()
+            return
+        }
         try? ActivityStore(app.store).append(kind: "launcher", sourceID: "launcher", text: r.title)
         switch action {
         case .open:

@@ -113,6 +113,9 @@ public final class ChromeTabsProvider: SearchProvider, @unchecked Sendable {
         }.sorted { $0.score > $1.score }.prefix(limit).map { $0 }
     }
 
+    /// URLs from the last tab snapshot; never queries Chrome.
+    public var cachedURLs: [URL] { cache.lock.withLock { cache.tabs.compactMap { URL(string: $0.url) } } }
+
     public func invalidate() { cache.lock.withLock { cache.tabs = []; cache.at = .distantPast } }
 
     func refreshInBackground() {

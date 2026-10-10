@@ -64,4 +64,21 @@ import DirectActions
         #expect(state.command == nil)
         #expect(state.text == "")
     }
+
+    @Test func bookmarkScopeIsEnteredByKeywordOrEntry() {
+        var state = LauncherInputState()
+        state.edit("bm kimi", keywords: keywords)
+        #expect(state.bookmarks && state.command == nil)
+        #expect(state.text == "kimi")
+        #expect(state.rawQuery == "bm kimi")
+        state.edit("", keywords: keywords)
+        let left = state.backspaceOnEmptyText()
+        #expect(left)
+        #expect(!state.hasScope)
+        state.edit("kimi", keywords: keywords)
+        state.enterBookmarks("kimi")
+        #expect(state.bookmarks && state.text == "kimi")
+        state.replaceRawQuery("", keywords: keywords)
+        #expect(!state.hasScope)
+    }
 }

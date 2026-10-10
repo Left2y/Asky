@@ -21,6 +21,7 @@ targets:
     platform: macOS
     sources:
       - path: App/Sources
+      - path: App/Assets.xcassets
     info:
       path: App/Info.plist
       properties:

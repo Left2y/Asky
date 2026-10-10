@@ -26,7 +26,7 @@ V1 规划包含三个层次：
 
 搜索结果仅在同时存在两个及以上分类时显示组标题；单一分类隐藏标题并释放对应高度。搜索结果按 [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364) 展示分类标题；菜单项更新为 [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461) 的 50 pt 结果行、32 pt 图标、14 pt 标题、12 pt 路径和 16 pt 圆角，关键词使用浅色填充标签。见[菜单项验证记录](docs/validation/2026-10-10-search-menu-item.md)。放大镜始终位于输入框右侧；空输入与有输入统一使用 28 pt 左右内边距、64 pt 高度与 18 pt 字号。输入已配置关键词并加空格（如 `go `）后，左侧显示默认浏览器图标，输入框只显示查询正文；空正文时退格或按 Escape 返回普通搜索。自定义关键词（如 `saf`）使用相同样式，需先在设置中配置。普通搜索不检索剪贴板历史；剪贴板独立快捷键与面板待下一份设计。验证范围见[搜索输入与指令状态记录](docs/validation/2026-10-10-search-input.md)。
 
-搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 6 个菜单项的高度（300 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
+搜索浮窗顶部位于当前屏幕可用区域高度的 12% 处；搜索列表高度最多为 8 个菜单项的高度（400 pt，分类标题包含在此预算内），同时受当前屏幕可用高度限制，底部与 Dock 保留间距，超出结果滚动展示，隐藏滚动指示条，内容裁切在外壳圆角内。连续输入合并为 100 ms 后的最新查询；关键词模式立即切换，并支持中文输入法的全角空格。见[搜索性能与窗口修复记录](docs/validation/2026-10-10-launcher-height-performance.md)。
 
 鼠标指针位于输入框或结果区时，支持滚轮与触控板滚动结果；滚动保持输入焦点与键盘选择。键盘导航也会将屏外选中项滚入视野。搜索外壳整体接收鼠标交互，输入区与结果区的空白位置也不会将滚动穿透到背景窗口。
 
@@ -34,9 +34,11 @@ V1 规划包含三个层次：
 
 普通搜索中的链接与「搜索书签」入口统一放在「APP 应用」分组，不单独显示链接或书签分类。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
 
+“搜索书签”入口使用内置蓝色书签图标；书签搜索结果显示系统默认浏览器的应用图标（例如 Chrome），与打开该链接的浏览器一致。
+
 普通入口中，未输入显式关键词且没有实际本地结果的纯文字（例如“你是谁啊”“你好”）只显示并默认选中 AI，回车进入对话；“搜索书签”和通用 Google 搜索动作不视为本地命中。明确请求继续直接显示 AI；有实际匹配的应用、文件或链接时保留本地结果，显式关键词、计算、换算与 `bm ` 书签模式优先。输入期间不调用模型。AI 条目只显示标题，不显示提交快捷键副标题；普通搜索也可选中 AI 条目后按回车，`⌘ Return` 继续作为快捷提交。
 
-书签搜索结果显示系统默认浏览器的应用图标（例如 Chrome），与打开该链接的浏览器一致。
+AI 搜索条目使用用户提供的彩色图标，放入 32 pt 图标区域，以白底圆角、轻微投影与留白对齐 App、链接及书签 logo。
 
 ### 文档
 
@@ -53,6 +55,7 @@ V1 规划包含三个层次：
 ### 目录结构
 
 - `App/Sources`：菜单栏 App，包括启动器面板、AI 对话、确认面板、设置、剪贴板和情境提醒。
+- `App/Assets.xcassets`：App 内置图片资源，例如启动器的链接与书签图标。
 - `Packages/KulaCore`：Swift 包，包含 Contracts、Theme、Router、Search、DirectActions、Adapters、ToolService、LocalStore、AgentHost、Memory、Scheduler、Resources、MCPLink、MCPGateway。
 - `AgentRuntime`：TypeScript 编写的 Pi 宿主，通过 stdio JSONL 协议 v1 与 App 通信。
 - `MCPBridge`：`kulahere-mcp` 的 SwiftPM 包，供测试使用；App 内置的同名二进制由 `project.yml` 构建。
@@ -139,7 +142,7 @@ Typing a complete configured keyword (such as `go`, without a trailing space) pl
 
 Search results show section headings only when two or more categories are present; a single category omits its heading and the corresponding height. Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings. Menu items now follow [Figma Spotlight Item 38:461](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=38-461): 50 pt rows, 32 pt icons, 14 pt titles, 12 pt paths, 16 pt corners, and softly filled keyword badges. See the [menu-item validation record](docs/validation/2026-10-10-search-menu-item.md). The magnifier stays on the right; empty and populated fields share 28 pt horizontal insets, a 64 pt height, and an 18 pt font. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history; its separate shortcut and panel await the next design. See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
 
-The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at six menu rows in height (300 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
+The launcher starts 12% below the top of the current screen’s usable area. The search list is capped at eight menu rows in height (400 pt, including category headings in that budget). It is also limited to the current screen’s available height, leaving clearance above the Dock and scrolling additional results with hidden scroll indicators and content clipped to the shell corners. Rapid typing runs the latest search after a 100 ms debounce; keyword mode switches immediately and also accepts full-width spaces from Chinese input methods. See the [search performance and window fix record](docs/validation/2026-10-10-launcher-height-performance.md).
 
 Mouse-wheel and trackpad gestures over either the input or results scroll the results while preserving input focus and keyboard selection. Keyboard navigation also reveals selected results outside the viewport. The entire search shell accepts pointer interaction, including blank areas in the input and results, so scrolling does not pass through to background windows.
 
@@ -147,9 +150,11 @@ A standalone local MCP shares native tools with the application, requires separa
 
 Ordinary search groups links and the “Search bookmarks” entry under “APP 应用”, without separate Link or Bookmark categories. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
 
+The “Search bookmarks” entry uses the bundled blue bookmark icon. Bookmark search results display the system default browser’s application icon (such as Chrome), matching the browser that opens the link.
+
 In the ordinary launcher, plain text without an explicit keyword or concrete local result (such as “你是谁啊” or “你好”) shows only the selected AI action; Return opens the conversation. Generic bookmark-search and Google-search actions do not count as local matches. Explicit requests still show AI directly; matching apps, files, and links remain local results, while explicit keywords, calculations, conversions, and the `bm ` bookmark scope take priority. Typing does not call a model. AI rows show only a title, without a submission-shortcut subtitle. In ordinary search, selecting the AI row and pressing Return also submits it; `⌘ Return` remains available as a shortcut.
 
-Bookmark search results display the system default browser’s application icon (such as Chrome), matching the browser that opens the link.
+AI search entries use the supplied colorful artwork in a 32 pt icon area, with a rounded white background, subtle shadow, and padding aligned with app, link, and bookmark logos.
 
 ### Documentation
 
@@ -166,6 +171,7 @@ Bookmark search results display the system default browser’s application icon 
 ### Directory Structure
 
 - `App/Sources`: the menu bar app, including the launcher, AI conversation, confirmations, settings, clipboard, and contextual reminders.
+- `App/Assets.xcassets`: bundled app images, such as the launcher link and bookmark icons.
 - `Packages/KulaCore`: the Swift package containing Contracts, Theme, Router, Search, DirectActions, Adapters, ToolService, LocalStore, AgentHost, Memory, Scheduler, Resources, MCPLink, and MCPGateway.
 - `AgentRuntime`: the TypeScript Pi host, communicating with the app over stdio JSONL protocol v1.
 - `MCPBridge`: the SwiftPM package for testing `kulahere-mcp`; the app's bundled executable is built by `project.yml`.

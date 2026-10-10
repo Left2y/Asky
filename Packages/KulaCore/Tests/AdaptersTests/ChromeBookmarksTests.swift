@@ -32,6 +32,9 @@ struct ChromeBookmarksTests {
             if name != "Profile 2" { try fixture.write(to: profile.appendingPathComponent("Bookmarks")) }
         }
         #expect(ChromeBookmarkService.load(root: root).count == 2)
+        let account = Data(#"{"roots":{"bookmark_bar":{"type":"folder","children":[{"type":"url","name":"Kimi","url":"https://www.kimi.com/code"}]}}}"#.utf8)
+        try account.write(to: root.appendingPathComponent("Profile 2/AccountBookmarks"))
+        #expect(ChromeBookmarkService.load(root: root).map(\.title).contains("Kimi"))
         #expect(ChromeBookmarkService.load(root: root.appendingPathComponent("missing")).isEmpty)
     }
 }

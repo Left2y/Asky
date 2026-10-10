@@ -37,7 +37,7 @@ public struct KeywordRegistry: Sendable, Codable, Equatable {
 
     public mutating func upsert(_ cmd: KeywordCommand, replacing old: String? = nil) throws {
         let kw = cmd.keyword.trimmingCharacters(in: .whitespaces)
-        guard !kw.isEmpty, !kw.contains(" "), kw != ">" else { throw RegistryError.invalidKeyword }
+        guard !kw.isEmpty, !kw.contains(" "), kw != ">", kw.lowercased() != "bm" else { throw RegistryError.invalidKeyword }
         guard cmd.urlTemplate.contains("{query}"), cmd.url(for: "x") != nil else { throw RegistryError.invalidTemplate }
         if old != kw, commands.contains(where: { $0.keyword == kw }) { throw RegistryError.duplicate }
         commands.removeAll { $0.keyword == (old ?? kw) }

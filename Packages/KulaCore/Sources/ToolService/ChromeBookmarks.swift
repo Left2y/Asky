@@ -16,14 +16,17 @@ public enum ChromeBookmarkService {
         var bookmarks: [ChromeBookmark] = []
         for profile in profiles.filter({ $0.lastPathComponent == "Default" || $0.lastPathComponent.hasPrefix("Profile ") })
             .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).prefix(16) {
-            guard !Task.isCancelled else { return [] }
-            let file = profile.appendingPathComponent("Bookmarks")
-            guard let size = (try? fm.attributesOfItem(atPath: file.path)[.size]) as? NSNumber,
-                  size.intValue <= 8 * 1024 * 1024,
-                  let data = try? Data(contentsOf: file) else { continue }
-            for bookmark in decode(data) where seen.insert(bookmark.url).inserted {
-                bookmarks.append(bookmark)
-                if bookmarks.count >= 20_000 { return bookmarks }
+            // Signed-in Chrome keeps synced bookmarks in AccountBookmarks, local ones in Bookmarks.
+            for name in ["Bookmarks", "AccountBookmarks"] {
+                guard !Task.isCancelled else { return [] }
+                let file = profile.appendingPathComponent(name)
+                guard let size = (try? fm.attributesOfItem(atPath: file.path)[.size]) as? NSNumber,
+                      size.intValue <= 8 * 1024 * 1024,
+                      let data = try? Data(contentsOf: file) else { continue }
+                for bookmark in decode(data) where seen.insert(bookmark.url).inserted {
+                    bookmarks.append(bookmark)
+                    if bookmarks.count >= 20_000 { return bookmarks }
+                }
             }
         }
         return bookmarks

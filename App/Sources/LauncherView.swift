@@ -23,7 +23,7 @@ private enum LauncherLayout {
     static let dividerHeight: CGFloat = 1
     // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
     static let rowHeight: CGFloat = 50
-    static let maxVisibleResults = 6
+    static let maxVisibleResults = 8
     static let sectionHeaderHeight: CGFloat = 52
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 13
@@ -103,7 +103,7 @@ final class LauncherController {
         self.model = model
         panel.onEscape = { [weak self] in
             guard let self else { return }
-            if self.model.commandInput != nil { self.model.leaveCommand() }
+            if self.model.hasScope { self.model.leaveCommand() }
             else { self.hide() }
         }
         panel.onBlur = { [weak self] in self?.hide() }
@@ -212,10 +212,10 @@ struct LauncherView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: LauncherLayout.inputSpacing) {
-                if model.commandInput != nil {
+                if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
-                        .accessibilityLabel(model.commandInput?.command.name ?? "关键词命令")
+                        .accessibilityLabel(model.isBookmarkScope ? "搜索书签" : model.commandInput?.command.name ?? "关键词命令")
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -256,6 +256,7 @@ struct LauncherView: View {
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         // Blank input/result areas must belong to the shell's pointer region.
         .contentShape(shellShape)
+        .clipShape(shellShape)
         .background {
             shellShape
                 .fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
@@ -322,7 +323,9 @@ struct LauncherView: View {
     }
 
     @ViewBuilder private var commandIcon: some View {
-        if let command = model.commandInput?.command,
+        if model.isBookmarkScope {
+            Image("Bookmark").resizable().scaledToFit()
+        } else if let command = model.commandInput?.command,
            let url = command.url(for: ""),
            let icon = ToolService.launcherBrowserIcon(for: url) {
             Image(nsImage: icon).resizable().scaledToFit()
@@ -355,15 +358,14 @@ private struct ResultList: View {
         return model.results.compactMap { seen.insert(Self.section(for: $0)).inserted ? Self.section(for: $0) : nil }
     }
 
-    private var showsHeaders: Bool { model.commandInput == nil && sections.count > 1 }
+    private var showsHeaders: Bool { !model.hasScope && sections.count > 1 }
 
     private var height: CGFloat {
         let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight
         let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
-        // Headers share the six-row budget so scrolling past them cannot reveal
-        // more than six items. Short result lists still size to their content.
-        let sixRowHeight = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
-        return min(rows + headers + LauncherLayout.listBottomPadding, sixRowHeight, maxHeight)
+        // Headers share the eight-row budget. Short result lists still size to their content.
+        let listHeightLimit = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
+        return min(rows + headers + LauncherLayout.listBottomPadding, listHeightLimit, maxHeight)
     }
 
     var body: some View {
@@ -400,6 +402,7 @@ private struct ResultList: View {
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
                 .padding(.bottom, LauncherLayout.listBottomPadding)
             }
+            .scrollIndicators(.hidden)
             .frame(height: min(maxHeight, max(height, retainedHeight)))
             .task(id: LayoutRequest(query: model.query, height: height, isSearching: model.isSearching)) {
                 let target = height
@@ -493,8 +496,17 @@ private struct ResultRow: View {
         switch result.source {
         case .app, .file:
             Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+        case .link:
+            Image("Link").resizable().scaledToFit()
+        case .askAI:
+            Image("Agent").resizable().scaledToFit()
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .shadow(color: .black.opacity(0.16), radius: 1, x: 0, y: 1)
+                .padding(3)
         case .bookmark, .keyword:
-            if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
+            if result.target.kind == "bookmark-search" {
+                Image("Bookmark").resizable().scaledToFit()
+            } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()
             } else {
                 Image(systemName: "globe").font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
@@ -507,8 +519,6 @@ private struct ResultRow: View {
     static func symbol(_ s: SearchSource) -> String {
         switch s {
         case .chromeTab, .keyword: "globe"
-        case .link: "link"
-        case .bookmark: "bookmark"
         case .clipboard: "doc.on.clipboard"
         case .calculator: "equal.square"
         case .conversion: "arrow.left.arrow.right"
@@ -516,7 +526,7 @@ private struct ResultRow: View {
         case .terminal: "terminal"
         case .shortcut: "square.stack.3d.up"
         case .askAI: "sparkles"
-        case .app, .file: "doc"
+        case .app, .file, .link, .bookmark: "doc"
         }
     }
 }

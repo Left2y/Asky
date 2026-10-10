@@ -275,14 +275,14 @@ struct LauncherView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             } else {
-                // Figma light comes from the upper left (-45 degrees). Keep the
-                // directional rim separate from the transparent optical surface.
+                // The native glass already supplies a rim. Dark surfaces need
+                // only a faint upper-left highlight, with no bright lower edge.
                 shellShape.strokeBorder(
                     LinearGradient(stops: [
-                        .init(color: .white.opacity(0.80), location: 0),
-                        .init(color: .white.opacity(0.24), location: 0.30),
-                        .init(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.08), location: 0.65),
-                        .init(color: .white.opacity(0.32), location: 1)
+                        .init(color: .white.opacity(colorScheme == .dark ? 0.18 : 0.80), location: 0),
+                        .init(color: .white.opacity(colorScheme == .dark ? 0.06 : 0.24), location: 0.30),
+                        .init(color: .black.opacity(colorScheme == .dark ? 0.12 : 0.08), location: 0.65),
+                        .init(color: .white.opacity(colorScheme == .dark ? 0.04 : 0.32), location: 1)
                     ], startPoint: .topLeading, endPoint: .bottomTrailing),
                     lineWidth: 1
                 )

@@ -152,7 +152,7 @@ struct LauncherView: View {
                     .foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
                     .frame(width: 21, height: 22)
                 TextField(Self.searchPlaceholder, text: $model.query,
-                          prompt: Text(Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest.color(for: colorScheme)))
+                          prompt: Text(focused ? "" : Self.searchPlaceholder).foregroundStyle(ThemeColor.kTextSubtlest.color(for: colorScheme)))
                     .textFieldStyle(.plain)
                     .textStyle(.input)
                     .tint(ThemeColor.kIcon.color(for: colorScheme))

@@ -26,6 +26,8 @@ V1 规划包含三个层次：
 
 独立本地 MCP 与应用共用系统工具，外部接入单独授权，不依赖 Pi。短信最终由用户在 Messages 中发送。
 
+普通搜索也显示“链接”和“书签”分类，使用现有 `link` / `bookmark` 系统图标。输入 HTTP(S) 网址或域名可直接打开；启用“Chrome 标签与书签”后，按标题或 URL 检索 Chrome Default / Profile 配置的本地书签，以默认浏览器打开。无需 Chrome 运行，不读取浏览历史。见[链接与书签验证](docs/validation/2026-10-10-links-bookmarks.md)。
+
 ### 文档
 
 - [文档索引](docs/README.md)：阅读顺序、权威内容与设计状态。
@@ -116,6 +118,8 @@ Users supply their own model API key, with OpenAI-compatible Chat Completions pr
 Search results follow [Figma 22:364 / 43:1475](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-364), with category headings, 64 pt rows, 40 pt icons, and keyword badges. The magnifier moves to the right when text is entered. A configured keyword followed by a space (such as `go `) shows the default browser icon on the left and only the query text in the field. Backspace with an empty query, or Escape, returns to ordinary search. Custom keywords such as `saf` use the same styling after configuration in Settings. Ordinary search excludes clipboard history; its separate shortcut and panel await the next design. See the [search-input validation record](docs/validation/2026-10-10-search-input.md) for verification scope.
 
 A standalone local MCP shares native tools with the application, requires separate external authorization, and does not depend on Pi. Users send messages themselves in Messages.
+
+Ordinary search also includes Link and Bookmark categories using the existing `link` / `bookmark` system icons. Enter an HTTP(S) URL or domain to open it directly. Enabling “Chrome tabs and bookmarks” searches local bookmarks in Chrome Default / Profile configurations by title or URL and opens them in the default browser. Chrome need not be running; browsing history is not read. See the [links and bookmarks validation](docs/validation/2026-10-10-links-bookmarks.md).
 
 ### Documentation
 

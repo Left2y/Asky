@@ -55,6 +55,31 @@ final class LauncherPanel: NSPanel {
         isReleasedWhenClosed = false
     }
 
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel,
+           routeScrollWheel(event, at: event.locationInWindow) { return }
+        super.sendEvent(event)
+    }
+
+    /// Route before the field editor or a SwiftUI row can consume the gesture.
+    /// Forward the original event to retain precise deltas, phases and momentum.
+    @discardableResult
+    func routeScrollWheel(_ event: NSEvent, at point: NSPoint) -> Bool {
+        guard event.type == .scrollWheel, let contentView,
+              let scroll = Self.scrollView(in: contentView) else { return false }
+        var interactionRect = scroll.convert(scroll.bounds, to: nil)
+        // The input and divider share the result list's scroll interaction.
+        interactionRect.size.height += LauncherLayout.inputHeight + LauncherLayout.dividerHeight
+        guard interactionRect.contains(point) else { return false }
+        scroll.scrollWheel(with: event)
+        return true
+    }
+
+    private static func scrollView(in view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        return view.subviews.lazy.compactMap { scrollView(in: $0) }.first
+    }
+
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     override func cancelOperation(_ sender: Any?) { onEscape() }
@@ -341,7 +366,9 @@ private struct ResultList: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 0) {
+                // Search batches are capped; realize their anchors so keyboard
+                // navigation can reveal rows in sections below the viewport.
+                VStack(spacing: 0) {
                     ForEach(sections, id: \.self) { source in
                         VStack(spacing: 0) {
                             if showsHeaders {

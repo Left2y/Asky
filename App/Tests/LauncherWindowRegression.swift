@@ -52,6 +52,58 @@ enum LauncherWindowRegression {
         return view.subviews.lazy.compactMap { searchField(in: $0) }.first
     }
 
+    private static func scrollView(in view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        return view.subviews.lazy.compactMap { scrollView(in: $0) }.first
+    }
+
+    private static func checkScrolling(panel: LauncherPanel, content: NSView,
+                                       model: LauncherModel, editor: NSTextView) async throws {
+        guard let scroll = scrollView(in: content) else {
+            throw NSError(domain: "LauncherWindowRegression", code: 3)
+        }
+        let listRect = scroll.convert(scroll.bounds, to: nil)
+        let inputPoint = NSPoint(x: listRect.midX, y: listRect.maxY + 32)
+        let rowPoint = NSPoint(x: listRect.midX, y: listRect.midY)
+        let selection = model.selection
+        let text = editor.string
+        for units in [CGScrollEventUnit.line, .pixel] {
+            for point in [rowPoint, inputPoint] {
+                let before = scroll.contentView.bounds.origin.y
+                let cg = CGEvent(scrollWheelEvent2Source: nil, units: units, wheelCount: 1,
+                                 wheel1: units == .line ? -4 : -80, wheel2: 0, wheel3: 0)!
+                let event = NSEvent(cgEvent: cg)!
+                try require(panel.routeScrollWheel(event, at: point), "shell must route wheel events")
+                try await Task.sleep(for: .milliseconds(200))
+                let after = scroll.contentView.bounds.origin.y
+                try require(after > before, "mouse/precise scrolling must move actual results")
+                let reverse = CGEvent(scrollWheelEvent2Source: nil, units: units, wheelCount: 1,
+                                      wheel1: units == .line ? 4 : 80, wheel2: 0, wheel3: 0)!
+                panel.routeScrollWheel(NSEvent(cgEvent: reverse)!, at: point)
+                try await Task.sleep(for: .milliseconds(200))
+                try require(scroll.contentView.bounds.origin.y < after, "reverse scrolling must work")
+            }
+        }
+        let event = NSEvent(cgEvent: CGEvent(scrollWheelEvent2Source: nil, units: .line,
+                                           wheelCount: 1, wheel1: -4, wheel2: 0, wheel3: 0)!)!
+        try require(!panel.routeScrollWheel(event, at: .zero), "shadow must not intercept scrolling")
+        try require(model.selection == selection && editor.string == text && panel.firstResponder === editor,
+                    "scrolling must preserve selection, text and input focus")
+        let target = model.results.lastIndex { $0.source == .file }!
+        let steps = (target - selection + model.results.count) % model.results.count
+        let field = searchField(in: content)!
+        for _ in 0..<steps {
+            _ = (field.delegate as? LauncherSearchField.Coordinator)?.control(
+                field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        try require(model.selection == target, "keyboard navigation must remain available")
+        try require(scroll.contentView.bounds.origin.y > 0, "keyboard must reveal an offscreen selection")
+        model.selection = selection
+        try await Task.sleep(for: .milliseconds(200))
+        print("wheel/precise forward/reverse over rows/input, focus and keyboard checks passed")
+    }
+
     private static func checkWindow() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-window-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
@@ -100,6 +152,7 @@ enum LauncherWindowRegression {
             try require(abs(baseline.height - expectedHeight) <= 1,
                         "long results must use the increased 400 pt list budget within screen bounds")
         }
+        try await checkScrolling(panel: panel, content: content, model: model, editor: editor)
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
         var minHeight = baseline.height

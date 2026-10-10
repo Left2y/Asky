@@ -18,8 +18,8 @@ final class AgentWindowController {
                              backing: .buffered, defer: true)
             w.title = "KulaHere AI"
             w.titlebarAppearsTransparent = true
-            w.level = .floating
-            w.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary]
+            w.level = .normal
+            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             w.minSize = NSSize(width: WindowMetrics.agentMinSize.width, height: WindowMetrics.agentMinSize.height)
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: AgentView(model: model))
@@ -47,7 +47,6 @@ final class AgentWindowController {
         if window.isMiniaturized { window.deminiaturize(nil) }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
     }
 }
 

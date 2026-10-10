@@ -5,6 +5,7 @@ import Memory
 import AgentHost
 import ScreenCaptureKit
 import UniformTypeIdentifiers
+import ToolService
 
 struct ChatItem: Identifiable, Hashable {
     enum Kind: Hashable { case user, assistant, tool(ExecutionStatus?), notice, error }
@@ -46,6 +47,9 @@ final class AgentModel {
     private(set) var hasOlder = false
     var draft = ""
     var attachments: [AttachmentRef] = []
+    var attachmentThumbnails: [String: Data] = [:]
+
+    var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty }
 
     private let app: AppModel
     private var oldestSeq: Int?
@@ -108,8 +112,9 @@ final class AgentModel {
     // MARK: Submit (explicit only)
 
     func send() {
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isRunning else { return }
+        let input = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard canSend, !isRunning else { return }
+        let text = input.isEmpty ? "请分析这些附件" : input
         guard let agent = app.agent else {
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: app.agentUnavailableReason ?? "AI 运行时不可用"))
             return
@@ -133,6 +138,7 @@ final class AgentModel {
         }
         let request = AgentRequest(sessionID: cid, text: text, attachments: attachments, context: context)
         attachments = []
+        attachmentThumbnails = [:]
         taskID = request.taskID
         state = .starting
         streaming = ""
@@ -225,13 +231,33 @@ final class AgentModel {
     // MARK: Attachments (passed by file reference)
 
     func attach(fileURL url: URL) {
-        let type = UTType(filenameExtension: url.pathExtension)
-        let isImage = type?.conforms(to: .image) == true
-        guard let dest = copyIntoAttachments(url) else { return }
-        let size = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? 0
-        attachments.append(AttachmentRef(kind: isImage ? .image : .file, path: dest.path,
-                                         mimeType: type?.preferredMIMEType ?? "application/octet-stream",
-                                         byteSize: size, temporary: false))
+        do { addAttachment(try ComposerAttachmentService.importFile(url, into: app.store.attachmentsDirectory)) }
+        catch { attachmentError(error) }
+    }
+
+    private func addAttachment(_ preview: ComposerAttachmentService.Preview) {
+        attachments.append(preview.reference)
+        attachmentThumbnails[preview.reference.id] = preview.thumbnail
+    }
+
+    func removeAttachment(_ attachment: AttachmentRef) {
+        attachments.removeAll { $0.id == attachment.id }
+        attachmentThumbnails.removeValue(forKey: attachment.id)
+        ComposerAttachmentService.removeDraft(attachment, from: app.store.attachmentsDirectory)
+    }
+
+    /// Return false for plain text so NSTextView preserves normal paste and undo.
+    func pasteAttachments() -> Bool {
+        let files = ComposerAttachmentService.pastedFiles()
+        if !files.isEmpty { files.forEach { attach(fileURL: $0) }; return true }
+        guard let image = ComposerAttachmentService.pastedImage() else { return false }
+        do { addAttachment(try ComposerAttachmentService.importImage(image, into: app.store.attachmentsDirectory)) }
+        catch { attachmentError(error) }
+        return true
+    }
+
+    private func attachmentError(_ error: Error) {
+        appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "添加附件失败：\(error.localizedDescription)"))
     }
 
     func attachText(_ text: String) {
@@ -259,17 +285,11 @@ final class AgentModel {
                 CGImageDestinationAddImage(dest, image, nil)
                 guard CGImageDestinationFinalize(dest) else { return }
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-                attachments.append(AttachmentRef(kind: .image, path: url.path, mimeType: "image/png", byteSize: size, temporary: false))
+                addAttachment(ComposerAttachmentService.preview(AttachmentRef(kind: .image, path: url.path, mimeType: "image/png", byteSize: size, temporary: false)))
             } catch {
                 appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "截图失败：\(error.localizedDescription)"))
             }
         }
     }
 
-    private func copyIntoAttachments(_ url: URL) -> URL? {
-        let dir = app.store.attachmentsDirectory
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let dest = dir.appending(path: "\(UUID().uuidString)-\(url.lastPathComponent)")
-        return (try? FileManager.default.copyItem(at: url, to: dest)) != nil ? dest : nil
-    }
 }

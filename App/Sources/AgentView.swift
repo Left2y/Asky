@@ -289,30 +289,35 @@ private struct ChatBubble: View {
 private struct Composer: View {
     @Bindable var model: AgentModel
     @State private var importing = false
-    @FocusState private var focused: Bool
+    @State private var editorHeight: CGFloat = 48
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if !model.attachments.isEmpty {
                 ScrollView(.horizontal) {
-                    HStack {
-                        ForEach(model.attachments) { a in
-                            HStack(spacing: 4) {
-                                Image(systemName: a.kind == .image ? "photo" : "doc.text")
-                                Text(URL(filePath: a.path).lastPathComponent).lineLimit(1)
-                                Button { model.attachments.removeAll { $0.id == a.id } } label: { Image(systemName: "xmark") }
-                                    .buttonStyle(.borderless)
+                    HStack(spacing: 10) {
+                        ForEach(model.attachments) { attachment in
+                            ComposerAttachmentCard(attachment: attachment,
+                                thumbnail: model.attachmentThumbnails[attachment.id]) {
+                                model.removeAttachment(attachment)
                             }
-                            .textStyle(.secondary).padding(6).glassEffect(in: .capsule)
                         }
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 4)
                 }
+                .scrollIndicators(.hidden).frame(height: 96)
             }
-            TextField("输入你的任务", text: $model.draft, axis: .vertical)
-                .textFieldStyle(.plain).textStyle(.input).lineLimit(2...8)
-                .padding(.horizontal, 20).frame(minHeight: 48, alignment: .topLeading)
-                .accessibilityLabel("消息输入").focused($focused)
-                .onSubmit { model.send() }
+            ZStack(alignment: .topLeading) {
+                if model.draft.isEmpty {
+                    Text("输入你的任务").textStyle(.input)
+                        .foregroundStyle(ThemeColor.kTextSubtlest).padding(.top, 4)
+                        .allowsHitTesting(false)
+                }
+                ComposerTextEditor(text: $model.draft, height: $editorHeight,
+                    pasteAttachment: { model.pasteAttachments() }, submit: { model.send() })
+                    .frame(height: editorHeight)
+            }
+            .padding(.horizontal, 20)
             HStack {
                 Menu {
                     Button("选择文件或图片…") { importing = true }
@@ -337,21 +342,19 @@ private struct Composer: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(ThemeColor("iconInverted"))
                 .background(ThemeColor.kBackgroundPrimary, in: .circle)
-                .disabled(!model.isRunning && model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .opacity(!model.isRunning && model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.3 : 1)
+                .disabled(!model.isRunning && !model.canSend)
+                .opacity(!model.isRunning && !model.canSend ? 0.3 : 1)
                 .accessibilityLabel(model.isRunning ? "停止生成" : "发送消息")
             }
             .padding(.horizontal, 12)
         }
         .padding(.vertical, 12)
         .background(ThemeColor.kInput, in: .rect(cornerRadius: 24))
-        .onAppear { focused = true }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true) { r in
-            if case .success(let urls) = r { urls.forEach { u in
-                let ok = u.startAccessingSecurityScopedResource()
-                model.attach(fileURL: u)
-                if ok { u.stopAccessingSecurityScopedResource() }
-            } }
+            switch r {
+            case .success(let urls): urls.forEach { model.attach(fileURL: $0) }
+            case .failure: break
+            }
         }
         .dropDestination(for: URL.self) { urls, _ in
             urls.forEach { model.attach(fileURL: $0) }

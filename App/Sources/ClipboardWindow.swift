@@ -204,7 +204,7 @@ final class ClipboardController {
     func hover(_ item: ClipboardItem, frame: NSRect, inside: Bool) {
         hoverTask?.cancel()
         hoverTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(inside ? 300 : 200))
+            try? await Task.sleep(for: .milliseconds(inside ? 1500 : 200))
             guard !Task.isCancelled, let self, self.panel.isVisible else { return }
             if inside { self.showPreview(item, anchor: frame) }
             else { self.dismissPreview() }

@@ -32,6 +32,7 @@ enum ClipboardRegression {
                 try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "fourth"))
                 let controller = ClipboardController(app: app)
                 controller.show()
+                if !CommandLine.arguments.contains("--preview") { controller.pinned = true }
                 try await Task.sleep(for: .milliseconds(400))
                 @MainActor func panel() -> NSWindow { application.windows.first { $0.title == "剪贴板历史" }! }
                 @MainActor func snapshot(_ window: NSWindow, _ name: String) throws {
@@ -93,20 +94,41 @@ enum ClipboardRegression {
                 controller.query = ""
                 controller.pinItem(picture)
                 precondition(controller.items.first?.id == picture.id && controller.items.first?.pinned == true)
+                controller.pinned = false
                 controller.togglePinned()
                 precondition(panel().level == .floating)
                 controller.togglePinned()
                 precondition(panel().level == .normal)
+                // Drive hover callbacks explicitly without the live pointer overriding timed checks.
+                controller.togglePinned()
+                panel().ignoresMouseEvents = true
+                application.windows.first { $0.title == "剪贴板完整预览" }!.ignoresMouseEvents = true
                 @MainActor func card(_ minX: CGFloat) -> NSRect { NSRect(x: minX, y: panel().frame.minY + 12, width: 264, height: 160) }
                 @MainActor func previewFor(_ item: ClipboardItem, _ anchor: NSRect) async throws -> NSWindow {
+                    controller.dismissPreview()
                     controller.hover(item, frame: anchor, inside: true)
-                    try await Task.sleep(for: .milliseconds(450))
+                    try await Task.sleep(for: .milliseconds(1700))
                     let window = application.windows.first { $0.title == "剪贴板完整预览" }!
                     precondition(window.isVisible)
                     return window
                 }
                 let middle = card(panel().frame.midX - 132)
+                controller.dismissPreview()
+                let pendingPreview = application.windows.first { $0.title == "剪贴板完整预览" }!
+                controller.hover(picture, frame: middle, inside: true)
+                try await Task.sleep(for: .milliseconds(1000))
+                precondition(!pendingPreview.isVisible, "brief hover must not show the preview")
+                controller.hover(picture, frame: middle, inside: false)
+                try await Task.sleep(for: .milliseconds(700))
+                precondition(!pendingPreview.isVisible, "leaving cancels the pending preview")
                 var preview = try await previewFor(picture, middle)
+                if CommandLine.arguments.contains("--hover-delay") {
+                    controller.hide()
+                    precondition(!preview.isVisible, "closing releases the preview")
+                    try? FileManager.default.removeItem(at: root)
+                    print("Clipboard 1.5-second hover delay, cancellation and preview release passed")
+                    exit(0)
+                }
                 precondition(preview.frame.minY >= preview.screen!.visibleFrame.minY)
                 precondition(abs(preview.frame.maxY - (panel().frame.minY - 8)) < 0.5, "preview sits 8 pt below the panel")
                 precondition(abs(preview.frame.midX - middle.midX) < 0.5, "preview is centered under the card")

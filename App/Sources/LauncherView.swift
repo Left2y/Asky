@@ -181,14 +181,6 @@ struct LauncherView: View {
         RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous)
     }
 
-    private var shellGlass: Glass {
-        // Regular glass adapts to bright desktop colors. Tint through the native
-        // material in Dark mode so the fixed native field foreground stays legible.
-        colorScheme == .dark
-            ? .regular.tint(ThemeColor.kBackground.color(for: colorScheme, opaque: true).opacity(0.55))
-            : .regular
-    }
-
     private var hasInput: Bool { !model.query.isEmpty }
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
 
@@ -238,14 +230,19 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            if reduceTransparency {
-                shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
+            // An opaque semantic base keeps desktop colors out of the shell.
+            // Render the surface lighting locally so the field and icons retain
+            // the same contrast regardless of the window behind the launcher.
+            shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: true))
+            if !reduceTransparency {
+                shellShape.fill(
+                    LinearGradient(colors: [
+                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.06),
+                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.02)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
             }
         }
-        // Apply one optical surface to the content itself. A second backdrop
-        // material or solid fill would flatten the native refraction and frost.
-        .environment(\.colorScheme, colorScheme)
-        .glassEffect(reduceTransparency ? .identity : shellGlass, in: shellShape)
         .overlay {
             if reduceTransparency || colorSchemeContrast == .increased {
                 shellShape.strokeBorder(
@@ -256,7 +253,7 @@ struct LauncherView: View {
                 .accessibilityHidden(true)
             } else {
                 // Figma light comes from the upper left (-45 degrees). Keep the
-                // directional rim separate from the system's optical surface.
+                // directional rim separate from the fixed neutral surface.
                 shellShape.strokeBorder(
                     LinearGradient(stops: [
                         .init(color: .white.opacity(0.80), location: 0),
@@ -272,8 +269,8 @@ struct LauncherView: View {
         }
         .padding(LauncherLayout.shadowPadding)
         .background {
-            // Keep the shadow outside glassEffect's compositing subtree and draw
-            // directly in the padded canvas, without negative layout padding.
+            // Draw the shadow outside the shell in the padded canvas,
+            // without negative layout padding.
             shellShape.fill(.black)
                 .padding(LauncherLayout.shadowPadding)
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.40 : 0.24), radius: LauncherLayout.shadowRadius,

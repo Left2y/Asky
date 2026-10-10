@@ -229,12 +229,14 @@ struct LauncherView: View {
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         .background {
-            // A normal alpha fill preserves both theme modes without re-blending
-            // pixels sampled from windows behind this transparent panel.
+            // Figma's background already supplies a 70% light/dark frost.
+            // Regular glass adds another adaptive opaque material over that fill,
+            // washing out the desktop. Clear glass preserves backdrop refraction
+            // and highlights without doubling the frost. Keep normal alpha blending.
             shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
                 // Material belongs to the background. Editing and result content
                 // must not become part of glassEffect's changing render subtree.
-                .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
+                .glassEffect(reduceTransparency ? .identity : .clear, in: shellShape)
         }
         // Glass highlights alone disappear over light backdrops. Keep a semantic
         // outline above the material, inset so the panel does not clip its edge.

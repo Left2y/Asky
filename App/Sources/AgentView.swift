@@ -445,7 +445,7 @@ private struct Composer: View {
                 .scrollIndicators(.hidden).frame(height: 58)
             }
             ZStack(alignment: .topLeading) {
-                if model.draft.isEmpty && !editorFocused {
+                if model.draft.isEmpty {
                     Text("输入你的任务").textStyle(AgentLayout.message)
                         .foregroundStyle(ThemeColor.kTextSubtlest).padding(.top, 4)
                         .allowsHitTesting(false)

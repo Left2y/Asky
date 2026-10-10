@@ -18,6 +18,8 @@ final class ClipboardController {
     private let preview: NSPanel
     private var hoverTask: Task<Void, Never>?
     private var refreshTimer: Timer?
+    private var localClickMonitor: Any?
+    private var globalClickMonitor: Any?
     var query = "" { didSet { selection = 0; keyboardSelection = false; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
     var selection = 0
@@ -59,6 +61,7 @@ final class ClipboardController {
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         panel.makeKeyAndOrderFront(nil)
+        monitorOutsideClicks()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
@@ -66,12 +69,36 @@ final class ClipboardController {
     }
 
     func hide() {
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
+        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
+        localClickMonitor = nil
+        globalClickMonitor = nil
         dismissPreview()
         refreshTimer?.invalidate()
         refreshTimer = nil
         panel.orderOut(nil)
         panel.contentView = nil
         items = []
+    }
+
+    private func monitorOutsideClicks() {
+        guard localClickMonitor == nil, globalClickMonitor == nil else { return }
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+            MainActor.assumeIsolated { self?.dismissIfOutside() }
+            return event
+        }
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+            MainActor.assumeIsolated { self?.dismissIfOutside() }
+        }
+    }
+
+    private func dismissIfOutside() {
+        guard panel.isVisible, !pinned else { return }
+        let location = NSEvent.mouseLocation
+        guard !panel.frame.contains(location),
+              !(preview.isVisible && preview.frame.contains(location)) else { return }
+        hide()
     }
 
     func refresh() {
@@ -195,7 +222,6 @@ private struct ClipboardHistoryView: View {
                 .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
                 HStack(spacing: 12) {
                     action(controller.pinned ? "pin.fill" : "pin", title: "固定窗口", run: controller.togglePinned)
-                    action("xmark", title: "关闭剪贴板", run: controller.hide)
                 }
             }.padding(12)
             Rectangle().fill(ThemeColor.kBorder).frame(height: 1)

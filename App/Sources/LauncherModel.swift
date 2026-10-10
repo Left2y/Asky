@@ -49,6 +49,7 @@ final class LauncherModel {
         }
     }
     private(set) var results: [SearchResult] = []
+    private(set) var isSearching = false
     var selection = 0
     private(set) var terminal: TerminalSession?
     private(set) var status: String?
@@ -58,6 +59,10 @@ final class LauncherModel {
     private let chrome = ChromeTabsProvider()
     private let shortcuts = ShortcutsProvider()
     private var coordinator: SearchCoordinator
+    private let searchProviders: [any SearchProvider]?
+    private var searchProviderCount = 0
+    private var searchSources: Set<SearchSource> = []
+    private var remainingSearchProviders = 0
     private var batches: [SearchBatch] = []
     private var direct: [SearchResult] = []
     private var searchTask: Task<Void, Never>?
@@ -66,13 +71,20 @@ final class LauncherModel {
     var onHide: () -> Void = {}
     var onAskAI: (String) -> Void = { _ in }
 
-    init(app: AppModel) {
+    init(app: AppModel, searchProviders: [any SearchProvider]? = nil) {
         self.app = app
+        self.searchProviders = searchProviders
         coordinator = SearchCoordinator(providers: [])
         rebuildProviders()
     }
 
     func rebuildProviders() {
+        if let searchProviders {
+            searchProviderCount = searchProviders.count
+            searchSources = Set(searchProviders.map(\.source))
+            coordinator = SearchCoordinator(providers: searchProviders)
+            return
+        }
         let reader = SettingsReader(store: app.store)
         var providers: [any SearchProvider] = [apps, shortcuts, LinksProvider(),
             SpotlightProvider(settings: {
@@ -83,6 +95,8 @@ final class LauncherModel {
             providers.append(chrome)
             providers.append(ChromeBookmarksProvider())
         }
+        searchProviderCount = providers.count
+        searchSources = Set(providers.map(\.source))
         coordinator = SearchCoordinator(providers: providers)
     }
 
@@ -94,6 +108,8 @@ final class LauncherModel {
         batches = []
         direct = []
         results = []
+        isSearching = false
+        remainingSearchProviders = 0
         status = nil
         if terminal?.exitCode != nil || terminal == nil { terminal = nil }
         shortcuts.invalidate()
@@ -140,6 +156,8 @@ final class LauncherModel {
         searchTask?.cancel()
         coordinator.cancel()
         let route = commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
+        isSearching = router.includesSearch(route) && searchProviderCount > 0
+        remainingSearchProviders = isSearching ? searchProviderCount : 0
         direct = router.directResults(for: route)
         if case .search(let text) = route {
             direct += app.keywords.commands.compactMap { command in
@@ -148,7 +166,7 @@ final class LauncherModel {
                                     title: command.name, actions: [.openURL(url)], score: 0)
             }
         }
-        batches = []
+        batches = router.includesSearch(route) ? retainedBatches(for: query) : []
         currencyTask?.cancel()
         if case .currency(let q) = route {
             let exchange = app.exchange
@@ -167,7 +185,10 @@ final class LauncherModel {
                 guard let self, !Task.isCancelled else { return }
                 self.coordinator.query(text) { [weak self] batch in
                     guard let self else { return }
+                    self.batches.removeAll { $0.provider == batch.provider }
                     self.batches.append(batch)
+                    self.remainingSearchProviders = max(0, self.remainingSearchProviders - 1)
+                    self.isSearching = self.remainingSearchProviders > 0
                     self.publish()
                 }
             }
@@ -175,6 +196,23 @@ final class LauncherModel {
             coordinator.cancel()
         }
         publish()
+    }
+
+    private func retainedBatches(for query: String) -> [SearchBatch] {
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Reuse concrete targets that still match the new input. Query-dependent
+        // actions (links, keyword URLs, AI prompts) are always rebuilt separately.
+        return batches.compactMap { previous in
+            guard searchSources.contains(previous.provider),
+                  [.app, .file, .bookmark, .chromeTab, .shortcut].contains(previous.provider) else { return nil }
+            var batch = previous
+            batch.results = batch.results.filter { result in
+                FuzzyMatch.score(text, in: result.title) != nil ||
+                    ([.bookmark, .chromeTab].contains(result.source) &&
+                     FuzzyMatch.score(text, in: result.subtitle) != nil)
+            }
+            return batch
+        }
     }
 
     private static func currencyRow(_ r: CurrencyResult, _ q: CurrencyQuery) -> SearchResult {

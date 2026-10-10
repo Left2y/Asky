@@ -75,6 +75,14 @@ xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchField
 build/launcher-input-regression
 ```
 
+搜索窗口尺寸回归检查（先完成上述 Debug 构建，不与构建同时运行）：
+
+```sh
+python3 App/Tests/run-launcher-window-regression.py
+```
+
+此检查在独立测试窗口和临时数据库中模拟延迟搜索源，采样连续输入期间的窗口高度与输入框位置，覆盖浅深色外观、结果减少、清空与关键词输入，不使用个人数据或真实系统搜索源。
+
 使用 AI 前，需在“设置 › 模型”中填写 OpenAI 兼容接口的地址、模型名和 Key，Key 保存在钥匙串。设置页不回填 Key，留空保存会保留已有 Key。授权取消、授权失败与 Key 缺失会分别显示原因；完成钥匙串授权后重新发送消息。数据位于 `~/Library/Application Support/KulaHere/`。
 
 AI 对话和设置均使用普通窗口层级，切换到其他应用后可被覆盖；主动打开时移到当前桌面并一次性请求前台，不跨应用持续置顶。再次从 Finder 打开正在运行的 App 会唤起 AI 窗口，最小化的 AI 窗口会先恢复。构建不会替换正在运行的进程，验证改动前需退出旧进程并打开新构建。
@@ -164,6 +172,14 @@ Native search-field regression check (run from the project root after building t
 xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
 build/launcher-input-regression
 ```
+
+Search-window geometry regression (after the Debug build above; do not run concurrently with a build):
+
+```sh
+python3 App/Tests/run-launcher-window-regression.py
+```
+
+The check uses a separate test window, a temporary database, and delayed synthetic providers. It samples window height and input position during typing and covers light/dark appearances, fewer results, clearing, and keyword input without using personal data or live system search providers.
 
 Before using AI, enter the endpoint, model name, and key of an OpenAI-compatible API under Settings › Model. The key is stored in the Keychain. Settings does not populate the key field; saving it blank preserves the existing key. Authorization cancellation, authorization failure, and a missing key report separate reasons; resend the message after completing Keychain authorization. App data lives in `~/Library/Application Support/KulaHere/`.
 

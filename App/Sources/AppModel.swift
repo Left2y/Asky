@@ -76,8 +76,8 @@ final class AppModel {
         didSet { store.setCodableSetting("keywords", keywords) }
     }
 
-    init() throws {
-        let store = try LocalStore(root: LocalStore.defaultRoot)
+    init(root: URL = LocalStore.defaultRoot) throws {
+        let store = try LocalStore(root: root)
         self.store = store
         let reader = SettingsReader(store: store)
         settings = reader.load()

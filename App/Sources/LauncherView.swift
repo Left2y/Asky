@@ -70,6 +70,7 @@ final class LauncherController {
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
     private var contentID = UUID()
+    private var resizeTask: Task<Void, Never>?
     private var hiding = false
     private var availableShellHeight = CGFloat(WindowMetrics.launcherMaxHeight)
 
@@ -99,7 +100,9 @@ final class LauncherController {
             contentID = id
             let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight) { [weak self] height in
                 // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
-                Task { @MainActor [weak self] in
+                self?.resizeTask?.cancel()
+                self?.resizeTask = Task { @MainActor [weak self] in
+                    guard !Task.isCancelled else { return }
                     guard let self, self.contentID == id, self.hosting != nil else { return }
                     self.resize(to: height)
                 }
@@ -109,7 +112,17 @@ final class LauncherController {
             .frame(maxHeight: .infinity, alignment: .top)))
             // The controller owns the window frame; preferredContentSize alone does not resize it.
             view.sizingOptions = []
-            panel.contentView = view
+            // Give SwiftUI a stable canvas. Resizing the NSHostingView itself
+            // produces an intermediate centered layout for AppKit's field editor.
+            // Only the transparent container/window resize; a flexible bottom
+            // margin keeps the fixed-height canvas anchored to the window top.
+            let canvasHeight = availableShellHeight + LauncherLayout.shadowPadding * 2
+            let container = NSView(frame: NSRect(origin: .zero, size: panel.frame.size))
+            view.frame = NSRect(x: 0, y: container.bounds.height - canvasHeight,
+                                width: container.bounds.width, height: canvasHeight)
+            view.autoresizingMask = [.width, .minYMargin]
+            container.addSubview(view)
+            panel.contentView = container
             hosting = view
         }
         // Anchor near the top of the pointer screen, leaving room for results below.
@@ -130,7 +143,12 @@ final class LauncherController {
         // AppKit's origin is at the bottom left. Keep the input anchored while expanding down.
         frame.origin.y = frame.maxY - height
         frame.size.height = height
-        panel.setFrame(frame, display: true)
+        // Let AppKit draw after laying out the new content size instead of forcing
+        // a display of the intermediate field-editor/hosting-view geometry.
+        panel.setFrame(frame, display: false)
+        // The panel's origin and content layout must change in the same main-
+        // actor turn; otherwise the live editor briefly stays at the old height.
+        hosting?.layoutSubtreeIfNeeded()
     }
 
     /// Hiding releases the SwiftUI tree and the result payloads (panel resource scope).
@@ -139,6 +157,8 @@ final class LauncherController {
         hiding = true
         defer { hiding = false }
         panel.orderOut(nil)
+        resizeTask?.cancel()
+        resizeTask = nil
         contentID = UUID()
         model.reset()
         panel.contentView = nil
@@ -154,13 +174,10 @@ struct LauncherView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
 
-    private var shellShape: AnyShape {
-        if hasInput || model.terminal != nil || !model.results.isEmpty || model.status != nil {
-            AnyShape(RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous))
-        } else {
-            // The design system's radius99999 maps to a real capsule.
-            AnyShape(Capsule())
-        }
+    private var shellShape: RoundedRectangle {
+        // At 64 pt high, the 32 pt corners already form the empty capsule.
+        // Keep one material shape identity when results appear/disappear.
+        RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous)
     }
 
     private var hasInput: Bool { !model.query.isEmpty }
@@ -215,10 +232,10 @@ struct LauncherView: View {
             // A normal alpha fill preserves both theme modes without re-blending
             // pixels sampled from windows behind this transparent panel.
             shellShape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
+                // Material belongs to the background. Editing and result content
+                // must not become part of glassEffect's changing render subtree.
+                .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
         }
-        // Use the native frosted material to keep underlying window text from
-        // competing with the input. Do not blend a fill into the sampled backdrop.
-        .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
         // Glass highlights alone disappear over light backdrops. Keep a semantic
         // outline above the material, inset so the panel does not clip its edge.
         .overlay {
@@ -282,6 +299,13 @@ struct LauncherView: View {
 private struct ResultList: View {
     @Bindable var model: LauncherModel
     let maxHeight: CGFloat
+    @State private var retainedHeight: CGFloat = 0
+
+    private struct LayoutRequest: Equatable {
+        let query: String
+        let height: CGFloat
+        let isSearching: Bool
+    }
 
     private var sections: [SearchSource] {
         var seen = Set<SearchSource>()
@@ -331,7 +355,20 @@ private struct ResultList: View {
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
                 .padding(.bottom, LauncherLayout.listBottomPadding)
             }
-            .frame(height: height)
+            .frame(height: min(maxHeight, max(height, retainedHeight)))
+            .task(id: LayoutRequest(query: model.query, height: height, isSearching: model.isSearching)) {
+                let target = height
+                if target < retainedHeight {
+                    // A replacement query can temporarily have fewer matching rows.
+                    // Hold their footprint until typing/batch delivery settles so
+                    // the glass/window does not collapse and expand per character.
+                    guard !model.isSearching else { return }
+                    do { try await Task.sleep(for: .milliseconds(200)) }
+                    catch { return }
+                }
+                guard !Task.isCancelled else { return }
+                retainedHeight = target
+            }
             .onChange(of: model.selection) { _, s in
                 if model.results.indices.contains(s) { proxy.scrollTo(model.results[s].id) }
             }

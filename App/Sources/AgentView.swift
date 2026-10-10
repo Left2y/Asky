@@ -272,6 +272,8 @@ private struct AgentGreeting: View {
 private struct AgentHeaderButtonStyle: ButtonStyle {
     let colorScheme: ColorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
             .padding(6).frame(width: 32, height: 32)
@@ -279,8 +281,15 @@ private struct AgentHeaderButtonStyle: ButtonStyle {
                 Circle().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
                     .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: .circle)
                     .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+                    .overlay {
+                        if isEnabled && (hovering || configuration.isPressed) {
+                            Circle().fill(ThemeColor.kInteractionHover.color(for: colorScheme))
+                        }
+                    }
             }
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .contentShape(.circle)
+            .opacity(isEnabled && configuration.isPressed ? 0.7 : 1)
+            .onHover { hovering = $0 }
     }
 }
 

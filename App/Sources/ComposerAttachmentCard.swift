@@ -2,11 +2,13 @@ import AppKit
 import SwiftUI
 import Contracts
 import Theme
+import ToolService
 
 struct ComposerAttachmentCard: View {
     let attachment: AttachmentRef
     let thumbnail: Data?
-    var remove: () -> Void
+    var remove: (() -> Void)? = nil
+    @State private var loadedThumbnail: Data?
     @State private var hovering = false
     @FocusState private var deleteFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
@@ -17,7 +19,7 @@ struct ComposerAttachmentCard: View {
         Group {
             if attachment.kind == .image {
                 ZStack {
-                    if let thumbnail, let image = NSImage(data: thumbnail) {
+                    if let data = thumbnail ?? loadedThumbnail, let image = NSImage(data: data) {
                         Image(nsImage: image).resizable().scaledToFill()
                     } else {
                         Image(systemName: "photo").font(.system(size: 28))
@@ -50,22 +52,31 @@ struct ComposerAttachmentCard: View {
         .background(ThemeColor(active ? "backgroundNeutralHover" : "backgroundNeutral").color(for: colorScheme))
         .clipShape(.rect(cornerRadius: 12))
         .overlay(alignment: .topTrailing) {
-            Button(action: remove) {
-                Image(systemName: "xmark").font(TextStyle(size: 12, weight: 500, mode: .default).font)
-                    .foregroundStyle(ThemeColor("iconInverted").color(for: colorScheme))
-                    .frame(width: 20, height: 20)
-                    .background(ThemeColor.kBackgroundPrimary, in: .circle)
+            if let remove {
+                Button(action: remove) {
+                    Image(systemName: "xmark").font(TextStyle(size: 12, weight: 500, mode: .default).font)
+                        .foregroundStyle(ThemeColor("iconInverted").color(for: colorScheme))
+                        .frame(width: 20, height: 20)
+                        .background(ThemeColor.kBackgroundPrimary, in: .circle)
+                }
+                .buttonStyle(.plain).focused($deleteFocused)
+                .accessibilityLabel("删除附件：\(name)")
+                .opacity(active ? 1 : 0)
+                .offset(x: attachment.kind == .image ? 6 : 8, y: -6)
             }
-            .buttonStyle(.plain).focused($deleteFocused)
-            .accessibilityLabel("删除附件：\(name)")
-            .opacity(active ? 1 : 0)
-            .offset(x: attachment.kind == .image ? 6 : 8, y: -6)
         }
         // Reserve the overhanging control inside the scroll content's bounds.
-        .padding(.top, 6)
-        .padding(.trailing, attachment.kind == .image ? 6 : 8)
+        .padding(.top, remove == nil ? 0 : 6)
+        .padding(.trailing, remove == nil ? 0 : attachment.kind == .image ? 6 : 8)
         .contentShape(.rect)
         .onHover { hovering = $0 }
+        .task(id: attachment) {
+            guard thumbnail == nil, attachment.kind == .image else { return }
+            let reference = attachment
+            loadedThumbnail = await Task.detached(priority: .utility) {
+                ComposerAttachmentService.preview(reference).thumbnail
+            }.value
+        }
         .help(name)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(name)

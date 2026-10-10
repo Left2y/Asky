@@ -2,6 +2,8 @@ import AppKit
 import AgentHost
 import LocalStore
 import SwiftUI
+import Contracts
+import ToolService
 
 @main
 @MainActor
@@ -40,6 +42,28 @@ enum AgentReplyRegression {
         precondition(model.items.count == 3 && model.items.last?.workSeconds != nil)
         precondition(model.taskStartedAt == nil && !model.isRunning)
         print("AgentReply regression passed: clarification, persisted question, final reply, cancellation, elapsed time")
+        let attachmentID = try store.create(title: "附件消息回归")
+        let file = root.appending(path: "PRD-Spotlight.md")
+        try Data("附件回归".utf8).write(to: file)
+        let document = try ComposerAttachmentService.importFile(file, into: app.store.attachmentsDirectory)
+        var refs = [document.reference]
+        if let index = CommandLine.arguments.firstIndex(of: "--attachment-preview"),
+           CommandLine.arguments.indices.contains(index + 1) {
+            let image = try ComposerAttachmentService.importFile(URL(filePath: CommandLine.arguments[index + 1]), into: app.store.attachmentsDirectory)
+            refs.insert(image.reference, at: 0)
+        }
+        try store.append(conversationID: attachmentID, role: "user", text: "请分析这些附件", attachments: refs)
+        model.open(attachmentID)
+        precondition(model.items.first?.attachments == refs, "history must restore message attachments")
+        model.open(nil)
+        model.open(attachmentID)
+        precondition(model.items.first?.attachments == refs, "reopening retains the selected attachment order")
+        print("Message attachment regression passed: history restoration and attachment order")
+        if CommandLine.arguments.contains("--attachment-preview") {
+            let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+            controller.show()
+            withExtendedLifetime(controller) { application.run() }
+        }
         if CommandLine.arguments.contains("--preview") {
             let previewID = try store.create(title: "澄清回复回归")
             model.open(previewID)

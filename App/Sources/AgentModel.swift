@@ -15,6 +15,7 @@ struct ChatItem: Identifiable, Hashable {
     var needsPermissionSettings = false
     var toolName: String? = nil
     var workSeconds: Int? = nil
+    var attachments: [AttachmentRef] = []
 
     var toolSymbol: String {
         let name = toolName ?? ""
@@ -100,7 +101,7 @@ final class AgentModel {
     }
 
     private static func item(_ m: StoredMessage) -> ChatItem {
-        ChatItem(id: m.id, kind: m.role == "user" ? .user : m.role == "assistant" ? .assistant : .notice, text: m.text)
+        ChatItem(id: m.id, kind: m.role == "user" ? .user : m.role == "assistant" ? .assistant : .notice, text: m.text, attachments: m.attachments)
     }
 
     private func appendTrimmed(_ item: ChatItem) {
@@ -128,14 +129,20 @@ final class AgentModel {
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "尚未配置模型。请在 设置 › 模型 中填写 API 地址、模型名与 Key。"))
             return
         }
-        draft = ""
         let cid: String
         if let existing = conversationID { cid = existing } else {
             guard let created = try? store.create(title: String(text.prefix(40))) else { return }
             cid = created
             conversationID = created
         }
-        if let m = try? store.append(conversationID: cid, role: "user", text: text) { appendTrimmed(Self.item(m)) }
+        do {
+            let message = try store.append(conversationID: cid, role: "user", text: text, attachments: attachments)
+            appendTrimmed(Self.item(message))
+        } catch {
+            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "保存消息失败：\(error.localizedDescription)"))
+            return
+        }
+        draft = ""
 
         var context: [ContextSnippet] = []
         if app.settings.enabledSources.contains(.memory) {

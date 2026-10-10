@@ -67,6 +67,8 @@ public enum Schema {
             id TEXT PRIMARY KEY, name TEXT NOT NULL, enabled INTEGER NOT NULL, read_only INTEGER NOT NULL,
             sources TEXT NOT NULL, credential_hash TEXT NOT NULL, created_at REAL NOT NULL);
         """,
+        // v2: attachment references belong to the submitted message, in selection order.
+        "ALTER TABLE messages ADD COLUMN attachments_json TEXT NOT NULL DEFAULT '[]';",
     ]
 
     public static func migrate(_ db: Database) throws {

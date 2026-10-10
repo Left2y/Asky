@@ -149,6 +149,7 @@ public struct StoredMessage: Sendable, Hashable, Identifiable {
     public var role: String
     public var text: String
     public var createdAt: Date
+    public var attachments: [AttachmentRef] = []
 }
 
 public struct ConversationStore: Sendable {
@@ -166,15 +167,16 @@ public struct ConversationStore: Sendable {
     }
 
     @discardableResult
-    public func append(conversationID: String, role: String, text: String, now: Date = Date()) throws -> StoredMessage {
-        try db.transaction {
+    public func append(conversationID: String, role: String, text: String, attachments: [AttachmentRef] = [], now: Date = Date()) throws -> StoredMessage {
+        let attachmentJSON = String(decoding: try JSONEncoder().encode(attachments), as: UTF8.self)
+        return try db.transaction {
             let seq = try db.scalarInt("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?", [conversationID])
             let id = UUID().uuidString
-            try db.run("INSERT INTO messages(id, conversation_id, seq, role, text, created_at) VALUES(?,?,?,?,?,?)",
-                       [id, conversationID, seq, role, text, now])
+            try db.run("INSERT INTO messages(id, conversation_id, seq, role, text, created_at, attachments_json) VALUES(?,?,?,?,?,?,?)",
+                       [id, conversationID, seq, role, text, now, attachmentJSON])
             try db.run("INSERT INTO messages_fts(id, conversation_id, text) VALUES(?,?,?)", [id, conversationID, text])
             try db.run("UPDATE conversations SET updated_at = ? WHERE id = ?", [now, conversationID])
-            return StoredMessage(id: id, conversationID: conversationID, seq: seq, role: role, text: text, createdAt: now)
+            return StoredMessage(id: id, conversationID: conversationID, seq: seq, role: role, text: text, createdAt: now, attachments: attachments)
         }
     }
 
@@ -223,7 +225,9 @@ public struct ConversationStore: Sendable {
 
     static func decode(_ r: Row) -> StoredMessage {
         StoredMessage(id: r.string("id") ?? "", conversationID: r.string("conversation_id") ?? "", seq: r.int("seq") ?? 0,
-                      role: r.string("role") ?? "", text: r.string("text") ?? "", createdAt: r.date("created_at") ?? .distantPast)
+                      role: r.string("role") ?? "", text: r.string("text") ?? "", createdAt: r.date("created_at") ?? .distantPast,
+                      attachments: (try? JSONDecoder().decode([AttachmentRef].self,
+                          from: Data((r.string("attachments_json") ?? "[]").utf8))) ?? [])
     }
 }
 

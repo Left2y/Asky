@@ -86,6 +86,40 @@ func tempRoot() -> URL {
         #expect(cs.search("message").isEmpty)
     }
 
+    @Test func oldMessagesMigrateWithoutAttachments() throws {
+        let db = try Database(path: ":memory:")
+        try db.execute(Schema.migrations[0])
+        try db.execute("PRAGMA user_version = 1")
+        try db.run("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('old','old',0,0)")
+        try db.run("INSERT INTO messages(id,conversation_id,seq,role,text,created_at) VALUES('message','old',1,'user','old text',0)")
+        try Schema.migrate(db)
+        try Schema.migrate(db)
+        let row = try #require(db.query("SELECT * FROM messages WHERE id = 'message'").first)
+        #expect(ConversationStore.decode(row).text == "old text")
+        #expect(ConversationStore.decode(row).attachments.isEmpty)
+    }
+
+    @Test func messageAttachmentsSurviveReopeningAndPaging() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let local = try LocalStore(root: root)
+        let store = ConversationStore(local)
+        let cid = try store.create(title: "附件")
+        let refs = [AttachmentRef(kind: .image, path: "/local/picture.png", mimeType: "image/png", byteSize: 123, temporary: false),
+                    AttachmentRef(kind: .file, path: "/local/AGENTS.md", mimeType: "text/plain", byteSize: 456, temporary: false)]
+        let submitted = try store.append(conversationID: cid, role: "user", text: "查看附件", attachments: refs)
+        try store.append(conversationID: cid, role: "assistant", text: "回复")
+        let reopened = ConversationStore(try LocalStore(root: root))
+        let restored = try #require(reopened.messages(conversationID: cid, limit: 1, beforeSeq: 2).first)
+        #expect(restored.id == submitted.id)
+        #expect(restored.text == submitted.text)
+        #expect(restored.attachments == refs)
+        #expect(reopened.messages(conversationID: cid, limit: 1).first?.attachments == [])
+        #expect(reopened.search("查看").first?.attachments == refs)
+        try reopened.delete(cid)
+        #expect(reopened.messages(conversationID: cid, limit: 40).isEmpty)
+    }
+
     @Test func mcpInstanceLookupByHashOnly() throws {
         let s = try LocalStore(inMemoryWithRoot: tempRoot())
         let m = MCPInstanceStore(s)

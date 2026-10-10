@@ -326,6 +326,15 @@ private struct ChatBubble: View {
         switch item.kind {
         case .user:
             VStack(alignment: .trailing, spacing: 8) {
+                if !item.attachments.isEmpty {
+                    ViewThatFits(in: .horizontal) {
+                        attachmentCards
+                        ScrollView(.horizontal) { attachmentCards }
+                            .scrollIndicators(.hidden)
+                            .defaultScrollAnchor(.trailing)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
                 HStack { Spacer(minLength: 40); bubble.padding(.horizontal, 12).padding(.vertical, 10)
                     .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
                 copyButton
@@ -365,6 +374,15 @@ private struct ChatBubble: View {
         case .error:
             Label(item.text, systemImage: "exclamationmark.triangle").textStyle(.secondary).foregroundStyle(ThemeColor.kTextNegative)
         }
+    }
+
+    private var attachmentCards: some View {
+        HStack(spacing: 8) {
+            ForEach(item.attachments) { attachment in
+                ComposerAttachmentCard(attachment: attachment, thumbnail: nil)
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var copyButton: some View {

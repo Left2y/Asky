@@ -2,14 +2,13 @@ import AppKit
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general = "advanced", appearance, model, hotkey, aliases, keywords
+    case general = "advanced", model, hotkey, aliases, keywords
     case sources, permissions, memory, mcp
 
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: "通用"
-        case .appearance: "外观设置"
         case .model: "模型设置"
         case .hotkey: "触发快捷键"
         case .aliases: "别名与快捷指令"
@@ -23,7 +22,6 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .general: "gearshape"
-        case .appearance: "circle.lefthalf.filled"
         case .model: "sparkles"
         case .hotkey: "keyboard"
         case .aliases: "command"
@@ -37,7 +35,6 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .general, .hotkey: .gray
-        case .appearance: .indigo
         case .model, .memory: .purple
         case .aliases: .orange
         case .keywords, .sources: .blue
@@ -159,10 +156,10 @@ private struct SettingsSidebar: View {
                     Text(page.title)
                 } icon: {
                     Image(systemName: page.symbol)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white)
-                        .frame(width: 26, height: 26)
-                        .background(page.color, in: RoundedRectangle(cornerRadius: 6))
+                        .frame(width: 22, height: 22)
+                        .background(page.color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .padding(.vertical, 3)
                 .tag(page.rawValue)

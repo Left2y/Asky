@@ -15,7 +15,6 @@ struct SettingsView: View {
     var body: some View {
         Group {
             switch SettingsPage.resolve(app.settingsTab) {
-            case .appearance: AppearanceSettings(app: app)
             case .model: ModelSettingsView(app: app)
             case .hotkey: HotKeySettings(app: app)
             case .aliases: AliasSettings(app: app)
@@ -29,22 +28,6 @@ struct SettingsView: View {
         }
         .toggleStyle(.switch)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct AppearanceSettings: View {
-    @Bindable var app: AppModel
-    var body: some View {
-        Form {
-            Section("外观") {
-                Picker("应用主题", selection: $app.preferences.appearance) {
-                    Text("跟随系统").tag("system")
-                    Text("浅色").tag("light")
-                    Text("深色").tag("dark")
-                }
-                Text("应用于启动器、AI 对话与设置窗口。").foregroundStyle(.secondary)
-            }
-        }.formStyle(.grouped)
     }
 }
 
@@ -171,6 +154,14 @@ private struct GeneralSettings: View {
                         catch { loginError = error.localizedDescription; launchAtLogin = !on }
                     }
                 if let loginError { Text(loginError).foregroundStyle(ThemeColor.kTextNegative) }
+            }
+            Section("外观") {
+                Picker("应用主题", selection: $app.preferences.appearance) {
+                    Text("跟随系统").tag("system")
+                    Text("浅色").tag("light")
+                    Text("深色").tag("dark")
+                }
+                Text("应用于启动器、AI 对话与设置窗口。").foregroundStyle(.secondary)
             }
             Section("文件搜索范围") {
                 ForEach(app.settings.fileScopes, id: \.self) { p in

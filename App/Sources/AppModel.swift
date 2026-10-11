@@ -54,7 +54,7 @@ final class AppModel {
     private var mcpServer: MCPLinkServer?
     private(set) var mcpServerError: String?
 
-    var settingsTab = "appearance"
+    var settingsTab = SettingsPage.general.rawValue
     let credentialSession = ModelCredentialSession()
     var hotKeyStatus = ""
     var clipboardHotKeyStatus = ""

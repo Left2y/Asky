@@ -84,6 +84,7 @@ enum SettingsRegression {
                         model.settingsTab = tab
                         try await Task.sleep(for: .milliseconds(250))
                         window.contentView?.layoutSubtreeIfNeeded()
+                        assertDetailBelowToolbar(split, window: window)
                         guard window.title == "\(page.title) — Asky 设置" else {
                             fatalError("settings title did not follow selection: \(tab)")
                         }
@@ -92,6 +93,21 @@ enum SettingsRegression {
                         view.cacheDisplay(in: view.bounds, to: bitmap)
                         guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("missing settings snapshot") }
                         try png.write(to: URL(filePath: "build/settings-\(appearance)-\(tab).png"))
+                        if page == .sources {
+                            guard let scroll = findScrollView(in: split.splitViewItems[1].viewController.view),
+                                  let document = scroll.documentView else {
+                                fatalError("missing settings scroll view")
+                            }
+                            let bottom = max(0, document.bounds.height - scroll.contentView.bounds.height)
+                            guard bottom > 0 else { fatalError("data sources no longer scrolls") }
+                            scroll.contentView.scroll(to: NSPoint(x: 0, y: document.isFlipped ? bottom : 0))
+                            scroll.reflectScrolledClipView(scroll.contentView)
+                            try await Task.sleep(for: .milliseconds(250))
+                            assertDetailBelowToolbar(split, window: window)
+                            view.cacheDisplay(in: view.bounds, to: bitmap)
+                            let scrolled = bitmap.representation(using: .png, properties: [:])!
+                            try scrolled.write(to: URL(filePath: "build/settings-\(appearance)-sources-scrolled.png"))
+                        }
                     }
                 }
                 model.openSettings(permissions: true)
@@ -101,6 +117,7 @@ enum SettingsRegression {
                 }
                 window.setContentSize(SettingsWindow.minimumSize)
                 window.contentView?.layoutSubtreeIfNeeded()
+                assertDetailBelowToolbar(split, window: window)
                 guard split.splitViewItems[0].isCollapsed == false,
                       split.splitViewItems[1].viewController.view.bounds.width >= 540 else {
                     fatalError("settings detail clipped at minimum window size")
@@ -111,5 +128,21 @@ enum SettingsRegression {
             } catch { fputs("Settings regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func assertDetailBelowToolbar(_ split: NSSplitViewController, window: NSWindow) {
+        guard let hosting = split.splitViewItems[1].viewController.children.first else {
+            fatalError("missing settings detail host")
+        }
+        let viewport = hosting.view.convert(hosting.view.bounds, to: nil)
+        guard viewport.maxY <= window.contentLayoutRect.maxY + 0.5,
+              viewport.height > 400 else {
+            fatalError("settings scroll viewport overlaps toolbar: \(viewport), layout: \(window.contentLayoutRect)")
+        }
+    }
+
+    private static func findScrollView(in view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        return view.subviews.lazy.compactMap { findScrollView(in: $0) }.first
     }
 }

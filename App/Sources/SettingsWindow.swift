@@ -101,7 +101,7 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
         sidebarItem.allowsFullHeightLayout = true
         addSplitViewItem(sidebarItem)
 
-        let detail = NSHostingController(rootView: SettingsView(app: app))
+        let detail = SettingsDetailViewController(app: app)
         let detailItem = NSSplitViewItem(viewController: detail)
         detailItem.minimumThickness = 540
         detailItem.automaticallyAdjustsSafeAreaInsets = true
@@ -139,6 +139,34 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
             return item
         }
         return nil
+    }
+}
+
+/// Keep the scroll viewport below the toolbar, rather than merely insetting its
+/// content: a full-height Form can otherwise scroll rows behind the page heading.
+@MainActor
+private final class SettingsDetailViewController: NSViewController {
+    private let hosting: NSHostingController<SettingsView>
+
+    init(app: AppModel) {
+        hosting = NSHostingController(rootView: SettingsView(app: app))
+        super.init(nibName: nil, bundle: nil)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func loadView() {
+        view = NSView()
+        addChild(hosting)
+        let content = hosting.view
+        content.translatesAutoresizingMaskIntoConstraints = false
+        content.clipsToBounds = true
+        view.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            content.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            content.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+        ])
     }
 }
 

@@ -8,6 +8,7 @@ import ToolService
 private final class PermissionAuthorizationModel {
     let permission: SystemPermission
     var regrant = false
+    var cardAbsent = false
     var message: String?
 
     init(permission: SystemPermission) { self.permission = permission }
@@ -184,11 +185,13 @@ private struct PermissionAuthorizationView: View {
             }
             let canDrag = SystemPermissions.canDragApp(at: SystemPermissions.appURL)
             if canDrag {
-                appTile.onDrag { SystemPermissions.appDragProvider() ?? NSItemProvider() } preview: {
-                    appTile.frame(width: 320).environment(\.colorScheme, colorScheme)
-                }
+                PermissionAppDragCard(onStarted: { model.cardAbsent = true },
+                    onEnded: { accepted in model.cardAbsent = accepted })
+                    .frame(height: 80)
+                    .opacity(model.cardAbsent ? 0 : 1)
+                    .allowsHitTesting(!model.cardAbsent)
             } else {
-                appTile.opacity(0.5)
+                PermissionAppCard(colorScheme: colorScheme, reduceTransparency: reduceTransparency).opacity(0.5)
             }
             Text(NSLocalizedString(canDrag
                 ? (model.regrant
@@ -216,27 +219,4 @@ private struct PermissionAuthorizationView: View {
         .padding(20)
     }
 
-    private var appTile: some View {
-        HStack(spacing: 12) {
-            Image(nsImage: SystemPermissions.appIcon).resizable().frame(width: 48, height: 48)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Asky.app").font(.system(size: 16, weight: .regular))
-                Text(NSLocalizedString("拖拽授权", comment: ""))
-                    .font(.system(size: 13)).foregroundStyle(ThemeColor.kTextSubtle)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "hand.draw").foregroundStyle(ThemeColor.kIconSubtle)
-        }
-        .padding(16)
-        .background {
-            let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-            shape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                .glassEffect(reduceTransparency ? .identity : .regular, in: shape)
-        }
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(ThemeColor.kBorder, lineWidth: 1))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(NSLocalizedString("Asky 应用授权卡片，拖到系统设置的应用列表", comment: ""))
-    }
 }

@@ -73,7 +73,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 使用 AI 前，在“设置 › 模型设置”中填写服务商的 API 地址、模型名和 API Key。Key 存储在 macOS 钥匙串中；本地数据位于 `~/Library/Application Support/KulaHere/`。
 
-系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。辅助功能和屏幕录制点击“去授权”后打开独立的原生玻璃浮窗，并自动打开对应系统权限页。将浮窗中的 Asky.app 卡片拖入列表后开启开关；重新授权时先删除旧条目再拖入。浮窗持续检查当前应用进程的权限，确认授权后自动关闭，并关闭或收起本次权限页；若已切到其他系统设置页，则保留该页面。临时转移路径运行的应用需先移到“应用程序”并重新打开。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
+系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。辅助功能和屏幕录制点击“去授权”后打开独立的原生玻璃浮窗，并自动打开对应系统权限页。将浮窗中的 Asky.app 卡片拖入列表后开启开关；重新授权时先删除旧条目再拖入。拖动开始时原位卡片隐藏，取消或未被接收时恢复，被接收后保持隐藏。浮窗持续检查当前应用进程的权限，确认授权后自动关闭，并关闭或收起本次权限页；若已切到其他系统设置页，则保留该页面。临时转移路径运行的应用需先移到“应用程序”并重新打开。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
 
 ### 项目结构与文档
 
@@ -196,7 +196,7 @@ See the [draft privacy policy (Chinese)](PRIVACY.md) for local storage, third-pa
 
 Before using AI, enter your provider's API endpoint, model name, and API key under Settings › Model Settings. Keys are stored in macOS Keychain; local data resides in `~/Library/Application Support/KulaHere/`.
 
-Manage system permissions under Settings › System Permissions. Tools request authorization as needed. For Accessibility and Screen Recording, click Grant Access to open an independent native glass panel and the matching System Settings pane automatically. Drag its Asky.app card into the list, then turn on the switch. To grant access again, remove the old entry before dragging. The panel keeps checking the running app’s access and closes when authorization is confirmed, also closing or hiding its permission pane; a different pane you have navigated to is preserved. A translocated app must first be moved to Applications and reopened. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
+Manage system permissions under Settings › System Permissions. Tools request authorization as needed. For Accessibility and Screen Recording, click Grant Access to open an independent native glass panel and the matching System Settings pane automatically. Drag its Asky.app card into the list, then turn on the switch. To grant access again, remove the old entry before dragging. The source card disappears when dragging starts, returns if the drag is cancelled or rejected, and stays hidden after an accepted drop. The panel keeps checking the running app’s access and closes when authorization is confirmed, also closing or hiding its permission pane; a different pane you have navigated to is preserved. A translocated app must first be moved to Applications and reopened. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
 
 ### Project Structure and Documentation
 

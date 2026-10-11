@@ -123,12 +123,40 @@ enum SettingsRegression {
                     fatalError("settings detail clipped at minimum window size")
                 }
                 try await assertStandaloneAuthorizationFlow(parent: window)
+                try await assertNativeCardDrag(parent: window)
                 try? FileManager.default.removeItem(at: root)
-                print("Settings native light/dark snapshots and standalone authorization lifecycle passed")
+                print("Settings native snapshots, authorization lifecycle and card drag restoration passed")
                 exit(0)
             } catch { fputs("Settings regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func assertNativeCardDrag(parent: NSWindow) async throws {
+        var started = 0
+        var accepted: [Bool] = []
+        let card = PermissionCardHostingView(rootView: PermissionAppCard(colorScheme: .light, reduceTransparency: false),
+            onStarted: { started += 1 }, onEnded: { accepted.append($0) })
+        card.frame = NSRect(x: 12, y: 12, width: 320, height: 80)
+        guard card.acceptsFirstMouse(for: nil), !card.mouseDownCanMoveWindow else {
+            fatalError("dragging the inactive panel's card must not require a second click or move the window")
+        }
+        parent.contentView?.addSubview(card)
+        defer { card.removeFromSuperview() }
+        try await Task.sleep(for: .milliseconds(150))
+        guard let snapshot = card.cardSnapshot(), snapshot.size == NSSize(width: 320, height: 80),
+              let tiff = snapshot.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else {
+            fatalError("drag preview is missing the full card")
+        }
+        try png.write(to: URL(filePath: "build/permission-drag-card.png"))
+        card.beginCardDrag()
+        guard card.alphaValue == 0, started == 1 else { fatalError("source card remained visible when dragging began") }
+        card.finishCardDrag(operation: [])
+        guard card.alphaValue == 1, accepted == [false] else { fatalError("cancelled drag did not restore the source card") }
+        card.beginCardDrag()
+        card.finishCardDrag(operation: .copy)
+        guard card.alphaValue == 0, accepted == [false, true] else { fatalError("accepted drag incorrectly restored the source card") }
     }
 
     /// Simulate permission changes without granting real TCC access or opening System Settings.

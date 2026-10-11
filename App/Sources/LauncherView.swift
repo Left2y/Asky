@@ -231,6 +231,7 @@ struct LauncherView: View {
                     fontSize: 18,
                     textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
                     placeholder: NSLocalizedString("搜索或输入你的任务", comment: "Launcher empty input placeholder"),
+                    placeholderColor: NSColor(ThemeColor.kTextSubtle.color(for: colorScheme)),
                     completion: model.calculationCompletion,
                     backspaceOnEmpty: model.backspaceOnEmptyInput,
                     move: model.move,

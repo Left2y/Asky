@@ -1,6 +1,6 @@
 # Asky 产品框架与架构大纲
 
-更新日期：2026 年 10 月 9 日。状态：V1 架构设计，尚无对应应用源码或已运行验证的模块。
+更新日期：2026 年 10 月 11 日。状态：当前模块架构；GitHub 插件与协议 v2 已实现，实际检查见[插件验证](validation/2026-10-11-plugins.md)。其他验收以各专题验证记录为准。
 
 Asky 围绕“快速入口、按需理解、本地记忆、少量提醒”构建。确定性功能独立于模型和 Pi；原生主应用管理系统授权、工具执行、数据与资源，Agent 是按需启动且可替换的增强层。
 
@@ -32,7 +32,7 @@ Asky 围绕“快速入口、按需理解、本地记忆、少量提醒”构建
 | Direct Actions | 应用、URL、计算、单位、汇率、终端与 Shortcuts | 不依赖 Pi、模型或 MCP 启动 |
 | AgentHost | 辅助进程启动退出、宿主通信、任务与 UI 事件适配 | Swift 业务不引用 Pi 内部类型 |
 | Agent Runtime | 模型、上下文、工具编排与运行会话 | 按需运行，不拥有系统权限或整库私有数据 |
-| ToolService | 参数、授权、确认、去重、执行与回读 | Launcher、Agent、外部 MCP 共用同一策略 |
+| ToolService | 参数、授权、确认、去重、执行、回读及可信插件执行 | Launcher、Agent、外部 MCP 共用同一策略 |
 | LocalStore | 活动、产品历史投影、记忆、执行与计划 | 数据落盘，查询有界；对话唯一权威待 M0 固化 |
 | Memory Engine | 提炼、检索、纠正、来源、替代与删除 | 原生管理；默认不会为每条活动唤醒模型 |
 | Context Scheduler | 事件检查、冲突、路线与提醒计划 | 先本地规则，默认不后台启动模型 |
@@ -58,9 +58,11 @@ flowchart LR
     Scheduler --> Notify[系统本地通知]
 ```
 
-图中 Host / Pi 通道是受控本地宿主通信，已冻结为 stdio JSONL 协议 v1。Bridge 到 ToolService 当前经 Unix domain socket 连接。内部原生调用不必经过 MCP 序列化。
+图中 Host / Pi 通道是受控本地宿主通信，已冻结为 stdio JSONL 协议 v2。Bridge 到 ToolService 当前经 Unix domain socket 连接。内部原生调用不必经过 MCP 序列化。
 
 主应用保持系统授权与确认的主体。Pi 通过宿主调用原生工具，不直接访问受保护数据库。Bridge 验证接入实例并转交应用，应用未运行时返回可恢复的不可用状态。
+
+插件安装与执行由 ToolService 管理；官方插件独立仓库发布并按需安装，不进入应用包。插件执行进程用于生命周期管理，不是沙箱，详见[插件指南](plugins.md)。
 
 正常常驻只有主应用及必要的轻量原生能力；Pi 仅在明确 AI 提交时启动，外部 MCP Bridge 由实际接入需要启动。不能为每个引擎建立长期驻留进程。网络、Apple Events、索引与数据库工作不阻塞 UI 主线程。
 

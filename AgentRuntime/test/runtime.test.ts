@@ -105,9 +105,9 @@ const TOOLS = [
 ];
 
 async function handshake(p: Proc, mock: Mock) {
-  p.send({ type: "hello", protocol: 1 });
+  p.send({ type: "hello", protocol: 2 });
   const ready = await p.next((f) => f.type === "ready");
-  assert.equal(ready.protocol, 1);
+  assert.equal(ready.protocol, 2);
   assert.match(ready.runtime, /pi\/1\.1\.0/);
   p.send({ type: "configure", baseURL: mock.url, model: "mock-model", apiKey: KEY, tools: TOOLS, maxToolRounds: 8 });
 }
@@ -220,4 +220,32 @@ test("rejects session files outside the runtime session directory", async () => 
     await p.exit;
     mock.server.close();
   }
+});
+
+test("installed plugin guidance and tools refresh in an existing session without credential reconfiguration", async () => {
+  const mock = await startMock([() => textReply("first"), () => textReply("second"), () => textReply("third")]);
+  const p = launch(mkdtempSync(join(tmpdir(), "asky-plugin-refresh-")));
+  try {
+    await handshake(p, mock);
+    p.send({ type: "prompt", request: request("plugin-before", "hello") });
+    await p.next(f => f.type === "taskState" && f.taskID === "plugin-before" && f.state === "completed");
+    const pluginTool = { ...TOOLS[0], name: "plugin_orca__submit_task", source: "plugins", confirmation: "explicitDirectOtherwiseConfirm", externallyExposable: false };
+    p.send({ type: "resources", tools: [pluginTool], pluginGuidance: ["ORCA_PLUGIN_GUIDANCE_MARKER"] });
+    p.send({ type: "prompt", request: request("plugin-enabled", "hello again") });
+    await p.next(f => f.type === "taskState" && f.taskID === "plugin-enabled" && f.state === "completed");
+    assert.ok(mock.requests[1].body.tools.some((t: any) => t.function.name === pluginTool.name));
+    assert.ok(mock.requests[1].body.messages.some((m: any) => m.role === "system" && m.content.includes("ORCA_PLUGIN_GUIDANCE_MARKER")));
+    p.send({ type: "resources", tools: [], pluginGuidance: [] });
+    p.send({ type: "prompt", request: request("plugin-disabled", "one more") });
+    await p.next(f => f.type === "taskState" && f.taskID === "plugin-disabled" && f.state === "completed");
+    assert.ok(!mock.requests[2].body.tools?.some((t: any) => t.function.name === pluginTool.name));
+    assert.ok(!mock.requests[2].body.messages.some((m: any) => m.role === "system" && m.content.includes("ORCA_PLUGIN_GUIDANCE_MARKER")));
+    assert.ok(mock.requests[2].body.messages.some((m: any) => JSON.stringify(m).includes("hello again")));
+  } finally { p.child.stdin.end(); assert.equal(await p.exit, 0); mock.server.close(); }
+});
+
+test("runtime rejects a v1 host handshake", async () => {
+  const p = launch(mkdtempSync(join(tmpdir(), "asky-protocol-mismatch-")));
+  try { p.send({ type: "hello", protocol: 1 }); assert.match((await p.next(f => f.type === "error")).message, /protocol mismatch/); }
+  finally { p.child.stdin.end(); assert.equal(await p.exit, 0); }
 });

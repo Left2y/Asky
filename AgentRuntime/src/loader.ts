@@ -5,7 +5,7 @@ import { systemTools } from "./extensions/system-tools.js";
 import type { ExtensionContext, KulaExtension } from "./extensions/types.js";
 import type { WireToolDefinition } from "./protocol.js";
 
-/** The only extensions that can ever load. No file discovery, no skills, prompts, themes or AGENTS files. */
+/** Built-in extensions; installed plugin tools arrive through the native catalogue. No file discovery, no skills, prompts, themes or AGENTS files. */
 export const EXTENSION_WHITELIST: readonly KulaExtension[] = [systemTools, personalContext, nativeInteraction];
 
 export function buildTools(catalogue: WireToolDefinition[], ctx: ExtensionContext): ToolDefinition[] {
@@ -21,7 +21,7 @@ export function buildTools(catalogue: WireToolDefinition[], ctx: ExtensionContex
   return out;
 }
 
-export function systemPrompt(now: Date = new Date()): string {
+export function systemPrompt(now: Date = new Date(), pluginGuidance: string[] = []): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const lines = EXTENSION_WHITELIST.flatMap((e) => e.promptGuidelines);
   return [
@@ -31,18 +31,19 @@ export function systemPrompt(now: Date = new Date()): string {
     "回复使用 Markdown。最多使用一层标题：需要标题时统一使用 ###，不要使用 #、##、其他级别或嵌套标题；简短回复无需标题。",
     "规则：",
     ...lines.map((l) => `- ${l}`),
+    ...pluginGuidance,
   ].join("\n");
 }
 
 /** Fully host-owned resource loader: nothing is read from ~/.pi or the working directory. */
-export function whitelistLoader(): ResourceLoader {
+export function whitelistLoader(pluginGuidance: string[] = []): ResourceLoader {
   return {
     getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
     getSkills: () => ({ skills: [], diagnostics: [] }),
     getPrompts: () => ({ prompts: [], diagnostics: [] }),
     getThemes: () => ({ themes: [], diagnostics: [] }),
     getAgentsFiles: () => ({ agentsFiles: [] }),
-    getSystemPrompt: () => systemPrompt(),
+    getSystemPrompt: () => systemPrompt(new Date(), pluginGuidance),
     getSystemPromptSource: () => undefined,
     getAppendSystemPrompt: () => [],
     getAppendSystemPromptSources: () => [],

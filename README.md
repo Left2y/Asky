@@ -36,6 +36,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 - **剪贴板历史**：独立面板浏览文本与图片，悬停 1.5 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
 - **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。
 - **系统工具**：通过 ToolService 统一处理系统读写与授权；集成日历、提醒事项、备忘录和通讯录，信息草稿交由系统 App 确认发送。
+- **GitHub 插件**：在“设置 › 插件”按需安装官方或自行选择的公开 GitHub 仓库，支持配置、启停、更新、回退和卸载。官方 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca) 独立发布，不进入安装包；插件会执行可信本机代码，不提供沙箱。接口与安装依赖见[插件指南](docs/plugins.md)。
 - **MCP 扩展**：通过独立授权的 MCP Bridge 向外部客户端提供本地工具。
 
 ### 快速开始
@@ -55,6 +56,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 ### 使用方法
 
+- 搜索框唤出后，右侧展开两个与输入框等高的圆形玻璃按钮：Pin 保持窗口在切换应用时可见，Filter 可限定应用、文件、快捷方式（内置网页指令与别名）或系统快捷指令。选择“全部”恢复混合搜索；Escape 先关闭筛选菜单，再关闭窗口，固定状态也可关闭。筛选与固定状态在窗口关闭后重置。
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
 - `go`（Google 搜索）、`chat`（ChatGPT）、`yt`（YouTube）、`dy`（抖音）、`tb`（淘宝）、`jd`（京东）、`bl`（bilibili）、`gh`（GitHub）和 `>`（终端）是固定内置指令，无需配置，不能添加、修改或删除。可在“设置 › 指令”查看带对应品牌 Logo 的内置指令并配置终端；设置列表、搜索框与指令结果统一使用 24 × 24 pt、6 pt 圆角图标，周围留白透明、不添加底板或描边，`>` 显示当前所选终端的图标。旧的网页关键词配置不再参与启动器路由；输入 `go 内容`、`chat 问题` 或 `yt 搜索内容` 等即可使用。
 - 输入英文 `>` 后按空格进入终端模式，例如 `> pwd`；单独的 `>` 或 `>pwd` 保持普通搜索；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 指令 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
@@ -103,6 +105,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
+python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
 python3 App/Tests/run-launcher-calculation-regression.py
@@ -113,6 +116,7 @@ python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
 python3 App/Tests/run-agent-reply-regression.py
@@ -173,6 +177,7 @@ The project is under active development. The repository includes the native app,
 - **Clipboard history**: Browse text and images in a dedicated panel with full previews after hovering for 1.5 seconds, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
 - **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle.
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.
+- **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) ships separately and is not bundled. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
 - **MCP extensions**: Expose local tools to external clients through a separately authorized MCP Bridge.
 
 ### Quick Start
@@ -192,6 +197,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 ### Usage
 
+- Invoking search unfolds two circular glass buttons matching the input height: Pin keeps the window visible when switching apps; Filter limits results to applications, files, Quick Links (built-in web commands and aliases), or system Shortcuts. All restores mixed search. Escape closes the filter menu first, then the window, including pinned windows. Closing the window resets both filter and pin state.
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
 - Type `1+1` to see a faint `= 2` suffix and a stacked card with the expression aligned left above the right-aligned result; press Return to copy the result. Long expressions occupy up to two lines with middle truncation; hover to see the full expression. Type `1美元`, `1 USD`, or `100人民币` to see a horizontal pair of cards showing the input currency and Chinese yuan (yuan inputs default to US dollars), with all other currencies listed underneath. Use `100 USD CNY` for a specific pair. Cards show flags, currencies, and amounts, without selection, hover, or copy actions. Rates use ECB daily references; offline use falls back to the cache or reports unavailable.
 - `go` (Google search), `chat` (ChatGPT), `yt` (YouTube), `dy` (Douyin), `tb` (Taobao), `jd` (JD), `bl` (bilibili), `gh` (GitHub), and `>` (terminal) are fixed built-in commands that require no setup and cannot be added, edited, or deleted. View built-in commands with their brand logos and configure the terminal under Settings › Commands. Settings, the search field, and command results share 24 × 24 pt icons with 6 pt corners, transparent surrounding space, and no added background or border; `>` shows the selected terminal’s icon. Legacy web keyword settings no longer affect launcher routing; type `go query`, `chat question`, or a site shortcut such as `yt query` to use them.
@@ -240,6 +246,7 @@ After the Debug build in Quick Start, run native regression checks. Some interac
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
+python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
 python3 App/Tests/run-launcher-calculation-regression.py
@@ -250,6 +257,7 @@ python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
 python3 App/Tests/run-agent-reply-regression.py

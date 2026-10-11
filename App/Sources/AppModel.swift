@@ -109,9 +109,11 @@ final class AppModel {
         let instances = MCPInstanceStore(store)
         tools = ToolService(store: store, policy: {
             let s = reader.load()
-            return PolicySnapshot(enabledSources: s.enabledSources,
+            return PolicySnapshot(enabledSources: s.enabledSources.union([.plugins]),
                                   mcpInstances: Dictionary(uniqueKeysWithValues: instances.all().map { ($0.id, $0) }))
         }, presenter: { request in await confirmations.present(request) },
+           pluginRuntime: PluginRuntimeConfiguration(nodePath: NodeRuntimeLauncher.findNode(bundleResources: Bundle.main.resourceURL),
+               runnerPath: Self.runtimeEntry().map { URL(filePath: $0).deletingLastPathComponent().appending(path: "plugin-runner.js").path }),
            authorize: { source, origin in try await SystemPermissions.require(source, origin: origin) })
         native = NativeTools(notesFolders: { reader.load().notesFolders })
         gateway = MCPGateway(store: store, tools: tools)
@@ -165,7 +167,7 @@ final class AppModel {
             return RuntimeLaunchConfig(baseURL: cfg.baseURL.absoluteString, model: cfg.modelName, apiKey: key)
         }, toolsProvider: {
             await tools.definitions(for: .agent(sessionID: ""))
-        }, toolHandler: { request in
+        }, guidanceProvider: { await tools.plugins.guidance() }, toolHandler: { request in
             await tools.submit(request)
         })
     }

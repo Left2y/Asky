@@ -14,6 +14,7 @@ Asky 首先提供不依赖 AI 的 macOS 效率入口，再通过按需运行的 
 | [产品框架与架构](framework.md) | 技术栈、模块、进程与主要接口 | 模块划分、进程边界、总体数据流 |
 | [原生界面与设计系统](design-system.md) | Figma 变量、Styles、原生控件、Liquid Glass | 页面、窗口、组件与主题 |
 | [Agent Runtime](agent-runtime.md) | Pi 选型、扩展、模型接入、任务与进程生命周期 | AI 集成、会话、原生通信 |
+| [GitHub 插件](plugins.md) | 可信插件安装、独立官方仓库、插件 API 与 CLI 执行 | 插件管理、作者接口、Orca 交接 |
 | [原生工具与 MCP](native-tools-and-mcp.md) | 系统适配器、工具契约、权限、执行与回读 | macOS 操作、MCP、敏感写入 |
 | [数据、记忆与提醒](data-and-memory.md) | 数据归属、保留、来源限制、删除与提醒计划 | 数据存储、记忆、情境增强 |
 | [隐私政策草案](../PRIVACY.md) | 不向作者上传、设备处理、第三方接收、保存与删除边界 | 对外隐私说明；发布前须补全主体与联系方式 |
@@ -36,7 +37,7 @@ Asky 首先提供不依赖 AI 的 macOS 效率入口，再通过按需运行的 
 | 界面 | SwiftUI 与 AppKit 原生组件，使用用户 Figma 变量与 Styles，加入原生 Liquid Glass | 已确认；[设计系统](design-system.md) |
 | Runtime | 优先验证 Pi SDK，以本地辅助进程接入；保留更换 Runtime 的边界 | 选型方向；M0 验证后锁定；[Agent](agent-runtime.md) |
 | 运行方式 | 原生应用常驻，明确提交 AI 请求才启动 Pi | 已确认方向；空闲退出时长为默认值；[Agent](agent-runtime.md) |
-| 扩展 | 仅加载允许的扩展与工具，不建立 V1 插件商店 | 已确认方向；[Agent](agent-runtime.md) |
+| 扩展 | 仅加载内置能力与用户主动安装的可信 GitHub 插件，不建立 V1 插件商店 | 已确认方向；[Agent](agent-runtime.md) |
 | 数据 | 本地持久化、最小上下文外发、来源权限继承 | 已确认；[数据](data-and-memory.md) |
 | 性能 | 管理每类资源的归属、上限和释放，不以语言判断占用 | 已确认；预算待测量；[资源](resource-lifecycle.md) |
 

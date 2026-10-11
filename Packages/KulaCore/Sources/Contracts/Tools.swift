@@ -2,7 +2,7 @@ import Foundation
 import CryptoKit
 
 public enum DataSourceID: String, Sendable, Codable, CaseIterable {
-    case calendar, reminders, notes, contacts, chrome, shortcuts, messages, terminal, memory, clipboard, maps
+    case calendar, reminders, notes, contacts, chrome, shortcuts, messages, terminal, memory, clipboard, maps, plugins
 }
 
 public enum ToolEffect: String, Sendable, Codable {
@@ -14,6 +14,8 @@ public enum ToolEffect: String, Sendable, Codable {
 public enum ConfirmationRule: String, Sendable, Codable {
     /// Explicit user-requested creation may run directly; modifications / deletes / batch always confirm.
     case createDirectOtherwiseConfirm
+    /// Trusted plugins: explicit user requests may execute without an extra prompt.
+    case explicitDirectOtherwiseConfirm
     /// Always requires native confirmation.
     case always
     /// Never needs confirmation (read tools).
@@ -152,7 +154,8 @@ public enum ToolErrorCode: String, Sendable, Codable {
     case cancelled
 }
 
-public struct ToolError: Error, Sendable, Hashable, Codable {
+public struct ToolError: Error, LocalizedError, Sendable, Hashable, Codable {
+    public var errorDescription: String? { message }
     public var code: ToolErrorCode
     public var message: String
     public init(_ code: ToolErrorCode, _ message: String) {

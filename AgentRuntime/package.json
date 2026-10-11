@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "Thin Pi host for Asky: JSONL stdio protocol v1, whitelisted native tools only.",
+  "description": "Thin Pi host for Asky: JSONL stdio protocol v2, native tools and trusted installed plugins.",
   "engines": {
     "node": ">=22"
   },

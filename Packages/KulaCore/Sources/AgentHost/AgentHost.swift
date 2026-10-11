@@ -60,6 +60,8 @@ public actor AgentHost {
     private let toolHandler: ToolHandler
     private let configProvider: @Sendable () async throws -> RuntimeLaunchConfig?
     private let toolsProvider: @Sendable () async -> [ToolDefinition]
+    private let guidanceProvider: @Sendable () async -> [String]
+    private var toolTasks: [String: Task<Void, Never>] = [:]
     private let config: AgentHostConfig
 
     private var process: (any RuntimeProcess)?
@@ -85,12 +87,14 @@ public actor AgentHost {
     public init(config: AgentHostConfig = .init(), launcher: @escaping Launcher,
                 configProvider: @escaping @Sendable () async throws -> RuntimeLaunchConfig?,
                 toolsProvider: @escaping @Sendable () async -> [ToolDefinition],
+                guidanceProvider: @escaping @Sendable () async -> [String] = { [] },
                 toolHandler: @escaping ToolHandler) {
         self.config = config
         self.launcher = launcher
         self.configProvider = configProvider
         self.toolsProvider = toolsProvider
         self.toolHandler = toolHandler
+        self.guidanceProvider = guidanceProvider
     }
 
     public var runningPID: Int32? { process?.pid }
@@ -122,6 +126,7 @@ public actor AgentHost {
     public func cancel(taskID: String) async {
         guard tasks[taskID] != nil else { return }
         try? process?.write(HostMessage.cancel(taskID: taskID).encoded())
+        for (key, value) in toolTasks where key.hasPrefix(taskID + ":") { value.cancel() }
         finish(taskID, tasks[taskID]?.hadWrite == true ? .pendingVerification : .cancelled)
     }
 
@@ -138,6 +143,7 @@ public actor AgentHost {
             let p = try await ensureRunning()
             guard tasks[request.taskID] != nil else { return }
             state = .busy
+            try p.write(HostMessage.resources(tools: await toolsProvider(), pluginGuidance: await guidanceProvider()).encoded())
             try p.write(HostMessage.prompt(request, sessionFile: sessionFiles[request.sessionID]).encoded())
         } catch {
             emit(request.taskID, .error(taskID: request.taskID, "无法启动 AI 运行时：\(error.localizedDescription)"))
@@ -171,7 +177,7 @@ public actor AgentHost {
             try await waitForReady()
             let tools = await toolsProvider()
             try p.write(HostMessage.configure(baseURL: cfg.baseURL, model: cfg.model, apiKey: cfg.apiKey,
-                                              tools: tools, maxToolRounds: config.maxToolRounds).encoded())
+                                              tools: tools, maxToolRounds: config.maxToolRounds, pluginGuidance: await guidanceProvider()).encoded())
         } catch {
             await stopProcess()
             throw error
@@ -265,13 +271,14 @@ public actor AgentHost {
         emit(taskID, .toolCall(taskID: taskID, request))
         // Run off the actor so text deltas and other tasks keep flowing while confirmation is pending.
         let handler = toolHandler
-        Task {
+        toolTasks[callID] = Task {
             let result = await handler(request)
             self.toolFinished(taskID: taskID, callID: callID, result: result, process: p)
         }
     }
 
     private func toolFinished(taskID: String, callID: String, result: ExecutionResult, process p: any RuntimeProcess) {
+        toolTasks[callID] = nil
         tasks[taskID]?.pendingTools -= 1
         // Writes are the only results that carry a readback or an unverified outcome.
         if result.readback != nil || result.status == .pendingVerification {

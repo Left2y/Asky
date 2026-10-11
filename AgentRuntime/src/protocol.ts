@@ -1,7 +1,7 @@
-// JSONL wire protocol v1 — mirror of Packages/KulaCore/Sources/AgentHost/WireProtocol.swift.
+// JSONL wire protocol v2 — mirror of Packages/KulaCore/Sources/AgentHost/WireProtocol.swift.
 // stdout carries protocol frames only; all diagnostics go to stderr.
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const MAX_FRAME_BYTES = 1 << 20;
 
 export type JSONValue = null | boolean | number | string | JSONValue[] | { [k: string]: JSONValue };
@@ -47,7 +47,8 @@ export interface ExecutionResult {
 
 export type HostMessage =
   | { type: "hello"; protocol: number }
-  | { type: "configure"; baseURL: string; model: string; apiKey: string; tools: WireToolDefinition[]; maxToolRounds: number }
+  | { type: "configure"; baseURL: string; model: string; apiKey: string; tools: WireToolDefinition[]; maxToolRounds: number; pluginGuidance?: string[] }
+  | { type: "resources"; tools: WireToolDefinition[]; pluginGuidance: string[] }
   | { type: "prompt"; request: AgentRequest; sessionFile?: string }
   | { type: "cancel"; taskID: string }
   | { type: "toolResult"; callID: string; result: ExecutionResult }

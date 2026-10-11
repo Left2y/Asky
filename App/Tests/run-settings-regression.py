@@ -40,7 +40,9 @@ bundle = root / "build/SettingsRegression.app/Contents"
 executable = bundle / "MacOS/SettingsRegression"
 shutil.copy2(binary, executable)
 shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
+for localization in (products / "Asky.app/Contents/Resources").glob("*.lproj"):
+    shutil.copytree(localization, bundle / "Resources" / localization.name, dirs_exist_ok=True)
 with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "SettingsRegression", "CFBundleIdentifier": "app.asky.settings-regression",
-                  "CFBundleName": "SettingsRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+                  "CFBundleName": "SettingsRegression", "CFBundleDevelopmentRegion": "zh-Hans", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

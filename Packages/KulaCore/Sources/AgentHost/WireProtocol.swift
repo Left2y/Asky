@@ -4,7 +4,7 @@ import Contracts
 /// JSONL wire protocol between AgentHost (Swift) and the TypeScript Pi host.
 /// stdout carries protocol frames only; diagnostics go to stderr.
 public enum WireProtocol {
-    public static let version = 1
+    public static let version = 2
     /// Max bytes per frame (one line). Attachments travel by file path, never inline Base64.
     public static let maxFrameBytes = 1 << 20
 }
@@ -13,7 +13,8 @@ public enum WireProtocol {
 public enum HostMessage: Sendable, Equatable {
     case hello(protocolVersion: Int)
     /// Credential is passed in-process via stdin once; never via argv, env or disk.
-    case configure(baseURL: String, model: String, apiKey: String, tools: [ToolDefinition], maxToolRounds: Int)
+    case configure(baseURL: String, model: String, apiKey: String, tools: [ToolDefinition], maxToolRounds: Int, pluginGuidance: [String] = [])
+    case resources(tools: [ToolDefinition], pluginGuidance: [String])
     case prompt(AgentRequest, sessionFile: String?)
     case cancel(taskID: String)
     case toolResult(callID: String, ExecutionResult)
@@ -24,9 +25,11 @@ public enum HostMessage: Sendable, Equatable {
         switch self {
         case .hello(let v):
             o = ["type": "hello", "protocol": .number(Double(v))]
-        case .configure(let url, let model, let key, let tools, let rounds):
+        case .configure(let url, let model, let key, let tools, let rounds, let guidance):
             o = ["type": "configure", "baseURL": .string(url), "model": .string(model), "apiKey": .string(key),
-                 "tools": try Self.json(tools), "maxToolRounds": .number(Double(rounds))]
+                 "tools": try Self.json(tools), "maxToolRounds": .number(Double(rounds)), "pluginGuidance": try Self.json(guidance)]
+        case .resources(let tools, let guidance):
+            o = ["type": "resources", "tools": try Self.json(tools), "pluginGuidance": try Self.json(guidance)]
         case .prompt(let r, let sessionFile):
             o = ["type": "prompt", "request": try Self.json(r)]
             if let sessionFile { o["sessionFile"] = .string(sessionFile) }

@@ -31,10 +31,12 @@ interface Configured {
   modelRuntime: ModelRuntime;
   modelID: string;
   tools: WireToolDefinition[];
+  pluginGuidance: string[];
 }
 
 interface SessionSlot {
   session: AgentSession;
+  resourceKey: string;
   taskID?: string;
   cancelled: boolean;
   clarified: boolean;
@@ -99,6 +101,7 @@ export class Runtime {
   private async handle(m: HostMessage): Promise<void> {
     switch (m.type) {
       case "hello":
+        if (m.protocol !== PROTOCOL_VERSION) { this.send({ type: "error", message: "protocol mismatch" }); return; }
         this.send({ type: "ready", protocol: PROTOCOL_VERSION, runtime: `asky-agent-runtime/0.1.0 pi/${piVersion()} node/${process.versions.node}` });
         return;
       case "configure": {
@@ -107,6 +110,10 @@ export class Runtime {
         await next;
         return;
       }
+      case "resources":
+        await this.configuring;
+        if (this.configured) Object.assign(this.configured, { tools: m.tools, pluginGuidance: m.pluginGuidance });
+        return;
       case "prompt":
         await this.prompt(m.request, m.sessionFile);
         return;
@@ -140,7 +147,7 @@ export class Runtime {
     await modelRuntime.setRuntimeApiKey(PROVIDER, m.apiKey);
     for (const slot of this.sessions.values()) slot.session.dispose();
     this.sessions.clear();
-    this.configured = { modelRuntime, modelID: m.model, tools: m.tools };
+    this.configured = { modelRuntime, modelID: m.model, tools: m.tools, pluginGuidance: m.pluginGuidance ?? [] };
   }
 
   /** Only session files inside our own session directory may be reopened. */
@@ -158,7 +165,7 @@ export class Runtime {
     const file = this.safeSessionFile(sessionFile);
     const sessionManager = file ? SessionManager.open(file, this.sessionDir) : SessionManager.create(this.dataDir, this.sessionDir);
 
-    const slot = { cancelled: false, clarified: false, lastText: "" } as SessionSlot;
+    const slot = { resourceKey: JSON.stringify([cfg.tools, cfg.pluginGuidance]), cancelled: false, clarified: false, lastText: "" } as SessionSlot;
     const ctx: ExtensionContext = {
       bridge: this.bridge,
       currentTask: () => slot.taskID,
@@ -175,7 +182,7 @@ export class Runtime {
       model,
       thinkingLevel: "off",
       modelRuntime: cfg.modelRuntime,
-      resourceLoader: whitelistLoader(),
+      resourceLoader: whitelistLoader(cfg.pluginGuidance),
       noTools: "builtin",
       tools: customTools.map((t) => t.name),
       customTools,
@@ -202,7 +209,13 @@ export class Runtime {
   }
 
   private async prompt(req: AgentRequest, sessionFile?: string): Promise<void> {
+    await this.configuring;
     let slot = this.sessions.get(req.sessionID);
+    const resourceKey = JSON.stringify([this.configured?.tools, this.configured?.pluginGuidance]);
+    if (slot && !slot.taskID && slot.resourceKey !== resourceKey) {
+      sessionFile ??= slot.session.sessionFile;
+      slot.session.dispose(); this.sessions.delete(req.sessionID); slot = undefined;
+    }
     if (slot?.taskID) {
       this.send({ type: "error", taskID: req.taskID, message: "该会话已有任务在运行" });
       this.send({ type: "taskState", taskID: req.taskID, state: "failed" });

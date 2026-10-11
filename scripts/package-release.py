@@ -50,11 +50,11 @@ subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', '-
 subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', '--entitlements', str(repo / 'App/Asky.entitlements'), str(app)], check=True)
 subprocess.run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', str(app)], check=True)
 with tempfile.TemporaryDirectory(prefix='kulahere-release-smoke-') as data_dir:
-    result = subprocess.run([str(node_dir / 'bin/node'), str(resources / 'AgentRuntime/dist/src/main.js'), '--data-dir', data_dir], input='{"type":"hello","protocol":1}\n{"type":"shutdown"}\n', text=True, capture_output=True, timeout=30, env={'HOME': data_dir, 'PATH': '/usr/bin:/bin', 'TMPDIR': data_dir})
+    result = subprocess.run([str(node_dir / 'bin/node'), str(resources / 'AgentRuntime/dist/src/main.js'), '--data-dir', data_dir], input='{"type":"hello","protocol":2}\n{"type":"shutdown"}\n', text=True, capture_output=True, timeout=30, env={'HOME': data_dir, 'PATH': '/usr/bin:/bin', 'TMPDIR': data_dir})
     (root / f'release-{args.version}-bundled-runtime-smoke.log').write_text(result.stdout + result.stderr)
     assert result.returncode == 0, result.stderr
     frames = [json.loads(line) for line in result.stdout.splitlines()]
-    assert any(frame.get('type') == 'ready' and frame.get('protocol') == 1 for frame in frames), result.stdout
+    assert any(frame.get('type') == 'ready' and frame.get('protocol') == 2 for frame in frames), result.stdout
 release_dir = root / f'releases/{args.version}'
 release_dir.mkdir(parents=True, exist_ok=True)
 zip_path = release_dir / f'Asky-{args.version}-macos-arm64.zip'

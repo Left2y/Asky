@@ -27,6 +27,12 @@ public struct ConfirmationPreview: Sendable, Hashable {
 /// One system capability. Adapters never decide policy; ToolService does.
 public protocol ToolAdapter: Sendable {
     var definition: ToolDefinition { get }
+    func prepare(requestID: String) async throws
+    func finish(requestID: String) async
+    var executionTimeout: Duration? { get }
+    var deduplicatesArguments: Bool { get }
+    func execute(_ arguments: JSONValue, requestID: String) async throws -> AdapterOutput
+    func readback(_ arguments: JSONValue, output: AdapterOutput?, requestID: String) async -> JSONValue?
     /// Validates arguments and resolves the target. Throw `ToolError(.ambiguousTarget, …)` when the user must choose.
     func preview(_ arguments: JSONValue) async throws -> ConfirmationPreview
     func execute(_ arguments: JSONValue) async throws -> AdapterOutput
@@ -35,6 +41,12 @@ public protocol ToolAdapter: Sendable {
 }
 
 extension ToolAdapter {
+    public func prepare(requestID: String) async throws {}
+    public func finish(requestID: String) async {}
+    public var executionTimeout: Duration? { nil }
+    public var deduplicatesArguments: Bool { true }
+    public func execute(_ arguments: JSONValue, requestID: String) async throws -> AdapterOutput { try await execute(arguments) }
+    public func readback(_ arguments: JSONValue, output: AdapterOutput?, requestID: String) async -> JSONValue? { await readback(arguments, output: output) }
     public func preview(_ arguments: JSONValue) async throws -> ConfirmationPreview {
         ConfirmationPreview(target: definition.summary, changes: [])
     }
@@ -58,6 +70,7 @@ public actor ToolService {
     public static let dedupeWindow: TimeInterval = 10 * 60
     public static let defaultTimeout: Duration = .seconds(20)
 
+    public nonisolated let plugins: PluginManager
     private var adapters: [String: any ToolAdapter] = [:]
     private let executions: ExecutionStore
     private let policy: @Sendable () -> PolicySnapshot
@@ -69,8 +82,10 @@ public actor ToolService {
 
     public init(store: LocalStore, policy: @escaping @Sendable () -> PolicySnapshot,
                 presenter: @escaping ConfirmationPresenter, timeout: Duration = ToolService.defaultTimeout,
+                pluginRuntime: PluginRuntimeConfiguration = .init(),
                 authorize: @escaping @Sendable (DataSourceID, CallerOrigin) async throws -> Void = { _, _ in }) {
         executions = ExecutionStore(store)
+        plugins = PluginManager(store: store, runtime: pluginRuntime)
         self.policy = policy
         self.presenter = presenter
         self.timeout = timeout
@@ -82,9 +97,9 @@ public actor ToolService {
     }
 
     /// Tools visible to a caller under the current policy.
-    public func definitions(for origin: CallerOrigin) -> [ToolDefinition] {
+    public func definitions(for origin: CallerOrigin) async -> [ToolDefinition] {
         let p = policy()
-        return adapters.values.map(\.definition)
+        return (adapters.values.map(\.definition) + (await plugins.definitions()))
             .filter { exposureError($0, origin: origin, policy: p) == nil }
             .sorted { $0.name < $1.name }
     }
@@ -97,7 +112,7 @@ public actor ToolService {
         if let running = inFlight[request.requestID] { return await running.value }
         let task = Task { await self.process(request) }
         inFlight[request.requestID] = task
-        let result = await task.value
+        let result = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         inFlight[request.requestID] = nil
         return result
     }
@@ -105,9 +120,13 @@ public actor ToolService {
     // MARK: pipeline
 
     private func process(_ request: ActionRequest) async -> ExecutionResult {
-        guard let adapter = adapters[request.tool] else {
+        var candidate = adapters[request.tool]
+        if candidate == nil { candidate = await plugins.adapter(named: request.tool) }
+        guard let adapter = candidate else {
             return .failure(request.requestID, .unknownTool, "未知工具：\(request.tool)")
         }
+        do { try await adapter.prepare(requestID: request.requestID) } catch { return failure(request, error) }
+        defer { Task { await adapter.finish(requestID: request.requestID) } }
         let def = adapter.definition
         let p = policy()
         if let err = exposureError(def, origin: request.origin, policy: p) {
@@ -137,7 +156,7 @@ public actor ToolService {
             return ExecutionResult(requestID: request.requestID, status: .suggestion, confirmation: confirmation)
         }
 
-        if let dup = executions.recent(digest: request.argumentsDigest, within: Self.dedupeWindow),
+        if adapter.deduplicatesArguments, let dup = executions.recent(digest: request.argumentsDigest, within: Self.dedupeWindow),
            dup.requestID != request.requestID, var prior = dup.result {
             prior.requestID = request.requestID
             return prior
@@ -161,7 +180,7 @@ public actor ToolService {
 
     private func runRead(_ adapter: any ToolAdapter, _ request: ActionRequest) async -> ExecutionResult {
         do {
-            let out = try await withTimeout(timeout) { try await adapter.execute(request.arguments) }
+            let out = try await withTimeout(adapter.executionTimeout ?? timeout) { try await adapter.execute(request.arguments, requestID: request.requestID) }
             return ExecutionResult(requestID: request.requestID, status: .completed, targets: out.targets, output: out.output)
         } catch {
             return failure(request, error)
@@ -178,22 +197,27 @@ public actor ToolService {
     private func runWriteLocked(_ adapter: any ToolAdapter, _ request: ActionRequest) async -> ExecutionResult {
         persist(request, status: .pendingVerification, result: nil)
         do {
-            let out = try await withTimeout(timeout) { try await adapter.execute(request.arguments) }
-            let readback = await adapter.readback(request.arguments, output: out)
+            let out = try await withTimeout(adapter.executionTimeout ?? timeout) { try await adapter.execute(request.arguments, requestID: request.requestID) }
+            let readback = await adapter.readback(request.arguments, output: out, requestID: request.requestID)
             let status: ExecutionStatus = readback == nil ? .pendingVerification : .completed
             return record(request, ExecutionResult(requestID: request.requestID, status: status, targets: out.targets,
                                                    output: out.output, readback: readback))
         } catch let e as ToolError where e.code == .timeout {
             // Unknown outcome: read back before reporting; never retry blindly.
-            if let rb = await adapter.readback(request.arguments, output: nil) {
+            if let rb = await adapter.readback(request.arguments, output: nil, requestID: request.requestID) {
                 return record(request, ExecutionResult(requestID: request.requestID, status: .completed, readback: rb))
             }
             return record(request, ExecutionResult(requestID: request.requestID, status: .pendingVerification, error: e))
         } catch is CancellationError {
-            let rb = await adapter.readback(request.arguments, output: nil)
+            let rb = await adapter.readback(request.arguments, output: nil, requestID: request.requestID)
             return record(request, ExecutionResult(requestID: request.requestID, status: rb == nil ? .pendingVerification : .completed,
                                                    readback: rb, error: ToolError(.cancelled, "已取消，结果需核实")))
         } catch {
+            if adapter.definition.source == .plugins, (error as? ToolError)?.code != .invalidArguments {
+                let rb = await adapter.readback(request.arguments, output: nil, requestID: request.requestID)
+                return record(request, ExecutionResult(requestID: request.requestID, status: rb == nil ? .pendingVerification : .completed,
+                                                       readback: rb, error: ToolError(.adapterFailure, error.localizedDescription)))
+            }
             return record(request, failure(request, error))
         }
     }
@@ -225,6 +249,9 @@ public actor ToolService {
     nonisolated func needsConfirmation(_ def: ToolDefinition, _ request: ActionRequest) -> Bool {
         switch def.confirmation {
         case .never: return false
+        case .explicitDirectOtherwiseConfirm:
+            if case .mcp = request.origin { return true }
+            return request.intent != .explicitRequest
         case .always: return true
         case .createDirectOtherwiseConfirm:
             if case .mcp = request.origin { return true }

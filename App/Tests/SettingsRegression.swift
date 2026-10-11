@@ -65,6 +65,7 @@ enum SettingsRegression {
                     } catch { model.hotKeyStatus = "组合键已被占用"; return false }
                 }
                 try await assertPermissionRefreshRace()
+                if (CommandLine.arguments.contains("--plugins") || CommandLine.arguments.contains("--plugins-only")) { model.settingsTab = SettingsPage.plugins.rawValue }
                 let window = SettingsWindow.make(app: model)
                 guard let split = window.contentViewController as? NSSplitViewController,
                       split.splitViewItems.count == 2,
@@ -78,6 +79,21 @@ enum SettingsRegression {
                 if preview {
                     if CommandLine.arguments.contains("--commands") { model.settingsTab = "keywords" }
                     application.activate(); return
+                }
+                if CommandLine.arguments.contains("--plugins-only") {
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(350))
+                        window.contentView?.layoutSubtreeIfNeeded()
+                        assertDetailBelowToolbar(split, window: window)
+                        guard let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing plugin view") }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        let language = Bundle.main.preferredLocalizations.first ?? "unknown"
+                        try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/plugins-\(language)-\(appearance).png"))
+                    }
+                    try? FileManager.default.removeItem(at: root)
+                    print("Plugin native snapshots passed: \(Bundle.main.preferredLocalizations)")
+                    exit(0)
                 }
                 for appearance in ["light", "dark"] {
                     model.preferences.appearance = appearance

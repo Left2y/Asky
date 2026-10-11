@@ -3,7 +3,7 @@ import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
     case general = "advanced", model, hotkey, aliases, keywords
-    case sources, permissions, memory, mcp, about
+    case sources, permissions, memory, mcp, plugins, about
 
     var id: String { rawValue }
     var title: String {
@@ -16,6 +16,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .sources: NSLocalizedString("数据来源", comment: "")
         case .permissions: NSLocalizedString("系统权限", comment: "")
         case .memory: NSLocalizedString("记忆", comment: "")
+        case .plugins: NSLocalizedString("插件", comment: "")
         case .mcp: NSLocalizedString("外部 MCP", comment: "")
         case .about: NSLocalizedString("关于 Asky", comment: "")
         }
@@ -30,6 +31,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .sources: "square.stack.3d.up"
         case .permissions: "hand.raised.fill"
         case .memory: "brain"
+        case .plugins: "puzzlepiece.extension"
         case .mcp: "point.3.connected.trianglepath.dotted"
         case .about: "info.circle"
         }
@@ -41,7 +43,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .aliases, .keywords: .orange
         case .sources: .blue
         case .permissions: .green
-        case .mcp: .teal
+        case .mcp, .plugins: .teal
         }
     }
     static func resolve(_ id: String) -> Self { Self(rawValue: id) ?? .general }

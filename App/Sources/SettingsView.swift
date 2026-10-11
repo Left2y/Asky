@@ -42,7 +42,7 @@ private struct HotKeySettings: View {
                 if !app.hotKeyStatus.isEmpty, app.hotKeyStatus != "已注册" {
                     Text(app.hotKeyStatus).foregroundStyle(.secondary)
                 }
-                Button("恢复默认 ⌥ Space") { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
+                Button("恢复默认") { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
             }
             Section("剪贴板") {
                 LabeledContent("打开剪贴板历史") {
@@ -52,15 +52,17 @@ private struct HotKeySettings: View {
                     Text(app.clipboardHotKeyStatus).foregroundStyle(.secondary)
                 }
                 let d = SettingsPreferences.defaultClipboardHotKey
-                Button("恢复默认 \(d.label)") { setClipboard(d.code, d.modifiers, d.label) }
+                Button("恢复默认") { setClipboard(d.code, d.modifiers, d.label) }
             }
             Section("AI 对话") {
                 LabeledContent("打开 AI 对话") {
                     HotKeyRecorder(label: app.preferences.agentHotKeyLabel, apply: setAgent).frame(width: 240, height: 34)
                 }
-                Text(app.agentHotKeyStatus).foregroundStyle(.secondary)
+                if !app.agentHotKeyStatus.isEmpty, app.agentHotKeyStatus != "已注册" {
+                    Text(app.agentHotKeyStatus).foregroundStyle(.secondary)
+                }
                 let d = SettingsPreferences.defaultAgentHotKey
-                Button("恢复默认 \(d.label)") { setAgent(d.code, d.modifiers, d.label) }
+                Button("恢复默认") { setAgent(d.code, d.modifiers, d.label) }
             }
         }.formStyle(.grouped)
     }
@@ -97,7 +99,8 @@ private struct HotKeyRecorder: NSViewRepresentable {
     func updateNSView(_ view: Recorder, context: Context) {
         view.label = label
         view.apply = apply
-        if !view.recording { view.title = label + " · 点击录制" }
+        if !view.recording { view.title = label }
+        view.setAccessibilityLabel("快捷键 \(label)，点击录制")
     }
     final class Recorder: NSButton {
         var label: String
@@ -111,13 +114,15 @@ private struct HotKeyRecorder: NSViewRepresentable {
             bezelStyle = .rounded
             target = self
             action = #selector(begin)
-            title = label + " · 点击录制"
+            title = label
+            toolTip = "录制快捷键"
+            setAccessibilityLabel("快捷键 \(label)，点击录制")
         }
         required init?(coder: NSCoder) { fatalError() }
         @objc func begin() { recording = true; title = "按下组合键，Esc 取消"; window?.makeFirstResponder(self) }
         override func resignFirstResponder() -> Bool {
             recording = false
-            title = label + " · 点击录制"
+            title = label
             return super.resignFirstResponder()
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {

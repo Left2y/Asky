@@ -6,7 +6,7 @@ struct LauncherSearchField: NSViewRepresentable {
     @Binding var text: String
     var fontSize: CGFloat
     var textColor: NSColor
-    var accessibilityLabel = "搜索应用、文件、标签页或命令"
+    var accessibilityLabel = NSLocalizedString("搜索应用、文件、标签页或命令", comment: "")
     var placeholder: String
     var placeholderColor: NSColor? = nil
     var completion: String? = nil

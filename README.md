@@ -54,12 +54,14 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ### 使用方法
 
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
+- `go`（Google 搜索）、`chat`（ChatGPT）和 `>`（终端）是固定内置指令，无需配置，不能添加、修改或删除。旧的网页关键词配置不再参与启动器路由；输入 `go 内容` 或 `chat 问题` 即可使用。
 - 输入英文 `>` 后按空格进入终端模式，例如 `> pwd`；单独的 `>` 或 `>pwd` 保持普通搜索；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 通用 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
 - 在“设置 › 通用 › 文件搜索范围”点击“选择文件夹…”，通过系统文件夹选择窗口添加搜索目录。
 - 输入 `1+1`，输入框末尾以浅色显示 `= 2`，下方卡片上下显示公式与结果：上方公式左对齐，下方结果右对齐，回车复制结果；长算式最多显示两行并从中间截断，悬停查看全文。输入 `1美元` 或 `100人民币`，下方横向展示输入币种与人民币的换算卡片（人民币输入默认换算为美元），其他币种保持列表显示在卡片下方。输入 `100 USD CNY` 可只查看指定币种。卡片显示旗帜、币种和金额，不提供选中、悬停或复制操作。汇率使用 ECB 日参考数据；断网时使用已有缓存，无缓存则显示不可用。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
 - 使用 `Ctrl + Option + Command + /` 直接打开 AI 并开启空白新对话（无需 Shift）；可在“设置 › 触发快捷键 › AI 对话”中录制自定义组合键或恢复默认；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
 - 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。设置窗口采用原生侧边栏导航，右侧显示分组配置列表，并支持调整窗口大小。应用主题位于“通用 › 外观”。
+- 应用语言位于“设置 › 通用 › 语言”，默认跟随 macOS 首选语言，也可选择简体中文或 English；更改在下次启动时生效。界面翻译使用原生 `.lproj` 资源，macOS 不会自动翻译应用自定义文字；AI 回复和用户内容不受此设置控制。
 
 ### 配置与隐私
 
@@ -107,6 +109,8 @@ python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
+python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
 python3 App/Tests/run-agent-reply-regression.py
 ```
 
@@ -115,7 +119,7 @@ python3 App/Tests/run-agent-reply-regression.py
 原生输入框与快捷键的独立检查：
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/LauncherSearchField.swift App/Sources/EditMenu.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
 build/launcher-input-regression
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
 build/hotkey-regression
@@ -171,11 +175,13 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
 - Type `1+1` to see a faint `= 2` suffix and a stacked card with the expression aligned left above the right-aligned result; press Return to copy the result. Long expressions occupy up to two lines with middle truncation; hover to see the full expression. Type `1美元`, `1 USD`, or `100人民币` to see a horizontal pair of cards showing the input currency and Chinese yuan (yuan inputs default to US dollars), with all other currencies listed underneath. Use `100 USD CNY` for a specific pair. Cards show flags, currencies, and amounts, without selection, hover, or copy actions. Rates use ECB daily references; offline use falls back to the cache or reports unavailable.
+- `go` (Google search), `chat` (ChatGPT), and `>` (terminal) are fixed built-in commands that require no setup and cannot be added, edited, or deleted. Legacy web keyword settings no longer affect launcher routing; type `go query` or `chat question` to use them.
 - Type ASCII `>` followed by a space to enter terminal mode, for example `> pwd`; `>` alone or `>pwd` stays in ordinary search; Return opens the selected terminal and runs the command in the configured working directory. Choose an installed system Terminal, iTerm2, or Ghostty (1.3+) under Settings › General › Terminal › Terminal for Commands; the launcher and result show that app’s icon. Backspace on an empty field leaves terminal mode. First use may require Automation permission.
 - Under Settings › General › File Search Scope, click “Choose Folder…” to add a search directory using the system folder picker.
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
 - Press `Ctrl + Option + Command + /` to open AI with a blank new conversation (without Shift); customize the combination or restore its default in Settings › Hotkeys › AI Conversation; an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.
 - Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings uses native sidebar navigation with grouped configuration lists on the right and a resizable window. The app theme is under General › Appearance.
+- App language is under Settings › General › Language. It follows the preferred macOS language by default, with Simplified Chinese and English overrides; changes take effect on the next launch. Interface translations use native `.lproj` resources; macOS does not automatically translate custom app text. This setting does not control AI replies or user content.
 
 ### Configuration and Privacy
 
@@ -223,6 +229,8 @@ python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
+python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
 python3 App/Tests/run-agent-reply-regression.py
 ```
 
@@ -231,7 +239,7 @@ For concurrent builds, the settings regression script accepts `ASKY_DERIVED_DATA
 Standalone checks for native input fields and hotkeys:
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/LauncherSearchField.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/LauncherSearchField.swift App/Sources/EditMenu.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
 build/launcher-input-regression
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
 build/hotkey-regression

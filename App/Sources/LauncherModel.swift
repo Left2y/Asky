@@ -24,7 +24,7 @@ final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
         return (all ?? []).compactMap { name -> SearchResult? in
             guard let s = FuzzyMatch.score(query, in: name) else { return nil }
             return SearchResult(source: .shortcut, target: TargetRef(kind: "shortcut", identifier: name), title: name,
-                                subtitle: "快捷指令", actions: [.runShortcut(name: name)], score: s * 0.9)
+                                subtitle: NSLocalizedString("快捷指令", comment: ""), actions: [.runShortcut(name: name)], score: s * 0.9)
         }.sorted { $0.score > $1.score }.prefix(limit).map { $0 }
     }
 }
@@ -220,7 +220,7 @@ final class LauncherModel {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             if bookmarkCoordinator != nil, !trimmed.isEmpty {
                 direct.append(SearchResult(source: .bookmark, target: TargetRef(kind: Self.bookmarkSearchKind, identifier: trimmed),
-                                           title: "搜索书签", subtitle: trimmed, actions: [.open], score: 0))
+                                           title: NSLocalizedString("搜索书签", comment: ""), subtitle: trimmed, actions: [.open], score: 0))
             }
         }
         batches = router.includesSearch(route) ? retainedBatches(for: query) : []
@@ -312,7 +312,7 @@ final class LauncherModel {
                                 actions: [], score: 100)
         case .unavailable(let reason):
             return SearchResult(source: .currency, target: TargetRef(kind: "fx", identifier: "na"),
-                                title: "汇率不可用", subtitle: reason, actions: [], score: 100)
+                                title: NSLocalizedString("汇率不可用", comment: ""), subtitle: reason, actions: [], score: 100)
         }
     }
 
@@ -376,7 +376,7 @@ final class LauncherModel {
             if r.source == .app { apps.recordLaunch(path: url.path) }
             if r.target.kind == "launcher-alias" {
                 if ToolService.openLauncherApplication(url) { onHide() }
-                else { status = "应用已移动或无法打开，请更新别名。" }
+                else { status = NSLocalizedString("应用已移动或无法打开，请更新别名。", comment: "") }
             } else {
                 NSWorkspace.shared.open(url)
                 onHide()
@@ -392,7 +392,7 @@ final class LauncherModel {
             onHide()
         case .openURL(let url):
             if ToolService.openLauncherURL(url) { onHide() }
-            else { status = "无法打开链接，请检查网址或默认浏览器。" }
+            else { status = NSLocalizedString("无法打开链接，请检查网址或默认浏览器。", comment: "") }
         case .runTerminal(let command):
             runTerminal(command)
         case .runShortcut(let name):
@@ -418,14 +418,14 @@ final class LauncherModel {
                 _ = try await ChromeBridge().activate(windowID: parts[0], tabID: parts[1], expectedURL: expected)
                 onHide()
             } catch {
-                status = "标签已变化或已关闭，请重新搜索。"
+                status = NSLocalizedString("标签已变化或已关闭，请重新搜索。", comment: "")
                 chrome.invalidate()
             }
         }
     }
 
     private func runShortcut(_ name: String) {
-        status = "正在运行快捷指令：\(name)…"
+        status = String(format: NSLocalizedString("正在运行快捷指令：%@…", comment: ""), name)
         Task {
             for await state in ToolService.runLauncherShortcut(name: name) {
                 status = "\(name)：\(state)"

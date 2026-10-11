@@ -67,8 +67,8 @@ final class ClipboardController {
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         }
         panel.level = .normal
-        panel.title = "剪贴板历史"
-        preview.title = "剪贴板完整预览"
+        panel.title = NSLocalizedString("剪贴板历史", comment: "")
+        preview.title = NSLocalizedString("剪贴板完整预览", comment: "")
         panel.dismiss = { [weak self] in self?.hide() }
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
         // A non-activating panel at .normal level sits behind the frontmost app's windows,
@@ -81,6 +81,10 @@ final class ClipboardController {
         }
     }
 
+    private var shellFrame: NSRect {
+        panel.frame.insetBy(dx: LauncherLayout.shadowPadding, dy: LauncherLayout.shadowPadding)
+    }
+
     func toggle() { panel.isVisible ? hide() : show() }
 
     func show() {
@@ -91,7 +95,8 @@ final class ClipboardController {
         if let frame = screen?.visibleFrame {
             let width = min(900, frame.width - 32)
             panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
-                                  width: width, height: 244), display: false)
+                                  width: width, height: 244)
+                .insetBy(dx: -LauncherLayout.shadowPadding, dy: -LauncherLayout.shadowPadding), display: false)
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         panel.level = .floating
@@ -132,7 +137,7 @@ final class ClipboardController {
     private func dismissIfOutside() {
         guard panel.isVisible, !pinned else { return }
         let location = NSEvent.mouseLocation
-        guard !panel.frame.contains(location),
+        guard !shellFrame.contains(location),
               !(preview.isVisible && preview.frame.contains(location)) else { return }
         hide()
     }
@@ -158,7 +163,7 @@ final class ClipboardController {
     /// Return: copy the selected card, close the panel and paste into the app that was in front.
     func pasteSelection() {
         guard items.indices.contains(selection) else { return }
-        guard ClipboardAccess.copy(items[selection]) else { status = "无法复制：原始内容已不可用"; return }
+        guard ClipboardAccess.copy(items[selection]) else { status = NSLocalizedString("无法复制：原始内容已不可用", comment: ""); return }
         hide()
         // The panel never activates Asky, so the previous app is still frontmost and receives ⌘V.
         Task { @MainActor in
@@ -174,13 +179,13 @@ final class ClipboardController {
     }
 
     func copy(_ item: ClipboardItem) {
-        status = ClipboardAccess.copy(item) ? "已复制" : "无法复制：原始内容已不可用"
+        status = ClipboardAccess.copy(item) ? NSLocalizedString("已复制", comment: "") : NSLocalizedString("无法复制：原始内容已不可用", comment: "")
     }
 
     func drag(_ item: ClipboardItem) -> NSItemProvider {
         dismissPreview()
         guard let provider = ClipboardAccess.dragProvider(for: item) else {
-            status = "无法拖拽：原始内容已不可用"
+            status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
             return NSItemProvider()
         }
         copy(item)
@@ -189,7 +194,7 @@ final class ClipboardController {
 
     func pinItem(_ item: ClipboardItem) {
         do { try ClipboardStore(app.store).setPinned(item.id, !item.pinned); refresh() }
-        catch { status = "无法更新固定状态" }
+        catch { status = NSLocalizedString("无法更新固定状态", comment: "") }
     }
 
     func delete(_ item: ClipboardItem) {
@@ -198,7 +203,7 @@ final class ClipboardController {
             ClipboardMonitor.removeFiles(paths)
             dismissPreview()
             refresh()
-        } catch { status = "无法删除这条记录" }
+        } catch { status = NSLocalizedString("无法删除这条记录", comment: "") }
     }
 
     func hover(_ item: ClipboardItem, frame: NSRect, inside: Bool) {
@@ -233,25 +238,32 @@ final class ClipboardController {
         guard let screen = panel.screen else { return }
         let image = item.filePath.flatMap { NSImage(contentsOfFile: $0) }
         let available = screen.visibleFrame.insetBy(dx: 8, dy: 8)
-        let width = min(464.0, available.width)
-        let maxHeight = min(440, available.height)
+        let inset = ClipboardFullPreview.inset
+        var width = min(464.0, available.width)
         let contentHeight: CGFloat
         if let image {
-            contentHeight = (width - 2 * ClipboardFullPreview.inset) * image.size.height / max(1, image.size.width)
+            contentHeight = (width - 2 * inset) * image.size.height / max(1, image.size.width)
         } else {
-            let text = NSAttributedString(string: item.text ?? "原始图片已不可用", attributes: [.font: NSFont.systemFont(ofSize: 14)])
+            let text = NSAttributedString(string: item.text ?? NSLocalizedString("原始图片已不可用", comment: ""), attributes: [.font: NSFont.systemFont(ofSize: 14)])
             contentHeight = text.boundingRect(with: NSSize(width: width - 2 * ClipboardFullPreview.textInset, height: .greatestFiniteMagnitude),
                                               options: [.usesLineFragmentOrigin, .usesFontLeading]).height
-                + 2 * (ClipboardFullPreview.textInset - ClipboardFullPreview.inset)
+                + 2 * (ClipboardFullPreview.textInset - inset)
         }
-        let height = min(max(80, contentHeight + 2 * ClipboardFullPreview.inset), maxHeight)
-        // Below the panel, 8 pt gap; flip above when the screen bottom is too close.
-        var y = panel.frame.minY - 8 - height
-        if y < available.minY { y = panel.frame.maxY + 8 }
-        y = min(max(available.minY, y), available.maxY - height)
+        let natural = max(80, contentHeight + 2 * inset)
+        // Never overlap the panel: 8 pt below it, or above when that side has more room; shrink to fit the chosen side.
+        let shell = shellFrame
+        let below = shell.minY - 8 - available.minY
+        let above = available.maxY - (shell.maxY + 8)
+        let placeBelow = min(natural, 440) <= below || below >= above
+        let height = min(natural, 440, max(80, placeBelow ? below : above))
+        // Images shrink proportionally so a tall screenshot does not leave empty space around it.
+        if let image, height < natural {
+            width = min(width, (height - 2 * inset) * image.size.width / max(1, image.size.height) + 2 * inset)
+        }
+        let y = placeBelow ? shell.minY - 8 - height : shell.maxY + 8
         // Centered under the card; near an edge, align to the card's left or right edge instead.
-        let bounds = NSRect(x: max(available.minX, panel.frame.minX), y: 0,
-                            width: min(available.maxX, panel.frame.maxX) - max(available.minX, panel.frame.minX), height: 0)
+        let bounds = NSRect(x: max(available.minX, shell.minX), y: 0,
+                            width: min(available.maxX, shell.maxX) - max(available.minX, shell.minX), height: 0)
         var x = anchor.midX - width / 2
         if x < bounds.minX { x = anchor.minX } else if x + width > bounds.maxX { x = anchor.maxX - width }
         x = min(max(available.minX, x), available.maxX - width)
@@ -272,8 +284,8 @@ private struct ClipboardHistoryView: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
                     LauncherSearchField(text: $controller.query, fontSize: 16,
                                         textColor: NSColor(ThemeColor.kText.color(for: scheme)),
-                                        accessibilityLabel: "搜索剪贴板历史",
-                                        placeholder: "搜索剪贴板内容",
+                                        accessibilityLabel: NSLocalizedString("搜索剪贴板历史", comment: ""),
+                                        placeholder: NSLocalizedString("搜索剪贴板内容", comment: ""),
                                         placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
                                         backspaceOnEmpty: { false }, move: controller.moveSelection,
                                         moveHorizontal: controller.moveSelection,
@@ -285,16 +297,16 @@ private struct ClipboardHistoryView: View {
                 .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
                 HStack(spacing: 12) {
                     ClipboardHeaderButton(symbol: controller.pinned ? "pin.fill" : "pin",
-                                          title: controller.pinned ? "取消固定窗口" : "固定窗口",
+                                          title: controller.pinned ? NSLocalizedString("取消固定窗口", comment: "") : NSLocalizedString("固定窗口", comment: ""),
                                           action: controller.togglePinned)
-                        .accessibilityValue(controller.pinned ? "已固定" : "未固定")
+                        .accessibilityValue(controller.pinned ? NSLocalizedString("已固定", comment: "") : NSLocalizedString("未固定", comment: ""))
                 }
             }.padding(12)
             Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
             if controller.items.isEmpty {
                 VStack(spacing: 8) {
-                    Text(controller.query.isEmpty ? "暂无剪贴板历史" : "没有匹配的内容")
-                    Text("复制文字或图片后会显示在这里").textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+                    Text(controller.query.isEmpty ? NSLocalizedString("暂无剪贴板历史", comment: "") : NSLocalizedString("没有匹配的内容", comment: ""))
+                    Text(NSLocalizedString("复制文字或图片后会显示在这里", comment: "")).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
@@ -309,6 +321,7 @@ private struct ClipboardHistoryView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
         .background { ClipboardGlass(radius: 32) }
         .clipShape(RoundedRectangle(cornerRadius: 32))
@@ -318,6 +331,25 @@ private struct ClipboardHistoryView: View {
                     .background(.regularMaterial, in: Capsule()).padding(.bottom, 4)
                     .allowsHitTesting(false)
             }
+        }
+        .padding(LauncherLayout.shadowPadding)
+        .background {
+            // Match the search shell's external shadow, outside glass compositing.
+            let shape = RoundedRectangle(cornerRadius: 32)
+            shape.fill(.black)
+                .padding(LauncherLayout.shadowPadding)
+                .shadow(color: .black.opacity(scheme == .dark ? 0.40 : 0.24),
+                        radius: LauncherLayout.shadowRadius, x: 0, y: LauncherLayout.shadowOffsetY)
+                .mask {
+                    Rectangle().overlay {
+                        shape.fill(.black)
+                            .padding(LauncherLayout.shadowPadding)
+                            .blendMode(.destinationOut)
+                    }
+                    .compositingGroup()
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .onExitCommand { controller.hide() }
         .accessibilityValue(controller.status ?? "")
@@ -374,7 +406,7 @@ private struct ClipboardHistoryCard: View {
                 Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
-                Text(item.text ?? "图片不可用").textStyle(.resultPrimary).lineLimit(4)
+                Text(item.text ?? NSLocalizedString("图片不可用", comment: "")).textStyle(.resultPrimary).lineLimit(4)
                     .frame(width: 232, height: 96, alignment: .topLeading).clipped()
             }
         }
@@ -391,13 +423,13 @@ private struct ClipboardHistoryCard: View {
         .onTapGesture { controller.copy(item) }
         .onDrag { controller.drag(item) }
         .contextMenu {
-            Button("复制") { controller.copy(item) }
-            Button(item.pinned ? "取消固定" : "固定记录") { controller.pinItem(item) }
-            Button("删除", role: .destructive) { controller.delete(item) }
+            Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
+            Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
+            Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(item.kind == .image ? "图片，\(item.sourceApp ?? "未知来源")" : String((item.text ?? "").prefix(200)))
-        .accessibilityAction(named: "复制") { controller.copy(item) }
+        .accessibilityLabel(item.kind == .image ? "\(NSLocalizedString("图片", comment: "")), \(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))" : String((item.text ?? "").prefix(200)))
+        .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }
     }
 }
 
@@ -416,7 +448,7 @@ private struct ClipboardFullPreview: View {
                     .padding(Self.inset)
             } else {
                 ScrollView {
-                    Text(item.text ?? "原始图片已不可用").textStyle(.resultPrimary)
+                    Text(item.text ?? NSLocalizedString("原始图片已不可用", comment: "")).textStyle(.resultPrimary)
                         .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(Self.textInset)
                 }.scrollIndicators(.automatic)
             }

@@ -14,7 +14,7 @@ private final class ComposerTextView: NSTextView {
         guard string.isEmpty, !hasMarkedText(), let font, let textContainer else { return }
         // Use TextKit for both the hint and input so their first glyph and
         // baseline agree, including the insertion point in an empty editor.
-        let storage = NSTextStorage(string: "输入你的任务", attributes: [
+        let storage = NSTextStorage(string: NSLocalizedString("输入你的任务", comment: ""), attributes: [
             .font: font, .foregroundColor: placeholderColor
         ])
         let layout = NSLayoutManager()
@@ -103,7 +103,7 @@ struct ComposerTextEditor: NSViewRepresentable {
         editor.focusChanged = { [weak coordinator = context.coordinator] focused in
             DispatchQueue.main.async { coordinator?.parent.isFocused = focused }
         }
-        editor.setAccessibilityLabel("消息输入")
+        editor.setAccessibilityLabel(NSLocalizedString("消息输入", comment: ""))
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
         scroll.documentView = editor

@@ -18,7 +18,6 @@ struct SettingsView: View {
             case .model: ModelSettingsView(app: app)
             case .hotkey: HotKeySettings(app: app)
             case .aliases: AliasSettings(app: app)
-            case .keywords: KeywordSettings(app: app)
             case .general: GeneralSettings(app: app)
             case .sources: SourceSettings(app: app)
             case .permissions: PermissionSettings()
@@ -35,34 +34,34 @@ private struct HotKeySettings: View {
     @Bindable var app: AppModel
     var body: some View {
         Form {
-            Section("触发快捷键") {
-                LabeledContent("唤起启动器") {
+            Section(NSLocalizedString("触发快捷键", comment: "")) {
+                LabeledContent(NSLocalizedString("唤起启动器", comment: "")) {
                     HotKeyRecorder(label: app.preferences.hotKeyLabel, apply: setLauncher).frame(width: 240, height: 34)
                 }
-                if !app.hotKeyStatus.isEmpty, app.hotKeyStatus != "已注册" {
+                if !app.hotKeyStatus.isEmpty, app.hotKeyStatus != NSLocalizedString("已注册", comment: "") {
                     Text(app.hotKeyStatus).foregroundStyle(.secondary)
                 }
-                Button("恢复默认") { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
+                Button(NSLocalizedString("恢复默认", comment: "")) { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
             }
-            Section("剪贴板") {
-                LabeledContent("打开剪贴板历史") {
+            Section(NSLocalizedString("剪贴板", comment: "")) {
+                LabeledContent(NSLocalizedString("打开剪贴板历史", comment: "")) {
                     HotKeyRecorder(label: app.preferences.clipboardHotKeyLabel, apply: setClipboard).frame(width: 240, height: 34)
                 }
-                if !app.clipboardHotKeyStatus.isEmpty, app.clipboardHotKeyStatus != "已注册" {
+                if !app.clipboardHotKeyStatus.isEmpty, app.clipboardHotKeyStatus != NSLocalizedString("已注册", comment: "") {
                     Text(app.clipboardHotKeyStatus).foregroundStyle(.secondary)
                 }
                 let d = SettingsPreferences.defaultClipboardHotKey
-                Button("恢复默认") { setClipboard(d.code, d.modifiers, d.label) }
+                Button(NSLocalizedString("恢复默认", comment: "")) { setClipboard(d.code, d.modifiers, d.label) }
             }
-            Section("AI 对话") {
-                LabeledContent("打开 AI 对话") {
+            Section(NSLocalizedString("AI 对话", comment: "")) {
+                LabeledContent(NSLocalizedString("打开 AI 对话", comment: "")) {
                     HotKeyRecorder(label: app.preferences.agentHotKeyLabel, apply: setAgent).frame(width: 240, height: 34)
                 }
-                if !app.agentHotKeyStatus.isEmpty, app.agentHotKeyStatus != "已注册" {
+                if !app.agentHotKeyStatus.isEmpty, app.agentHotKeyStatus != NSLocalizedString("已注册", comment: "") {
                     Text(app.agentHotKeyStatus).foregroundStyle(.secondary)
                 }
                 let d = SettingsPreferences.defaultAgentHotKey
-                Button("恢复默认") { setAgent(d.code, d.modifiers, d.label) }
+                Button(NSLocalizedString("恢复默认", comment: "")) { setAgent(d.code, d.modifiers, d.label) }
             }
         }.formStyle(.grouped)
     }
@@ -100,7 +99,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
         view.label = label
         view.apply = apply
         if !view.recording { view.title = label }
-        view.setAccessibilityLabel("快捷键 \(label)，点击录制")
+        view.setAccessibilityLabel(String(format: NSLocalizedString("快捷键 %@，点击录制", comment: ""), label))
     }
     final class Recorder: NSButton {
         var label: String
@@ -115,11 +114,11 @@ private struct HotKeyRecorder: NSViewRepresentable {
             target = self
             action = #selector(begin)
             title = label
-            toolTip = "录制快捷键"
-            setAccessibilityLabel("快捷键 \(label)，点击录制")
+            toolTip = NSLocalizedString("录制快捷键", comment: "")
+            setAccessibilityLabel(String(format: NSLocalizedString("快捷键 %@，点击录制", comment: ""), label))
         }
         required init?(coder: NSCoder) { fatalError() }
-        @objc func begin() { recording = true; title = "按下组合键，Esc 取消"; window?.makeFirstResponder(self) }
+        @objc func begin() { recording = true; title = NSLocalizedString("按下组合键，Esc 取消", comment: ""); window?.makeFirstResponder(self) }
         override func resignFirstResponder() -> Bool {
             recording = false
             title = label
@@ -135,7 +134,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
             if event.keyCode == 53 { window?.makeFirstResponder(nil); return }
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             guard !flags.intersection([.command, .option, .control]).isEmpty else {
-                title = "请包含 ⌘、⌥ 或 ⌃"; return
+                title = NSLocalizedString("请包含 ⌘、⌥ 或 ⌃", comment: ""); return
             }
             var modifiers: UInt32 = 0
             var label = ""
@@ -146,7 +145,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
             if apply(UInt32(event.keyCode), modifiers, label) {
                 window?.makeFirstResponder(nil)
             } else {
-                title = "已被占用，换一个组合键"
+                title = NSLocalizedString("已被占用，换一个组合键", comment: "")
             }
         }
         // charactersIgnoringModifiers is mangled by ⌥ (e.g. ⌥V → √), so use the layout-independent key name where possible.
@@ -173,26 +172,39 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section("启动") {
-                Toggle("登录时启动", isOn: $launchAtLogin)
+            Section(NSLocalizedString("启动", comment: "")) {
+                Toggle(NSLocalizedString("登录时启动", comment: ""), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
                         do { on ? try SMAppService.mainApp.register() : try SMAppService.mainApp.unregister(); loginError = nil }
                         catch { loginError = error.localizedDescription; launchAtLogin = !on }
                     }
                 if let loginError { Text(loginError).foregroundStyle(ThemeColor.kTextNegative) }
             }
-            Section("外观") {
-                Picker("应用主题", selection: $app.preferences.appearance) {
-                    Text("跟随系统").tag("system")
-                    Text("浅色").tag("light")
-                    Text("深色").tag("dark")
+            Section(NSLocalizedString("外观", comment: "")) {
+                Picker(NSLocalizedString("应用主题", comment: ""), selection: $app.preferences.appearance) {
+                    Text(NSLocalizedString("跟随系统", comment: "")).tag("system")
+                    Text(NSLocalizedString("浅色", comment: "")).tag("light")
+                    Text(NSLocalizedString("深色", comment: "")).tag("dark")
                 }
             }
-            Section("文件搜索范围") {
-                ForEach(app.settings.fileScopes, id: \.self) { p in
-                    HStack { Text(p).lineLimit(1); Spacer(); Button("移除") { app.settings.fileScopes.removeAll { $0 == p } } }
+            Section(NSLocalizedString("语言", comment: "")) {
+                Picker(NSLocalizedString("应用语言", comment: ""), selection: $app.preferences.language) {
+                    Text(NSLocalizedString("跟随系统", comment: "")).tag(ApplicationLanguage.system)
+                    Text(verbatim: "简体中文").tag(ApplicationLanguage.simplifiedChinese)
+                    Text(verbatim: "English").tag(ApplicationLanguage.english)
                 }
-                Button("选择文件夹…", systemImage: "folder.badge.plus") {
+                Text(NSLocalizedString("语言更改将在下次启动应用时生效。跟随系统会使用 macOS 的首选语言。", comment: ""))
+                    .foregroundStyle(.secondary)
+                if app.preferences.language != app.launchLanguage {
+                    Text(NSLocalizedString("已保存，下次启动生效。", comment: ""))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section(NSLocalizedString("文件搜索范围", comment: "")) {
+                ForEach(app.settings.fileScopes, id: \.self) { p in
+                    HStack { Text(p).lineLimit(1); Spacer(); Button(NSLocalizedString("移除", comment: "")) { app.settings.fileScopes.removeAll { $0 == p } } }
+                }
+                Button(NSLocalizedString("选择文件夹…", comment: ""), systemImage: "folder.badge.plus") {
                     choosingScope = true
                     Task { @MainActor in
                         defer { choosingScope = false }
@@ -202,11 +214,11 @@ private struct GeneralSettings: View {
                     }
                 }
                 .disabled(choosingScope)
-                TextField("排除的目录名（逗号分隔）", text: Binding(
+                TextField(NSLocalizedString("排除的目录名（逗号分隔）", comment: ""), text: Binding(
                     get: { app.settings.excludedDirectories.joined(separator: ", ") },
                     set: { app.settings.excludedDirectories = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
             }
-            Section("终端") {
+            Section(NSLocalizedString("终端", comment: "")) {
                 Picker(NSLocalizedString("执行命令的终端", comment: ""), selection: Binding(
                     get: { app.settings.terminalApplicationID ?? LauncherTerminalApplication.system.rawValue },
                     set: { app.settings.terminalApplicationID = $0 })) {
@@ -221,14 +233,14 @@ private struct GeneralSettings: View {
                 }
                 Text(NSLocalizedString("支持系统终端、iTerm2 与 Ghostty 1.3+，列表显示已安装的终端。", comment: ""))
                     .foregroundStyle(.secondary)
-                TextField("工作目录", text: $app.settings.terminalWorkingDirectory)
+                TextField(NSLocalizedString("工作目录", comment: ""), text: $app.settings.terminalWorkingDirectory)
             }
-            Section("剪贴板") {
-                Toggle("记录剪贴板历史", isOn: $app.settings.clipboardEnabled)
-                TextField("排除的应用 Bundle ID（逗号分隔）", text: Binding(
+            Section(NSLocalizedString("剪贴板", comment: "")) {
+                Toggle(NSLocalizedString("记录剪贴板历史", comment: ""), isOn: $app.settings.clipboardEnabled)
+                TextField(NSLocalizedString("排除的应用 Bundle ID（逗号分隔）", comment: ""), text: Binding(
                     get: { app.settings.clipboardExcludedApps.joined(separator: ", ") },
                     set: { app.settings.clipboardExcludedApps = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
-                Button("清空未固定的剪贴板历史", role: .destructive) {
+                Button(NSLocalizedString("清空未固定的剪贴板历史", comment: ""), role: .destructive) {
                     let store = ClipboardStore(app.store)
                     let ids = store.recent(limit: 100_000).filter { !$0.pinned }.map(\.id)
                     ClipboardMonitor.removeFiles((try? store.delete(ids: ids)) ?? [])
@@ -253,39 +265,39 @@ private struct SourceSettings: View {
     @State private var folder = ""
 
     static let labels: [(DataSourceID, String)] = [
-        (.calendar, "日历"), (.reminders, "提醒事项"), (.notes, "备忘录"), (.contacts, "通讯录"), (.chrome, "Chrome 标签与书签"),
-        (.shortcuts, "快捷指令"), (.messages, "信息（仅草稿交接）"), (.memory, "个人记忆"), (.maps, "路线时间（MapKit）"),
+        (.calendar, NSLocalizedString("日历", comment: "")), (.reminders, NSLocalizedString("提醒事项", comment: "")), (.notes, NSLocalizedString("备忘录", comment: "")), (.contacts, NSLocalizedString("通讯录", comment: "")), (.chrome, NSLocalizedString("Chrome 标签与书签", comment: "")),
+        (.shortcuts, NSLocalizedString("快捷指令", comment: "")), (.messages, NSLocalizedString("信息（仅草稿交接）", comment: "")), (.memory, NSLocalizedString("个人记忆", comment: "")), (.maps, NSLocalizedString("路线时间（MapKit）", comment: "")),
     ]
 
     var body: some View {
         Form {
-            Section("AI 与工具可使用的来源") {
+            Section(NSLocalizedString("AI 与工具可使用的来源", comment: "")) {
                 ForEach(Self.labels, id: \.0) { id, label in
                     Toggle(label, isOn: Binding(
                         get: { app.settings.enabledSources.contains(id) },
                         set: { on in if on { app.settings.enabledSources.insert(id) } else { app.settings.enabledSources.remove(id) } }))
                 }
             }
-            Section("授权的备忘录文件夹") {
+            Section(NSLocalizedString("授权的备忘录文件夹", comment: "")) {
                 ForEach(app.settings.notesFolders, id: \.self) { f in
-                    HStack { Text("\(f.account) › \(f.folder)"); Spacer(); Button("移除") { app.settings.notesFolders.removeAll { $0 == f } } }
+                    HStack { Text("\(f.account) › \(f.folder)"); Spacer(); Button(NSLocalizedString("移除", comment: "")) { app.settings.notesFolders.removeAll { $0 == f } } }
                 }
                 HStack {
-                    TextField("账户（如 iCloud）", text: $account)
-                    TextField("文件夹", text: $folder)
-                    Button("添加") {
+                    TextField(NSLocalizedString("账户（如 iCloud）", comment: ""), text: $account)
+                    TextField(NSLocalizedString("文件夹", comment: ""), text: $folder)
+                    Button(NSLocalizedString("添加", comment: "")) {
                         guard !account.isEmpty, !folder.isEmpty else { return }
                         app.settings.notesFolders.append(NotesFolder(account: account, folder: folder))
                         account = ""; folder = ""
                     }
                 }
             }
-            Section("系统权限") {
-                Button("管理系统权限…") { app.openSettings(permissions: true) }
+            Section(NSLocalizedString("系统权限", comment: "")) {
+                Button(NSLocalizedString("管理系统权限…", comment: "")) { app.openSettings(permissions: true) }
             }
-            Section("情境提醒") {
-                Toggle("主动提醒（冲突、出行准备、重要日期）", isOn: $app.settings.proactiveReminders)
-                Toggle("后台 AI 判断（默认关闭）", isOn: $app.settings.backgroundAI)
+            Section(NSLocalizedString("情境提醒", comment: "")) {
+                Toggle(NSLocalizedString("主动提醒（冲突、出行准备、重要日期）", comment: ""), isOn: $app.settings.proactiveReminders)
+                Toggle(NSLocalizedString("后台 AI 判断（默认关闭）", comment: ""), isOn: $app.settings.backgroundAI)
             }
         }
         .formStyle(.grouped)
@@ -309,25 +321,25 @@ private struct ModelSettingsView: View {
 
     var body: some View {
         Form {
-            Section("供应商与模型") {
-                Picker("供应商", selection: Binding(get: { provider }, set: { value in
+            Section(NSLocalizedString("供应商与模型", comment: "")) {
+                Picker(NSLocalizedString("供应商", comment: ""), selection: Binding(get: { provider }, set: { value in
                     provider = value
                     if value == "openai" { baseURL = "https://api.openai.com/v1"; model = "" }
                     if value == "deepseek" { baseURL = "https://api.deepseek.com"; model = "" }
                 })) {
-                    Text("自定义（OpenAI 兼容）").tag("custom")
+                    Text(NSLocalizedString("自定义（OpenAI 兼容）", comment: "")).tag("custom")
                     Text("OpenAI").tag("openai")
                     Text("DeepSeek").tag("deepseek")
                 }
 
-                TextField("API 地址", text: $baseURL, prompt: Text("https://api.example.com/v1"))
-                TextField("模型名", text: $model)
-                SecureField("API Key（留空保留已保存的 Key）", text: $key)
+                TextField(NSLocalizedString("API 地址", comment: ""), text: $baseURL, prompt: Text("https://api.example.com/v1"))
+                TextField(NSLocalizedString("模型名", comment: ""), text: $model)
+                SecureField(NSLocalizedString("API Key（留空保留已保存的 Key）", comment: ""), text: $key)
             }
             Section {
                 HStack {
                     Button { Task { await save() } } label: {
-                        Text("保存")
+                        Text(NSLocalizedString("保存", comment: ""))
                             .opacity(saved || saving ? 0 : 1)
                             .overlay {
                                 if saved { Image(systemName: "checkmark") }
@@ -335,23 +347,23 @@ private struct ModelSettingsView: View {
                             }
                     }
                     .disabled(saving || saved || checking)
-                    .accessibilityLabel(saved ? "已保存" : "保存")
+                    .accessibilityLabel(saved ? NSLocalizedString("已保存", comment: "") : NSLocalizedString("保存", comment: ""))
                     Button { Task { await check() } } label: {
-                        Text("检查已保存配置")
+                        Text(NSLocalizedString("检查已保存配置", comment: ""))
                             .opacity(checked || checking ? 0 : 1)
                             .overlay {
                                 if checked { Image(systemName: "checkmark") }
-                                else if checking { Text("检查中…") }
+                                else if checking { Text(NSLocalizedString("检查中…", comment: "")) }
                             }
                     }
                     .disabled(checking || checked || saving || app.modelConfiguration == nil)
-                    .accessibilityLabel(checked ? "检查完成" : checking ? "检查中" : "检查已保存配置")
+                    .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : checking ? NSLocalizedString("检查中", comment: "") : NSLocalizedString("检查已保存配置", comment: ""))
                 }
                 if let message { Text(message).foregroundStyle(ThemeColor.kTextNegative) }
                 if let c = capabilities ?? app.modelConfiguration?.capabilities {
-                    LabeledContent("文本", value: capabilityLabel(c.text))
-                    LabeledContent("工具调用", value: capabilityLabel(c.tools))
-                    LabeledContent("图像输入", value: capabilityLabel(c.image))
+                    LabeledContent(NSLocalizedString("文本", comment: ""), value: capabilityLabel(c.text))
+                    LabeledContent(NSLocalizedString("工具调用", comment: ""), value: capabilityLabel(c.tools))
+                    LabeledContent(NSLocalizedString("图像输入", comment: ""), value: capabilityLabel(c.image))
                 }
             }
         }
@@ -377,9 +389,9 @@ private struct ModelSettingsView: View {
 
     private func capabilityLabel(_ value: CapabilityStatus) -> String {
         switch value {
-        case .available: "可用"
-        case .unavailable: "不可用"
-        case .unknown: "未检查"
+        case .available: NSLocalizedString("可用", comment: "")
+        case .unavailable: NSLocalizedString("不可用", comment: "")
+        case .unknown: NSLocalizedString("未检查", comment: "")
         }
     }
 
@@ -391,16 +403,16 @@ private struct ModelSettingsView: View {
               let host = url.host, !host.isEmpty, url.user == nil, url.password == nil,
               url.scheme == "https" || (url.scheme == "http" && ["localhost", "127.0.0.1"].contains(host)),
               !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            message = "请填写有效的 https 地址与模型名。"
+            message = NSLocalizedString("请填写有效的 https 地址与模型名。", comment: "")
             return
         }
         do {
             if let agent = app.agent, await agent.state == .busy {
-                message = "请等待当前 AI 任务结束后保存模型设置。"; return
+                message = NSLocalizedString("请等待当前 AI 任务结束后保存模型设置。", comment: ""); return
             }
             let account = app.modelConfiguration?.credentialRef ?? ModelSettings.keyAccount
             guard !key.isEmpty || app.keychain.contains(account: account) else {
-                message = "请填写 API Key；留空只会保留已保存的 Key。"
+                message = NSLocalizedString("请填写 API Key；留空只会保留已保存的 Key。", comment: "")
                 return
             }
             if !key.isEmpty {
@@ -414,7 +426,7 @@ private struct ModelSettingsView: View {
             capabilities = nil
             saved = true
         } catch {
-            message = "钥匙串写入失败：\(error)"
+            message = String(format: NSLocalizedString("钥匙串写入失败：%@", comment: ""), String(describing: error))
         }
     }
 
@@ -425,7 +437,7 @@ private struct ModelSettingsView: View {
         defer { checking = false }
         do {
             guard let key = try await app.readModelCredential(account: cfg.credentialRef) else {
-                message = "请先保存 API Key。"; return
+                message = NSLocalizedString("请先保存 API Key。", comment: ""); return
             }
             let caps = await ModelCapabilityCheck.run(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
             cfg.capabilities = caps
@@ -471,56 +483,6 @@ enum ModelCapabilityCheck {
     }
 }
 
-// MARK: Keywords
-
-struct KeywordSettings: View {
-    @Bindable var app: AppModel
-    @State private var keyword = ""
-    @State private var name = ""
-    @State private var website = ""
-    @State private var error: String?
-
-    var body: some View {
-        Form {
-            Section("网页关键词") {
-                ForEach(app.keywords.commands, id: \.keyword) { c in
-                    HStack {
-                        Text(c.keyword).font(.system(.body, design: .monospaced)).frame(width: 60, alignment: .leading)
-                        VStack(alignment: .leading) {
-                            Text(c.name)
-                            Text(c.url(for: "")?.absoluteString ?? c.urlTemplate).textStyle(.secondary).lineLimit(1)
-                        }
-                        Spacer()
-                        Button("删除") { app.keywords.remove(c.keyword) }
-                    }
-                }
-            }
-            Section("添加") {
-                TextField("关键词", text: $keyword)
-                TextField("名称", text: $name)
-                TextField("网址（如 chatgpt.com）", text: $website)
-                Button("保存") {
-                    do {
-                        guard !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(keyword.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }) else {
-                            error = "这个别名已被应用或快捷指令使用。"; return
-                        }
-                        try app.keywords.upsert(KeywordCommand(keyword: keyword, name: name.isEmpty ? keyword : name, urlTemplate: website))
-                        keyword = ""; name = ""; website = ""; error = nil
-                    } catch KeywordRegistry.RegistryError.invalidTemplate {
-                        error = "请输入有效的网址，例如 chatgpt.com 或 https://example.com。"
-                    } catch KeywordRegistry.RegistryError.invalidKeyword {
-                        error = "关键词不能为空、不能包含空格，也不能使用 bm 或 >。"
-                    } catch KeywordRegistry.RegistryError.duplicate {
-                        error = "这个关键词已存在，请换一个。"
-                    } catch { self.error = "保存失败，请重试。" }
-                }
-                if let error { Text(error).foregroundStyle(ThemeColor.kTextNegative) }
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
 // MARK: Memory
 
 private struct MemorySettings: View {
@@ -532,30 +494,30 @@ private struct MemorySettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle("开启记忆", isOn: Binding(
+                Toggle(NSLocalizedString("开启记忆", comment: ""), isOn: Binding(
                     get: { !app.settings.memoryExtractionPaused },
                     set: { app.settings.memoryExtractionPaused = !$0 }
                 ))
             }
-            Section("记忆（\(records.count)）") {
-                if records.isEmpty { Text("暂无记忆").textStyle(.secondary) }
+            Section(String(format: NSLocalizedString("记忆（%@）", comment: ""), String(records.count))) {
+                if records.isEmpty { Text(NSLocalizedString("暂无记忆", comment: "")).textStyle(.secondary) }
                 ForEach(records) { m in
                     VStack(alignment: .leading, spacing: 4) {
                         if editing == m.id {
-                            TextField("内容", text: $draft)
+                            TextField(NSLocalizedString("内容", comment: ""), text: $draft)
                             HStack {
-                                Button("保存为纠正") { _ = try? app.memories.correct(m.id, newContent: draft); editing = nil; reload() }
-                                Button("取消") { editing = nil }
+                                Button(NSLocalizedString("保存为纠正", comment: "")) { _ = try? app.memories.correct(m.id, newContent: draft); editing = nil; reload() }
+                                Button(NSLocalizedString("取消", comment: "")) { editing = nil }
                             }
                         } else {
                             Text(m.content)
-                            Text("\(m.kind.rawValue)\(m.confirmed ? " · 已确认" : "")\(m.pinned ? " · 已固定" : "") · 来源：\(m.sourceIDs.joined(separator: ", "))")
+                            Text("\(m.kind.rawValue)\(m.confirmed ? NSLocalizedString(" · 已确认", comment: "") : "")\(m.pinned ? NSLocalizedString(" · 已固定", comment: "") : "") · \(NSLocalizedString("来源", comment: "")): \(m.sourceIDs.joined(separator: ", "))")
                                 .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                             HStack {
-                                Button("编辑") { editing = m.id; draft = m.content }
-                                Button(m.pinned ? "取消固定" : "固定") { try? app.memories.setPinned(m.id, !m.pinned); reload() }
-                                if !m.confirmed { Button("确认") { try? app.memories.confirm(m.id); reload() } }
-                                Button("删除", role: .destructive) { try? app.memories.delete(m.id); reload() }
+                                Button(NSLocalizedString("编辑", comment: "")) { editing = m.id; draft = m.content }
+                                Button(m.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定", comment: "")) { try? app.memories.setPinned(m.id, !m.pinned); reload() }
+                                if !m.confirmed { Button(NSLocalizedString("确认", comment: "")) { try? app.memories.confirm(m.id); reload() } }
+                                Button(NSLocalizedString("删除", comment: ""), role: .destructive) { try? app.memories.delete(m.id); reload() }
                             }
                             .buttonStyle(.link)
                         }
@@ -585,33 +547,33 @@ private struct MCPSettings: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("本地连接", value: app.isMCPListening ? "监听中" : "未监听（无已启用实例）")
+                LabeledContent(NSLocalizedString("本地连接", comment: ""), value: app.isMCPListening ? NSLocalizedString("监听中", comment: "") : NSLocalizedString("未监听（无已启用实例）", comment: ""))
                 if let e = app.mcpServerError { Text(e).foregroundStyle(ThemeColor.kTextNegative) }
             }
             if let issued {
-                Section("新实例“\(issued.name)”的配置（凭据只显示这一次）") {
+                Section(String(format: NSLocalizedString("新实例“%@”的配置（凭据只显示这一次）", comment: ""), issued.name)) {
                     Text(Self.configSnippet(credential: issued.credential))
                         .font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                    Button("复制配置") {
+                    Button(NSLocalizedString("复制配置", comment: "")) {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(Self.configSnippet(credential: issued.credential), forType: .string)
                     }
-                    Button("我已保存") { self.issued = nil }
+                    Button(NSLocalizedString("我已保存", comment: "")) { self.issued = nil }
                 }
             }
-            Section("实例") {
+            Section(NSLocalizedString("实例", comment: "")) {
                 ForEach($instances) { $inst in
                     VStack(alignment: .leading) {
                         HStack {
                             Text(inst.name).textStyle(.button)
                             Spacer()
-                            Button("撤销", role: .destructive) {
+                            Button(NSLocalizedString("撤销", comment: ""), role: .destructive) {
                                 try? MCPInstanceStore(app.store).delete(inst.id)
                                 reload()
                             }
                         }
-                        Toggle("启用", isOn: $inst.enabled).onChange(of: inst.enabled) { save(inst) }
-                        Toggle("只读", isOn: $inst.readOnly).onChange(of: inst.readOnly) { save(inst) }
+                        Toggle(NSLocalizedString("启用", comment: ""), isOn: $inst.enabled).onChange(of: inst.enabled) { save(inst) }
+                        Toggle(NSLocalizedString("只读", comment: ""), isOn: $inst.readOnly).onChange(of: inst.readOnly) { save(inst) }
                         HStack {
                             ForEach(Self.exposable, id: \.self) { s in
                                 Toggle(s.rawValue, isOn: Binding(
@@ -627,10 +589,10 @@ private struct MCPSettings: View {
                     }
                 }
                 HStack {
-                    TextField("实例名称（如 Claude Desktop）", text: $newName)
-                    Button("创建") {
+                    TextField(NSLocalizedString("实例名称（如 Claude Desktop）", comment: ""), text: $newName)
+                    Button(NSLocalizedString("创建", comment: "")) {
                         do {
-                            let (inst, cred) = try app.gateway.register(name: newName.isEmpty ? "MCP 客户端" : newName)
+                            let (inst, cred) = try app.gateway.register(name: newName.isEmpty ? NSLocalizedString("MCP 客户端", comment: "") : newName)
                             issued = (inst.name, cred)
                             newName = ""
                             reload()
@@ -676,7 +638,7 @@ private struct PermissionSettings: View {
 
     var body: some View {
         Form {
-            Section("系统权限") {
+            Section(NSLocalizedString("系统权限", comment: "")) {
                 ForEach(SystemPermission.allCases) { permission in
                     HStack(spacing: 12) {
                         Image(systemName: symbol(for: permission))
@@ -686,28 +648,28 @@ private struct PermissionSettings: View {
                             .background(iconColor(for: permission), in: RoundedRectangle(cornerRadius: 7))
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(permission.title)
-                            Text(states[permission]?.rawValue ?? "正在检查…")
+                            Text(NSLocalizedString(permission.title, comment: ""))
+                            Text(NSLocalizedString(states[permission]?.rawValue ?? "正在检查…", comment: ""))
                                 .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 12)
                         HStack(spacing: 8) {
                             if states[permission]?.canRequest == true {
-                                Button(requesting == permission ? "正在请求…" : "请求授权") {
+                                Button(requesting == permission ? NSLocalizedString("正在请求…", comment: "") : NSLocalizedString("请求授权", comment: "")) {
                                     requesting = permission
                                     message = nil
                                     Task {
                                         do {
                                             let state = try await SystemPermissions.request(permission)
                                             states[permission] = state
-                                            message = "\(permission.title)：\(state.rawValue)"
-                                        } catch { message = "\(permission.title)授权请求失败：\(error.localizedDescription)" }
+                                            message = "\(NSLocalizedString(permission.title, comment: "")): \(NSLocalizedString(state.rawValue, comment: ""))"
+                                        } catch { message = String(format: NSLocalizedString("%@授权请求失败：%@", comment: ""), NSLocalizedString(permission.title, comment: ""), error.localizedDescription) }
                                         requesting = nil
                                     }
                                 }.disabled(requesting != nil)
                             }
-                            Button("打开系统设置") {
+                            Button(NSLocalizedString("打开系统设置", comment: "")) {
                                 do { try SystemPermissions.openSettings(permission); message = nil }
                                 catch { message = error.localizedDescription }
                             }
@@ -716,7 +678,7 @@ private struct PermissionSettings: View {
                     }
                     .padding(.vertical, 4)
                 }
-                Button("刷新权限状态") { Task { await refresh() } }
+                Button(NSLocalizedString("刷新权限状态", comment: "")) { Task { await refresh() } }
                 if let message { Text(message).textStyle(.secondary).textSelection(.enabled) }
             }
         }

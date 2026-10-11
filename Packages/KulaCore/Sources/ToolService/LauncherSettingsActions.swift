@@ -5,9 +5,9 @@ extension ToolService {
     @MainActor
     public static func chooseLauncherSearchFolder() async -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "添加文件搜索范围"
-        panel.message = "选择要加入文件搜索范围的文件夹。"
-        panel.prompt = "添加"
+        panel.title = NSLocalizedString("添加文件搜索范围", comment: "")
+        panel.message = NSLocalizedString("选择要加入文件搜索范围的文件夹。", comment: "")
+        panel.prompt = NSLocalizedString("添加", comment: "")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false

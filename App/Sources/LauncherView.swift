@@ -224,7 +224,7 @@ struct LauncherView: View {
                 if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
-                        .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isBookmarkScope ? "搜索书签" : model.commandInput?.command.name ?? "关键词命令")
+                        .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.commandInput?.command.name ?? NSLocalizedString("关键词命令", comment: ""))
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -551,7 +551,7 @@ private struct ResultList: View {
     }
 
     private static func section(for result: SearchResult) -> String {
-        if result.target.kind == "keyword-match" { return "别名匹配" }
+        if result.target.kind == "keyword-match" { return NSLocalizedString("别名匹配", comment: "") }
         switch result.source {
         case .app, .link, .bookmark: return title(.app)
         default: return title(result.source)
@@ -560,17 +560,17 @@ private struct ResultList: View {
 
     private static func title(_ source: SearchSource) -> String {
         switch source {
-        case .app: "APP 应用"
-        case .file: "文件文档"
-        case .link: "链接"
-        case .bookmark: "书签"
-        case .chromeTab: "Chrome 标签页"
-        case .shortcut: "快捷指令"
-        case .keyword: "默认搜索"
+        case .app: NSLocalizedString("APP 应用", comment: "")
+        case .file: NSLocalizedString("文件文档", comment: "")
+        case .link: NSLocalizedString("链接", comment: "")
+        case .bookmark: NSLocalizedString("书签", comment: "")
+        case .chromeTab: NSLocalizedString("Chrome 标签页", comment: "")
+        case .shortcut: NSLocalizedString("快捷指令", comment: "")
+        case .keyword: NSLocalizedString("默认搜索", comment: "")
         case .askAI: "AI"
-        case .calculator, .conversion, .currency: "计算与换算"
-        case .terminal: "终端命令"
-        case .clipboard: "剪贴板"
+        case .calculator, .conversion, .currency: NSLocalizedString("计算与换算", comment: "")
+        case .terminal: NSLocalizedString("终端命令", comment: "")
+        case .clipboard: NSLocalizedString("剪贴板", comment: "")
         }
     }
 }
@@ -685,12 +685,12 @@ private struct TerminalOutputView: View {
                 Text("> \(session.command)").font(.system(.body, design: .monospaced)).lineLimit(1)
                 Spacer()
                 if session.handedOff {
-                    Text("已转到“终端”").textStyle(.secondary)
+                    Text(NSLocalizedString("已转到“终端”", comment: "")).textStyle(.secondary)
                 } else if let code = session.exitCode {
-                    Text("退出码 \(code)").textStyle(.secondary)
+                    Text(String(format: NSLocalizedString("退出码 %@", comment: ""), String(code))).textStyle(.secondary)
                         .foregroundStyle(code == 0 ? ThemeColor.kTextPositive : ThemeColor.kTextNegative)
                 } else {
-                    Button("停止", action: stop)
+                    Button(NSLocalizedString("停止", comment: ""), action: stop)
                 }
             }
             ScrollView {
@@ -701,7 +701,7 @@ private struct TerminalOutputView: View {
             }
             .frame(height: 260)
             if let spilled = session.spilled {
-                Button("完整输出已保存：\(spilled.lastPathComponent)") { NSWorkspace.shared.activateFileViewerSelecting([spilled]) }
+                Button(String(format: NSLocalizedString("完整输出已保存：%@", comment: ""), spilled.lastPathComponent)) { NSWorkspace.shared.activateFileViewerSelecting([spilled]) }
                     .buttonStyle(.link)
             }
         }

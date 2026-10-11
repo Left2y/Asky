@@ -2,21 +2,20 @@ import AppKit
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general = "advanced", model, hotkey, aliases, keywords
+    case general = "advanced", model, hotkey, aliases
     case sources, permissions, memory, mcp
 
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .general: "通用"
-        case .model: "模型设置"
-        case .hotkey: "触发快捷键"
-        case .aliases: "别名与快捷指令"
-        case .keywords: "网页关键词"
-        case .sources: "数据来源"
-        case .permissions: "系统权限"
-        case .memory: "记忆"
-        case .mcp: "外部 MCP"
+        case .general: NSLocalizedString("通用", comment: "")
+        case .model: NSLocalizedString("模型设置", comment: "")
+        case .hotkey: NSLocalizedString("触发快捷键", comment: "")
+        case .aliases: NSLocalizedString("别名与快捷指令", comment: "")
+        case .sources: NSLocalizedString("数据来源", comment: "")
+        case .permissions: NSLocalizedString("系统权限", comment: "")
+        case .memory: NSLocalizedString("记忆", comment: "")
+        case .mcp: NSLocalizedString("外部 MCP", comment: "")
         }
     }
     var symbol: String {
@@ -25,7 +24,6 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .model: "sparkles"
         case .hotkey: "keyboard"
         case .aliases: "command"
-        case .keywords: "globe"
         case .sources: "square.stack.3d.up"
         case .permissions: "hand.raised.fill"
         case .memory: "brain"
@@ -37,7 +35,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .general, .hotkey: .gray
         case .model, .memory: .purple
         case .aliases: .orange
-        case .keywords, .sources: .blue
+        case .sources: .blue
         case .permissions: .green
         case .mcp: .teal
         }
@@ -113,7 +111,7 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
     func updateChrome() {
         heading.stringValue = SettingsPage.resolve(app.settingsTab).title
         heading.sizeToFit()
-        view.window?.title = "\(heading.stringValue) — Asky 设置"
+        view.window?.title = "\(heading.stringValue) — \(NSLocalizedString("Asky 设置", comment: ""))"
         switch app.preferences.appearance {
         case "light": view.window?.appearance = NSAppearance(named: .aqua)
         case "dark": view.window?.appearance = NSAppearance(named: .darkAqua)
@@ -135,7 +133,7 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
         if id == Self.title {
             let item = NSToolbarItem(itemIdentifier: id)
             item.view = heading
-            item.label = "设置页面"
+            item.label = NSLocalizedString("设置页面", comment: "")
             return item
         }
         return nil

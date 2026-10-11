@@ -67,7 +67,7 @@ struct ChatMarkdownView: View {
 
 private struct ChatImagePlaceholder: ImageProvider {
     func makeImage(url: URL?) -> some View {
-        Label("图片", systemImage: "photo")
+        Label(NSLocalizedString("图片", comment: ""), systemImage: "photo")
             .foregroundStyle(ThemeColor.kTextSubtle)
     }
 }
@@ -78,7 +78,7 @@ private struct ChatInlineImagePlaceholder: InlineImageProvider {
     }
 }
 
-#Preview("Markdown 回复") {
+#Preview(NSLocalizedString("Markdown 回复", comment: "")) {
     ChatMarkdownView(text: """
     你好！我是 **Asky**，你的 macOS 个人助理。
 

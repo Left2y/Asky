@@ -1,0 +1,4 @@
+"NSCalendarsFullAccessUsageDescription" = "Asky reads or creates calendar events and checks for conflicts when you explicitly ask.";
+"NSRemindersFullAccessUsageDescription" = "Asky reads or creates reminders when you explicitly ask.";
+"NSContactsUsageDescription" = "Asky identifies contacts for tasks you initiate.";
+"NSAppleEventsUsageDescription" = "Asky lists and switches Chrome tabs, and searches and appends content in authorized Notes folders.";

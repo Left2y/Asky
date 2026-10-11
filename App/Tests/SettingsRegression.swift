@@ -1,5 +1,8 @@
 import AppKit
 import SwiftUI
+import DirectActions
+import LocalStore
+import Router
 
 @main @MainActor
 enum SettingsRegression {
@@ -10,7 +13,23 @@ enum SettingsRegression {
         Task { @MainActor in
             do {
                 let root = FileManager.default.temporaryDirectory.appending(path: "Asky-settings-\(UUID())")
+                let legacyStore = try LocalStore(root: root)
+                legacyStore.setCodableSetting("keywords", KeywordRegistry(commands: [
+                    KeywordCommand(keyword: "go", name: "Custom", urlTemplate: "https://example.com"),
+                ]))
                 let model = try AppModel(root: root)
+                guard model.keywords.commands == KeywordCommand.builtIn,
+                      model.keywords.match("go hello")?.0.urlTemplate.contains("google.com") == true,
+                      model.keywords.match("chat hello")?.0.url(for: "hello")?.host == "chatgpt.com",
+                      SettingsPage.allCases.allSatisfy({ $0.rawValue != "keywords" }),
+                      SettingsPage.resolve("keywords") == .general else {
+                    fatalError("legacy settings changed fixed presets or keyword configuration remains visible")
+                }
+                var input = LauncherInputState()
+                input.edit("> pwd", keywords: model.keywords)
+                guard input.terminal, input.text == "pwd" else {
+                    fatalError("terminal preset failed without user configuration")
+                }
                 let legacy = Data(#"{"appearance":"dark","hotKeyCode":49,"hotKeyModifiers":6144,"hotKeyLabel":"⌃⌥ Space","clipboardHotKeyLabel":"custom clipboard"}"#.utf8)
                 let migrated = try JSONDecoder().decode(SettingsPreferences.self, from: legacy)
                 guard migrated.appearance == "dark", migrated.hotKeyLabel == "⌃⌥ Space",

@@ -26,7 +26,7 @@ struct ConversationSearchField: NSViewRepresentable {
             guard let field else { return }
             coordinator?.beginEditing(field)
         }
-        field.setAccessibilityLabel("搜索对话")
+        field.setAccessibilityLabel(NSLocalizedString("搜索对话", comment: ""))
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         context.coordinator.observeClicks(field)
         return field
@@ -71,7 +71,7 @@ struct ConversationSearchField: NSViewRepresentable {
         }
 
         func updatePlaceholder(_ field: NSTextField) {
-            let value = NSAttributedString(string: editing ? "" : "搜索对话", attributes: [
+            let value = NSAttributedString(string: editing ? "" : NSLocalizedString("搜索对话", comment: ""), attributes: [
                 .font: NSFont.systemFont(ofSize: 16), .foregroundColor: parent.placeholderColor
             ])
             if field.placeholderAttributedString != value { field.placeholderAttributedString = value }

@@ -31,10 +31,12 @@ enum ClipboardRegression {
                                                contentHash: "long", createdAt: Date().addingTimeInterval(2)))
                 try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "fourth"))
                 let controller = ClipboardController(app: app)
+                if CommandLine.arguments.contains("--preview") { controller.pinned = true }
                 controller.show()
                 if !CommandLine.arguments.contains("--preview") { controller.pinned = true }
                 try await Task.sleep(for: .milliseconds(400))
                 @MainActor func panel() -> NSWindow { application.windows.first { $0.title == "剪贴板历史" }! }
+                @MainActor func shellFrame() -> NSRect { panel().frame.insetBy(dx: LauncherLayout.shadowPadding, dy: LauncherLayout.shadowPadding) }
                 @MainActor func snapshot(_ window: NSWindow, _ name: String) throws {
                     let view = window.contentView!
                     view.layoutSubtreeIfNeeded()
@@ -69,7 +71,7 @@ enum ClipboardRegression {
                     exit(0)
                 }
                 precondition(controller.items.count == 4)
-                precondition(panel().frame.height == 244)
+                precondition(panel().frame.height == 244 + LauncherLayout.shadowPadding * 2)
                 precondition(controller.selection == 0, "first card is selected by default")
                 controller.moveSelection(1)
                 precondition(controller.selection == 1)
@@ -103,16 +105,16 @@ enum ClipboardRegression {
                 controller.togglePinned()
                 panel().ignoresMouseEvents = true
                 application.windows.first { $0.title == "剪贴板完整预览" }!.ignoresMouseEvents = true
-                @MainActor func card(_ minX: CGFloat) -> NSRect { NSRect(x: minX, y: panel().frame.minY + 12, width: 264, height: 160) }
+                @MainActor func card(_ minX: CGFloat) -> NSRect { NSRect(x: minX, y: shellFrame().minY + 12, width: 264, height: 160) }
                 @MainActor func previewFor(_ item: ClipboardItem, _ anchor: NSRect) async throws -> NSWindow {
                     controller.dismissPreview()
                     controller.hover(item, frame: anchor, inside: true)
                     try await Task.sleep(for: .milliseconds(1700))
                     let window = application.windows.first { $0.title == "剪贴板完整预览" }!
-                    precondition(window.isVisible)
+                    precondition(window.isVisible, "preview for \(item.contentHash) at \(anchor) panel \(panel().frame) visible \(panel().isVisible)")
                     return window
                 }
-                let middle = card(panel().frame.midX - 132)
+                let middle = card(shellFrame().midX - 132)
                 controller.dismissPreview()
                 let pendingPreview = application.windows.first { $0.title == "剪贴板完整预览" }!
                 controller.hover(picture, frame: middle, inside: true)
@@ -130,15 +132,34 @@ enum ClipboardRegression {
                     exit(0)
                 }
                 precondition(preview.frame.minY >= preview.screen!.visibleFrame.minY)
-                precondition(abs(preview.frame.maxY - (panel().frame.minY - 8)) < 0.5, "preview sits 8 pt below the panel")
+                precondition(abs(preview.frame.maxY - (shellFrame().minY - 8)) < 0.5, "preview sits 8 pt below the panel")
                 precondition(abs(preview.frame.midX - middle.midX) < 0.5, "preview is centered under the card")
                 try snapshot(preview, "image-preview")
-                let leftCard = card(panel().frame.minX + 12)
+                let leftCard = card(shellFrame().minX + 12)
                 preview = try await previewFor(picture, leftCard)
                 precondition(abs(preview.frame.minX - leftCard.minX) < 0.5, "left edge card aligns preview left")
-                let rightCard = card(panel().frame.maxX - 12 - 264)
+                let rightCard = card(shellFrame().maxX - 12 - 264)
                 preview = try await previewFor(picture, rightCard)
                 precondition(abs(preview.frame.maxX - rightCard.maxX) < 0.5, "right edge card aligns preview right")
+                // A tall portrait image must shrink to fit beside the panel rather than cover it.
+                let tall = NSImage(size: NSSize(width: 400, height: 2400))
+                tall.lockFocus(); NSColor.systemPink.setFill(); NSRect(x: 0, y: 0, width: 400, height: 2400).fill(); tall.unlockFocus()
+                let tallPath = root.appending(path: "tall.tiff")
+                try tall.tiffRepresentation!.write(to: tallPath)
+                let portrait = ClipboardItem(kind: .image, filePath: tallPath.path, byteSize: 1000, contentHash: "tall")
+                preview = try await previewFor(portrait, middle)
+                precondition(!preview.frame.intersects(shellFrame()), "preview never covers the panel")
+                precondition(preview.frame.width < 464, "tall image narrows to its aspect ratio")
+                precondition(abs(preview.frame.midX - middle.midX) < 0.5, "tall preview is centered under the card")
+                // Real card anchors must report each card's on-screen frame.
+                @MainActor func anchors(_ view: NSView) -> [NSView] {
+                    (String(describing: type(of: view)).contains("AnchorView") ? [view] : []) + view.subviews.flatMap(anchors)
+                }
+                let frames = anchors(panel().contentView!).compactMap { v in v.window.map { $0.convertToScreen(v.convert(v.bounds, to: nil)) } }
+                    .sorted { $0.minX < $1.minX }
+                print("card anchors:", frames.map { "\(Int($0.minX)),\(Int($0.minY)) \(Int($0.width))x\(Int($0.height))" })
+                precondition(frames.count >= 2 && frames.allSatisfy { abs($0.width - 264) < 1 && abs($0.height - 160) < 1 })
+                precondition(abs(frames[0].minX - (shellFrame().minX + 12)) < 1, "first anchor sits at the panel's leading inset")
                 let long = controller.items.first { $0.contentHash == "long" }!
                 preview = try await previewFor(long, middle)
                 precondition(preview.frame.height <= 440, "long text is capped and scrolls")

@@ -26,10 +26,10 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         center.setNotificationCategories([UNNotificationCategory(identifier: Self.category, actions: [
-            UNNotificationAction(identifier: "evidence", title: "查看依据", options: [.foreground]),
-            UNNotificationAction(identifier: "snooze", title: "稍后"),
-            UNNotificationAction(identifier: "handled", title: "已处理"),
-            UNNotificationAction(identifier: "disable", title: "关闭此类", options: [.destructive]),
+            UNNotificationAction(identifier: "evidence", title: NSLocalizedString("查看依据", comment: ""), options: [.foreground]),
+            UNNotificationAction(identifier: "snooze", title: NSLocalizedString("稍后", comment: "")),
+            UNNotificationAction(identifier: "handled", title: NSLocalizedString("已处理", comment: "")),
+            UNNotificationAction(identifier: "disable", title: NSLocalizedString("关闭此类", comment: ""), options: [.destructive]),
         ], intentIdentifiers: [])])
 
         let nc = NotificationCenter.default, ws = NSWorkspace.shared.notificationCenter
@@ -133,7 +133,7 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
             try? scheduler.markDelivered(planID)
             let alert = NSAlert()
             alert.messageText = title
-            alert.informativeText = evidence.isEmpty ? "无记录的依据。" : evidence.map { "• \($0)" }.joined(separator: "\n")
+            alert.informativeText = evidence.isEmpty ? NSLocalizedString("无记录的依据。", comment: "") : evidence.map { "• \($0)" }.joined(separator: "\n")
             NSApp.activate()
             alert.runModal()
         }

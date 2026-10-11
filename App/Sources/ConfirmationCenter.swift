@@ -43,7 +43,7 @@ final class ConfirmationCenter {
             let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 260),
                             styleMask: [.titled, .closable, .fullSizeContentView, .utilityWindow],
                             backing: .buffered, defer: true)
-            p.title = "确认操作"
+            p.title = NSLocalizedString("确认操作", comment: "")
             p.titlebarAppearsTransparent = true
             p.level = .modalPanel
             p.isReleasedWhenClosed = false
@@ -89,25 +89,25 @@ struct ConfirmationCard: View {
 
     private var originLabel: String {
         switch request.origin {
-        case .launcher: "启动器"
-        case .agent: "AI 助手"
-        case .mcp: "外部 MCP 客户端"
+        case .launcher: NSLocalizedString("启动器", comment: "")
+        case .agent: NSLocalizedString("AI 助手", comment: "")
+        case .mcp: NSLocalizedString("外部 MCP 客户端", comment: "")
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("\(originLabel) 请求：\(request.tool)").textStyle(.button)
+            Text(String(format: NSLocalizedString("%@ 请求：%@", comment: ""), originLabel, request.tool)).textStyle(.button)
             Text(request.target).textStyle(.resultPrimary)
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(request.changes, id: \.self) { Text("• \($0)").textStyle(.secondary) }
             }
             if let note = request.note { Text(note).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle) }
-            if remaining > 0 { Text("还有 \(remaining) 项待确认").textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest) }
+            if remaining > 0 { Text(String(format: NSLocalizedString("还有 %@ 项待确认", comment: ""), String(remaining))).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest) }
             HStack {
                 Spacer()
-                Button("不执行", role: .cancel) { decide(.rejected) }.keyboardShortcut(.cancelAction)
-                Button("确认执行") { decide(.approved) }.keyboardShortcut(.defaultAction).buttonStyle(.glassProminent)
+                Button(NSLocalizedString("不执行", comment: ""), role: .cancel) { decide(.rejected) }.keyboardShortcut(.cancelAction)
+                Button(NSLocalizedString("确认执行", comment: "")) { decide(.approved) }.keyboardShortcut(.defaultAction).buttonStyle(.glassProminent)
             }
         }
     }

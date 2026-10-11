@@ -66,10 +66,14 @@ final class AppModel {
     @ObservationIgnored var onAgentHotKeyChange: ((UInt32, UInt32) -> Bool)?
     var preferences: SettingsPreferences {
         didSet {
+            if preferences.language != oldValue.language {
+                ToolService.setApplicationLanguage(preferences.language)
+            }
             store.setCodableSetting(SettingsPreferences.key, preferences)
             NSApp.appearance = preferences.appearance == "system" ? nil : NSAppearance(named: preferences.appearance == "dark" ? .darkAqua : .aqua)
         }
     }
+    let launchLanguage: ApplicationLanguage
     @ObservationIgnored var onOpenSettings: (() -> Void)?
 
     func openSettings(permissions: Bool = false) {
@@ -87,9 +91,8 @@ final class AppModel {
     @ObservationIgnored var onSettingsChange: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationFinished: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationStarted: (() -> Void)?
-    var keywords: KeywordRegistry {
-        didSet { store.setCodableSetting("keywords", keywords) }
-    }
+    /// Launcher commands are fixed presets, independent of legacy saved keyword settings.
+    let keywords = KeywordRegistry()
 
     init(root: URL = LocalStore.defaultRoot) throws {
         let store = try LocalStore(root: root)
@@ -98,18 +101,8 @@ final class AppModel {
         settings = reader.load()
         let savedPreferences = store.codableSetting(SettingsPreferences.key, as: SettingsPreferences.self) ?? SettingsPreferences()
         preferences = savedPreferences
-        var savedKeywords = store.codableSetting("keywords", as: KeywordRegistry.self) ?? KeywordRegistry()
-        if store.codableSetting("websitePresetsInstalled", as: Bool.self) != true {
-            savedKeywords.addMissingWebsitePresets(excluding: Set(savedPreferences.aliases.map(\.alias)))
-            store.setCodableSetting("keywords", savedKeywords)
-            store.setCodableSetting("websitePresetsInstalled", true)
-        }
-        if store.codableSetting("queryPresetsMigrated", as: Bool.self) != true {
-            savedKeywords.migrateQueryPresets(excluding: Set(savedPreferences.aliases.map(\.alias)))
-            store.setCodableSetting("keywords", savedKeywords)
-            store.setCodableSetting("queryPresetsMigrated", true)
-        }
-        keywords = savedKeywords
+        launchLanguage = savedPreferences.language
+
         let confirmations = ConfirmationCenter()
         self.confirmations = confirmations
         memories = MemoryStore(store)
@@ -153,11 +146,11 @@ final class AppModel {
 
     private func makeAgentHost() -> AgentHost? {
         guard let node = NodeRuntimeLauncher.findNode(bundleResources: Bundle.main.resourceURL) else {
-            agentUnavailableReason = "未找到 Node（需要 Node 22+）。"
+            agentUnavailableReason = NSLocalizedString("未找到 Node（需要 Node 22+）。", comment: "")
             return nil
         }
         guard let entry = Self.runtimeEntry() else {
-            agentUnavailableReason = "未找到 AgentRuntime（请先在 AgentRuntime/ 运行 npm install && npm run build）。"
+            agentUnavailableReason = NSLocalizedString("未找到 AgentRuntime（请先在 AgentRuntime/ 运行 npm install && npm run build）。", comment: "")
             return nil
         }
         let runtimeDir = store.root.appending(path: "runtime")
@@ -205,7 +198,7 @@ final class AppModel {
                 mcpServer = server
                 mcpServerError = nil
             } catch {
-                mcpServerError = "本地连接启动失败：\(error)"
+                mcpServerError = String(format: NSLocalizedString("本地连接启动失败：%@", comment: ""), String(describing: error))
             }
         } else if !anyEnabled, let server = mcpServer {
             server.stop()

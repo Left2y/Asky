@@ -143,13 +143,13 @@ final class AgentModel {
     func send() {
         let input = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard canSend, !isRunning else { return }
-        let text = input.isEmpty ? "请分析这些附件" : input
+        let text = input.isEmpty ? NSLocalizedString("请分析这些附件", comment: "") : input
         guard let agent = app.agent else {
-            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: app.agentUnavailableReason ?? "AI 运行时不可用"))
+            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: app.agentUnavailableReason ?? NSLocalizedString("AI 运行时不可用", comment: "")))
             return
         }
         guard app.modelConfiguration != nil else {
-            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "尚未配置模型。请在 设置 › 模型 中填写 API 地址、模型名与 Key。"))
+            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: NSLocalizedString("尚未配置模型。请在 设置 › 模型 中填写 API 地址、模型名与 Key。", comment: "")))
             return
         }
         let cid: String
@@ -162,7 +162,7 @@ final class AgentModel {
             let message = try store.append(conversationID: cid, role: "user", text: text, attachments: attachments)
             appendTrimmed(Self.item(message))
         } catch {
-            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "保存消息失败：\(error.localizedDescription)"))
+            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: String(format: NSLocalizedString("保存消息失败：%@", comment: ""), error.localizedDescription)))
             return
         }
         draft = ""
@@ -205,7 +205,7 @@ final class AgentModel {
             streaming = ""
             if let m = try? store.append(conversationID: cid, role: "assistant", text: text) { appendTrimmed(Self.item(m)) }
         case .toolCall(_, let req):
-            appendTrimmed(ChatItem(id: req.requestID, kind: .tool(nil), text: "调用 \(req.tool)…", toolName: req.tool))
+            appendTrimmed(ChatItem(id: req.requestID, kind: .tool(nil), text: String(format: NSLocalizedString("调用 %@…", comment: ""), req.tool), toolName: req.tool))
         case .toolResult(_, let r):
             let text = "\(Self.statusLabel(r.status))\(r.error.map { "：\($0.message)" } ?? "")"
             if let i = items.lastIndex(where: { $0.id == r.requestID }) {
@@ -227,7 +227,7 @@ final class AgentModel {
         case .error(_, let msg):
             appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: msg))
         case .runtimeExited(let code):
-            if taskID != nil { appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "AI 运行时已退出（\(code)）")) }
+            if taskID != nil { appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: String(format: NSLocalizedString("AI 运行时已退出（%@）", comment: ""), String(code)))) }
         }
     }
 
@@ -237,7 +237,7 @@ final class AgentModel {
             streaming = ""
         }
         if state == .pendingVerification {
-            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .notice, text: "任务中断，涉及写入的结果待核实；请勿假定已完成。"))
+            appendTrimmed(ChatItem(id: UUID().uuidString, kind: .notice, text: NSLocalizedString("任务中断，涉及写入的结果待核实；请勿假定已完成。", comment: "")))
         }
         if let started = taskStartedAt,
            let index = items.indices.last(where: { $0 >= responseStartIndex && items[$0].kind == .assistant }) {
@@ -260,7 +260,7 @@ final class AgentModel {
         let sources = SourceStore(app.store)
         let sid = "conversation:\(cid)"
         if sources.source(sid) == nil {
-            try? sources.upsert(SourceRecord(id: sid, kind: "conversation", title: conversations.first { $0.id == cid }?.title ?? "对话",
+            try? sources.upsert(SourceRecord(id: sid, kind: "conversation", title: conversations.first { $0.id == cid }?.title ?? NSLocalizedString("对话", comment: ""),
                                              permissions: [.read, .aiUse, .extraction]))
         }
         if !app.settings.memoryExtractionPaused { _ = try? ExtractionQueue(app.store).enqueue(sid) }
@@ -269,13 +269,13 @@ final class AgentModel {
 
     static func statusLabel(_ s: ExecutionStatus) -> String {
         switch s {
-        case .completed: "已完成"
-        case .rejected: "未执行"
-        case .cancelled: "已取消"
-        case .failed: "失败"
-        case .pendingVerification: "待核实"
-        case .awaitingConfirmation: "等待确认"
-        case .suggestion: "建议"
+        case .completed: NSLocalizedString("已完成", comment: "")
+        case .rejected: NSLocalizedString("未执行", comment: "")
+        case .cancelled: NSLocalizedString("已取消", comment: "")
+        case .failed: NSLocalizedString("失败", comment: "")
+        case .pendingVerification: NSLocalizedString("待核实", comment: "")
+        case .awaitingConfirmation: NSLocalizedString("等待确认", comment: "")
+        case .suggestion: NSLocalizedString("建议", comment: "")
         }
     }
 
@@ -308,7 +308,7 @@ final class AgentModel {
     }
 
     func reportAttachmentError(_ error: Error) {
-        appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "添加附件失败：\(error.localizedDescription)"))
+        appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: String(format: NSLocalizedString("添加附件失败：%@", comment: ""), error.localizedDescription)))
     }
 
     func attachText(_ text: String) {
@@ -338,7 +338,7 @@ final class AgentModel {
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
                 addAttachment(ComposerAttachmentService.preview(AttachmentRef(kind: .image, path: url.path, mimeType: "image/png", byteSize: size, temporary: false)))
             } catch {
-                appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: "截图失败：\(error.localizedDescription)"))
+                appendTrimmed(ChatItem(id: UUID().uuidString, kind: .error, text: String(format: NSLocalizedString("截图失败：%@", comment: ""), error.localizedDescription)))
             }
         }
     }

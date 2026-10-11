@@ -1,9 +1,11 @@
 import AppKit
 import Carbon.HIToolbox
 import LocalStore
+import ToolService
 
 struct SettingsPreferences: Codable, Equatable, Sendable {
     var appearance = "system"
+    var language = ApplicationLanguage.system
     var provider = "custom"
     var hotKeyCode: UInt32 = UInt32(kVK_Space)
     var hotKeyModifiers: UInt32 = UInt32(optionKey)
@@ -27,6 +29,8 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = SettingsPreferences()
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
+        let savedLanguage = try c.decodeIfPresent(String.self, forKey: .language)
+        language = savedLanguage.flatMap(ApplicationLanguage.init(rawValue:)) ?? .system
         provider = try c.decodeIfPresent(String.self, forKey: .provider) ?? d.provider
         hotKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .hotKeyCode) ?? d.hotKeyCode
         hotKeyModifiers = try c.decodeIfPresent(UInt32.self, forKey: .hotKeyModifiers) ?? d.hotKeyModifiers

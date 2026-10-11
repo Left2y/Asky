@@ -89,6 +89,22 @@ enum LauncherSearchFieldRegression {
         coordinator.configure(field)
         precondition(field.font?.pointSize == 20 && field.textColor == .secondaryLabelColor
                      && field.placeholderString == "Search", "actual appearance changes must still apply")
+
+        // The accessory app has no default menu; ⌘V must still reach the field editor.
+        EditMenu.install()
+        let pasteboard = NSPasteboard.general
+        let saved = pasteboard.string(forType: .string)
+        defer { pasteboard.clearContents(); if let saved { pasteboard.setString(saved, forType: .string) } }
+        pasteboard.clearContents()
+        pasteboard.setString("粘贴内容", forType: .string)
+        editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+        // A headless test never becomes key, so check the ⌘V mapping and then dispatch its
+        // action to the responder that AppKit would target in the live key panel.
+        let item = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items)
+            .first { $0.keyEquivalent == "v" && $0.keyEquivalentModifierMask == .command }
+        guard let item, let action = item.action else { fatalError("⌘V must be a menu key equivalent") }
+        precondition(editor.tryToPerform(action, with: item), "field editor must handle the paste action")
+        precondition(editor.string == "Safari粘贴内容", "⌘V must paste into the search field")
         print("LauncherSearchField native regression checks passed")
         window.close()
     }

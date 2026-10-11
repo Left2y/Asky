@@ -161,13 +161,13 @@ struct AgentView: View {
                 Button { showingHistory.toggle(); model.reloadConversations() } label: {
                     headerIcon(showingHistory ? "chevron.left" : "list.bullet")
                 }
-                .accessibilityLabel(showingHistory ? "返回对话" : "历史对话")
+                .accessibilityLabel(showingHistory ? NSLocalizedString("返回对话", comment: "") : NSLocalizedString("历史对话", comment: ""))
                 .keyboardShortcut("h", modifiers: [.command, .shift])
                 Button { model.open(nil); showingHistory = false } label: {
                     headerIcon("pencil")
                 }
                 .disabled(model.isRunning)
-                .accessibilityLabel("新对话")
+                .accessibilityLabel(NSLocalizedString("新对话", comment: ""))
                 .keyboardShortcut("n", modifiers: .command)
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
@@ -190,11 +190,11 @@ struct AgentView: View {
                     }
                     .transition(.opacity)
                 } else {
-                    Text(model.conversations.first { $0.id == model.conversationID }?.title ?? "新对话")
+                    Text(model.conversations.first { $0.id == model.conversationID }?.title ?? NSLocalizedString("新对话", comment: ""))
                         .textStyle(AgentLayout.title).lineLimit(1).frame(maxWidth: .infinity)
                         .contextMenu {
-                            Button("新对话") { model.open(nil) }.disabled(model.isRunning)
-                            Button("设置…") { model.openSettings() }
+                            Button(NSLocalizedString("新对话", comment: "")) { model.open(nil) }.disabled(model.isRunning)
+                            Button(NSLocalizedString("设置…", comment: "")) { model.openSettings() }
                         }
                         .id(model.conversationID)
                         .transition(.opacity)
@@ -207,10 +207,10 @@ struct AgentView: View {
                 Button { pinned.toggle(); setPinned(pinned) } label: {
                     headerIcon(pinned ? "pin.fill" : "pin")
                 }
-                .accessibilityLabel(pinned ? "取消置顶" : "置顶窗口")
-                .accessibilityValue(pinned ? "已置顶" : "未置顶")
+                .accessibilityLabel(pinned ? NSLocalizedString("取消置顶", comment: "") : NSLocalizedString("置顶窗口", comment: ""))
+                .accessibilityValue(pinned ? NSLocalizedString("已置顶", comment: "") : NSLocalizedString("未置顶", comment: ""))
                 Button(action: close) { headerIcon("xmark") }
-                    .accessibilityLabel("关闭对话窗口")
+                    .accessibilityLabel(NSLocalizedString("关闭对话窗口", comment: ""))
                     .keyboardShortcut("w", modifiers: .command)
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
@@ -242,7 +242,7 @@ struct AgentView: View {
                     .buttonStyle(AgentHistoryRowStyle(selected: model.conversationID == c.id))
                     .disabled(model.isRunning)
                     .contextMenu {
-                        Button("删除对话", role: .destructive) { model.delete(c.id) }.disabled(model.isRunning)
+                        Button(NSLocalizedString("删除对话", comment: ""), role: .destructive) { model.delete(c.id) }.disabled(model.isRunning)
                     }
                 }
             }
@@ -366,13 +366,13 @@ private struct Transcript: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if hasOlder {
-                        Button("加载更早的消息") { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
+                        Button(NSLocalizedString("加载更早的消息", comment: "")) { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
                     }
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         VStack(alignment: .leading, spacing: 6) {
                             ChatBubble(item: item)
                             if item.needsPermissionSettings {
-                                Button("管理权限…") { model.openSettings(permissions: true) }
+                                Button(NSLocalizedString("管理权限…", comment: "")) { model.openSettings(permissions: true) }
                                     .buttonStyle(.link)
                             }
                         }
@@ -409,14 +409,14 @@ private struct Transcript: View {
 
     static func label(_ s: AgentTaskState) -> String {
         switch s {
-        case .starting: "正在启动…"
-        case .running: "处理中…"
-        case .awaitingInput: "等待你的回答"
-        case .awaitingConfirmation: "等待确认"
-        case .completed: "已完成"
-        case .cancelled: "已停止"
-        case .failed: "失败"
-        case .pendingVerification: "待核实"
+        case .starting: NSLocalizedString("正在启动…", comment: "")
+        case .running: NSLocalizedString("处理中…", comment: "")
+        case .awaitingInput: NSLocalizedString("等待你的回答", comment: "")
+        case .awaitingConfirmation: NSLocalizedString("等待确认", comment: "")
+        case .completed: NSLocalizedString("已完成", comment: "")
+        case .cancelled: NSLocalizedString("已停止", comment: "")
+        case .failed: NSLocalizedString("失败", comment: "")
+        case .pendingVerification: NSLocalizedString("待核实", comment: "")
         }
     }
 }
@@ -507,7 +507,7 @@ private struct ChatBubble: View {
             .frame(width: 16, height: 16).padding(6)
         }
         .buttonStyle(AgentIconButtonStyle()).focused($copyFocused).foregroundStyle(ThemeColor("iconSubtlest"))
-        .accessibilityLabel(copyFeedbackID != nil ? "已复制" : "复制消息")
+        .accessibilityLabel(copyFeedbackID != nil ? NSLocalizedString("已复制", comment: "") : NSLocalizedString("复制消息", comment: ""))
         .task(id: copyFeedbackID) {
             guard let feedbackID = copyFeedbackID else { return }
             do {
@@ -560,7 +560,7 @@ private struct Composer: View {
                     Image(systemName: "paperclip").font(.system(size: 14)).frame(width: 32, height: 32)
                 }
                 .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
-                .accessibilityLabel("选择文件或图片")
+                .accessibilityLabel(NSLocalizedString("选择文件或图片", comment: ""))
                 Spacer()
                 Button { if model.isRunning { model.stop() } else { model.send() } } label: {
                     Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")
@@ -571,7 +571,7 @@ private struct Composer: View {
                 .background(ThemeColor.kBackgroundPrimary, in: .circle)
                 .disabled(!model.isRunning && !model.canSend)
                 .opacity(!model.isRunning && !model.canSend ? 0.3 : 1)
-                .accessibilityLabel(model.isRunning ? "停止生成" : "发送消息")
+                .accessibilityLabel(model.isRunning ? NSLocalizedString("停止生成", comment: "") : NSLocalizedString("发送消息", comment: ""))
             }
             .padding(.horizontal, 12)
         }

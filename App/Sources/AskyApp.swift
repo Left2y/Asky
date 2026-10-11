@@ -37,13 +37,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { model = try AppModel() } catch {
             let alert = NSAlert()
-            alert.messageText = "Asky 无法打开本地数据"
+            alert.messageText = NSLocalizedString("Asky 无法打开本地数据", comment: "")
             alert.informativeText = "\(error)"
             alert.runModal()
             NSApp.terminate(nil)
             return
         }
         model.onOpenSettings = { [weak self] in self?.openSettings() }
+        EditMenu.install()
         launcherModel = LauncherModel(app: model)
         launcher = LauncherController(model: launcherModel)
         launcher.onOpenSettings = { [weak self] in self?.openSettings() }
@@ -114,10 +115,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hotKey?.unregister()
         do {
             hotKey = try HotKey(keyCode: code, modifiers: modifiers) { [weak self] in self?.launcher.toggle() }
-            model.hotKeyStatus = "已注册"
+            model.hotKeyStatus = NSLocalizedString("已注册", comment: "")
             return true
         } catch {
-            model.hotKeyStatus = "组合键已被占用或无法注册，请选择其他快捷键。"
+            model.hotKeyStatus = NSLocalizedString("组合键已被占用或无法注册，请选择其他快捷键。", comment: "")
             hotKey = try? HotKey(keyCode: previous.hotKeyCode, modifiers: previous.hotKeyModifiers) { [weak self] in self?.launcher.toggle() }
             return false
         }
@@ -132,12 +133,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         clipboardHotKey?.unregister()
         do {
             clipboardHotKey = try HotKey(keyCode: code, modifiers: modifiers, action: action)
-            model.clipboardHotKeyStatus = "已注册"
+            model.clipboardHotKeyStatus = NSLocalizedString("已注册", comment: "")
             return true
         } catch HotKey.Failure.alreadyInUse {
-            model.clipboardHotKeyStatus = "组合键已被占用，请选择其他快捷键，或从菜单栏打开剪贴板。"
+            model.clipboardHotKeyStatus = NSLocalizedString("组合键已被占用，请选择其他快捷键，或从菜单栏打开剪贴板。", comment: "")
         } catch {
-            model.clipboardHotKeyStatus = "快捷键注册失败：\(error)。请选择其他快捷键，或从菜单栏打开剪贴板。"
+            model.clipboardHotKeyStatus = String(format: NSLocalizedString("快捷键注册失败：%@。请选择其他快捷键，或从菜单栏打开剪贴板。", comment: ""), String(describing: error))
         }
         if code != previous.clipboardHotKeyCode || modifiers != previous.clipboardHotKeyModifiers {
             clipboardHotKey = try? HotKey(keyCode: previous.clipboardHotKeyCode, modifiers: previous.clipboardHotKeyModifiers, action: action)
@@ -153,12 +154,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         newAgentHotKey?.unregister()
         do {
             newAgentHotKey = try HotKey(keyCode: code, modifiers: modifiers, action: action)
-            model.agentHotKeyStatus = "已注册"
+            model.agentHotKeyStatus = NSLocalizedString("已注册", comment: "")
             return true
         } catch HotKey.Failure.alreadyInUse {
-            model.agentHotKeyStatus = "组合键已被占用，请选择其他快捷键，或从菜单栏打开 AI 对话。"
+            model.agentHotKeyStatus = NSLocalizedString("组合键已被占用，请选择其他快捷键，或从菜单栏打开 AI 对话。", comment: "")
         } catch {
-            model.agentHotKeyStatus = "快捷键注册失败：\(error)。请选择其他快捷键，或从菜单栏打开 AI 对话。"
+            model.agentHotKeyStatus = String(format: NSLocalizedString("快捷键注册失败：%@。请选择其他快捷键，或从菜单栏打开 AI 对话。", comment: ""), String(describing: error))
         }
         if code != previous.agentHotKeyCode || modifiers != previous.agentHotKeyModifiers {
             newAgentHotKey = try? HotKey(keyCode: previous.agentHotKeyCode, modifiers: previous.agentHotKeyModifiers, action: action)
@@ -179,13 +180,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         item.button?.image = icon
         item.button?.setAccessibilityLabel("Asky")
         let menu = NSMenu()
-        menu.addItem(withTitle: "打开启动器", action: #selector(openLauncher), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "剪贴板历史", action: #selector(openClipboard), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "AI 对话", action: #selector(openAgent), keyEquivalent: "").target = self
+        menu.addItem(withTitle: NSLocalizedString("打开启动器", comment: ""), action: #selector(openLauncher), keyEquivalent: "").target = self
+        menu.addItem(withTitle: NSLocalizedString("剪贴板历史", comment: ""), action: #selector(openClipboard), keyEquivalent: "").target = self
+        menu.addItem(withTitle: NSLocalizedString("AI 对话", comment: ""), action: #selector(openAgent), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: NSLocalizedString("设置…", comment: ""), action: #selector(openSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "退出 Asky", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
         statusItem = item
     }

@@ -514,7 +514,7 @@ private struct ResultRow: View {
             if result.target.kind == "launcher-alias", result.primaryAction == .open {
                 Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
-                Image(systemName: Self.symbol(.shortcut)).font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
+                Image(nsImage: ToolService.launcherIcon(filePath: "/System/Applications/Shortcuts.app")).resizable().scaledToFit()
             } else if result.target.kind == "bookmark-search" {
                 Image("Bookmark").resizable().scaledToFit()
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {

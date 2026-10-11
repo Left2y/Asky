@@ -330,7 +330,9 @@ private struct ClipboardHistoryView: View {
             if let status = controller.status {
                 ClipboardStatusToast(message: status)
                     .padding(.horizontal, 24)
-                    .padding(.top, 12)
+                    .visualEffect { content, geometry in
+                        content.offset(y: -geometry.size.height - 12)
+                    }
                     .allowsHitTesting(false)
             }
         }

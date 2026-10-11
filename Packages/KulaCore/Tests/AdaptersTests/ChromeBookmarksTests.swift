@@ -55,4 +55,22 @@ struct ChromeBookmarksTests {
         #expect(try ChromeBookmarkService.read(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)).isEmpty)
     }
 
+    @Test func pickerParentAndProfileResolveTheSameBookmarks() throws {
+        let parent = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let chrome = parent.appendingPathComponent("Chrome")
+        let profile = chrome.appendingPathComponent("Default")
+        try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parent) }
+        try fixture.write(to: profile.appendingPathComponent("AccountBookmarks"))
+        for folder in [parent, chrome, profile] {
+            let access = try folder.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+            #expect(try ChromeBookmarkService.read(accessBookmark: access).count == 2)
+            #expect(ChromeBookmarkService.accessState(accessBookmark: access) == .authorized)
+        }
+        let unrelated = parent.appendingPathComponent("Unrelated")
+        try FileManager.default.createDirectory(at: unrelated, withIntermediateDirectories: true)
+        #expect(ChromeBookmarkService.accessState(root: unrelated) == .invalidFolder)
+        #expect(throws: ChromeBookmarkService.ReadFailure.invalidFolder) { try ChromeBookmarkService.read(root: unrelated) }
+    }
+
 }

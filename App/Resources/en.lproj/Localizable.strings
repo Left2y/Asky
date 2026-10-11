@@ -402,3 +402,8 @@
 "未授权，请选择 Chrome 书签文件夹" = "Not authorized. Select the Chrome bookmarks folder.";
 "未找到 Chrome 书签目录" = "Chrome bookmarks folder not found.";
 "无法读取 Chrome 书签目录" = "Chrome bookmarks folder is inaccessible.";
+
+"请选择 Chrome 或 Chrome 个人资料文件夹" = "Select the Chrome folder or a Chrome profile folder.";
+
+"无法读取所选文件夹中的 Chrome 书签" = "Chrome bookmarks cannot be read from the selected folder";
+"请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。" = "Select the Chrome folder or its Default / Profile folder, then grant access again.";

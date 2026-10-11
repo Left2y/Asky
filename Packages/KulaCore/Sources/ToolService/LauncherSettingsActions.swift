@@ -29,7 +29,7 @@ extension ToolService {
         panel.title = NSLocalizedString("授权 Chrome 书签", comment: "")
         panel.message = NSLocalizedString("选择 Chrome 文件夹以允许读取书签。Asky 只读取书签文件，不读取浏览历史。", comment: "")
         panel.prompt = NSLocalizedString("授权", comment: "")
-        panel.directoryURL = ChromeBookmarkService.defaultRoot.deletingLastPathComponent()
+        panel.directoryURL = ChromeBookmarkService.defaultRoot
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -39,7 +39,20 @@ extension ToolService {
             panel.begin { continuation.resume(returning: $0) }
         }
         guard response == .OK, let folder = panel.url else { return nil }
-        return try? folder.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+        do {
+            _ = try await Task.detached(priority: .userInitiated) {
+                try ChromeBookmarkService.read(root: folder)
+            }.value
+            return try folder.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                                           includingResourceValuesForKeys: nil, relativeTo: nil)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = NSLocalizedString("无法读取所选文件夹中的 Chrome 书签", comment: "")
+            alert.informativeText = NSLocalizedString("请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。", comment: "")
+            alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
+            alert.runModal()
+            return nil
+        }
     }
 
     public static func listLauncherShortcuts() async -> [String] {

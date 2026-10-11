@@ -8,13 +8,14 @@ public struct ChromeBookmark: Sendable, Hashable {
 
 /// Local Chrome bookmark files only. Never reads history or starts the browser.
 public enum ChromeBookmarkService {
-    public enum ReadFailure: Error, Sendable, Equatable { case permissionDenied, unreadable }
+    public enum ReadFailure: Error, Sendable, Equatable { case permissionDenied, unreadable, invalidFolder }
 
     public enum AccessState: String, Sendable {
         case authorized = "已授权"
         case denied = "未授权，请选择 Chrome 书签文件夹"
         case missing = "未找到 Chrome 书签目录"
         case unreadable = "无法读取 Chrome 书签目录"
+        case invalidFolder = "请选择 Chrome 或 Chrome 个人资料文件夹"
     }
 
     private static func resolve(root: URL, accessBookmark: Data?) throws -> URL {
@@ -35,6 +36,7 @@ public enum ChromeBookmarkService {
             _ = try read(root: folder)
             return .authorized
         } catch ReadFailure.permissionDenied { return .denied }
+        catch ReadFailure.invalidFolder { return .invalidFolder }
         catch {
             let error = error as NSError
             if error.code == NSFileReadNoSuchFileError { return .missing }
@@ -64,16 +66,32 @@ public enum ChromeBookmarkService {
                 (error.domain == NSPOSIXErrorDomain && [1, 13].contains(error.code)) { return .permissionDenied }
             return .unreadable
         }
+        func profileDirectories(in folder: URL) throws -> [URL] {
+            let children = try fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+            if children.contains(where: { ["Bookmarks", "AccountBookmarks"].contains($0.lastPathComponent) }) {
+                return [folder]
+            }
+            let profiles = children.filter { $0.lastPathComponent == "Default" || $0.lastPathComponent.hasPrefix("Profile ") }
+            if !profiles.isEmpty { return profiles }
+            // The native picker can return the displayed Google parent folder.
+            // Reading the known child still uses the selected scope and system access checks.
+            if let chrome = children.first(where: { $0.lastPathComponent == "Chrome" }) {
+                let chromeChildren = try fm.contentsOfDirectory(at: chrome, includingPropertiesForKeys: nil)
+                let profiles = chromeChildren.filter { $0.lastPathComponent == "Default" || $0.lastPathComponent.hasPrefix("Profile ") }
+                if !profiles.isEmpty { return profiles }
+            }
+            throw ReadFailure.invalidFolder
+        }
         let profiles: [URL]
-        do { profiles = try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) }
+        do { profiles = try profileDirectories(in: root) }
+        catch let failure as ReadFailure { throw failure }
         catch {
             if (error as NSError).code == NSFileReadNoSuchFileError { return [] }
             throw classify(error)
         }
         var seen = Set<URL>()
         var bookmarks: [ChromeBookmark] = []
-        for profile in profiles.filter({ $0.lastPathComponent == "Default" || $0.lastPathComponent.hasPrefix("Profile ") })
-            .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).prefix(16) {
+        for profile in profiles.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).prefix(16) {
             for name in ["Bookmarks", "AccountBookmarks"] {
                 guard !Task.isCancelled else { return [] }
                 let file = profile.appendingPathComponent(name)

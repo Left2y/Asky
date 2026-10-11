@@ -252,9 +252,16 @@ private struct SourceSettings: View {
         Form {
             Section(NSLocalizedString("AI 与工具可使用的来源", comment: "")) {
                 ForEach(Self.labels, id: \.0) { id, label in
-                    Toggle(label, isOn: Binding(
+                    Toggle(isOn: Binding(
                         get: { app.settings.enabledSources.contains(id) },
-                        set: { on in if on { app.settings.enabledSources.insert(id) } else { app.settings.enabledSources.remove(id) } }))
+                        set: { on in if on { app.settings.enabledSources.insert(id) } else { app.settings.enabledSources.remove(id) } })) {
+                        HStack(spacing: 8) {
+                            sourceIcon(id)
+                                .frame(width: 24, height: 24)
+                                .accessibilityHidden(true)
+                            Text(label)
+                        }
+                    }
                 }
             }
             Section(NSLocalizedString("授权的备忘录文件夹", comment: "")) {
@@ -280,6 +287,17 @@ private struct SourceSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    @ViewBuilder private func sourceIcon(_ source: DataSourceID) -> some View {
+        if source == .memory {
+            Image("AskyLogo").resizable().scaledToFit()
+        } else if let icon = ToolService.dataSourceApplicationIcon(source) {
+            Image(nsImage: icon).resizable().scaledToFit()
+        } else {
+            Image(systemName: "app.fill").resizable().scaledToFit()
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

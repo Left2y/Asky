@@ -456,7 +456,10 @@ private struct MemorySettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle("暂停记忆提炼", isOn: $app.settings.memoryExtractionPaused)
+                Toggle("开启记忆", isOn: Binding(
+                    get: { !app.settings.memoryExtractionPaused },
+                    set: { app.settings.memoryExtractionPaused = !$0 }
+                ))
             }
             Section("记忆（\(records.count)）") {
                 if records.isEmpty { Text("暂无记忆").textStyle(.secondary) }

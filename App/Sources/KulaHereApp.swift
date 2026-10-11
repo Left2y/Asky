@@ -66,9 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         clipboardWindow = ClipboardController(app: model)
         model.onClipboardHotKeyChange = { [weak self] code, modifiers in self?.registerClipboardHotKey(code: code, modifiers: modifiers) ?? false }
         _ = registerClipboardHotKey(code: model.preferences.clipboardHotKeyCode, modifiers: model.preferences.clipboardHotKeyModifiers)
-        // Question mark is Shift + slash on the standard keyboard.
+        // Use the slash/question-mark key without Shift.
         newAgentHotKey = try? HotKey(keyCode: UInt32(kVK_ANSI_Slash),
-            modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey)) { [weak self] in
+            modifiers: UInt32(controlKey | optionKey | cmdKey)) { [weak self] in
                 self?.openNewAgentConversation()
             }
         installStatusItem()

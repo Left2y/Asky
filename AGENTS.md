@@ -6,3 +6,5 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。各目录
 - 所有系统读写只能经由 `Packages/KulaCore` 中的 ToolService。不要在 App、AgentRuntime 或 MCPBridge 中绕过它直接调用系统接口。
 - 修改 Swift 代码后，运行 `cd Packages/KulaCore && swift test`；修改 AgentRuntime 后，运行 `npm test`；修改 App 后，用 `xcodegen generate` 生成工程，再用 `xcodebuild` 构建。如果 `xcode-select` 指向 Command Line Tools，命令前加 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`。
 - 只有实际运行过的检查才能记为通过。验证结果写入 `docs/validation/`。开发命令必须来自实际配置，并同步到 README。
+
+- Release 打包使用 README 中的 `scripts/package-release.py` 流程，同时生成首次安装用 DMG 与应用内更新用 ZIP；打包前提交源码并保持工作区干净。

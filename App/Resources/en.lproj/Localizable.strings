@@ -326,3 +326,11 @@
 "没有权限写入 %@，无法替换旧版本。" = "No permission to write to %@, so the old version can't be replaced.";
 "安装失败：%@" = "Installation failed: %@";
 "版本 %@" = "Version %@";
+
+"安装 Asky" = "Install Asky";
+"应用程序中已有 Asky，请打开已安装的版本。" = "Asky is already in Applications. Open the installed version.";
+"打开已安装的版本" = "Open Installed Version";
+"Asky 需要先安装到“应用程序”，才能正常授权和更新。安装后会自动重新打开。" = "Install Asky in Applications before granting permissions or updating. It will reopen automatically after installation.";
+"无法安装 Asky" = "Unable to Install Asky";
+"请在 Finder 中将 Asky.app 拖入“应用程序”，然后从那里重新打开。" = "Drag Asky.app into Applications in Finder, then open it from there.";
+"打开应用程序文件夹" = "Open Applications Folder";

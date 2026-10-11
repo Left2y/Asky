@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let windowPresentation = WindowPresentation()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !AppInstallationPrompt.handleLaunchIfNeeded() else { return }
         do { model = try AppModel() } catch {
             let alert = NSAlert()
             alert.messageText = NSLocalizedString("Asky 无法打开本地数据", comment: "")
@@ -84,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard model != nil else { return true }
         if let settingsWindow, settingsWindow.isVisible {
             windowPresentation.show(settingsWindow)
         } else {

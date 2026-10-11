@@ -121,6 +121,8 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
+python3 App/Tests/run-clipboard-regression.py --drag
+python3 App/Tests/run-clipboard-regression.py --drag-preview
 python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
@@ -129,6 +131,8 @@ python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Ha
 python3 App/Tests/run-agent-reply-regression.py
 python3 App/Tests/run-application-termination-regression.py
 ```
+
+剪贴板 `--drag` 检查真实鼠标拖放与未固定面板关闭；`--drag-preview` 保留带测试卡片的未固定面板供人工拖放。设置 `ASKY_CLIPBOARD_DROP_POINT=x,y` 可将 `--drag` 目标改为屏幕坐标下的外部输入框，搭配 `ASKY_CLIPBOARD_DRAG_IMAGE=1` 拖第二张图片卡片；外部目标内容需另行回读确认。
 
 并行构建时，设置回归脚本支持用 `ASKY_DERIVED_DATA` 指定独立的 DerivedData 目录（兼容旧变量 `KULAHERE_DERIVED_DATA`），默认使用 `build/DerivedData`。
 
@@ -274,6 +278,8 @@ python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
+python3 App/Tests/run-clipboard-regression.py --drag
+python3 App/Tests/run-clipboard-regression.py --drag-preview
 python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
@@ -282,6 +288,8 @@ python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Ha
 python3 App/Tests/run-agent-reply-regression.py
 python3 App/Tests/run-application-termination-regression.py
 ```
+
+Clipboard `--drag` checks a real mouse drop and unpinned panel dismissal; `--drag-preview` keeps an unpinned panel with test cards open for manual drops. Set `ASKY_CLIPBOARD_DROP_POINT=x,y` to target an external input at screen coordinates, and add `ASKY_CLIPBOARD_DRAG_IMAGE=1` to drag the second image card. Read back external destination contents separately to confirm the result.
 
 For concurrent builds, the settings regression script accepts `ASKY_DERIVED_DATA` to select an isolated DerivedData directory (`KULAHERE_DERIVED_DATA` remains supported). It defaults to `build/DerivedData`.
 

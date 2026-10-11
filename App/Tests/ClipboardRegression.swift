@@ -31,9 +31,11 @@ enum ClipboardRegression {
                                                contentHash: "long", createdAt: Date().addingTimeInterval(2)))
                 try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "fourth"))
                 let controller = ClipboardController(app: app)
-                if CommandLine.arguments.contains("--preview") { controller.pinned = true }
+                let dragPreview = CommandLine.arguments.contains("--drag-preview")
+                let dragTest = CommandLine.arguments.contains("--drag")
+                if CommandLine.arguments.contains("--preview") || dragPreview || dragTest { controller.pinned = true }
                 controller.show()
-                if !CommandLine.arguments.contains("--preview") { controller.pinned = true }
+                if !CommandLine.arguments.contains("--preview"), !dragPreview { controller.pinned = true }
                 try await Task.sleep(for: .milliseconds(400))
                 @MainActor func panel() -> NSWindow { application.windows.first { $0.title == "剪贴板历史" }! }
                 @MainActor func shellFrame() -> NSRect { panel().frame.insetBy(dx: LauncherLayout.shadowPadding, dy: LauncherLayout.shadowPadding) }
@@ -44,7 +46,67 @@ enum ClipboardRegression {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-\(name).png"))
                 }
-                if CommandLine.arguments.contains("--preview") {
+                if dragPreview || dragTest {
+                    // Keep the initial launch stable, then enable the real unpinned dismissal shield.
+                    panel().makeKey()
+                    controller.pinned = false
+                }
+                if dragTest {
+                    let externalPoint = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_DROP_POINT"]?
+                        .split(separator: ",").compactMap { Double($0) }
+                    let draggingImage = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_DRAG_IMAGE"] == "1"
+                    let screen = panel().screen!.visibleFrame
+                    let destination = NSWindow(contentRect: NSRect(x: screen.minX + 24, y: screen.minY + 24,
+                        width: 240, height: 160), styleMask: [.titled], backing: .buffered, defer: false)
+                    destination.title = "Clipboard drag destination"
+                    let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: 240, height: 160))
+                    editor.isRichText = false
+                    destination.contentView = editor
+                    if externalPoint == nil { destination.orderFrontRegardless() }
+                    panel().makeKey()
+                    controller.pinned = false
+                    try await Task.sleep(for: .milliseconds(200))
+                    func mouse(_ type: CGEventType, _ point: NSPoint) {
+                        let location = CGPoint(x: point.x, y: NSScreen.screens[0].frame.maxY - point.y)
+                        CGWarpMouseCursorPosition(location)
+                        let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: location,
+                            mouseButton: .left)
+                        event?.flags = []
+                        event?.post(tap: .cghidEventTap)
+                    }
+                    let start = NSPoint(x: shellFrame().minX + 100 + (draggingImage ? 276 : 0), y: shellFrame().minY + 100)
+                    let end: NSPoint
+                    if let externalPoint {
+                        precondition(externalPoint.count == 2, "ASKY_CLIPBOARD_DROP_POINT must be screen x,y")
+                        end = NSPoint(x: externalPoint[0], y: NSScreen.screens[0].frame.maxY - externalPoint[1])
+                    } else {
+                        end = destination.convertToScreen(NSRect(x: 40, y: 80, width: 1, height: 1)).origin
+                    }
+                    mouse(.leftMouseDown, start)
+                    try await Task.sleep(for: .milliseconds(150))
+                    for step in 1...30 {
+                        let progress = CGFloat(step) / 30
+                        mouse(.leftMouseDragged, NSPoint(x: start.x + (end.x - start.x) * progress,
+                            y: start.y + (end.y - start.y) * progress))
+                        try await Task.sleep(for: .milliseconds(30))
+                    }
+                    try await Task.sleep(for: .milliseconds(150))
+                    mouse(.leftMouseUp, end)
+                    try await Task.sleep(for: .milliseconds(500))
+                    if externalPoint == nil {
+                        precondition(editor.string == text.text, "native text destination must receive the card contents")
+                    }
+                    if panel().isVisible {
+                        fputs("Drag not accepted: source=\(start), destination=\(end), status=\(controller.status ?? "none")\n", stderr)
+                    }
+                    precondition(!panel().isVisible, "accepted unpinned drag must close the source panel")
+                    destination.orderOut(nil)
+                    try? FileManager.default.removeItem(at: root)
+                    print(externalPoint == nil ? "Clipboard real mouse drag, destination text and unpinned panel dismissal passed"
+                        : "External destination accepted the clipboard drag; verify destination contents separately")
+                    exit(0)
+                }
+                if CommandLine.arguments.contains("--preview") || dragPreview {
                     // Retain the controller while a human or computer-use inspects the actual window.
                     while true { try await Task.sleep(for: .seconds(1)); _ = controller.items.count }
                 }

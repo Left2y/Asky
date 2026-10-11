@@ -74,7 +74,7 @@ final class ClipboardController {
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
         // Keyboard application switching must also release the outside-click shield.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { if let self, !self.pinned { self.hide() } }
+            MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active { self.hide() } }
         }
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.panel.level = .floating }
@@ -123,7 +123,7 @@ final class ClipboardController {
     }
 
     private func updateOutsideClickDismissal() {
-        guard panel.isVisible, !pinned else { outsideClickDismissal.hide(); return }
+        guard panel.isVisible, !pinned, !dragSource.active else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
             return self.shellFrame.contains(point) || (self.preview.isVisible && self.preview.frame.contains(point))
@@ -171,8 +171,8 @@ final class ClipboardController {
     }
 
     /// AppKit drag with eagerly written pasteboard data; SwiftUI `.onDrag` promises are ignored by Chromium/Electron targets.
-    func beginDrag(_ item: ClipboardItem, from view: NSView) {
-        guard !dragSource.active, let event = NSApp.currentEvent, event.type == .leftMouseDragged else { return }
+    func beginDrag(_ item: ClipboardItem, from view: NSView, event: NSEvent) {
+        guard !dragSource.active, event.type == .leftMouseDragged else { return }
         dismissPreview()
         guard let pasteboardItem = ClipboardAccess.dragItem(for: item) else {
             status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
@@ -182,6 +182,13 @@ final class ClipboardController {
         let dragging = NSDraggingItem(pasteboardWriter: pasteboardItem)
         dragging.setDraggingFrame(view.bounds, contents: ClipboardDragSource.snapshot(of: view))
         dragSource.active = true
+        // The outside-click shields are real windows and would intercept the destination's drop.
+        outsideClickDismissal.hide()
+        dragSource.onEnd = { [weak self] operation in
+            guard let self else { return }
+            if operation != [], !self.pinned { self.hide() }
+            else { self.updateOutsideClickDismissal() }
+        }
         view.beginDraggingSession(with: [dragging], event: event, source: dragSource)
             .animatesToStartingPositionsOnCancelOrFail = true
     }
@@ -201,6 +208,7 @@ final class ClipboardController {
     }
 
     func hover(_ item: ClipboardItem, frame: NSRect, inside: Bool) {
+        guard !dragSource.active else { return }
         hoverTask?.cancel()
         hoverTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(inside ? 1500 : 200))
@@ -389,10 +397,10 @@ private struct ClipboardHistoryCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 24))
         // Read the frame at hover time: scrolling moves the card without re-laying it out.
         .onHover { inside in controller.hover(item, frame: anchor.map(ClipboardAnchor.screenFrame) ?? .zero, inside: inside) }
-        .onTapGesture { controller.copy(item) }
-        .gesture(DragGesture(minimumDistance: 3).onChanged { _ in
-            if let anchor { controller.beginDrag(item, from: anchor) }
-        })
+        .overlay(ClipboardCardMouseSurface(
+            copy: { controller.copy(item) },
+            drag: { view, event in controller.beginDrag(item, from: view, event: event) }
+        ).clipShape(RoundedRectangle(cornerRadius: 24)))
         .contextMenu {
             Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
             Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
@@ -434,16 +442,20 @@ private struct ClipboardFullPreview: View {
 @MainActor
 final class ClipboardDragSource: NSObject, NSDraggingSource {
     var active = false
+    var onEnd: (NSDragOperation) -> Void = { _ in }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
     }
 
+    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
+
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         active = false
+        onEnd(operation)
     }
 
-    /// The anchor sits behind the card, so capture the card's area from the window content instead.
+    /// The mouse surface draws no content, so capture the card's area from the window instead.
     static func snapshot(of view: NSView) -> NSImage {
         let image = NSImage(size: view.bounds.size)
         guard let content = view.window?.contentView else { return image }
@@ -452,6 +464,47 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
         content.cacheDisplay(in: rect, to: bitmap)
         image.addRepresentation(bitmap)
         return image
+    }
+}
+
+/// Start the AppKit session inside mouseDragged, using the event delivered to the card itself.
+/// SwiftUI gesture updates can run after NSApp.currentEvent has changed or been cleared.
+private struct ClipboardCardMouseSurface: NSViewRepresentable {
+    let copy: () -> Void
+    let drag: (NSView, NSEvent) -> Void
+
+    func makeNSView(context: Context) -> ClipboardCardMouseView { ClipboardCardMouseView() }
+    func updateNSView(_ view: ClipboardCardMouseView, context: Context) {
+        view.copy = copy
+        view.drag = drag
+    }
+}
+
+final class ClipboardCardMouseView: NSView {
+    var copy: () -> Void = {}
+    var drag: (NSView, NSEvent) -> Void = { _, _ in }
+    private var press: NSPoint?
+    private var dragged = false
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func mouseDown(with event: NSEvent) {
+        press = event.locationInWindow
+        dragged = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard !dragged, let press,
+              hypot(event.locationInWindow.x - press.x, event.locationInWindow.y - press.y) >= 3 else { return }
+        dragged = true
+        drag(self, event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if press != nil, !dragged { copy() }
+        press = nil
+        dragged = false
     }
 }
 

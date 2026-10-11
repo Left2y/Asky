@@ -11,6 +11,28 @@ enum SettingsRegression {
             do {
                 let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-settings-\(UUID())")
                 let model = try AppModel(root: root)
+                let legacy = Data(#"{"appearance":"dark","hotKeyCode":49,"hotKeyModifiers":6144,"hotKeyLabel":"⌃⌥ Space","clipboardHotKeyLabel":"custom clipboard"}"#.utf8)
+                let migrated = try JSONDecoder().decode(SettingsPreferences.self, from: legacy)
+                guard migrated.appearance == "dark", migrated.hotKeyLabel == "⌃⌥ Space",
+                      migrated.clipboardHotKeyLabel == "custom clipboard",
+                      migrated.agentHotKeyCode == SettingsPreferences.defaultAgentHotKey.code,
+                      migrated.agentHotKeyModifiers == SettingsPreferences.defaultAgentHotKey.modifiers,
+                      migrated.agentHotKeyLabel == SettingsPreferences.defaultAgentHotKey.label else {
+                    fatalError("AI hotkey migration lost existing preferences or default binding")
+                }
+                model.preferences.agentHotKeyCode = 17
+                model.preferences.agentHotKeyModifiers = 6144
+                model.preferences.agentHotKeyLabel = "⌃⌥ T"
+                let reloaded = try AppModel(root: root)
+                guard reloaded.preferences.agentHotKeyCode == 17,
+                      reloaded.preferences.agentHotKeyModifiers == 6144,
+                      reloaded.preferences.agentHotKeyLabel == "⌃⌥ T" else {
+                    fatalError("custom AI hotkey did not survive preference reload")
+                }
+                let defaultAgent = SettingsPreferences.defaultAgentHotKey
+                model.preferences.agentHotKeyCode = defaultAgent.code
+                model.preferences.agentHotKeyModifiers = defaultAgent.modifiers
+                model.preferences.agentHotKeyLabel = defaultAgent.label
                 if CommandLine.arguments.contains("--dark") { model.preferences.appearance = "dark" }
                 var hotKey: HotKey?
                 model.onHotKeyChange = { code, modifiers in

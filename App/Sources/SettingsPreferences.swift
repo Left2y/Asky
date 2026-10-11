@@ -11,9 +11,14 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var clipboardHotKeyCode: UInt32 = Self.defaultClipboardHotKey.code
     var clipboardHotKeyModifiers: UInt32 = Self.defaultClipboardHotKey.modifiers
     var clipboardHotKeyLabel = Self.defaultClipboardHotKey.label
+    var agentHotKeyCode: UInt32 = Self.defaultAgentHotKey.code
+    var agentHotKeyModifiers: UInt32 = Self.defaultAgentHotKey.modifiers
+    var agentHotKeyLabel = Self.defaultAgentHotKey.label
     var aliases: [LauncherAlias] = []
     static let key = "app.preferences.v1"
     static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_V), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘ V")
+
+    static let defaultAgentHotKey = (code: UInt32(kVK_ANSI_Slash), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘ /")
 
     init() {}
 
@@ -29,6 +34,9 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         clipboardHotKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .clipboardHotKeyCode) ?? d.clipboardHotKeyCode
         clipboardHotKeyModifiers = try c.decodeIfPresent(UInt32.self, forKey: .clipboardHotKeyModifiers) ?? d.clipboardHotKeyModifiers
         clipboardHotKeyLabel = try c.decodeIfPresent(String.self, forKey: .clipboardHotKeyLabel) ?? d.clipboardHotKeyLabel
+        agentHotKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .agentHotKeyCode) ?? d.agentHotKeyCode
+        agentHotKeyModifiers = try c.decodeIfPresent(UInt32.self, forKey: .agentHotKeyModifiers) ?? d.agentHotKeyModifiers
+        agentHotKeyLabel = try c.decodeIfPresent(String.self, forKey: .agentHotKeyLabel) ?? d.agentHotKeyLabel
         aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
     }
 }

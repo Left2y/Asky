@@ -66,11 +66,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         clipboardWindow = ClipboardController(app: model)
         model.onClipboardHotKeyChange = { [weak self] code, modifiers in self?.registerClipboardHotKey(code: code, modifiers: modifiers) ?? false }
         _ = registerClipboardHotKey(code: model.preferences.clipboardHotKeyCode, modifiers: model.preferences.clipboardHotKeyModifiers)
-        // Use the slash/question-mark key without Shift.
-        newAgentHotKey = try? HotKey(keyCode: UInt32(kVK_ANSI_Slash),
-            modifiers: UInt32(controlKey | optionKey | cmdKey)) { [weak self] in
-                self?.openNewAgentConversation()
-            }
+        model.onAgentHotKeyChange = { [weak self] code, modifiers in self?.registerAgentHotKey(code: code, modifiers: modifiers) ?? false }
+        _ = registerAgentHotKey(code: model.preferences.agentHotKeyCode, modifiers: model.preferences.agentHotKeyModifiers)
         installStatusItem()
         clipboard = ClipboardMonitor(app: model)
         clipboard.start()
@@ -146,6 +143,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             clipboardHotKey = try? HotKey(keyCode: previous.clipboardHotKeyCode, modifiers: previous.clipboardHotKeyModifiers, action: action)
         } else {
             clipboardHotKey = nil
+        }
+        return false
+    }
+
+    private func registerAgentHotKey(code: UInt32, modifiers: UInt32) -> Bool {
+        let previous = model.preferences
+        let action: () -> Void = { [weak self] in self?.openNewAgentConversation() }
+        newAgentHotKey?.unregister()
+        do {
+            newAgentHotKey = try HotKey(keyCode: code, modifiers: modifiers, action: action)
+            model.agentHotKeyStatus = "已注册"
+            return true
+        } catch HotKey.Failure.alreadyInUse {
+            model.agentHotKeyStatus = "组合键已被占用，请选择其他快捷键，或从菜单栏打开 AI 对话。"
+        } catch {
+            model.agentHotKeyStatus = "快捷键注册失败：\(error)。请选择其他快捷键，或从菜单栏打开 AI 对话。"
+        }
+        if code != previous.agentHotKeyCode || modifiers != previous.agentHotKeyModifiers {
+            newAgentHotKey = try? HotKey(keyCode: previous.agentHotKeyCode, modifiers: previous.agentHotKeyModifiers, action: action)
+        } else {
+            newAgentHotKey = nil
         }
         return false
     }

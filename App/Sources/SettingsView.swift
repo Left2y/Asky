@@ -54,7 +54,23 @@ private struct HotKeySettings: View {
                 let d = SettingsPreferences.defaultClipboardHotKey
                 Button("恢复默认 \(d.label)") { setClipboard(d.code, d.modifiers, d.label) }
             }
+            Section("AI 对话") {
+                LabeledContent("打开 AI 对话") {
+                    HotKeyRecorder(label: app.preferences.agentHotKeyLabel, apply: setAgent).frame(width: 240, height: 34)
+                }
+                Text(app.agentHotKeyStatus).foregroundStyle(.secondary)
+                let d = SettingsPreferences.defaultAgentHotKey
+                Button("恢复默认 \(d.label)") { setAgent(d.code, d.modifiers, d.label) }
+            }
         }.formStyle(.grouped)
+    }
+
+    @discardableResult private func setAgent(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
+        guard app.onAgentHotKeyChange?(code, modifiers) == true else { return false }
+        app.preferences.agentHotKeyCode = code
+        app.preferences.agentHotKeyModifiers = modifiers
+        app.preferences.agentHotKeyLabel = label
+        return true
     }
 
     @discardableResult private func setLauncher(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {

@@ -519,10 +519,8 @@ private struct ResultRow: View {
             }
         case .link:
             Image("Link").resizable().scaledToFit()
-        case .calculator:
-            Image("Calculator").resizable().scaledToFit()
-        case .askAI:
-            Image("Agent").resizable().scaledToFit()
+        case .calculator, .askAI:
+            Image(result.source == .calculator ? "Calculator" : "Agent").resizable().scaledToFit()
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .shadow(color: .black.opacity(0.16), radius: 1, x: 0, y: 1)
                 .padding(3)

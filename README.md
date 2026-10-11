@@ -40,7 +40,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 
 ### 快速开始
 
-[下载 Asky 0.0.2](https://github.com/Niall-Young/Asky/releases/tag/v0.0.2)：适用于 macOS 26+、Apple Silicon。解压 ZIP 后将 `Asky.app` 拖入“应用程序”；包内已包含 Node.js 与 AgentRuntime。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
+[下载 Asky 0.0.3](https://github.com/Niall-Young/Asky/releases/tag/v0.0.3)：适用于 macOS 26+、Apple Silicon。解压 ZIP 后将 `Asky.app` 拖入“应用程序”；包内已包含 Node.js 与 AgentRuntime。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
 
 需要 macOS 26 或更新版本、Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
 
@@ -164,7 +164,7 @@ The project is under active development. The repository includes the native app,
 
 ### Quick Start
 
-[Download Asky 0.0.2](https://github.com/Niall-Young/Asky/releases/tag/v0.0.2) for macOS 26+ on Apple Silicon. Extract the ZIP and move `Asky.app` to Applications; Node.js and AgentRuntime are included. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
+[Download Asky 0.0.3](https://github.com/Niall-Young/Asky/releases/tag/v0.0.3) for macOS 26+ on Apple Silicon. Extract the ZIP and move `Asky.app` to Applications; Node.js and AgentRuntime are included. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
 
 Requires macOS 26 or later, Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
 

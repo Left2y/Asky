@@ -11,6 +11,8 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Packages/KulaCore/Package.swift)
 [![MCP](https://img.shields.io/badge/MCP-Bridge-6A1B9A)](docs/native-tools-and-mcp.md)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [中文](#中文) | [English](#english)
 
 </div>
@@ -113,6 +115,12 @@ build/conversation-search-regression
 
 检查结果按实际运行情况记录在 `docs/validation/`。自动化检查与真实系统权限、模型和界面验收分别记录。
 
+### 开源协议
+
+本项目采用 [MIT License](LICENSE)，允许使用、修改、分发和商用，也允许闭源衍生版本；分发本软件或其重要部分时，须保留版权声明与许可声明。软件按原样提供，不作担保。
+
+第三方依赖及其附带资源仍遵循各自的许可证；本项目的 MIT 许可不替代它们的授权条款。
+
 [English](#english) · [返回顶部](#kulahere)
 
 ---
@@ -212,5 +220,11 @@ build/conversation-search-regression
 ```
 
 Record only checks actually executed in `docs/validation/`. Track automated checks separately from acceptance testing of real system permissions, models, and interfaces.
+
+### License
+
+This project is licensed under the [MIT License](LICENSE), which permits use, modification, distribution, and commercial use, including closed-source derivatives. Copies or substantial portions of the software must retain the copyright and permission notices. The software is provided as is, without warranty.
+
+Third-party dependencies and their bundled resources remain subject to their respective licenses; this project's MIT license does not replace those terms.
 
 [中文](#中文) · [Back to top](#kulahere)

@@ -2,6 +2,7 @@
   "name": "kulahere-agent-runtime",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Thin Pi host for KulaHere: JSONL stdio protocol v1, whitelisted native tools only.",
   "engines": {

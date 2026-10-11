@@ -39,14 +39,18 @@ private struct HotKeySettings: View {
                 LabeledContent("唤起启动器") {
                     HotKeyRecorder(label: app.preferences.hotKeyLabel, apply: setLauncher).frame(width: 240, height: 34)
                 }
-                Text(app.hotKeyStatus).foregroundStyle(.secondary)
+                if !app.hotKeyStatus.isEmpty, app.hotKeyStatus != "已注册" {
+                    Text(app.hotKeyStatus).foregroundStyle(.secondary)
+                }
                 Button("恢复默认 ⌥ Space") { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
             }
             Section("剪贴板") {
                 LabeledContent("打开剪贴板历史") {
                     HotKeyRecorder(label: app.preferences.clipboardHotKeyLabel, apply: setClipboard).frame(width: 240, height: 34)
                 }
-                Text(app.clipboardHotKeyStatus).foregroundStyle(.secondary)
+                if !app.clipboardHotKeyStatus.isEmpty, app.clipboardHotKeyStatus != "已注册" {
+                    Text(app.clipboardHotKeyStatus).foregroundStyle(.secondary)
+                }
                 let d = SettingsPreferences.defaultClipboardHotKey
                 Button("恢复默认 \(d.label)") { setClipboard(d.code, d.modifiers, d.label) }
             }
@@ -161,7 +165,6 @@ private struct GeneralSettings: View {
                     Text("浅色").tag("light")
                     Text("深色").tag("dark")
                 }
-                Text("应用于启动器、AI 对话与设置窗口。").foregroundStyle(.secondary)
             }
             Section("文件搜索范围") {
                 ForEach(app.settings.fileScopes, id: \.self) { p in
@@ -181,12 +184,9 @@ private struct GeneralSettings: View {
             }
             Section("终端") {
                 TextField("工作目录", text: $app.settings.terminalWorkingDirectory)
-                Text("仅在输入以 > 开头并按 ↩ 时运行；交互式命令转到“终端”。").textStyle(.secondary)
             }
             Section("剪贴板") {
-                Text("快捷键：\(app.preferences.clipboardHotKeyLabel)（在“触发快捷键”中修改）").textStyle(.secondary)
                 Toggle("记录剪贴板历史", isOn: $app.settings.clipboardEnabled)
-                Text("保留 30 天、上限 200 MiB，固定项不删除；密码管理器与标记为隐藏的内容不记录。").textStyle(.secondary)
                 TextField("排除的应用 Bundle ID（逗号分隔）", text: Binding(
                     get: { app.settings.clipboardExcludedApps.joined(separator: ", ") },
                     set: { app.settings.clipboardExcludedApps = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
@@ -404,14 +404,13 @@ struct KeywordSettings: View {
 
     var body: some View {
         Form {
-            Section("网页关键词（输入关键词后 ↩ 打开）") {
+            Section("网页关键词") {
                 ForEach(app.keywords.commands, id: \.keyword) { c in
                     HStack {
                         Text(c.keyword).font(.system(.body, design: .monospaced)).frame(width: 60, alignment: .leading)
                         VStack(alignment: .leading) {
                             Text(c.name)
                             Text(c.url(for: "")?.absoluteString ?? c.urlTemplate).textStyle(.secondary).lineLimit(1)
-                            Text(c.supportsQuery ? "支持：关键词 + 问题" : "仅打开网页，不传递问题").textStyle(.secondary)
                         }
                         Spacer()
                         Button("删除") { app.keywords.remove(c.keyword) }
@@ -422,7 +421,6 @@ struct KeywordSettings: View {
                 TextField("关键词", text: $keyword)
                 TextField("名称", text: $name)
                 TextField("网址（如 chatgpt.com）", text: $website)
-                Text("输入网址即可，省略 https:// 也可以。关键词后按回车打开网页。").textStyle(.secondary)
                 Button("保存") {
                     do {
                         guard !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(keyword.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }) else {
@@ -509,8 +507,6 @@ private struct MCPSettings: View {
     var body: some View {
         Form {
             Section {
-                Text("外部 MCP 客户端通过 kulahere-mcp 连接正在运行的 KulaHere。实例默认关闭、默认只读；写入始终在 KulaHere 中确认。记忆、剪贴板、Key、终端与发送不会对外暴露。")
-                    .textStyle(.secondary)
                 LabeledContent("本地连接", value: app.isMCPListening ? "监听中" : "未监听（无已启用实例）")
                 if let e = app.mcpServerError { Text(e).foregroundStyle(ThemeColor.kTextNegative) }
             }
@@ -602,10 +598,6 @@ private struct PermissionSettings: View {
 
     var body: some View {
         Form {
-            Section {
-                Text("数据来源开关不等于系统授权。首次使用日历、提醒事项或通讯录时会请求权限；拒绝后请在系统设置中开启，再重新发送请求。")
-                    .textStyle(.secondary)
-            }
             Section("系统权限") {
                 ForEach(SystemPermission.allCases) { permission in
                     HStack(spacing: 12) {
@@ -648,10 +640,6 @@ private struct PermissionSettings: View {
                 }
                 Button("刷新权限状态") { Task { await refresh() } }
                 if let message { Text(message).textStyle(.secondary).textSelection(.enabled) }
-            }
-            Section {
-                Text("自动化权限按目标应用分别授予；Chrome 或备忘录首次使用会请求。备忘录还需要在“数据来源”中添加允许访问的账户和文件夹。屏幕录制授权后若仍失败，请重启 KulaHere。")
-                    .textStyle(.secondary)
             }
         }
         .formStyle(.grouped)

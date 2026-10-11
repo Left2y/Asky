@@ -15,7 +15,7 @@ struct AliasSettings: View {
     var body: some View {
         Form {
             Section("应用与快捷指令别名") {
-                if app.preferences.aliases.isEmpty { Text("添加一个简短别名，输入后按回车打开应用或运行快捷指令。").foregroundStyle(.secondary) }
+                if app.preferences.aliases.isEmpty { Text("暂无别名").foregroundStyle(.secondary) }
                 ForEach(app.preferences.aliases) { item in
                     HStack {
                         Text(item.alias).font(.system(.body, design: .monospaced)).frame(width: 90, alignment: .leading)
@@ -59,7 +59,7 @@ struct AliasSettings: View {
                         }
                     }
                     Button("刷新快捷指令") { Task { shortcuts = await ToolService.listLauncherShortcuts() } }
-                    if shortcuts.isEmpty { Text("暂无快捷指令，可先在 macOS“快捷指令”中创建。").foregroundStyle(.secondary) }
+                    if shortcuts.isEmpty { Text("暂无快捷指令").foregroundStyle(.secondary) }
                 }
                 HStack {
                     Button("保存别名") { save() }.disabled(target.isEmpty)

@@ -275,6 +275,9 @@ private struct ModelSettingsView: View {
     @State private var message: String?
     @State private var capabilities: ModelCapabilities?
     @State private var checking = false
+    @State private var saving = false
+    @State private var saved = false
+    @State private var checked = false
 
     var body: some View {
         Form {
@@ -295,11 +298,28 @@ private struct ModelSettingsView: View {
             }
             Section {
                 HStack {
-                    Button("保存") { Task { await save() } }
-                    Button("检查已保存配置") { Task { await check() } }.disabled(checking || app.modelConfiguration == nil)
-                    if checking { ProgressView().controlSize(.small) }
+                    Button { Task { await save() } } label: {
+                        Text("保存")
+                            .opacity(saved || saving ? 0 : 1)
+                            .overlay {
+                                if saved { Image(systemName: "checkmark") }
+                                else if saving { ProgressView().controlSize(.small) }
+                            }
+                    }
+                    .disabled(saving || saved || checking)
+                    .accessibilityLabel(saved ? "已保存" : "保存")
+                    Button { Task { await check() } } label: {
+                        Text("检查已保存配置")
+                            .opacity(checked || checking ? 0 : 1)
+                            .overlay {
+                                if checked { Image(systemName: "checkmark") }
+                                else if checking { Text("检查中…") }
+                            }
+                    }
+                    .disabled(checking || checked || saving || app.modelConfiguration == nil)
+                    .accessibilityLabel(checked ? "检查完成" : checking ? "检查中" : "检查已保存配置")
                 }
-                if let message { Text(message).textStyle(.secondary) }
+                if let message { Text(message).foregroundStyle(ThemeColor.kTextNegative) }
                 if let c = capabilities ?? app.modelConfiguration?.capabilities {
                     LabeledContent("文本", value: capabilityLabel(c.text))
                     LabeledContent("工具调用", value: capabilityLabel(c.tools))
@@ -308,6 +328,16 @@ private struct ModelSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .task(id: saved) {
+            guard saved else { return }
+            do { try await Task.sleep(for: .milliseconds(1500)); saved = false }
+            catch { }
+        }
+        .task(id: checked) {
+            guard checked else { return }
+            do { try await Task.sleep(for: .milliseconds(1500)); checked = false }
+            catch { }
+        }
         .onAppear {
             provider = app.preferences.provider
             if let c = app.modelConfiguration {
@@ -326,6 +356,9 @@ private struct ModelSettingsView: View {
     }
 
     private func save() async {
+        message = nil
+        saving = true
+        defer { saving = false }
         guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
               let host = url.host, !host.isEmpty, url.user == nil, url.password == nil,
               url.scheme == "https" || (url.scheme == "http" && ["localhost", "127.0.0.1"].contains(host)),
@@ -351,7 +384,7 @@ private struct ModelSettingsView: View {
             key = ""
             await app.agent?.shutdown()
             capabilities = nil
-            message = "已保存。"
+            saved = true
         } catch {
             message = "钥匙串写入失败：\(error)"
         }
@@ -359,6 +392,7 @@ private struct ModelSettingsView: View {
 
     private func check() async {
         guard var cfg = app.modelConfiguration else { return }
+        message = nil
         checking = true
         defer { checking = false }
         do {
@@ -369,7 +403,7 @@ private struct ModelSettingsView: View {
             cfg.capabilities = caps
             app.modelConfiguration = cfg
             capabilities = caps
-            message = "检查完成。"
+            checked = true
         } catch { message = error.localizedDescription }
     }
 

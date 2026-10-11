@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var clipboardHotKey: HotKey?
     private var reminders: ProactiveReminders!
     private var hotKey: HotKey?
+    private var newAgentHotKey: HotKey?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var pressure: MemoryPressureMonitor?
@@ -65,6 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         clipboardWindow = ClipboardController(app: model)
         model.onClipboardHotKeyChange = { [weak self] code, modifiers in self?.registerClipboardHotKey(code: code, modifiers: modifiers) ?? false }
         _ = registerClipboardHotKey(code: model.preferences.clipboardHotKeyCode, modifiers: model.preferences.clipboardHotKeyModifiers)
+        // Question mark is Shift + slash on the standard keyboard.
+        newAgentHotKey = try? HotKey(keyCode: UInt32(kVK_ANSI_Slash),
+            modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey)) { [weak self] in
+                self?.openNewAgentConversation()
+            }
         installStatusItem()
         clipboard = ClipboardMonitor(app: model)
         clipboard.start()
@@ -95,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         clipboardWindow?.hide()
         clipboardHotKey?.unregister()
         reminders?.stop()
+        newAgentHotKey?.unregister()
         hotKey?.unregister()
         model.confirmations.rejectAll()
         // Pi and its process group must be gone before the app exits (no orphans).
@@ -170,6 +177,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func openAgent() {
         launcher.hide()
         agentWindow.show()
+    }
+
+    private func openNewAgentConversation() {
+        launcher.hide()
+        clipboardWindow.hide()
+        agentWindow.showNewConversation()
     }
 
     func windowWillClose(_ notification: Notification) {

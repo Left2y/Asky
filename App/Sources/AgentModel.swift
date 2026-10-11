@@ -49,6 +49,8 @@ final class AgentModel {
     private var responseStartIndex = 0
     private(set) var state: AgentTaskState?
     private(set) var hasOlder = false
+    private(set) var newConversationRevision = 0
+    private var startingNewConversation = false
     var draft = ""
     var attachments: [AttachmentRef] = []
     var attachmentThumbnails: [String: Data] = [:]
@@ -83,6 +85,27 @@ final class AgentModel {
         if let ref = conversations.first(where: { $0.id == id })?.runtimeSessionRef, let agent = app.agent {
             Task { await agent.setSessionFile(ref, for: id) }
         }
+    }
+
+    /// Finish cancellation before changing the visible conversation so late
+    /// events remain attached to the old conversation.
+    func startNewConversation() async {
+        guard !startingNewConversation else { return }
+        startingNewConversation = true
+        defer { startingNewConversation = false }
+        if let id = taskID, let agent = app.agent {
+            let previousStream = streamTask
+            await agent.cancel(taskID: id)
+            await previousStream?.value
+        }
+        guard !isRunning else { return }
+        open(nil)
+        draft = ""
+        attachments = []
+        attachmentThumbnails = [:]
+        streaming = ""
+        state = nil
+        newConversationRevision += 1
     }
 
     func loadOlder() {

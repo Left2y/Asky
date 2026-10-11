@@ -8,7 +8,7 @@ import ToolService
 @main
 @MainActor
 enum AgentReplyRegression {
-    static func main() throws {
+    static func main() async throws {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
         let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-reply-\(UUID())")
@@ -59,10 +59,21 @@ enum AgentReplyRegression {
         model.open(attachmentID)
         precondition(model.items.first?.attachments == refs, "reopening retains the selected attachment order")
         print("Message attachment regression passed: history restoration and attachment order")
+        model.draft = "旧草稿"
+        model.attachments = refs
+        model.attachmentThumbnails = ["old": Data([1])]
+        let revision = model.newConversationRevision
+        await model.startNewConversation()
+        precondition(model.conversationID == nil && model.items.isEmpty && model.streaming.isEmpty)
+        precondition(model.draft.isEmpty && model.attachments.isEmpty && model.attachmentThumbnails.isEmpty)
+        precondition(model.state == nil && model.newConversationRevision == revision + 1)
+        precondition(!store.messages(conversationID: attachmentID, limit: 40).isEmpty, "new conversation preserves old history")
+        print("New conversation regression passed: blank draft, cleared attachments, preserved history")
         if CommandLine.arguments.contains("--attachment-preview") {
+            model.open(attachmentID)
             let controller = AgentWindowController(model: model, presentation: WindowPresentation())
             controller.show()
-            withExtendedLifetime(controller) { application.run() }
+            runPreview(controller, application: application)
         }
         if CommandLine.arguments.contains("--preview") {
             let previewID = try store.create(title: "澄清回复回归")
@@ -74,7 +85,10 @@ enum AgentReplyRegression {
             // Keep the controller alive while inspecting the actual SwiftUI window.
             let controller = AgentWindowController(model: model, presentation: WindowPresentation())
             controller.show()
-            withExtendedLifetime(controller) { application.run() }
+            runPreview(controller, application: application)
         }
+    }
+    private static func runPreview(_ controller: AgentWindowController, application: NSApplication) {
+        withExtendedLifetime(controller) { application.run() }
     }
 }

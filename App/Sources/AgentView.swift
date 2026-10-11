@@ -53,6 +53,11 @@ final class AgentWindowController {
         }
     }
 
+    func showNewConversation() {
+        show()
+        Task { await model.startNewConversation() }
+    }
+
     func prepareForAuthentication() {
         restoreAuthenticationWindow = window?.isVisible == true && window?.isMiniaturized == false
         presentation.yieldToAuthentication()
@@ -142,6 +147,7 @@ struct AgentView: View {
         .clipShape(shape)
         .overlay(shape.strokeBorder(ThemeColor.kBorder.color(for: colorScheme), lineWidth: 1).allowsHitTesting(false))
         .ignoresSafeArea()
+        .onChange(of: model.newConversationRevision) { showingHistory = false; historyQuery = "" }
         .onExitCommand { if showingHistory { showingHistory = false } else { close() } }
         .background {
             Button("") { model.openSettings() }

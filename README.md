@@ -51,7 +51,7 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
-- 从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
+- 使用 `Ctrl + Option + Command + ?` 直接打开 AI 并开启空白新对话（标准键盘为 `Ctrl + Option + Command + Shift + /`）；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
 - 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。
 
 ### 配置与隐私
@@ -148,7 +148,7 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
-- Open AI Conversation from the menu bar, or select and submit the AI entry in search.
+- Press `Ctrl + Option + Command + ?` to open AI with a blank new conversation (`Ctrl + Option + Command + Shift + /` on a standard keyboard); an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.
 - Press `⌘,` to open Settings while the search field or clipboard panel has focus.
 
 ### Configuration and Privacy

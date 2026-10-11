@@ -307,7 +307,7 @@ private struct AgentHistoryRowStyle: ButtonStyle {
     }
 }
 
-private struct AgentIconButtonStyle: ButtonStyle {
+struct AgentIconButtonStyle: ButtonStyle {
     var cornerRadius: CGFloat = 8
     @Environment(\.isEnabled) private var isEnabled
     @State private var hovering = false

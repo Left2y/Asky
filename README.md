@@ -39,7 +39,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 - **GitHub 插件**：在“设置 › 插件”按需安装官方或自行选择的公开 GitHub 仓库，支持配置、启停、更新、回退和卸载。官方 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca) 与 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 独立发布，不进入安装包；插件会执行可信本机代码，不提供沙箱。支持清单自定义图标，Orca 使用本机应用图标，缺省时显示内置占位图标。接口与安装依赖见[插件指南](docs/plugins.md)。
 - **MCP 扩展**：通过独立授权的 MCP Bridge 向外部客户端提供本地工具。
 
-Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例缩放，加载失败可重试。排版使用应用语义主题，随浅色／深色外观切换；图片下载上限 10 MiB，内存缓存上限 32 MiB，不读取 Markdown 中的本地文件图片。
+Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例缩放，加载失败可重试，右下角按钮可将原图保存到 Downloads。代码块显示语言标题和复制按钮；表格保留外框、内部仅横线，Neutral 表头与 32 pt 单行高度，超宽内容可横向滚动。排版使用应用语义主题，随浅色／深色外观切换；图片下载上限 10 MiB，内存缓存上限 32 MiB，不读取 Markdown 中的本地文件图片。
 
 ### 快速开始
 
@@ -187,7 +187,7 @@ The project is under active development. The repository includes the native app,
 - **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) and [Lark plugin](https://github.com/Niall-Young/asky-plugin-lark) ship separately and are not bundled. Plugins support custom manifest icons, use the local Orca app icon, and show a bundled placeholder when no artwork is available. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
 - **MCP extensions**: Expose local tools to external clients through a separately authorized MCP Bridge.
 
-Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio and failed loads can be retried. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
+Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio, failed loads can be retried, and the bottom-right button saves originals to Downloads. Code blocks show language headers and copy buttons; tables keep their outer borders and horizontal separators, with neutral headers, 32 pt single-line rows, and horizontal scrolling for wide content. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
 
 ### Quick Start
 

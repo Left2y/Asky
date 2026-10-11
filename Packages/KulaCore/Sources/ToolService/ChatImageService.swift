@@ -30,19 +30,7 @@ public actor ChatImageService {
     public func imageData(from url: URL) async throws -> Data {
         guard Self.supports(url) else { throw URLError(.unsupportedURL) }
         if let data = cache[url] { return data }
-        var request = URLRequest(url: url)
-        request.setValue("image/*", forHTTPHeaderField: "Accept")
-        let (bytes, response) = try await session.bytes(for: request)
-        guard let response = response as? HTTPURLResponse,
-              (200..<300).contains(response.statusCode),
-              response.url.map(Self.supports) == true else { throw URLError(.badServerResponse) }
-        guard response.expectedContentLength <= Self.downloadLimit else { throw URLError(.dataLengthExceedsMaximum) }
-        var data = Data()
-        for try await byte in bytes {
-            try Task.checkCancellation()
-            guard data.count < Self.downloadLimit else { throw URLError(.dataLengthExceedsMaximum) }
-            data.append(byte)
-        }
+        let data = try await remoteData(from: url)
         let thumbnail = try Self.thumbnail(data)
         // Another suspended request may have populated this URL in the meantime.
         if let existing = cache[url] { return existing }
@@ -56,6 +44,52 @@ public actor ChatImageService {
             cacheBytes += thumbnail.count
         }
         return thumbnail
+    }
+
+    /// The explicit download action saves the original image, not the display thumbnail.
+    public func download(from url: URL) async throws -> URL {
+        let data = try await remoteData(from: url)
+        let directory = try FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask,
+                                                    appropriateFor: nil, create: true)
+        return try Self.saveImage(data, source: url, directory: directory)
+    }
+
+    private func remoteData(from url: URL) async throws -> Data {
+        guard Self.supports(url) else { throw URLError(.unsupportedURL) }
+        var request = URLRequest(url: url)
+        request.setValue("image/*", forHTTPHeaderField: "Accept")
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode),
+              response.url.map(Self.supports) == true else { throw URLError(.badServerResponse) }
+        guard response.expectedContentLength <= Self.downloadLimit else { throw URLError(.dataLengthExceedsMaximum) }
+        var data = Data()
+        for try await byte in bytes {
+            try Task.checkCancellation()
+            guard data.count < Self.downloadLimit else { throw URLError(.dataLengthExceedsMaximum) }
+            data.append(byte)
+        }
+        return data
+    }
+
+    static func saveImage(_ data: Data, source url: URL, directory: URL) throws -> URL {
+        guard let image = CGImageSourceCreateWithData(data as CFData, nil),
+              let identifier = CGImageSourceGetType(image),
+              let type = UTType(identifier as String), type.conforms(to: .image),
+              let fileExtension = type.preferredFilenameExtension else { throw CocoaError(.fileReadCorruptFile) }
+        var name = url.deletingPathExtension().lastPathComponent
+        name = String(name.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) && $0 != ":" && $0 != "/" }.prefix(120))
+        if name.isEmpty || name == "." || name == ".." { name = "Asky-image" }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for suffix in 0..<10000 {
+            let filename = name + (suffix == 0 ? "" : " (\(suffix))") + "." + fileExtension
+            let destination = directory.appendingPathComponent(filename)
+            do {
+                try data.write(to: destination, options: .withoutOverwriting)
+                return destination
+            } catch let error as CocoaError where error.code == .fileWriteFileExists { continue }
+        }
+        throw CocoaError(.fileWriteFileExists)
     }
 
     static func thumbnail(_ data: Data) throws -> Data {

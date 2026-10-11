@@ -382,3 +382,13 @@
 "图片加载失败" = "Image failed to load";
 
 "重试" = "Retry";
+
+"下载图片" = "Download image";
+
+"已保存到下载文件夹" = "Saved to Downloads";
+
+"图片下载失败" = "Image download failed";
+
+"复制代码" = "Copy code";
+
+"已复制代码" = "Code copied";

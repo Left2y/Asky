@@ -93,7 +93,7 @@ public struct IntentRouter: Sendable {
                                  subtitle: cmd.supportsQuery ? url.absoluteString : "仅打开网页，问题不会传递到网站", actions: [.openURL(url)], score: 100)]
         case .terminal(let cmd):
             return [SearchResult(source: .terminal, target: TargetRef(kind: "terminal", identifier: cmd),
-                                 title: "运行：\(cmd)", subtitle: "显式终端命令 · ↩ 执行", actions: [.runTerminal(command: cmd)], score: 100)]
+                                 title: "运行：\(cmd)", subtitle: "↩ 在终端中运行", actions: [.runTerminal(command: cmd)], score: 100)]
         case .currency, .search, .empty:
             return []
         }

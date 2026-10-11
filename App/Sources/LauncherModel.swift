@@ -135,6 +135,7 @@ final class LauncherModel {
         inputState.command.map { (command: $0, text: inputState.text) }
     }
 
+    var isTerminalScope: Bool { inputState.terminal }
     var isBookmarkScope: Bool { inputState.bookmarks }
     var hasScope: Bool { inputState.hasScope }
 
@@ -179,7 +180,9 @@ final class LauncherModel {
             searchBookmarks(inputState.text)
             return
         }
-        let route = commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
+        let route = isTerminalScope && inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? Route.empty
+            : commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
         isSearching = router.includesSearch(route) && searchProviderCount > 0
         remainingSearchProviders = isSearching ? searchProviderCount : 0
         direct = router.directResults(for: route)
@@ -412,35 +415,18 @@ final class LauncherModel {
     // MARK: Terminal (explicit `>` only)
 
     private func runTerminal(_ command: String) {
+        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         terminalTask?.cancel()
-        terminal = TerminalSession(command: command)
         let cwd = URL(filePath: app.settings.terminalWorkingDirectory)
-        let runner = app.terminal
         terminalTask = Task {
-            for await event in runner.run(command, workingDirectory: cwd) {
-                switch event {
-                case .stdout(let s), .stderr(let s):
-                    terminal?.output += s
-                    if let out = terminal?.output, out.count > 64_000 { terminal?.output = String(out.suffix(48_000)) }
-                case .exited(let code, let spilled):
-                    terminal?.exitCode = code
-                    terminal?.spilled = spilled
-                case .handedOffToTerminal:
-                    terminal?.handedOff = true
-                    Self.openInTerminalApp(command, cwd: cwd)
-                }
+            do {
+                try await ToolService.openLauncherTerminal(command: command, workingDirectory: cwd)
+                onHide()
+            } catch {
+                status = error.localizedDescription
             }
         }
     }
 
     func stopTerminal() { app.terminal.stop() }
-
-    /// Interactive commands go to Terminal.app instead of running inside the panel.
-    private static func openInTerminalApp(_ command: String, cwd: URL) {
-        let script = "cd \(shellQuote(cwd.path)) && \(command)"
-        let source = "tell application \"Terminal\"\nactivate\ndo script \(AppleScript.literal(script))\nend tell"
-        Task { _ = try? await AppleScriptRunner.shared.run(source) }
-    }
-
-    private static func shellQuote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 }

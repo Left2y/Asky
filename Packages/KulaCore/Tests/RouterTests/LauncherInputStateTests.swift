@@ -5,6 +5,33 @@ import DirectActions
 @Suite struct LauncherInputStateTests {
     let keywords = KeywordRegistry()
 
+    @Test func terminalPrefixEntersScopeWithoutSpaceAndKeepsShellSyntax() {
+        var state = LauncherInputState()
+        state.edit(">", keywords: keywords)
+        #expect(state.terminal && state.hasScope && state.text.isEmpty)
+        state.edit("echo 'go chat' > /tmp/output", keywords: keywords)
+        #expect(state.rawQuery == "> echo 'go chat' > /tmp/output")
+        #expect(IntentRouter().route(state.rawQuery) == .terminal(command: "echo 'go chat' > /tmp/output"))
+        let ignored = state.backspaceOnEmptyText()
+        #expect(!ignored)
+        state.edit("", keywords: keywords)
+        let handled = state.backspaceOnEmptyText()
+        #expect(handled)
+        #expect(!state.hasScope)
+        state.edit("chat hello", keywords: keywords)
+        #expect(state.command?.keyword == "chat")
+    }
+
+    @Test func pastedTerminalCommandAndReplacementResetScope() {
+        var state = LauncherInputState()
+        state.replaceRawQuery("  >pwd", keywords: keywords)
+        #expect(state.terminal && state.text == "pwd")
+        state.replaceRawQuery("Safari", keywords: keywords)
+        #expect(!state.hasScope && state.text == "Safari")
+        state.edit("＞pwd", keywords: keywords)
+        #expect(!state.hasScope)
+    }
+
     @Test func firstSpaceConsumesKeywordAndNextCharacterIsQuery() {
         var state = LauncherInputState()
         state.edit("g", keywords: keywords)

@@ -8,18 +8,23 @@ public struct LauncherInputState: Equatable {
     public private(set) var text = ""
     public private(set) var command: KeywordCommand?
     public private(set) var bookmarks = false
+    public private(set) var terminal = false
 
     public init() {}
 
-    public var hasScope: Bool { command != nil || bookmarks }
+    public var hasScope: Bool { command != nil || bookmarks || terminal }
 
     public var rawQuery: String {
+        if terminal { return "> " + text }
         if bookmarks { return Self.bookmarkKeyword + " " + text }
         return command.map { $0.keyword + " " + text } ?? text
     }
 
     public mutating func edit(_ value: String, keywords: KeywordRegistry) {
-        if !hasScope, let query = Self.matchBookmarks(value) {
+        if !hasScope, value.drop(while: { $0.isWhitespace }).hasPrefix(">") {
+            terminal = true
+            text = String(value.drop(while: { $0.isWhitespace }).dropFirst().drop(while: { $0.isWhitespace }))
+        } else if !hasScope, let query = Self.matchBookmarks(value) {
             bookmarks = true
             text = query
         } else if !hasScope, let (matched, query) = keywords.matchInput(value) {
@@ -38,6 +43,7 @@ public struct LauncherInputState: Equatable {
     /// Enters bookmark search with `query` already typed.
     public mutating func enterBookmarks(_ query: String) {
         command = nil
+        terminal = false
         bookmarks = true
         text = query
     }
@@ -45,6 +51,7 @@ public struct LauncherInputState: Equatable {
     public mutating func leaveCommand() {
         command = nil
         bookmarks = false
+        terminal = false
     }
 
     /// Native text editing calls this even when the field has no characters to delete.

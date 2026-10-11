@@ -222,7 +222,7 @@ struct LauncherView: View {
                 if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
-                        .accessibilityLabel(model.isBookmarkScope ? "搜索书签" : model.commandInput?.command.name ?? "关键词命令")
+                        .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isBookmarkScope ? "搜索书签" : model.commandInput?.command.name ?? "关键词命令")
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -330,7 +330,9 @@ struct LauncherView: View {
     }
 
     @ViewBuilder private var commandIcon: some View {
-        if model.isBookmarkScope {
+        if model.isTerminalScope {
+            Image(systemName: "terminal").font(.system(size: 20)).foregroundStyle(ThemeColor.kIcon)
+        } else if model.isBookmarkScope {
             Image("Bookmark").resizable().scaledToFit()
         } else if let command = model.commandInput?.command,
            let url = command.url(for: ""),

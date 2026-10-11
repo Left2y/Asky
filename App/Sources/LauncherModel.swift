@@ -429,7 +429,10 @@ final class LauncherModel {
             }
             if !hasLocalMatch { merged = [] }
         }
+        // An empty batch is not a confirmed no-match while other sources are pending.
+        // Defer the AI-only fallback so the list never briefly opens with just AI.
         if filter == .all, !hasScope, !merged.contains(where: { $0.source == .askAI }),
+           (remainingSearchProviders == 0 || !merged.isEmpty),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
         merged = merged.filter { filter.includes($0.source) &&
             (![.link, .bookmark].contains($0.source) || canSearchBookmarks) }

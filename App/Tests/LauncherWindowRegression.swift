@@ -421,6 +421,7 @@ enum LauncherWindowRegression {
         let model = LauncherModel(app: app, searchProviders: [
             WindowSearchProvider(source: .app, delay: .milliseconds(300), count: 8,
                                  matchingQueries: ["Safari", "kimi"]),
+            WindowSearchProvider(source: .file, delay: .milliseconds(10), count: 0),
             WindowSearchProvider(source: .bookmark, delay: .milliseconds(10), count: 4),
         ])
         var submitted: [String] = []
@@ -434,6 +435,31 @@ enum LauncherWindowRegression {
         }
         defer { controller.hide() }
         let prompt = "帮我梳理一下日程"
+        model.query = "Safari"
+        try require(model.isSearching && model.results.isEmpty,
+                    "debounce must not publish a premature AI-only fallback")
+        for _ in 0..<30 {
+            try await Task.sleep(for: .milliseconds(10))
+            try require(model.results.isEmpty,
+                        "empty fast sources must not show AI while app search is pending")
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        try require(model.results.first?.source == .app && model.results.last?.source == .askAI,
+                    "local matches and AI action must appear together")
+        model.query = "Saf"
+        try require(model.results.first?.source == .app,
+                    "matching concrete targets must remain visible during replacement search")
+        model.query = "empty"
+        try require(model.results.isEmpty && model.isSearching,
+                    "an unrelated replacement must wait for its own results")
+        model.submit(.executeSelection)
+        try require(submitted.isEmpty, "Return during pending search must not submit premature AI")
+        for _ in 0..<60 {
+            if !model.isSearching { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try require(model.results.count == 1 && model.results.first?.source == .askAI && !model.isSearching,
+                    "AI-only fallback must appear after all sources confirm no match: searching=\(model.isSearching), sources=\(model.results.map(\.source))")
         model.query = "Safari"
         try await Task.sleep(for: .milliseconds(150))
         model.query = prompt
@@ -452,8 +478,8 @@ enum LauncherWindowRegression {
         try require(submitted == [prompt], "ordinary Return must hand the prompt to AI once")
         for text in ["你是谁啊", "你好", "随便聊聊", "我今天有点累", "明天有什么安排"] {
             model.query = text
-            try require(model.results.count == 1 && model.results.first?.source == .askAI,
-                        "unmatched plain text must immediately default to AI without phrase rules")
+            try require(model.isSearching && model.results.isEmpty,
+                        "plain text must wait for local search before defaulting to AI")
             try await Task.sleep(for: .milliseconds(450))
             try require(model.results.count == 1 && model.results.first?.source == .askAI && model.selection == 0,
                         "empty local batches must leave only AI, not generic bookmark or Google actions")
@@ -468,7 +494,7 @@ enum LauncherWindowRegression {
         model.query = "go " + prompt
         try require(model.commandInput != nil && model.results.first?.source == .keyword,
                     "explicit keyword must keep its command result")
-        print("AI default selection, Return handoff, no subtitle, cancelled batches and explicit scopes passed")
+        print("Deferred AI fallback, mixed-speed sources, retained matches, Return handoff, cancelled batches and explicit scopes passed")
     }
 
     private static func searchField(in view: NSView) -> NSTextField? {

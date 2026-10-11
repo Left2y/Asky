@@ -9,6 +9,7 @@ struct LauncherSearchField: NSViewRepresentable {
     var accessibilityLabel = "搜索应用、文件、标签页或命令"
     var placeholder: String
     var placeholderColor: NSColor? = nil
+    var completion: String? = nil
     var backspaceOnEmpty: () -> Bool
     var move: (Int) -> Void
     /// When set, ←/→ switch items instead of moving the caret.
@@ -18,7 +19,7 @@ struct LauncherSearchField: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField()
+        let field = CompletionTextField()
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -49,6 +50,10 @@ struct LauncherSearchField: NSViewRepresentable {
             let font = NSFont.systemFont(ofSize: parent.fontSize)
             if field.font != font { field.font = font }
             if field.textColor != parent.textColor { field.textColor = parent.textColor }
+            if let field = field as? CompletionTextField {
+                field.completion = parent.completion
+                field.updateCompletion()
+            }
             if let color = parent.placeholderColor {
                 let value = NSAttributedString(string: parent.placeholder, attributes: [.foregroundColor: color, .font: font])
                 if field.placeholderAttributedString != value { field.placeholderAttributedString = value }
@@ -68,11 +73,13 @@ struct LauncherSearchField: NSViewRepresentable {
             let editor = field.currentEditor() as? NSTextView
             guard editor?.hasMarkedText() != true else { return }
             let value = parent.text
+            let editorNeedsUpdate = editor.map { $0.string != value } ?? false
             if field.stringValue != value { field.stringValue = value }
-            if let editor, editor.string != value {
+            if let editor, editorNeedsUpdate {
                 editor.string = value
                 editor.setSelectedRange(NSRange(location: (value as NSString).length, length: 0))
             }
+            (field as? CompletionTextField)?.updateCompletion()
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
@@ -101,4 +108,64 @@ struct LauncherSearchField: NSViewRepresentable {
             }
         }
     }
+}
+
+/// A display-only suffix: it never enters the binding, selection, clipboard, or IME buffer.
+@MainActor
+final class CompletionTextField: NSTextField {
+    private let suffix = CompletionLabel(labelWithString: "")
+    var completion: String?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        usesSingleLineMode = true
+        cell?.wraps = false
+        cell?.isScrollable = true
+        lineBreakMode = .byClipping
+        suffix.isHidden = true
+        suffix.setAccessibilityElement(false)
+        addSubview(suffix)
+        NotificationCenter.default.addObserver(self, selector: #selector(selectionChanged(_:)),
+            name: NSTextView.didChangeSelectionNotification, object: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
+
+    @objc private func selectionChanged(_ notification: Notification) {
+        guard let editor = currentEditor(), notification.object as? NSTextView === editor else { return }
+        updateCompletion()
+    }
+
+    override func layout() {
+        super.layout()
+        updateCompletion()
+    }
+
+    func updateCompletion() {
+        suffix.isHidden = true
+        guard let completion, !completion.isEmpty, !stringValue.isEmpty else { return }
+        suffix.stringValue = completion
+        suffix.font = font
+        suffix.textColor = .tertiaryLabelColor
+        suffix.sizeToFit()
+        var x = (stringValue as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 18)]).width + 3
+        if let editor = currentEditor() as? NSTextView {
+            let end = (editor.string as NSString).length
+            guard !editor.hasMarkedText(), editor.selectedRange() == NSRange(location: end, length: 0),
+                  let window else { return }
+            let caret = editor.firstRect(forCharacterRange: NSRange(location: end, length: 0), actualRange: nil)
+            x = convert(window.convertFromScreen(caret), from: nil).maxX
+        }
+        x += 8
+        guard x >= bounds.minX, x + suffix.frame.width <= bounds.maxX else { return }
+        suffix.frame.origin = NSPoint(x: x, y: (bounds.height - suffix.frame.height) / 2)
+        suffix.isHidden = false
+    }
+}
+
+@MainActor
+private final class CompletionLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

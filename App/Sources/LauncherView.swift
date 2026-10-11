@@ -1,11 +1,12 @@
 import AppKit
 import SwiftUI
 import Contracts
+import DirectActions
 import Theme
 import Router
 import ToolService
 
-private enum LauncherLayout {
+enum LauncherLayout {
     // Keep empty and populated fields aligned to the populated search layout.
     static let topInsetFraction: CGFloat = 0.12
     static let bottomClearance: CGFloat = 24
@@ -22,6 +23,7 @@ private enum LauncherLayout {
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
     // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
+    static let currencyCardHeight: CGFloat = 146
     static let rowHeight: CGFloat = 50
     static let maxVisibleResults = 8
     static let sectionHeaderHeight: CGFloat = 52
@@ -229,6 +231,7 @@ struct LauncherView: View {
                     fontSize: 18,
                     textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
                     placeholder: "",
+                    completion: model.calculationCompletion,
                     backspaceOnEmpty: model.backspaceOnEmptyInput,
                     move: model.move,
                     submit: { model.submit($0 ? .submitToAI : .executeSelection) }
@@ -244,6 +247,19 @@ struct LauncherView: View {
             if let t = model.terminal {
                 inputDivider
                 TerminalOutputView(session: t, stop: model.stopTerminal)
+            } else if let calculation = model.calculation {
+                inputDivider
+                CalculationView(expression: calculation.expression, result: calculation.result)
+                    .frame(height: LauncherLayout.currencyCardHeight)
+            } else if case .converted(let value, _, _, _, let query) = model.currencyConversion {
+                inputDivider
+                CurrencyConversionView(query: query, value: value)
+                    .frame(height: LauncherLayout.currencyCardHeight)
+                if model.results.contains(where: { $0.source == .currency && $0.target.identifier != query.to }) {
+                    ResultList(model: model, maxHeight: maxShellHeight - inputHeight
+                               - LauncherLayout.dividerHeight - LauncherLayout.currencyCardHeight - statusHeight,
+                               excludedCurrencyCode: query.to)
+                }
             } else if !model.results.isEmpty {
                 inputDivider
                 ResultList(model: model, maxHeight: maxShellHeight
@@ -353,9 +369,99 @@ struct LauncherView: View {
 
 }
 
+/// The input field owns editing and Return still copies the computed result.
+private struct CalculationView: View {
+    let expression: String
+    let result: String
+
+    var body: some View {
+        HStack(spacing: 20) {
+            Text(expression)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(ThemeColor.kTextSubtle)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help(expression)
+            Image(systemName: "equal")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(ThemeColor.kIcon)
+                .accessibilityHidden(true)
+            Text(result)
+                .font(.system(size: 28, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(ThemeColor.kText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .help(result)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(ThemeColor.kBackgroundNeutral,
+                    in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(expression) = \(result)")
+        .padding(.horizontal, LauncherLayout.inputLeadingPadding)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
+    }
+}
+
+/// A read-only conversion pair; the input field owns editing.
+private struct CurrencyConversionView: View {
+    let query: CurrencyQuery
+    let value: Double
+
+    var body: some View {
+        HStack(spacing: 12) {
+            currency(code: query.from, amount: query.amount)
+            Image(systemName: "arrow.left.arrow.right")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(ThemeColor.kIcon)
+                .accessibilityHidden(true)
+            currency(code: query.to, amount: value)
+        }
+        .padding(.horizontal, LauncherLayout.inputLeadingPadding)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
+    }
+
+    private func currency(code: String, amount: Double) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                if let flag = CurrencyPresentation.flag(for: code) {
+                    Text(flag).font(.system(size: 22)).accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(code).font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(ThemeColor.kText)
+                    Text(CurrencyPresentation.name(for: code))
+                        .font(.system(size: 12))
+                        .foregroundStyle(ThemeColor.kTextSubtle)
+                        .lineLimit(1)
+                }
+            }
+            Text(amount.formatted(.number.precision(.fractionLength(0...2))))
+                .font(.system(size: 28, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(ThemeColor.kText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ThemeColor.kBackgroundNeutral,
+                    in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct ResultList: View {
     @Bindable var model: LauncherModel
     let maxHeight: CGFloat
+    var excludedCurrencyCode: String? = nil
     @State private var retainedHeight: CGFloat = 0
 
     private struct LayoutRequest: Equatable {
@@ -364,19 +470,23 @@ private struct ResultList: View {
         let isSearching: Bool
     }
 
+    private var visibleResults: [SearchResult] {
+        model.results.filter { $0.source != .currency || $0.target.identifier != excludedCurrencyCode }
+    }
+
     private var sections: [String] {
         var seen = Set<String>()
-        return model.results.compactMap { seen.insert(Self.section(for: $0)).inserted ? Self.section(for: $0) : nil }
+        return visibleResults.compactMap { seen.insert(Self.section(for: $0)).inserted ? Self.section(for: $0) : nil }
     }
 
     private var showsHeaders: Bool {
         // The AI fallback is an action, not another kind of local match.
-        let resultSections = Set(model.results.filter { $0.source != .askAI }.map(Self.section(for:)))
+        let resultSections = Set(visibleResults.filter { $0.source != .askAI }.map(Self.section(for:)))
         return !model.hasScope && resultSections.count > 1
     }
 
     private var height: CGFloat {
-        let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight
+        let rows = CGFloat(visibleResults.count) * LauncherLayout.rowHeight
         let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
         // Headers share the eight-row budget. Short result lists still size to their content.
         let listHeightLimit = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
@@ -399,17 +509,23 @@ private struct ResultList: View {
                                     .padding(.top, 16).padding(.bottom, 12)
                                     .frame(height: LauncherLayout.sectionHeaderHeight)
                             }
-                            ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element) == source }, id: \.element.id) { i, r in
-                                Button {
-                                    model.selection = i
-                                    model.submit(.executeSelection)
-                                } label: {
-                                    ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r), terminalIcon: model.terminalIcon)
+                            ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element) == source && ($0.element.source != .currency || $0.element.target.identifier != excludedCurrencyCode) }, id: \.element.id) { i, r in
+                                if r.source == .currency {
+                                    ResultRow(result: r, selected: false, keyword: nil)
+                                        .accessibilityLabel(r.title)
+                                        .id(r.id)
+                                } else {
+                                    Button {
+                                        model.selection = i
+                                        model.submit(.executeSelection)
+                                    } label: {
+                                        ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r), terminalIcon: model.terminalIcon)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(r.title)
+                                    .accessibilityAddTraits(i == model.selection ? .isSelected : [])
+                                    .id(r.id)
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(r.title)
-                                .accessibilityAddTraits(i == model.selection && r.source != .currency ? .isSelected : [])
-                                .id(r.id)
                             }
                         }
                     }
@@ -516,6 +632,13 @@ private struct ResultRow: View {
         case .terminal:
             if let terminalIcon {
                 Image(nsImage: terminalIcon).resizable().scaledToFit()
+            }
+        case .currency:
+            if let flag = CurrencyPresentation.flag(for: result.target.identifier) {
+                Text(flag).font(.system(size: 28))
+                    .accessibilityLabel(CurrencyPresentation.name(for: result.target.identifier))
+            } else {
+                Image(systemName: Self.symbol(.currency)).font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
             }
         case .link:
             Image("Link").resizable().scaledToFit()

@@ -50,6 +50,7 @@ final class LauncherModel {
     }
     private(set) var results: [SearchResult] = []
     private(set) var isSearching = false
+    private(set) var currencyConversion: CurrencyResult?
     var selection = 0
     private(set) var terminal: TerminalSession?
     private(set) var status: String?
@@ -135,6 +136,13 @@ final class LauncherModel {
         inputState.command.map { (command: $0, text: inputState.text) }
     }
 
+    var calculation: (expression: String, result: String)? {
+        guard !hasScope, case .calculation(_, let value) = router.route(query) else { return nil }
+        return (query, Calculator.format(value))
+    }
+
+    var calculationCompletion: String? { calculation.map { "= " + $0.result } }
+
     var terminalApplication: LauncherTerminalApplication {
         app.settings.terminalApplicationID.flatMap(LauncherTerminalApplication.init(rawValue:)) ?? .system
     }
@@ -176,6 +184,7 @@ final class LauncherModel {
     }
 
     private func update() {
+        currencyConversion = nil
         status = nil
         selection = 0
         searchTask?.cancel()
@@ -216,11 +225,17 @@ final class LauncherModel {
         }
         batches = router.includesSearch(route) ? retainedBatches(for: query) : []
         if case .currency(let q) = route {
+            isSearching = true
+            status = NSLocalizedString("正在获取汇率…", comment: "")
             let exchange = app.exchange
             currencyTask = Task { [weak self] in
-                let r = await exchange.convert(q)
+                do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+                let rows = await ToolService.launcherCurrencyResults(q, service: exchange)
                 guard !Task.isCancelled, let self else { return }
-                self.direct = [Self.currencyRow(r, q)]
+                self.isSearching = false
+                self.status = nil
+                self.currencyConversion = rows.first
+                self.direct = rows.map(Self.currencyRow)
                 self.publish()
             }
         }
@@ -287,14 +302,14 @@ final class LauncherModel {
         }
     }
 
-    private static func currencyRow(_ r: CurrencyResult, _ q: CurrencyQuery) -> SearchResult {
+    private static func currencyRow(_ r: CurrencyResult) -> SearchResult {
         switch r {
-        case .converted(let value, let rate, let date, let cached, _):
+        case .converted(let value, _, _, _, let q):
             let v = String(format: "%.2f", value)
-            return SearchResult(source: .currency, target: TargetRef(kind: "fx", identifier: "\(q.amount)\(q.from)\(q.to)"),
-                                title: "\(v) \(q.to)",
-                                subtitle: "1 \(q.from) = \(String(format: "%.4f", rate)) \(q.to) · ECB \(date)\(cached ? " · 缓存" : "") · ↩ 复制",
-                                actions: [.copy(v)], score: 100)
+            return SearchResult(source: .currency, target: TargetRef(kind: "fx", identifier: q.to),
+                                title: "\(v) \(CurrencyPresentation.name(for: q.to)) · \(q.to)",
+                                subtitle: "",
+                                actions: [], score: 100)
         case .unavailable(let reason):
             return SearchResult(source: .currency, target: TargetRef(kind: "fx", identifier: "na"),
                                 title: "汇率不可用", subtitle: reason, actions: [], score: 100)
@@ -324,7 +339,7 @@ final class LauncherModel {
     }
 
     func move(_ delta: Int) {
-        guard !results.isEmpty else { return }
+        guard currencyConversion == nil, !results.isEmpty else { return }
         selection = min(max(selection + delta, 0), results.count - 1)
     }
 

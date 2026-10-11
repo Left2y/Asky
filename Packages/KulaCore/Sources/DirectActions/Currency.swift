@@ -46,10 +46,18 @@ public struct CurrencyQuery: Sendable, Equatable {
     public var amount: Double
     public var from: String
     public var to: String
+    public var showsAllCurrencies: Bool = false
+
+    public init(amount: Double, from: String, to: String, showsAllCurrencies: Bool = false) {
+        self.amount = amount
+        self.from = from
+        self.to = to
+        self.showsAllCurrencies = showsAllCurrencies
+    }
 
     static let aliases: [String: String] = [
         "人民币": "CNY", "rmb": "CNY", "元": "CNY", "美元": "USD", "美金": "USD", "欧元": "EUR",
-        "日元": "JPY", "英镑": "GBP", "港币": "HKD", "港元": "HKD", "韩元": "KRW", "$": "USD", "¥": "CNY", "€": "EUR", "£": "GBP",
+        "澳元": "AUD", "加元": "CAD", "新加坡元": "SGD", "新币": "SGD", "瑞士法郎": "CHF", "新西兰元": "NZD", "泰铢": "THB", "印度卢比": "INR", "日元": "JPY", "英镑": "GBP", "港币": "HKD", "港元": "HKD", "韩元": "KRW", "$": "USD", "¥": "CNY", "€": "EUR", "£": "GBP",
     ]
 
     static let known: Set<String> = [
@@ -65,8 +73,20 @@ public struct CurrencyQuery: Sendable, Equatable {
 
     /// "100 USD CNY", "100 usd to cny", "100美元 人民币".
     public static func parse(_ input: String) -> CurrencyQuery? {
-        guard let (amount, a, b) = QuantityParser.parse(input), let f = code(a), let t = code(b), f != t else { return nil }
-        return CurrencyQuery(amount: amount, from: f, to: t)
+        if let (amount, a, b) = QuantityParser.parse(input), amount.isFinite,
+           let f = code(a), let t = code(b), f != t {
+            return CurrencyQuery(amount: amount, from: f, to: t)
+        }
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Full-string match keeps partial pairs and ordinary searches out of currency mode.
+        let pattern = #"^([+-]?(?:[0-9]+(?:,[0-9]{3})*)(?:\.[0-9]+)?|[+-]?\.[0-9]+)\s*([^\s0-9]+)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let numberRange = Range(match.range(at: 1), in: text),
+              let currencyRange = Range(match.range(at: 2), in: text),
+              let amount = Double(text[numberRange].replacingOccurrences(of: ",", with: "")), amount.isFinite,
+              let from = code(String(text[currencyRange])) else { return nil }
+        return CurrencyQuery(amount: amount, from: from, to: from == "CNY" ? "USD" : "CNY", showsAllCurrencies: true)
     }
 }
 
@@ -106,7 +126,7 @@ public actor ExchangeRateService {
 
     public func rates(allowNetwork: Bool = true) async -> (ExchangeRates, fromCache: Bool)? {
         let existing = cachedRates()
-        if let existing, Date().timeIntervalSince(existing.fetchedAt) < maxAge { return (existing, false) }
+        if let existing, Date().timeIntervalSince(existing.fetchedAt) < maxAge { return (existing, true) }
         if allowNetwork, let data = try? await fetcher(Self.ecbURL), let fresh = ExchangeRates.parseECB(data) {
             cached = fresh
             try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -114,6 +134,20 @@ public actor ExchangeRateService {
             return (fresh, false)
         }
         return existing.map { ($0, true) }
+    }
+
+    public func conversions(_ q: CurrencyQuery, allowNetwork: Bool = true) async -> [CurrencyResult] {
+        guard let (snapshot, fromCache) = await rates(allowNetwork: allowNetwork) else {
+            return [.unavailable(reason: "无可用汇率缓存，且无法连接 ECB")]
+        }
+        let targets = q.showsAllCurrencies ? CurrencyPresentation.targetCodes(from: q.from) : [q.to]
+        let results: [CurrencyResult] = targets.compactMap { target in
+            guard let (value, rate) = snapshot.convert(q.amount, from: q.from, to: target),
+                  value.isFinite, rate.isFinite else { return nil }
+            let query = CurrencyQuery(amount: q.amount, from: q.from, to: target)
+            return .converted(value: value, rate: rate, rateDate: snapshot.date, fromCache: fromCache, query: query)
+        }
+        return results.isEmpty ? [.unavailable(reason: "ECB 参考汇率不含该币种")] : results
     }
 
     public func convert(_ q: CurrencyQuery, allowNetwork: Bool = true) async -> CurrencyResult {

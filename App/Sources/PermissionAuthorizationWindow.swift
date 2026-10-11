@@ -9,6 +9,8 @@ private final class PermissionAuthorizationModel {
     let permission: SystemPermission
     var regrant = false
     var cardAbsent = false
+    var dropped = false
+    var needsRelaunch = false
     var message: String?
 
     init(permission: SystemPermission) { self.permission = permission }
@@ -30,6 +32,8 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
     private var generation = UUID()
     private let readState: (SystemPermission) async -> PermissionState
     private let openPermissionSettings: (SystemPermission) throws -> PermissionAuthorizationSettingsHandle
+    private let resetAuthorization: (SystemPermission) async -> Void
+    private let registerForAuthorization: (SystemPermission) -> Void
 
     var window: NSPanel? { panel }
 
@@ -37,9 +41,13 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
          openSettings: @escaping (SystemPermission) throws -> PermissionAuthorizationSettingsHandle = {
              let session = try SystemPermissions.openAuthorizationSettings($0)
              return PermissionAuthorizationSettingsHandle(windowFrame: { session.windowFrame }, dismiss: { session.dismiss() })
-         }) {
+         },
+         resetAuthorization: @escaping (SystemPermission) async -> Void = { await SystemPermissions.resetAuthorization($0) },
+         registerForAuthorization: @escaping (SystemPermission) -> Void = { SystemPermissions.registerForAuthorization($0) }) {
         self.readState = readState
         self.openPermissionSettings = openSettings
+        self.resetAuthorization = resetAuthorization
+        self.registerForAuthorization = registerForAuthorization
         super.init()
     }
 
@@ -50,7 +58,12 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
         self.generation = generation
         let model = PermissionAuthorizationModel(permission: permission)
         let view = PermissionAuthorizationView(model: model, close: { [weak self] in self?.cancel() },
-            reopenSettings: { [weak self] in self?.openSettings(for: model) })
+            reopenSettings: { [weak self] in self?.openSettings(for: model) },
+            relaunch: {
+                do { try SystemPermissions.relaunchApp() }
+                catch { model.message = error.localizedDescription }
+            },
+            dropEnded: { [weak self] accepted in self?.dropEnded(accepted, model: model, generation: generation) })
             .environment(\.colorScheme, colorScheme)
         let host = NSHostingView(rootView: view)
         let panel = AuthorizationPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
@@ -79,9 +92,16 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
             let initial = await self.readState(permission)
             guard self.generation == generation, !Task.isCancelled else { return }
             model.regrant = initial == .authorized
+            // A switched-on entry that does not apply belongs to another build's signature. Remove it,
+            // then let this process add itself so the entry matches the code that is running.
+            // Dragging the card stays available when the entry does not appear.
+            if initial != .authorized {
+                await self.resetAuthorization(permission)
+                guard self.generation == generation, !Task.isCancelled else { return }
+                self.registerForAuthorization(permission)
+                model.needsRelaunch = permission.requiresRelaunchAfterGrant
+            }
             var progress = PermissionAuthorizationProgress(initialState: initial)
-            // Adding the dragged app in System Settings is the grant request for this flow.
-            // Do not block this independent panel on an additional native request dialog.
             self.openSettings(for: model)
             for _ in 0..<20 {
                 guard self.generation == generation, !Task.isCancelled else { return }
@@ -98,10 +118,36 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
                 self.resizeToContent()
                 if progress.observe(state) {
                     self.settingsSession?.dismiss()
-                    self.cancel()
+                    // The switch is on, but capture keeps failing until Asky restarts.
+                    if permission.requiresRelaunchAfterGrant {
+                        model.needsRelaunch = true
+                        model.cardAbsent = true
+                        self.resizeToContent()
+                        self.panel?.makeKeyAndOrderFront(nil)
+                    } else {
+                        self.cancel()
+                    }
                     return
                 }
                 do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
+            }
+        }
+    }
+
+    /// An accepted drop that does not produce a working grant brings the card back for a retry.
+    /// Screen recording cannot be confirmed before relaunch, so its card stays hidden.
+    private func dropEnded(_ accepted: Bool, model: PermissionAuthorizationModel, generation: UUID) {
+        model.cardAbsent = accepted
+        guard accepted, !model.permission.requiresRelaunchAfterGrant else { return }
+        model.dropped = true
+        Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            guard let self, self.generation == generation else { return }
+            // The drop did not produce a working grant: bring the card back so it can be retried.
+            if await self.readState(model.permission) != .authorized {
+                guard self.generation == generation else { return }
+                model.cardAbsent = false
+                self.resizeToContent()
             }
         }
     }
@@ -167,6 +213,8 @@ private struct PermissionAuthorizationView: View {
     let model: PermissionAuthorizationModel
     let close: () -> Void
     let reopenSettings: () -> Void
+    let relaunch: () -> Void
+    let dropEnded: (Bool) -> Void
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
 
@@ -185,19 +233,22 @@ private struct PermissionAuthorizationView: View {
             }
             let canDrag = SystemPermissions.canDragApp(at: SystemPermissions.appURL)
             if canDrag {
-                PermissionAppDragCard(onStarted: { model.cardAbsent = true },
-                    onEnded: { accepted in model.cardAbsent = accepted })
+                PermissionAppDragCard(onStarted: { model.cardAbsent = true }, onEnded: dropEnded)
                     .frame(height: 80)
                     .opacity(model.cardAbsent ? 0 : 1)
                     .allowsHitTesting(!model.cardAbsent)
             } else {
                 PermissionAppCard(colorScheme: colorScheme, reduceTransparency: reduceTransparency).opacity(0.5)
             }
-            Text(NSLocalizedString(canDrag
-                ? (model.regrant
-                    ? "先删除旧条目，再拖入卡片并开启。"
-                    : "将卡片拖入系统设置，开启 Asky 开关。")
-                : "请先将 Asky.app 移到“应用程序”文件夹并重新打开，再拖拽授权。", comment: ""))
+            Text(NSLocalizedString(!canDrag
+                ? "请先将 Asky.app 移到“应用程序”文件夹并重新打开，再拖拽授权。"
+                : model.needsRelaunch
+                ? "在系统设置中打开 Asky 的开关，然后重新启动 Asky 使屏幕录制生效。列表中没有 Asky 时，将卡片拖入。"
+                : model.dropped && !model.cardAbsent
+                ? "仍未生效。请确认 Asky 的开关已打开；列表中没有 Asky 时再拖一次。"
+                : model.regrant
+                ? "先删除旧条目，再拖入卡片并开启。"
+                : "在系统设置中打开 Asky 的开关。列表中没有 Asky 时，将卡片拖入。", comment: ""))
                 .font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle)
                 .fixedSize(horizontal: false, vertical: true)
             if let message = model.message {
@@ -205,6 +256,10 @@ private struct PermissionAuthorizationView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Button(NSLocalizedString("打开系统设置", comment: ""), action: reopenSettings)
                     .buttonStyle(.glass)
+            }
+            if model.needsRelaunch {
+                Button(NSLocalizedString("重新启动 Asky", comment: ""), action: relaunch)
+                    .buttonStyle(.glassProminent)
             }
         }
         .padding(20)

@@ -35,6 +35,15 @@ struct SystemPermissionTests {
         }
     }
 
+    @Test func onlyDragPermissionsResetTheirOwnTCCServiceAndOnlyScreenRecordingNeedsRelaunch() {
+        #expect(SystemPermission.screenRecording.tccService == "ScreenCapture")
+        #expect(SystemPermission.accessibility.tccService == "Accessibility")
+        for permission in SystemPermission.allCases where !permission.supportsAppDrag {
+            #expect(permission.tccService == nil)
+        }
+        #expect(SystemPermission.allCases.filter(\.requiresRelaunchAfterGrant) == [.screenRecording])
+    }
+
     @Test func dragRejectsTemporaryAndNonApplicationURLs() {
         for url in [URL(filePath: "/private/var/folders/T/AppTranslocation/id/d/Asky.app"),
                     URL(filePath: "/Applications/file.txt"), URL(string: "https://example.com/Asky.app")!] {

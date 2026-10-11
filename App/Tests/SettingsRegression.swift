@@ -165,6 +165,8 @@ enum SettingsRegression {
             var reads = 0
             var opened = 0
             var dismissed = 0
+            var resets = 0
+            var registered = 0
             let controller = PermissionAuthorizationWindow(readState: { _ in
                 reads += 1
                 if regrant {
@@ -174,14 +176,15 @@ enum SettingsRegression {
             }, openSettings: { _ in
                 opened += 1
                 return PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: { dismissed += 1 })
-            })
+            }, resetAuthorization: { _ in resets += 1 }, registerForAuthorization: { _ in registered += 1 })
             controller.show(.accessibility, colorScheme: .light)
             try await Task.sleep(for: .milliseconds(150))
             guard let panel = controller.window, panel.isVisible,
                   panel.sheetParent == nil, parent.attachedSheet == nil,
                   panel.styleMask.contains(.nonactivatingPanel),
                   panel.level == .floating, !panel.hidesOnDeactivate,
-                  opened == 1, dismissed == 0 else {
+                  opened == 1, dismissed == 0,
+                  resets == (regrant ? 0 : 1), registered == (regrant ? 0 : 1) else {
                 fatalError("authorization is modal or dismissed before a fresh grant")
             }
             for _ in 0..<30 where controller.window != nil {
@@ -195,7 +198,7 @@ enum SettingsRegression {
         let cancelled = PermissionAuthorizationWindow(readState: { _ in .denied },
             openSettings: { _ in
                 PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: { dismissed = true })
-            })
+            }, resetAuthorization: { _ in }, registerForAuthorization: { _ in })
         cancelled.show(.screenRecording, colorScheme: .dark)
         try await Task.sleep(for: .milliseconds(150))
         cancelled.window?.close()

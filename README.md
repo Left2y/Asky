@@ -40,7 +40,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 
 ### 快速开始
 
-[下载 Asky 0.0.4](https://github.com/Niall-Young/Asky/releases/tag/v0.0.4)：适用于 macOS 26+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
+[下载 Asky 0.0.5](https://github.com/Niall-Young/Asky/releases/tag/v0.0.5)：适用于 macOS 26+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
 
 需要 macOS 26 或更新版本、Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
 
@@ -74,7 +74,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 使用 AI 前，在“设置 › 模型设置”中填写服务商的 API 地址、模型名和 API Key。Key 存储在 macOS 钥匙串中；本地数据位于 `~/Library/Application Support/KulaHere/`。
 
-系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。辅助功能和屏幕录制点击“去授权”后打开独立的原生玻璃浮窗，并自动打开对应系统权限页。将浮窗中的 Asky.app 卡片拖入列表后开启开关；重新授权时先删除旧条目再拖入。拖动开始时原位卡片隐藏，取消或未被接收时恢复，被接收后保持隐藏。浮窗持续检查当前应用进程的权限，确认授权后自动关闭，并关闭或收起本次权限页；若已切到其他系统设置页，则保留该页面。临时转移路径运行的应用需先移到“应用程序”并重新打开。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
+系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。辅助功能和屏幕录制点击“去授权”后打开独立的原生玻璃浮窗，并自动打开对应系统权限页。未授权时浮窗先清除本应用该项的旧条目（ad-hoc 签名下旧构建留下的条目显示已开启却不生效，且会让系统设置拒绝再次拖入），再由当前进程把自己加入列表，用户打开开关即可；列表中没有 Asky 时将浮窗中的 Asky.app 卡片拖入。重新授权时先删除旧条目再拖入。屏幕录制开启后需重启才生效，浮窗随后提供“重新启动 Asky”。拖动开始时原位卡片隐藏，取消或未被接收时恢复，被接收后保持隐藏。浮窗持续检查当前应用进程的权限，确认授权后自动关闭，并关闭或收起本次权限页；若已切到其他系统设置页，则保留该页面。临时转移路径运行的应用需先移到“应用程序”并重新打开。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
 
 ### 项目结构与文档
 
@@ -135,16 +135,16 @@ build/conversation-search-regression
 
 ### 发布打包
 
-先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release004DerivedData`。在干净的 `build/release-runtime-0.0.4` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.4`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
+先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release005DerivedData`。在干净的 `build/release-runtime-0.0.5` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.5`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
 
 ```sh
-python3 scripts/package-release.py --version 0.0.4 --build 4 \
-  --derived-data build/Release004DerivedData \
-  --runtime build/release-runtime-0.0.4 \
+python3 scripts/package-release.py --version 0.0.5 --build 5 \
+  --derived-data build/Release005DerivedData \
+  --runtime build/release-runtime-0.0.5 \
   --node-root build/node-v22.23.3-darwin-arm64
 ```
 
-脚本生成 `build/releases/0.0.4/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。
+脚本生成 `build/releases/0.0.5/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。
 
 ### 开源协议
 
@@ -177,7 +177,7 @@ The project is under active development. The repository includes the native app,
 
 ### Quick Start
 
-[Download Asky 0.0.4](https://github.com/Niall-Young/Asky/releases/tag/v0.0.4) for macOS 26+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
+[Download Asky 0.0.5](https://github.com/Niall-Young/Asky/releases/tag/v0.0.5) for macOS 26+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
 
 Requires macOS 26 or later, Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
 
@@ -272,16 +272,16 @@ Record only checks actually executed in `docs/validation/`. Track automated chec
 
 ### Release Packaging
 
-Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release004DerivedData`. In a clean `build/release-runtime-0.0.4` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.4`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
+Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release005DerivedData`. In a clean `build/release-runtime-0.0.5` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.5`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
 
 ```sh
-python3 scripts/package-release.py --version 0.0.4 --build 4 \
-  --derived-data build/Release004DerivedData \
-  --runtime build/release-runtime-0.0.4 \
+python3 scripts/package-release.py --version 0.0.5 --build 5 \
+  --derived-data build/Release005DerivedData \
+  --runtime build/release-runtime-0.0.5 \
   --node-root build/node-v22.23.3-darwin-arm64
 ```
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.4/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory.
+The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.5/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory.
 
 ### License
 

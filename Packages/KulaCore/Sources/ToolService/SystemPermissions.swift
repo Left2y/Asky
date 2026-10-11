@@ -35,6 +35,15 @@ public enum SystemPermission: String, CaseIterable, Identifiable, Sendable {
         case .notifications: ""
         }
     }
+    var tccService: String? {
+        switch self {
+        case .screenRecording: "ScreenCapture"
+        case .accessibility: "Accessibility"
+        default: nil
+        }
+    }
+    /// Screen capture access is read once per process, so a new grant applies only after relaunch.
+    public var requiresRelaunchAfterGrant: Bool { self == .screenRecording }
     public static func source(_ source: DataSourceID) -> Self? {
         switch source {
         case .calendar: .calendar
@@ -168,6 +177,37 @@ public enum SystemPermissions {
 
     public static func revealApp() {
         NSWorkspace.shared.activateFileViewerSelecting([appURL])
+    }
+
+    /// Ad-hoc builds are recorded by cdhash, so an entry left by an older build stays switched on
+    /// without applying, and System Settings ignores a drop while that entry exists.
+    /// Clearing only this bundle's entry lets the drop record the running build.
+    public static func resetAuthorization(_ permission: SystemPermission) async {
+        guard let service = permission.tccService, let bundleID = Bundle.main.bundleIdentifier else { return }
+        await Task.detached(priority: .userInitiated) {
+            let process = Process()
+            process.executableURL = URL(filePath: "/usr/bin/tccutil")
+            process.arguments = ["reset", service, bundleID]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            guard (try? process.run()) != nil else { return }
+            process.waitUntilExit()
+        }.value
+    }
+
+    /// Lets the running process add itself to the list, so the entry carries its real signature.
+    /// Both calls return at once; the toggle is then switched on in System Settings.
+    public static func registerForAuthorization(_ permission: SystemPermission) {
+        switch permission {
+        case .screenRecording: _ = CGRequestScreenCaptureAccess()
+        case .accessibility: _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+        default: break
+        }
+    }
+
+    public static func relaunchApp() throws {
+        try ToolService.reopenInstalledAppAfterExit(at: appURL)
+        NSApp.terminate(nil)
     }
 
     public static func openAuthorizationSettings(_ permission: SystemPermission) throws -> PermissionSettingsSession {

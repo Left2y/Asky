@@ -39,6 +39,8 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 - **GitHub 插件**：在“设置 › 插件”按需安装官方或自行选择的公开 GitHub 仓库，支持配置、启停、更新、回退和卸载。官方 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca) 与 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 独立发布，不进入安装包；插件会执行可信本机代码，不提供沙箱。支持清单自定义图标，Orca 使用本机应用图标，缺省时显示内置占位图标。接口与安装依赖见[插件指南](docs/plugins.md)。
 - **MCP 扩展**：通过独立授权的 MCP Bridge 向外部客户端提供本地工具。
 
+Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例缩放，加载失败可重试。排版使用应用语义主题，随浅色／深色外观切换；图片下载上限 10 MiB，内存缓存上限 32 MiB，不读取 Markdown 中的本地文件图片。
+
 ### 快速开始
 
 [下载 Asky 0.0.7](https://github.com/Niall-Young/Asky/releases/tag/v0.0.7)：适用于 macOS 26+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
@@ -184,6 +186,8 @@ The project is under active development. The repository includes the native app,
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.
 - **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) and [Lark plugin](https://github.com/Niall-Young/asky-plugin-lark) ship separately and are not bundled. Plugins support custom manifest icons, use the local Orca app icon, and show a bundled placeholder when no artwork is available. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
 - **MCP extensions**: Expose local tools to external clients through a separately authorized MCP Bridge.
+
+Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio and failed loads can be retried. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
 
 ### Quick Start
 

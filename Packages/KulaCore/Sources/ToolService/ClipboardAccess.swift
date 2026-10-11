@@ -85,9 +85,29 @@ public enum ClipboardAccess {
         return true
     }
 
-    public static func dragProvider(for item: ClipboardItem) -> NSItemProvider? {
-        if item.kind == .text, let text = item.text { return NSItemProvider(object: text as NSString) }
-        guard let path = item.filePath, let image = NSImage(contentsOfFile: path) else { return nil }
-        return NSItemProvider(object: image)
+    /// Eager pasteboard data for an AppKit drag. Chromium/Electron targets (Feishu, browsers) ignore lazy
+    /// NSItemProvider promises and only accept plain text or a real file URL, so both are written up front.
+    public static func dragItem(for item: ClipboardItem,
+                                exportDirectory: URL = FileManager.default.temporaryDirectory.appending(path: "AskyDrag")) -> NSPasteboardItem? {
+        let pbItem = NSPasteboardItem()
+        if item.kind == .text, let text = item.text {
+            return pbItem.setString(text, forType: .string) ? pbItem : nil
+        }
+        guard let png = item.filePath.flatMap(pngData(atPath:)) else { return nil }
+        // Stored originals use a typeless ".img" name; targets need a real extension to recognise the image.
+        let file = exportDirectory.appending(path: "\(item.id).png")
+        do {
+            try FileManager.default.createDirectory(at: exportDirectory, withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: file.path) { try png.write(to: file) }
+        } catch { return nil }
+        pbItem.setString(file.absoluteString, forType: .fileURL)
+        pbItem.setData(png, forType: .png)
+        return pbItem
+    }
+
+    private static func pngData(atPath path: String) -> Data? {
+        guard let data = FileManager.default.contents(atPath: path) else { return nil }
+        if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return data }
+        return NSBitmapImageRep(data: data)?.representation(using: .png, properties: [:])
     }
 }

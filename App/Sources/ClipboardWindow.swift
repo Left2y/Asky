@@ -43,6 +43,7 @@ final class ClipboardController {
     private let panel: ClipboardPanel
     private let preview: NSPanel
     private var hoverTask: Task<Void, Never>?
+    private let dragSource = ClipboardDragSource()
     private var refreshTimer: Timer?
     private var localClickMonitor: Any?
     private var globalClickMonitor: Any?
@@ -182,14 +183,20 @@ final class ClipboardController {
         status = ClipboardAccess.copy(item) ? NSLocalizedString("已复制", comment: "") : NSLocalizedString("无法复制：原始内容已不可用", comment: "")
     }
 
-    func drag(_ item: ClipboardItem) -> NSItemProvider {
+    /// AppKit drag with eagerly written pasteboard data; SwiftUI `.onDrag` promises are ignored by Chromium/Electron targets.
+    func beginDrag(_ item: ClipboardItem, from view: NSView) {
+        guard !dragSource.active, let event = NSApp.currentEvent, event.type == .leftMouseDragged else { return }
         dismissPreview()
-        guard let provider = ClipboardAccess.dragProvider(for: item) else {
+        guard let pasteboardItem = ClipboardAccess.dragItem(for: item) else {
             status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
-            return NSItemProvider()
+            return
         }
         copy(item)
-        return provider
+        let dragging = NSDraggingItem(pasteboardWriter: pasteboardItem)
+        dragging.setDraggingFrame(view.bounds, contents: ClipboardDragSource.snapshot(of: view))
+        dragSource.active = true
+        view.beginDraggingSession(with: [dragging], event: event, source: dragSource)
+            .animatesToStartingPositionsOnCancelOrFail = true
     }
 
     func pinItem(_ item: ClipboardItem) {
@@ -421,7 +428,9 @@ private struct ClipboardHistoryCard: View {
         // Read the frame at hover time: scrolling moves the card without re-laying it out.
         .onHover { inside in controller.hover(item, frame: anchor.map(ClipboardAnchor.screenFrame) ?? .zero, inside: inside) }
         .onTapGesture { controller.copy(item) }
-        .onDrag { controller.drag(item) }
+        .gesture(DragGesture(minimumDistance: 3).onChanged { _ in
+            if let anchor { controller.beginDrag(item, from: anchor) }
+        })
         .contextMenu {
             Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
             Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
@@ -469,6 +478,30 @@ private struct ClipboardGlass: View {
         let shape = RoundedRectangle(cornerRadius: radius)
         if opaque { shape.fill(ThemeColor.kBackground.color(for: scheme, opaque: true)) }
         else { shape.fill(ThemeColor.kBackground).glassEffect(.regular, in: shape) }
+    }
+}
+
+@MainActor
+final class ClipboardDragSource: NSObject, NSDraggingSource {
+    var active = false
+
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        .copy
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        active = false
+    }
+
+    /// The anchor sits behind the card, so capture the card's area from the window content instead.
+    static func snapshot(of view: NSView) -> NSImage {
+        let image = NSImage(size: view.bounds.size)
+        guard let content = view.window?.contentView else { return image }
+        let rect = view.convert(view.bounds, to: content)
+        guard let bitmap = content.bitmapImageRepForCachingDisplay(in: rect) else { return image }
+        content.cacheDisplay(in: rect, to: bitmap)
+        image.addRepresentation(bitmap)
+        return image
     }
 }
 

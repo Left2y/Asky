@@ -12,7 +12,7 @@ struct ClipboardAccessTests {
         defer { pb.releaseGlobally() }
         #expect(ClipboardAccess.copy(item, to: pb))
         #expect(pb.string(forType: .string) == text)
-        #expect(ClipboardAccess.dragProvider(for: item)?.canLoadObject(ofClass: NSString.self) == true)
+        #expect(ClipboardAccess.dragItem(for: item)?.string(forType: .string) == text)
     }
 
     @Test func missingImageDoesNotClearExistingClipboard() {
@@ -22,7 +22,7 @@ struct ClipboardAccessTests {
         let item = ClipboardItem(kind: .image, filePath: "/missing/clipboard-image", byteSize: 12, contentHash: "missing")
         #expect(!ClipboardAccess.copy(item, to: pb))
         #expect(pb.string(forType: .string) == "keep")
-        #expect(ClipboardAccess.dragProvider(for: item) == nil)
+        #expect(ClipboardAccess.dragItem(for: item) == nil)
     }
 
     @Test func imageCopyAndDragRetainOriginalDimensions() throws {
@@ -42,6 +42,14 @@ struct ClipboardAccessTests {
         let restored = try #require(pb.data(forType: .tiff).flatMap { NSBitmapImageRep(data: $0) })
         #expect(restored.pixelsWide == 640)
         #expect(restored.pixelsHigh == 360)
-        #expect(ClipboardAccess.dragProvider(for: item)?.canLoadObject(ofClass: NSImage.self) == true)
+        // Stored originals have no extension; the drag exports a real .png file URL plus PNG data.
+        let typeless = root.appending(path: "original.img")
+        try FileManager.default.moveItem(at: path, to: typeless)
+        let stored = ClipboardItem(kind: .image, filePath: typeless.path, byteSize: data.count, contentHash: "image")
+        let dragged = try #require(ClipboardAccess.dragItem(for: stored, exportDirectory: root.appending(path: "drag")))
+        let url = try #require(dragged.string(forType: .fileURL).flatMap(URL.init(string:)))
+        #expect(url.pathExtension == "png")
+        #expect(NSBitmapImageRep(data: try Data(contentsOf: url))?.pixelsWide == 640)
+        #expect(dragged.data(forType: .png) != nil)
     }
 }

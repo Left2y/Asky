@@ -511,7 +511,11 @@ private struct ResultRow: View {
                 .shadow(color: .black.opacity(0.16), radius: 1, x: 0, y: 1)
                 .padding(3)
         case .bookmark, .keyword:
-            if result.target.kind == "bookmark-search" {
+            if result.target.kind == "launcher-alias", result.primaryAction == .open {
+                Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+            } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
+                Image(systemName: Self.symbol(.shortcut)).font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
+            } else if result.target.kind == "bookmark-search" {
                 Image("Bookmark").resizable().scaledToFit()
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()

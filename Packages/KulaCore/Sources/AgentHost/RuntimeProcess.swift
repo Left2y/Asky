@@ -46,7 +46,11 @@ public final class SpawnedRuntimeProcess: RuntimeProcess {
             posix_spawn_file_actions_addopen(&fa, 2, "/dev/null", O_WRONLY, 0)
         }
         for fd in [inPipe[0], inPipe[1], outPipe[0], outPipe[1]] { posix_spawn_file_actions_addclose(&fa, fd) }
-        posix_spawn_file_actions_addchdir(&fa, workingDirectory)
+        if #available(macOS 26, *) {
+            posix_spawn_file_actions_addchdir(&fa, workingDirectory)
+        } else {
+            posix_spawn_file_actions_addchdir_np(&fa, workingDirectory)
+        }
 
         var attr: posix_spawnattr_t?
         posix_spawnattr_init(&attr)

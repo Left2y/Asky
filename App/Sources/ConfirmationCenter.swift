@@ -107,7 +107,7 @@ struct ConfirmationCard: View {
             HStack {
                 Spacer()
                 Button(NSLocalizedString("不执行", comment: ""), role: .cancel) { decide(.rejected) }.keyboardShortcut(.cancelAction)
-                Button(NSLocalizedString("确认执行", comment: "")) { decide(.approved) }.keyboardShortcut(.defaultAction).buttonStyle(.glassProminent)
+                Button(NSLocalizedString("确认执行", comment: "")) { decide(.approved) }.keyboardShortcut(.defaultAction).compatibleGlassButtonStyle(prominent: true)
             }
         }
     }

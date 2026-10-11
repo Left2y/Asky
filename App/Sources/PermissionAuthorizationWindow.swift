@@ -254,11 +254,11 @@ private struct PermissionAuthorizationView: View {
                 Text(message).font(.system(size: 13)).foregroundStyle(ThemeColor.kTextNegative)
                     .fixedSize(horizontal: false, vertical: true)
                 Button(NSLocalizedString("打开系统设置", comment: ""), action: reopenSettings)
-                    .buttonStyle(.glass)
+                    .compatibleGlassButtonStyle()
             }
             if model.needsRelaunch && !model.preparing {
                 Button(NSLocalizedString("重新启动 Asky", comment: ""), action: relaunch)
-                    .buttonStyle(.glassProminent)
+                    .compatibleGlassButtonStyle(prominent: true)
             }
         }
         .padding(20)

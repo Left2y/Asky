@@ -23,8 +23,17 @@ public struct MemorySearchTool: ToolAdapter {
 public enum RouteETA {
     public static func eta(to address: String, transport: MKDirectionsTransportType = .automobile,
                            arrival: Date? = nil) async -> TimeInterval? {
-        guard let req = MKGeocodingRequest(addressString: address),
-              let dest = try? await req.mapItems.first else { return nil }
+        let dest: MKMapItem
+        if #available(macOS 26, *) {
+            guard let req = MKGeocodingRequest(addressString: address),
+                  let item = try? await req.mapItems.first else { return nil }
+            dest = item
+        } else {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = address
+            guard let item = try? await MKLocalSearch(request: request).start().mapItems.first else { return nil }
+            dest = item
+        }
         let r = MKDirections.Request()
         r.source = MKMapItem.forCurrentLocation()
         r.destination = dest

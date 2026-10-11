@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "KulaCore",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS(.v15)],
     products: [
         .library(name: "Contracts", targets: ["Contracts"]),
         .library(name: "Theme", targets: ["Theme"]),

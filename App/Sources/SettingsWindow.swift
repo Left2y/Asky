@@ -60,6 +60,10 @@ enum SettingsWindow {
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: initialSize),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
+        if SurfaceCompatibility.useLegacyMaterial {
+            window.isOpaque = false
+            window.backgroundColor = .clear
+        }
         window.contentViewController = controller
         window.contentMinSize = minimumSize
         window.titleVisibility = .hidden
@@ -108,7 +112,9 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
         let detail = SettingsDetailViewController(app: app)
         let detailItem = NSSplitViewItem(viewController: detail)
         detailItem.minimumThickness = 540
-        detailItem.automaticallyAdjustsSafeAreaInsets = true
+        if #available(macOS 26, *) {
+            detailItem.automaticallyAdjustsSafeAreaInsets = true
+        }
         addSplitViewItem(detailItem)
         heading.font = .systemFont(ofSize: 20, weight: .semibold)
         heading.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -150,16 +156,32 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
 /// content: a full-height Form can otherwise scroll rows behind the page heading.
 @MainActor
 private final class SettingsDetailViewController: NSViewController {
-    private let hosting: NSHostingController<SettingsView>
+    private let hosting: NSHostingController<AnyView>
 
     init(app: AppModel) {
-        hosting = NSHostingController(rootView: SettingsView(app: app))
+        if SurfaceCompatibility.useLegacyMaterial {
+            hosting = NSHostingController(rootView: AnyView(SettingsView(app: app).scrollContentBackground(.hidden)))
+        } else {
+            hosting = NSHostingController(rootView: AnyView(SettingsView(app: app)))
+        }
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func loadView() {
         view = NSView()
+        if SurfaceCompatibility.useLegacyMaterial {
+            // Cover the titlebar too while keeping scrolling content below its safe area.
+            let backdrop = NSHostingView(rootView: Color.clear.settingsVersionBackground().ignoresSafeArea())
+            backdrop.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(backdrop)
+            NSLayoutConstraint.activate([
+                backdrop.topAnchor.constraint(equalTo: view.topAnchor),
+                backdrop.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                backdrop.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                backdrop.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ])
+        }
         addChild(hosting)
         let content = hosting.view
         content.translatesAutoresizingMaskIntoConstraints = false
@@ -199,6 +221,7 @@ private struct SettingsSidebar: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .settingsVersionBackground()
         .onChange(of: app.settingsTab) { _, _ in updateChrome() }
         .onChange(of: app.preferences.appearance) { _, _ in updateChrome() }
     }

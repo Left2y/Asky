@@ -7,7 +7,7 @@
 macOS 原生效率入口，连接本地搜索、剪贴板与按需 AI 助手。<br />
 A native macOS launcher for local search, clipboard history, and an on-demand AI assistant.
 
-[![macOS](https://img.shields.io/badge/macOS-26%2B-000000?logo=apple&logoColor=white)](project.yml)
+[![macOS](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white)](project.yml)
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Packages/KulaCore/Package.swift)
 [![MCP](https://img.shields.io/badge/MCP-Bridge-6A1B9A)](docs/native-tools-and-mcp.md)
 
@@ -43,7 +43,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 
 [下载 Asky 0.0.6](https://github.com/Niall-Young/Asky/releases/tag/v0.0.6)：适用于 macOS 26+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
 
-需要 macOS 26 或更新版本、Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
+源码开发版本的运行目标为 macOS 15+（旧系统实机验收待完成）；开发需要 Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
 
 在仓库根目录运行以下命令，构建开发版本：
 
@@ -64,7 +64,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 - 输入 `1+1`，输入框末尾以浅色显示 `= 2`，下方卡片上下显示公式与结果：上方公式左对齐，下方结果右对齐，回车复制结果；长算式最多显示两行并从中间截断，悬停查看全文。输入 `1美元` 或 `100人民币`，下方横向展示输入币种与人民币的换算卡片（人民币输入默认换算为美元），其他币种保持列表显示在卡片下方。输入 `100 USD CNY` 可只查看指定币种。卡片显示旗帜、币种和金额，不提供选中、悬停或复制操作。汇率使用 ECB 日参考数据；断网时使用已有缓存，无缓存则显示不可用。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
 - 使用 `Ctrl + Option + Command + /` 直接打开 AI 并开启空白新对话（无需 Shift）；可在“设置 › 触发快捷键 › AI 对话”中录制自定义组合键或恢复默认；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
-- 启动器、AI 对话、剪贴板及玻璃浮层使用原生 Regular 液态玻璃和系统窗口阴影；在 macOS 辅助功能中开启“降低透明度”或“增强对比度”后，改用不透明背景和清晰边框。
+- 启动器、AI 对话、剪贴板及玻璃浮层在 macOS 26+ 使用原生 Regular 液态玻璃和系统窗口阴影；macOS 15 使用系统实时背景模糊、`background` 颜色变量和 1pt `border` 描边，设置侧栏与内容区同步适配。原生模糊半径由系统控制，不固定为 120px；在 macOS 辅助功能中开启“降低透明度”或“增强对比度”后，改用不透明背景和清晰边框。
 - 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。设置窗口采用原生侧边栏导航，右侧显示分组配置列表，并支持调整窗口大小。应用主题位于“通用 › 外观”。
 - 在“设置 › 关于 Asky”查看当前版本并点击“检查更新”，应用会读取 GitHub `Niall-Young/Asky` 的最新 Release；版本高于当前版本时可点击“安装更新”：下载 ZIP 并按 `.sha256` 校验、验证签名，Asky 退出后用新版本替换并删除旧版本，再自动重新打开。应用所在目录需可写；临时转移路径运行时需先移到“应用程序”。
 - 应用语言位于“设置 › 通用 › 语言”，默认跟随 macOS 首选语言，也可选择简体中文或 English；更改在下次启动时生效。界面翻译使用原生 `.lproj` 资源，macOS 不会自动翻译应用自定义文字；AI 回复和用户内容不受此设置控制。
@@ -117,6 +117,7 @@ python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
@@ -187,7 +188,7 @@ The project is under active development. The repository includes the native app,
 
 [Download Asky 0.0.6](https://github.com/Niall-Young/Asky/releases/tag/v0.0.6) for macOS 26+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
 
-Requires macOS 26 or later, Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
+Source builds target macOS 15+ (verification on an older OS is pending). Development requires Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
 
 Run these commands from the repository root to build the development app:
 
@@ -208,7 +209,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 - Under Settings › General › File Search Scope, click “Choose Folder…” to add a search directory using the system folder picker.
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
 - Press `Ctrl + Option + Command + /` to open AI with a blank new conversation (without Shift); customize the combination or restore its default in Settings › Hotkeys › AI Conversation; an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.
-- The launcher, AI conversations, clipboard and glass overlays use native Regular Liquid Glass and system window shadows. Enabling Reduce Transparency or Increase Contrast in macOS Accessibility switches them to opaque backgrounds with clear borders.
+- On macOS 26+, the launcher, AI conversations, clipboard and glass overlays use native Regular Liquid Glass and system window shadows. On macOS 15, they use live system background blur, the `background` color token and a 1pt `border` outline; the settings sidebar and content area use the same fallback. The system controls the native blur radius rather than a fixed 120px. Enabling Reduce Transparency or Increase Contrast in macOS Accessibility switches them to opaque backgrounds with clear borders.
 - Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings uses native sidebar navigation with grouped configuration lists on the right and a resizable window. The app theme is under General › Appearance.
 - Under Settings › About Asky, view the current version and click Check for Updates to read the latest GitHub release of `Niall-Young/Asky`. When it is newer than the running app, Install Update downloads the ZIP, verifies its `.sha256` checksum and code signature, replaces and deletes the old version after Asky quits, then reopens it. The app folder must be writable; a translocated app must first be moved to Applications.
 - App language is under Settings › General › Language. It follows the preferred macOS language by default, with Simplified Chinese and English overrides; changes take effect on the next launch. Interface translations use native `.lproj` resources; macOS does not automatically translate custom app text. This setting does not control AI replies or user content.
@@ -261,6 +262,7 @@ python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"

@@ -375,7 +375,7 @@ private struct CalculationView: View {
     let result: String
 
     var body: some View {
-        HStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(expression)
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(ThemeColor.kTextSubtle)
@@ -383,10 +383,6 @@ private struct CalculationView: View {
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .help(expression)
-            Image(systemName: "equal")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(ThemeColor.kIcon)
-                .accessibilityHidden(true)
             Text(result)
                 .font(.system(size: 28, weight: .medium))
                 .monospacedDigit()

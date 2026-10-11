@@ -9,27 +9,30 @@ import plistlib
 import shutil
 
 root = Path(__file__).resolve().parents[2]
-products = root / "build/DerivedData/Build/Products/Debug"
+derived_data = Path(os.environ.get("KULAHERE_DERIVED_DATA", root / "build/DerivedData"))
+products = derived_data / "Build/Products/Debug"
 if not (products / "Search.o").exists():
     sys.exit("Build the Debug app with the README command first.")
+
+environment = os.environ.copy()
+environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
+sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], env=environment, text=True).strip()
 
 sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
            if path.stem != "KulaHereApp"]
 command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
-           "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
+           "-sdk", sdk, "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
 command += ["-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
-maps = root / "build/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps"
+maps = derived_data / "Build/Intermediates.noindex/GeneratedModuleMaps"
 for path in sorted(maps.glob("*.modulemap")):
     command += ["-Xcc", "-fmodule-map-file=" + str(path)]
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
-    command += ["-I", str(root / "build/DerivedData/SourcePackages/checkouts" / relative)]
+    command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
 command += [str(root / "App/Tests/SettingsRegression.swift")]
 command += [str(path) for path in sorted(products.glob("*.o"))]
 binary = root / "build/settings-regression"
 command += ["-lsqlite3", "-o", str(binary)]
-environment = os.environ.copy()
-environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 subprocess.run(command, env=environment, cwd=root, check=True)
 bundle = root / "build/SettingsRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)

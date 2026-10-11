@@ -12,46 +12,23 @@ import ToolService
 
 struct SettingsView: View {
     @Bindable var app: AppModel
-    private static let tabs: [(String, String, String)] = [
-        ("appearance", "外观设置", "circle.lefthalf.filled"),
-        ("model", "模型设置", "sparkles"),
-        ("hotkey", "触发快捷键", "keyboard"),
-        ("keywords", "别名与快捷指令", "command"),
-        ("advanced", "更多设置", "gearshape")
-    ]
-
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                ForEach(Self.tabs, id: \.0) { id, title, icon in
-                    Button { app.settingsTab = id } label: {
-                        VStack(spacing: 7) {
-                            Image(systemName: icon).font(.system(size: 25, weight: .regular))
-                            Text(title).font(.system(size: 12))
-                        }
-                        .frame(width: id == "keywords" ? 122 : 100, height: 76)
-                        .foregroundStyle(app.settingsTab == id ? Color.accentColor : Color.secondary)
-                        .background {
-                            if app.settingsTab == id {
-                                RoundedRectangle(cornerRadius: 16).fill(.background)
-                                    .shadow(color: .black.opacity(0.07), radius: 12, y: 3)
-                            }
-                        }
-                    }.buttonStyle(.plain)
-                }
-            }.padding(.vertical, 14).frame(maxWidth: .infinity).background(.bar)
-            Divider()
-            Group {
-                switch app.settingsTab {
-                case "appearance": AppearanceSettings(app: app)
-                case "model": ModelSettingsView(app: app)
-                case "hotkey": HotKeySettings(app: app)
-                case "keywords": AliasSettings(app: app)
-                default: AdvancedSettings(app: app)
-                }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            switch SettingsPage.resolve(app.settingsTab) {
+            case .appearance: AppearanceSettings(app: app)
+            case .model: ModelSettingsView(app: app)
+            case .hotkey: HotKeySettings(app: app)
+            case .aliases: AliasSettings(app: app)
+            case .keywords: KeywordSettings(app: app)
+            case .general: GeneralSettings(app: app)
+            case .sources: SourceSettings(app: app)
+            case .permissions: PermissionSettings()
+            case .memory: MemorySettings(app: app)
+            case .mcp: MCPSettings(app: app)
+            }
         }
-        .frame(width: 760, height: 590)
+        .toggleStyle(.switch)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -64,7 +41,7 @@ private struct AppearanceSettings: View {
                     Text("跟随系统").tag("system")
                     Text("浅色").tag("light")
                     Text("深色").tag("dark")
-                }.pickerStyle(.segmented)
+                }
                 Text("应用于启动器、AI 对话与设置窗口。").foregroundStyle(.secondary)
             }
         }.formStyle(.grouped)
@@ -177,30 +154,6 @@ private struct HotKeyRecorder: NSViewRepresentable {
     }
 }
 
-private struct AdvancedSettings: View {
-    @Bindable var app: AppModel
-    @State private var section = "general"
-    var body: some View {
-        VStack(spacing: 0) {
-            Picker("更多设置", selection: $section) {
-                Text("通用").tag("general")
-                Text("数据来源").tag("sources")
-                Text("系统权限").tag("permissions")
-                Text("记忆").tag("memory")
-                Text("外部 MCP").tag("mcp")
-            }.pickerStyle(.segmented).padding()
-            switch section {
-            case "sources": SourceSettings(app: app)
-            case "permissions": PermissionSettings()
-            case "memory": MemorySettings(app: app)
-            case "mcp": MCPSettings(app: app)
-            default: GeneralSettings(app: app)
-            }
-        }.onAppear { if app.settingsTab == "permissions" { section = "permissions" } }
-         .onChange(of: app.settingsTab) { _, tab in if tab == "permissions" { section = "permissions" } }
-    }
-}
-
 // MARK: General
 
 private struct GeneralSettings: View {
@@ -211,7 +164,7 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section {
+            Section("启动") {
                 Toggle("登录时启动", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
                         do { on ? try SMAppService.mainApp.register() : try SMAppService.mainApp.unregister(); loginError = nil }

@@ -52,13 +52,13 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
 - 使用 `Ctrl + Option + Command + ?` 直接打开 AI 并开启空白新对话（标准键盘为 `Ctrl + Option + Command + Shift + /`）；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
-- 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。
+- 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。设置窗口采用原生侧边栏导航，右侧显示分组配置列表，并支持调整窗口大小。
 
 ### 配置与隐私
 
 使用 AI 前，在“设置 › 模型设置”中填写服务商的 API 地址、模型名和 API Key。Key 存储在 macOS 钥匙串中；本地数据位于 `~/Library/Application Support/KulaHere/`。
 
-系统权限在“设置 › 更多设置 › 系统权限”中管理，相关工具按需请求授权。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
+系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
 
 ### 项目结构与文档
 
@@ -96,6 +96,8 @@ python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-agent-reply-regression.py
 ```
+
+并行构建时，设置回归脚本支持用 `KULAHERE_DERIVED_DATA` 指定独立的 DerivedData 目录，默认使用 `build/DerivedData`。
 
 原生输入框与快捷键的独立检查：
 
@@ -149,13 +151,13 @@ open build/DerivedData/Build/Products/Debug/KulaHere.app
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
 - Press `Ctrl + Option + Command + ?` to open AI with a blank new conversation (`Ctrl + Option + Command + Shift + /` on a standard keyboard); an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.
-- Press `⌘,` to open Settings while the search field or clipboard panel has focus.
+- Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings uses native sidebar navigation with grouped configuration lists on the right and a resizable window.
 
 ### Configuration and Privacy
 
 Before using AI, enter your provider's API endpoint, model name, and API key under Settings › Model Settings. Keys are stored in macOS Keychain; local data resides in `~/Library/Application Support/KulaHere/`.
 
-Manage system permissions under Settings › More Settings › System Permissions. Tools request authorization as needed. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
+Manage system permissions under Settings › System Permissions. Tools request authorization as needed. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
 
 ### Project Structure and Documentation
 
@@ -193,6 +195,8 @@ python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-agent-reply-regression.py
 ```
+
+For concurrent builds, the settings regression script accepts `KULAHERE_DERIVED_DATA` to select an isolated DerivedData directory. It defaults to `build/DerivedData`.
 
 Standalone checks for native input fields and hotkeys:
 

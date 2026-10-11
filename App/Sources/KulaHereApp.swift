@@ -192,13 +192,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func openSettings() {
         if settingsWindow == nil {
-            let w = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: true)
-            w.title = "KulaHere 设置"
+            let w = SettingsWindow.make(app: model)
             w.level = .normal
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.isReleasedWhenClosed = false
             w.delegate = self
-            w.contentView = NSHostingView(rootView: SettingsView(app: model))
             w.center()
             settingsWindow = w
         }

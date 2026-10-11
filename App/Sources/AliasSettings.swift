@@ -5,7 +5,6 @@ import ToolService
 
 struct AliasSettings: View {
     @Bindable var app: AppModel
-    @State private var section = "aliases"
     @State private var alias = ""
     @State private var kind = "app"
     @State private var target = ""
@@ -14,13 +13,7 @@ struct AliasSettings: View {
     @State private var editing: UUID?
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("别名配置", selection: $section) {
-                Text("应用与快捷指令").tag("aliases")
-                Text("网页关键词").tag("keywords")
-            }.pickerStyle(.segmented).padding()
-            if section == "keywords" { KeywordSettings(app: app) }
-            else { Form {
+        Form {
             Section("应用与快捷指令别名") {
                 if app.preferences.aliases.isEmpty { Text("添加一个简短别名，输入后按回车打开应用或运行快捷指令。").foregroundStyle(.secondary) }
                 ForEach(app.preferences.aliases) { item in
@@ -67,8 +60,8 @@ struct AliasSettings: View {
                 }
                 if let message { Text(message).foregroundStyle(.secondary) }
             }
-            }.formStyle(.grouped) }
         }
+        .formStyle(.grouped)
          .task { shortcuts = await ToolService.listLauncherShortcuts() }
     }
 

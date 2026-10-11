@@ -29,9 +29,9 @@ struct CommandIcon: View {
 
     init(keyword: String) {
         if let brand = Brand(rawValue: keyword.lowercased()) {
-            image = Image(brand.asset)
+            image = Image(brand.asset).renderingMode(brand == .github ? .template : .original)
             // The official ChatGPT app artwork includes its own transparent inset.
-            artworkSize = brand == .chatGPT ? Self.size : 18
+            artworkSize = brand == .chatGPT ? Self.size : 20
         } else {
             image = Image(systemName: "globe")
             artworkSize = 18
@@ -47,13 +47,9 @@ struct CommandIcon: View {
     var body: some View {
         image.resizable().scaledToFit()
             .frame(width: artworkSize, height: artworkSize)
-            .clipShape(RoundedRectangle(cornerRadius: 4.5, style: .continuous))
+            .foregroundStyle(.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             .frame(width: Self.size, height: Self.size)
-            .background(.white)
             .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                    .strokeBorder(.black.opacity(0.08), lineWidth: 0.5)
-            }
     }
 }

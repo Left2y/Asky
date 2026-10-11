@@ -24,6 +24,7 @@ struct SettingsView: View {
             case .permissions: PermissionSettings()
             case .memory: MemorySettings(app: app)
             case .mcp: MCPSettings(app: app)
+            case .about: AboutSettings()
             }
         }
         .toggleStyle(.switch)

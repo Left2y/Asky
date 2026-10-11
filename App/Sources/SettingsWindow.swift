@@ -3,7 +3,7 @@ import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
     case general = "advanced", model, hotkey, aliases, keywords
-    case sources, permissions, memory, mcp
+    case sources, permissions, memory, mcp, about
 
     var id: String { rawValue }
     var title: String {
@@ -17,6 +17,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .permissions: NSLocalizedString("系统权限", comment: "")
         case .memory: NSLocalizedString("记忆", comment: "")
         case .mcp: NSLocalizedString("外部 MCP", comment: "")
+        case .about: NSLocalizedString("关于 Asky", comment: "")
         }
     }
     var symbol: String {
@@ -30,11 +31,12 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .permissions: "hand.raised.fill"
         case .memory: "brain"
         case .mcp: "point.3.connected.trianglepath.dotted"
+        case .about: "info.circle"
         }
     }
     var color: Color {
         switch self {
-        case .general, .hotkey: .gray
+        case .general, .hotkey, .about: .gray
         case .model, .memory: .purple
         case .aliases, .keywords: .orange
         case .sources: .blue

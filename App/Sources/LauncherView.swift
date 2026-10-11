@@ -53,8 +53,8 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        // Liquid Glass supplies its optical edge and depth. A second AppKit
-        // shadow outlines the transparent glass envelope below the surface.
+        // Keep AppKit from outlining the transparent glass envelope. Dark mode
+        // draws its own shape shadow outside the glass compositing layer.
         hasShadow = SurfaceCompatibility.useLegacyMaterial
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
@@ -433,6 +433,7 @@ struct LauncherView: View {
         .contentShape(shellShape)
         .clipShape(shellShape)
         .nativeGlassBackground(in: shellShape)
+        .floatingSurfaceShadow(in: shellShape)
         .contentShape(shellShape)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

@@ -205,9 +205,8 @@ struct AgentView: View {
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
         }
-        .padding(12)
-        .frame(height: showingHistory ? 60 : 56)
-        .animation(navigationAnimation, value: showingHistory)
+        .padding(.horizontal, 12)
+        .frame(height: 56)
     }
 
     private func headerIcon(_ symbol: String) -> some View {

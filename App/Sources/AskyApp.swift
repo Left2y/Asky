@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var pressure: MemoryPressureMonitor?
-    private var terminating = false
+    private let termination = ApplicationTermination()
     private let windowPresentation = WindowPresentation()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -95,21 +95,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !terminating, let model else { return .terminateNow }
-        terminating = true
-        clipboard?.stop()
-        clipboardWindow?.hide()
-        clipboardHotKey?.unregister()
-        reminders?.stop()
-        newAgentHotKey?.unregister()
-        hotKey?.unregister()
-        model.confirmations.rejectAll()
-        // Pi and its process group must be gone before the app exits (no orphans).
-        Task {
+        guard let model else { return .terminateNow }
+        return termination.request { [self] in
+            clipboard?.stop()
+            clipboardWindow?.hide()
+            clipboardHotKey?.unregister()
+            reminders?.stop()
+            newAgentHotKey?.unregister()
+            hotKey?.unregister()
+            model.confirmations.rejectAll()
+            // Pi and its process group must be gone before the app exits (no orphans).
             await model.shutdown()
-            NSApp.reply(toApplicationShouldTerminate: true)
         }
-        return .terminateLater
     }
 
     private func registerHotKey(code: UInt32, modifiers: UInt32) -> Bool {

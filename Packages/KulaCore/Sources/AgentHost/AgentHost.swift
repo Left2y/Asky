@@ -335,22 +335,18 @@ public actor AgentHost {
         try? p.write(HostMessage.shutdown.encoded())
         p.closeInput()
         let grace = config.shutdownGrace
-        let exited = await withTaskGroup(of: Bool.self) { g in
-            g.addTask { _ = await p.waitForExit(); return true }
-            g.addTask { try? await Task.sleep(for: grace); return false }
-            let first = await g.next() ?? false
-            g.cancelAll()
-            return first
-        }
-        if !exited {
+        // waitForExit uses a continuation and cannot be cancelled. Racing it in a
+        // task group would wait forever for the losing child before reaching kill.
+        let escalation = Task {
+            do { try await Task.sleep(for: grace) } catch { return }
             p.terminate(force: false)
-            try? await Task.sleep(for: .milliseconds(500))
-            p.terminate(force: true)
-            _ = await p.waitForExit()
-        } else {
-            // Leader exited; still sweep any descendants left in the group.
+            do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
             p.terminate(force: true)
         }
+        _ = await p.waitForExit()
+        escalation.cancel()
+        // Leader exited; still sweep any descendants left in the group.
+        p.terminate(force: true)
         readTask?.cancel()
         readTask = nil
         if process?.pid == p.pid { process = nil }

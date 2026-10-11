@@ -88,7 +88,8 @@ final class Launches: @unchecked Sendable {
 }
 
 func makeHost(idle: Duration = .seconds(60), protocolVersion: Int = WireProtocol.version,
-              configured: Bool = true, credentialError: AgentHostError? = nil, script: @escaping FakeRuntime.Script = echoScript,
+              configured: Bool = true, credentialError: AgentHostError? = nil, exitOnShutdown: Bool = true,
+              script: @escaping FakeRuntime.Script = echoScript,
               tool: @escaping AgentHost.ToolHandler = { .init(requestID: $0.requestID, status: .completed) })
     -> (AgentHost, Launches) {
     var cfg = AgentHostConfig()
@@ -98,7 +99,8 @@ func makeHost(idle: Duration = .seconds(60), protocolVersion: Int = WireProtocol
     cfg.maxToolRounds = 2
     let launches = Launches()
     let host = AgentHost(config: cfg, launcher: {
-        let p = FakeRuntime(pid: Int32(1000 + launches.count), protocolVersion: protocolVersion, script: script)
+        let p = FakeRuntime(pid: Int32(1000 + launches.count), protocolVersion: protocolVersion,
+                            exitOnShutdown: exitOnShutdown, script: script)
         launches.list.withLock { $0.append(p) }
         return p
     }, configProvider: {
@@ -216,6 +218,18 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
         #expect(second.contains { if case .error = $0 { true } else { false } })
         await host.shutdown()
         #expect(finalState(await collect(first)) == .cancelled)
+    }
+
+    @Test func shutdownKillsRuntimeThatIgnoresShutdownAndTerm() async {
+        let (host, launches) = makeHost(exitOnShutdown: false)
+        _ = await collect(await host.submit(AgentRequest(sessionID: "s", text: "a")))
+        let clock = ContinuousClock()
+        let start = clock.now
+        await host.shutdown()
+        #expect(clock.now - start < .seconds(3))
+        #expect(launches.last?.exited == true)
+        #expect(await host.runningPID == nil)
+        #expect(await host.state == .notRunning)
     }
 
     @Test func crashDuringToolMarksPendingVerification() async {

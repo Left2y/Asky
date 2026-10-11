@@ -144,7 +144,7 @@ python3 scripts/package-release.py --version 0.0.5 --build 5 \
   --node-root build/node-v22.23.3-darwin-arm64
 ```
 
-脚本生成 `build/releases/0.0.5/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。
+脚本生成 `build/releases/0.0.5/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
 ### 开源协议
 
@@ -281,7 +281,7 @@ python3 scripts/package-release.py --version 0.0.5 --build 5 \
   --node-root build/node-v22.23.3-darwin-arm64
 ```
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.5/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory.
+The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.5/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
 
 ### License
 

@@ -63,14 +63,33 @@ sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
 (release_dir / (zip_path.name + '.sha256')).write_text(f'{sha}  {zip_path.name}\n')
 print(json.dumps({'artifact': str(zip_path), 'sha256': sha, 'size': zip_path.stat().st_size}))
 
-# A standard drag-install image: the app and a shortcut to Applications.
+# Customize Finder on a writable image, then freeze it as a compressed DMG.
 with tempfile.TemporaryDirectory(prefix='asky-dmg-') as temp:
-    folder = Path(temp)
+    workspace = Path(temp)
+    folder = workspace / 'contents'
+    folder.mkdir()
     shutil.copytree(app, folder / 'Asky.app', symlinks=True)
     (folder / 'Applications').symlink_to('/Applications')
+    (folder / '.background').mkdir()
+    shutil.copy2(repo / 'scripts/dmg/background.tiff', folder / '.background/background.tiff')
+    writable = workspace / 'installer.dmg'
+    mount = workspace / 'mount'
     dmg = release_dir / f'Asky-{args.version}-macos-arm64.dmg'
+    if dmg.exists():
+        raise SystemExit(f'Release image already exists: {dmg}')
     subprocess.run(['hdiutil', 'create', '-volname', f'Asky {args.version}', '-srcfolder', str(folder),
-                    '-format', 'UDZO', str(dmg)], check=True)
+                    '-fs', 'HFS+', '-format', 'UDRW', str(writable)], check=True)
+    subprocess.run(['hdiutil', 'attach', '-nobrowse', '-noautoopen', '-mountpoint', str(mount),
+                    str(writable)], check=True)
+    try:
+        subprocess.run(['osascript', str(repo / 'scripts/dmg/layout.applescript'), str(mount)],
+                       check=True, timeout=60)
+        if not (mount / '.DS_Store').is_file():
+            raise RuntimeError('Finder did not persist the installer layout')
+        subprocess.run(['sync'], check=True)
+    finally:
+        subprocess.run(['hdiutil', 'detach', str(mount)], check=True)
+    subprocess.run(['hdiutil', 'convert', str(writable), '-format', 'UDZO', '-o', str(dmg)], check=True)
     checksum = hashlib.sha256(dmg.read_bytes()).hexdigest()
     (release_dir / (dmg.name + '.sha256')).write_text(f'{checksum}  {dmg.name}\n')
     subprocess.run(['hdiutil', 'verify', str(dmg)], check=True)

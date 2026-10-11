@@ -36,7 +36,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--system-app-names") {
+                    if CommandLine.arguments.contains("--command-icons") {
+                        try await checkCommandIcons()
+                    } else if CommandLine.arguments.contains("--system-app-names") {
                         try await checkSystemAppNames()
                     } else if CommandLine.arguments.contains("--alias-routing") {
                         try await checkAliasRouting()
@@ -60,6 +62,70 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private static func checkCommandIcons() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-command-icons-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [])
+        let controller = LauncherController(model: model)
+        controller.show()
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) else {
+            throw NSError(domain: "CommandIconsRegression", code: 1)
+        }
+        (panel as? LauncherPanel)?.onBlur = {}
+        defer { controller.hide() }
+        for command in app.keywords.commands {
+            model.reset()
+            panel.contentView?.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(80))
+            guard let field = commandSearchField(in: panel.contentView),
+                  panel.makeFirstResponder(field), let editor = field.currentEditor() as? NSTextView else {
+                throw NSError(domain: "CommandIconsRegression", code: 2)
+            }
+            for text in [command.keyword, " ", "SwiftUI"] {
+                editor.insertText(text, replacementRange: editor.selectedRange())
+                field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
+            }
+            try require(model.commandInput?.command.keyword == command.keyword && model.inputText == "SwiftUI",
+                        "native field must consume \(command.keyword) on Space")
+            try require(field.stringValue == "SwiftUI" && editor.string == "SwiftUI",
+                        "the native editor must hide the command token")
+            try require(model.results.count == 1 && model.keyword(for: model.results[0]) == command.keyword,
+                        "scoped result must retain the matching command")
+            try require(NSImage(named: CommandIcon.Brand(rawValue: command.keyword)!.asset) != nil,
+                        "missing bundled logo for \(command.keyword)")
+            try await Task.sleep(for: .milliseconds(200))
+            panel.contentView?.layoutSubtreeIfNeeded()
+            guard let view = panel.contentView,
+                  let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                throw NSError(domain: "CommandIconsRegression", code: 3)
+            }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            let appearance = NSApp.appearance?.name.rawValue ?? "default"
+            try bitmap.representation(using: .png, properties: [:])?.write(
+                to: URL(filePath: "build/command-icon-\(appearance)-\(command.keyword).png"))
+            model.inputText = ""
+            try require(model.backspaceOnEmptyInput() && !model.hasScope,
+                        "empty Backspace must leave \(command.keyword) mode")
+        }
+        model.query = "> pwd"
+        try require(model.isTerminalScope && model.inputText == "pwd", "terminal scope must still work")
+        try await Task.sleep(for: .milliseconds(200))
+        panel.contentView?.layoutSubtreeIfNeeded()
+        if let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])?.write(to: URL(filePath:
+                "build/command-icon-\(NSApp.appearance!.name.rawValue)-terminal.png"))
+        }
+        print("All eight native command fields, bundled logos, scoped results and Backspace passed")
+    }
+
+    private static func commandSearchField(in view: NSView?) -> NSTextField? {
+        guard let view else { return nil }
+        if let field = view as? NSTextField, field.isEditable { return field }
+        return view.subviews.lazy.compactMap { commandSearchField(in: $0) }.first
     }
 
     private static func checkSystemAppNames() async throws {

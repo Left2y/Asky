@@ -347,15 +347,11 @@ struct LauncherView: View {
 
     @ViewBuilder private var commandIcon: some View {
         if model.isTerminalScope {
-            if let icon = model.terminalIcon {
-                Image(nsImage: icon).resizable().scaledToFit()
-            }
+            CommandIcon(terminalIcon: model.terminalIcon)
         } else if model.isBookmarkScope {
             Image("Bookmark").resizable().scaledToFit()
-        } else if let command = model.commandInput?.command,
-           let url = command.url(for: ""),
-           let icon = ToolService.launcherBrowserIcon(for: url) {
-            Image(nsImage: icon).resizable().scaledToFit()
+        } else if let command = model.commandInput?.command {
+            CommandIcon(keyword: command.keyword)
         } else {
             Image(systemName: "globe").font(.system(size: 20)).foregroundStyle(ThemeColor.kIcon)
         }
@@ -626,9 +622,7 @@ private struct ResultRow: View {
         case .app, .file:
             Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
         case .terminal:
-            if let terminalIcon {
-                Image(nsImage: terminalIcon).resizable().scaledToFit()
-            }
+            CommandIcon(terminalIcon: terminalIcon)
         case .currency:
             if let flag = CurrencyPresentation.flag(for: result.target.identifier) {
                 Text(flag).font(.system(size: 28))
@@ -644,7 +638,9 @@ private struct ResultRow: View {
                 .shadow(color: .black.opacity(0.16), radius: 1, x: 0, y: 1)
                 .padding(3)
         case .bookmark, .keyword:
-            if result.target.kind == "launcher-alias", result.primaryAction == .open {
+            if result.source == .keyword, let keyword, CommandIcon.Brand(rawValue: keyword) != nil {
+                CommandIcon(keyword: keyword)
+            } else if result.target.kind == "launcher-alias", result.primaryAction == .open {
                 Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
                 Image(nsImage: ToolService.launcherIcon(filePath: "/System/Applications/Shortcuts.app")).resizable().scaledToFit()

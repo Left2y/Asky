@@ -14,10 +14,7 @@ struct CommandSettings: View {
                         Text(NSLocalizedString(command.name, comment: ""))
                     } label: {
                         HStack(spacing: 10) {
-                            Image("Command" + logoName(for: command.keyword))
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
+                            CommandIcon(keyword: command.keyword)
                                 .accessibilityHidden(true)
                             Text(command.keyword).font(.system(.body, design: .monospaced))
                         }
@@ -27,14 +24,7 @@ struct CommandSettings: View {
                     Text(NSLocalizedString("终端命令", comment: ""))
                 } label: {
                     HStack(spacing: 10) {
-                        Group {
-                            if let icon = ToolService.launcherTerminalIcon(selectedTerminal) {
-                                Image(nsImage: icon).resizable().scaledToFit()
-                            } else {
-                                Image(systemName: "terminal").resizable().scaledToFit()
-                            }
-                        }
-                        .frame(width: 20, height: 20)
+                        CommandIcon(terminalIcon: ToolService.launcherTerminalIcon(selectedTerminal))
                         .accessibilityHidden(true)
                         Text(">").font(.system(.body, design: .monospaced))
                     }
@@ -48,9 +38,8 @@ struct CommandSettings: View {
                     set: { app.settings.terminalApplicationID = $0 })) {
                     ForEach(terminalChoices) { terminal in
                         HStack {
-                            if let icon = ToolService.launcherTerminalIcon(terminal) {
-                                Image(nsImage: icon).resizable().scaledToFit().frame(width: 20, height: 20)
-                            }
+                            CommandIcon(terminalIcon: ToolService.launcherTerminalIcon(terminal))
+                                .accessibilityHidden(true)
                             Text(terminal.name + (terminals.contains(terminal) ? "" : NSLocalizedString("（未安装）", comment: "")))
                         }.tag(terminal.rawValue)
                     }
@@ -72,17 +61,4 @@ struct CommandSettings: View {
         return terminals.contains(selectedTerminal) ? terminals : terminals + [selectedTerminal]
     }
 
-    private func logoName(for keyword: String) -> String {
-        switch keyword {
-        case "go": "Google"
-        case "chat": "ChatGPT"
-        case "yt": "YouTube"
-        case "dy": "Douyin"
-        case "tb": "Taobao"
-        case "jd": "JD"
-        case "bl": "Bilibili"
-        case "gh": "GitHub"
-        default: "Google"
-        }
-    }
 }

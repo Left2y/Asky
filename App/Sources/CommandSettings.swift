@@ -13,13 +13,31 @@ struct CommandSettings: View {
                     LabeledContent {
                         Text(NSLocalizedString(command.name, comment: ""))
                     } label: {
-                        Text(command.keyword).font(.system(.body, design: .monospaced))
+                        HStack(spacing: 10) {
+                            Image("Command" + logoName(for: command.keyword))
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                                .accessibilityHidden(true)
+                            Text(command.keyword).font(.system(.body, design: .monospaced))
+                        }
                     }
                 }
                 LabeledContent {
                     Text(NSLocalizedString("终端命令", comment: ""))
                 } label: {
-                    Text(">").font(.system(.body, design: .monospaced))
+                    HStack(spacing: 10) {
+                        Group {
+                            if let icon = ToolService.launcherTerminalIcon(selectedTerminal) {
+                                Image(nsImage: icon).resizable().scaledToFit()
+                            } else {
+                                Image(systemName: "terminal").resizable().scaledToFit()
+                            }
+                        }
+                        .frame(width: 20, height: 20)
+                        .accessibilityHidden(true)
+                        Text(">").font(.system(.body, design: .monospaced))
+                    }
                 }
                 Text(NSLocalizedString("输入指令后按空格，再输入内容。内置指令固定，无需添加或修改。", comment: ""))
                     .foregroundStyle(.secondary)
@@ -46,8 +64,25 @@ struct CommandSettings: View {
         .onAppear { terminals = ToolService.installedLauncherTerminals() }
     }
 
+    private var selectedTerminal: LauncherTerminalApplication {
+        app.settings.terminalApplicationID.flatMap(LauncherTerminalApplication.init(rawValue:)) ?? .system
+    }
+
     private var terminalChoices: [LauncherTerminalApplication] {
-        let selected = app.settings.terminalApplicationID.flatMap(LauncherTerminalApplication.init(rawValue:)) ?? .system
-        return terminals.contains(selected) ? terminals : terminals + [selected]
+        return terminals.contains(selectedTerminal) ? terminals : terminals + [selectedTerminal]
+    }
+
+    private func logoName(for keyword: String) -> String {
+        switch keyword {
+        case "go": "Google"
+        case "chat": "ChatGPT"
+        case "yt": "YouTube"
+        case "dy": "Douyin"
+        case "tb": "Taobao"
+        case "jd": "JD"
+        case "bl": "Bilibili"
+        case "gh": "GitHub"
+        default: "Google"
+        }
     }
 }

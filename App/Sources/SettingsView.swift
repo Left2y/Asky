@@ -608,14 +608,21 @@ private struct PermissionSettings: View {
             }
             Section("系统权限") {
                 ForEach(SystemPermission.allCases) { permission in
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: symbol(for: permission))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(iconColor(for: permission), in: RoundedRectangle(cornerRadius: 7))
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(permission.title)
-                            Spacer()
                             Text(states[permission]?.rawValue ?? "正在检查…")
                                 .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        HStack {
+                        Spacer(minLength: 12)
+                        HStack(spacing: 8) {
                             if states[permission]?.canRequest == true {
                                 Button(requesting == permission ? "正在请求…" : "请求授权") {
                                     requesting = permission
@@ -635,7 +642,9 @@ private struct PermissionSettings: View {
                                 catch { message = error.localizedDescription }
                             }
                         }
+                        .fixedSize()
                     }
+                    .padding(.vertical, 4)
                 }
                 Button("刷新权限状态") { Task { await refresh() } }
                 if let message { Text(message).textStyle(.secondary).textSelection(.enabled) }
@@ -654,5 +663,28 @@ private struct PermissionSettings: View {
 
     private func refresh() async {
         for permission in SystemPermission.allCases { states[permission] = await SystemPermissions.state(permission) }
+    }
+
+    private func symbol(for permission: SystemPermission) -> String {
+        switch permission {
+        case .calendar: "calendar"
+        case .reminders: "checklist"
+        case .contacts: "person.crop.rectangle"
+        case .screenRecording: "record.circle"
+        case .accessibility: "accessibility"
+        case .automation: "gearshape.2"
+        case .notifications: "bell.badge"
+        }
+    }
+
+    private func iconColor(for permission: SystemPermission) -> Color {
+        switch permission {
+        case .calendar, .screenRecording: .red
+        case .reminders: .orange
+        case .contacts: .brown
+        case .accessibility: .blue
+        case .automation: .gray
+        case .notifications: .purple
+        }
     }
 }

@@ -29,6 +29,38 @@ final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
     }
 }
 
+enum LauncherFilter: String, CaseIterable, Identifiable {
+    case all, applications, files, quickLinks, shortcuts
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .all: "全部"
+        case .applications: "应用"
+        case .files: "文件"
+        case .quickLinks: "快捷方式"
+        case .shortcuts: "快捷指令"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .all: "magnifyingglass"
+        case .applications: "app.badge"
+        case .files: "folder"
+        case .quickLinks: "link"
+        case .shortcuts: "square.stack.3d.up"
+        }
+    }
+    func includes(_ source: SearchSource) -> Bool {
+        switch self {
+        case .all: true
+        case .applications: source == .app
+        case .files: source == .file
+        case .quickLinks: source == .keyword
+        case .shortcuts: source == .shortcut
+        }
+    }
+}
+
 struct TerminalSession: Identifiable {
     let id = UUID()
     let command: String
@@ -40,11 +72,30 @@ struct TerminalSession: Identifiable {
 
 @MainActor @Observable
 final class LauncherModel {
+    var isPinned = false { didSet { onPinChanged() } }
+    var onPinChanged: () -> Void = {}
+    var isFilterMenuPresented = false
+    private(set) var filter = LauncherFilter.all
+    private var filterText = ""
+
+    func setFilter(_ value: LauncherFilter) {
+        let text = inputText
+        filter = value
+        filterText = text
+        if value == .all { inputState.replaceRawQuery(text, keywords: app.keywords) }
+        isFilterMenuPresented = false
+        if value != .all { inputState.leaveCommand() }
+        rebuildProviders()
+        batches = []
+        update()
+    }
+
     private var inputState = LauncherInputState()
     var query: String {
-        get { inputState.rawQuery }
+        get { filter == .all ? inputState.rawQuery : filterText }
         set {
-            inputState.replaceRawQuery(newValue, keywords: app.keywords)
+            if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords) }
+            else { filterText = newValue }
             update()
         }
     }
@@ -82,8 +133,10 @@ final class LauncherModel {
     }
 
     func rebuildProviders() {
+        coordinator.cancel()
+        bookmarkCoordinator?.cancel()
         if let searchProviders {
-            let general = searchProviders.filter { $0.source != .bookmark }
+            let general = searchProviders.filter { $0.source != .bookmark && filter.includes($0.source) }
             let marks = searchProviders.filter { $0.source == .bookmark }
             searchProviderCount = general.count
             searchSources = Set(general.map(\.source))
@@ -107,6 +160,7 @@ final class LauncherModel {
         } else {
             bookmarkCoordinator = nil
         }
+        providers = providers.filter { filter.includes($0.source) }
         searchProviderCount = providers.count
         searchSources = Set(providers.map(\.source))
         coordinator = SearchCoordinator(providers: providers)
@@ -114,6 +168,10 @@ final class LauncherModel {
 
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
+        isPinned = false
+        isFilterMenuPresented = false
+        filter = .all
+        filterText = ""
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
         searchTask?.cancel()
@@ -137,7 +195,7 @@ final class LauncherModel {
     }
 
     var calculation: (expression: String, result: String)? {
-        guard !hasScope, case .calculation(_, let value) = router.route(query) else { return nil }
+        guard filter == .all, !hasScope, case .calculation(_, let value) = router.route(query) else { return nil }
         return (query, Calculator.format(value))
     }
 
@@ -154,9 +212,10 @@ final class LauncherModel {
     var hasScope: Bool { inputState.hasScope }
 
     var inputText: String {
-        get { inputState.text }
+        get { filter == .all ? inputState.text : filterText }
         set {
-            inputState.edit(newValue, keywords: app.keywords)
+            if filter == .all { inputState.edit(newValue, keywords: app.keywords) }
+            else { filterText = newValue }
             update()
         }
     }
@@ -195,7 +254,9 @@ final class LauncherModel {
             searchBookmarks(inputState.text)
             return
         }
-        let route = isTerminalScope && inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let route: Route = filter != .all
+            ? (query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .empty : .search(query: query))
+            : isTerminalScope && inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? Route.empty
             : commandInput.map { Route.keyword($0.command, query: $0.text) } ?? router.route(query)
         isSearching = router.includesSearch(route) && searchProviderCount > 0
@@ -218,7 +279,7 @@ final class LauncherModel {
                                     actions: [action], score: 100)
             }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if bookmarkCoordinator != nil, !trimmed.isEmpty {
+            if filter == .all, bookmarkCoordinator != nil, !trimmed.isEmpty {
                 direct.append(SearchResult(source: .bookmark, target: TargetRef(kind: Self.bookmarkSearchKind, identifier: trimmed),
                                            title: NSLocalizedString("搜索书签", comment: ""), subtitle: trimmed, actions: [.open], score: 0))
             }
@@ -320,14 +381,15 @@ final class LauncherModel {
         var merged = direct + ResultMerger.merge(batches, limit: 40)
         // Generic search shortcuts are not local matches. Plain text with no
         // concrete target falls back to AI regardless of its wording.
-        if !hasScope, case .search = router.route(query) {
+        if filter == .all, !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
                 ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias")) && $0.source != .askAI && $0.target.kind != "bookmark-search"
             }
             if !hasLocalMatch { merged = [] }
         }
-        if !hasScope, !merged.contains(where: { $0.source == .askAI }),
+        if filter == .all, !hasScope, !merged.contains(where: { $0.source == .askAI }),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
+        merged = merged.filter { filter.includes($0.source) }
         let order: [SearchSource] = [.app, .link, .bookmark, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
         let priority = merged.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") || $0.source == .shortcut }
         let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.target.kind != "launcher-alias" && $0.source != .shortcut }

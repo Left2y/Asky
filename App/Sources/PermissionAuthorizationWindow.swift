@@ -71,7 +71,7 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
         panel.isReleasedWhenClosed = false
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = false
+        panel.hasShadow = true
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
@@ -264,12 +264,7 @@ private struct PermissionAuthorizationView: View {
         .padding(20)
         .frame(width: 360)
         .foregroundStyle(ThemeColor.kText)
-        .background {
-            let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
-            shape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                .glassEffect(reduceTransparency ? .identity : .regular, in: shape)
-                .shadow(color: .black.opacity(0.16), radius: 14, y: 5)
-        }
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .padding(20)
     }
 

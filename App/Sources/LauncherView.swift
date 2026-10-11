@@ -11,6 +11,8 @@ enum LauncherLayout {
     static let topInsetFraction: CGFloat = 0.12
     static let bottomClearance: CGFloat = 24
     static let inputHeight: CGFloat = 64
+    static let accessorySpacing: CGFloat = 12
+    static let toolbarWidth = WindowMetrics.launcherWidth
     static let inputLeadingPadding: CGFloat = 28
     static let inputTrailingPadding: CGFloat = 28
     static let inputSpacing: CGFloat = 12
@@ -42,7 +44,7 @@ final class LauncherPanel: NSPanel {
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0,
-                                      width: WindowMetrics.launcherWidth + LauncherLayout.shadowPadding * 2,
+                                      width: LauncherLayout.toolbarWidth + LauncherLayout.shadowPadding * 2,
                                       height: LauncherLayout.inputHeight + LauncherLayout.shadowPadding * 2),
                    styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
                    backing: .buffered, defer: true)
@@ -52,7 +54,7 @@ final class LauncherPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         // The SwiftUI shell supplies the shadow; avoid a rectangular window shadow.
-        hasShadow = false
+        hasShadow = true
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
         isReleasedWhenClosed = false
@@ -96,6 +98,7 @@ final class LauncherPanel: NSPanel {
 @MainActor
 final class LauncherController {
     private let panel = LauncherPanel()
+    private let outsideClickDismissal = OutsideClickDismissal()
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
     private var contentID = UUID()
@@ -107,11 +110,18 @@ final class LauncherController {
         self.model = model
         panel.onEscape = { [weak self] in
             guard let self else { return }
-            if self.model.hasScope { self.model.leaveCommand() }
+            if self.model.isFilterMenuPresented { self.model.isFilterMenuPresented = false }
+            else if self.model.hasScope { self.model.leaveCommand() }
             else { self.hide() }
         }
-        panel.onBlur = { [weak self] in self?.hide() }
+        panel.onBlur = { [weak self] in
+            guard let self else { return }
+            self.model.isFilterMenuPresented = false
+            guard !self.model.isPinned else { return }
+            self.hide()
+        }
         model.onHide = { [weak self] in self?.hide() }
+        model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
     }
 
     var onOpenSettings: () -> Void {
@@ -161,11 +171,21 @@ final class LauncherController {
         }
         // Anchor near the top of the pointer screen, leaving room for results below.
         if let f = screen?.visibleFrame {
-            let w = WindowMetrics.launcherWidth + LauncherLayout.shadowPadding * 2
+            let w = LauncherLayout.toolbarWidth + LauncherLayout.shadowPadding * 2
             panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
                                               y: f.maxY - f.height * LauncherLayout.topInsetFraction + LauncherLayout.shadowPadding))
         }
         panel.makeKeyAndOrderFront(nil)
+        updateOutsideClickDismissal()
+    }
+
+    private func updateOutsideClickDismissal() {
+        guard panel.isVisible, !model.isPinned else { outsideClickDismissal.hide(); return }
+        outsideClickDismissal.show(below: panel, contains: { [weak self] point in
+            guard let self else { return false }
+            return self.panel.frame.insetBy(dx: LauncherLayout.shadowPadding,
+                                           dy: LauncherLayout.shadowPadding).contains(point)
+        }, dismiss: { [weak self] in self?.hide() })
     }
 
     private func resize(to contentHeight: CGFloat) {
@@ -183,6 +203,7 @@ final class LauncherController {
         // The panel's origin and content layout must change in the same main-
         // actor turn; otherwise the live editor briefly stays at the old height.
         hosting?.layoutSubtreeIfNeeded()
+        panel.invalidateShadow()
     }
 
     /// Hiding releases the SwiftUI tree and the result payloads (panel resource scope).
@@ -190,6 +211,7 @@ final class LauncherController {
         guard panel.isVisible, !hiding else { return }
         hiding = true
         defer { hiding = false }
+        outsideClickDismissal.hide()
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
@@ -205,9 +227,10 @@ struct LauncherView: View {
     var maxShellHeight: CGFloat = CGFloat(WindowMetrics.launcherMaxHeight)
     var onHeightChange: (CGFloat) -> Void = { _ in }
     @State private var statusHeight: CGFloat = 0
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @State private var accessoriesVisible = false
+    @State private var hoveredFilter: LauncherFilter?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     private var shellShape: RoundedRectangle {
         // At 64 pt high, the 32 pt corners already form the empty capsule.
@@ -217,8 +240,135 @@ struct LauncherView: View {
 
     private var hasInput: Bool { !model.query.isEmpty }
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
+    private var showsAccessories: Bool { accessoriesVisible && !hasInput }
+    private var searchWidth: CGFloat {
+        LauncherLayout.toolbarWidth - (showsAccessories ? 2 * (inputHeight + LauncherLayout.accessorySpacing) : 0)
+    }
+    private var revealAnimation: Animation? {
+        if reduceMotion { return nil }
+        // Typing should recover the full input width immediately; keep the
+        // more expressive spring only for the empty launcher's separation.
+        return hasInput ? .smooth(duration: 0.18, extraBounce: 0)
+            : .spring(response: 0.28, dampingFraction: 0.78)
+    }
 
     var body: some View {
+        ZStack(alignment: .topLeading) {
+            searchShell
+                .simultaneousGesture(TapGesture().onEnded { model.isFilterMenuPresented = false })
+                .animation(reduceMotion ? nil : .smooth(duration: hasInput ? 0.18 : 0.12), value: showsAccessories)
+            HStack(spacing: LauncherLayout.accessorySpacing) {
+                accessory("pin", selected: model.isPinned, index: 0,
+                          label: model.isPinned ? "取消固定" : "固定窗口") {
+                    model.isPinned.toggle()
+                }
+                accessory("line.3.horizontal.decrease", selected: model.filter != .all || model.isFilterMenuPresented,
+                          index: 1, label: "筛选搜索") {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.22)) {
+                        model.isFilterMenuPresented.toggle()
+                    }
+                }
+            }
+            .frame(width: LauncherLayout.toolbarWidth, height: inputHeight, alignment: .trailing)
+        }
+        .frame(width: LauncherLayout.toolbarWidth, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .onChange(of: hasInput) { _, searching in
+            if searching { model.isFilterMenuPresented = false }
+        }
+        .overlay(alignment: .topTrailing) {
+            if model.isFilterMenuPresented && !hasInput {
+                filterMenu
+                    .padding(.top, inputHeight + 12)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .topTrailing)))
+            }
+        }
+        .frame(minHeight: model.isFilterMenuPresented && !hasInput ? 320 : 0, alignment: .top)
+        .padding(LauncherLayout.shadowPadding)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
+        .task {
+            if reduceMotion { accessoriesVisible = true; return }
+            try? await Task.sleep(for: .milliseconds(20))
+            guard !Task.isCancelled else { return }
+            withAnimation(revealAnimation) {
+                accessoriesVisible = true
+            }
+        }
+    }
+
+    private func accessory(_ symbol: String, selected: Bool, index: Int, label: String,
+                           action: @escaping () -> Void) -> some View {
+        let glintEnabled = showsAccessories && !reduceMotion
+        return Button(action: action) {
+            Image(systemName: symbol + (symbol == "pin" && selected ? ".fill" : ""))
+                .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
+                .foregroundStyle(selected ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
+                .frame(width: inputHeight, height: inputHeight)
+                .contentShape(.interaction, Circle())
+        }
+        .buttonStyle(LauncherAccessoryButtonStyle(size: inputHeight))
+        .overlay {
+            // A single edge glint as each glass circle separates from the field.
+            // Keep it out of the hit area and suppress it for reduced motion.
+            Circle()
+                .strokeBorder(.white, lineWidth: 1)
+                .keyframeAnimator(initialValue: 0.0, trigger: showsAccessories) { edge, brightness in
+                    edge.opacity(glintEnabled ? brightness : 0)
+                } keyframes: { _ in
+                    LinearKeyframe(0.0, duration: Double(1 - index) * 0.035 + 0.04)
+                    LinearKeyframe(0.32, duration: 0.055)
+                    CubicKeyframe(0.0, duration: 0.18)
+                }
+                .allowsHitTesting(false)
+        }
+        .scaleEffect(showsAccessories ? 1 : 0.82)
+        .opacity(showsAccessories ? 1 : 0)
+        .offset(x: showsAccessories || reduceMotion ? 0 : CGFloat(2 - index) * 28)
+        .animation(reduceMotion ? nil : hasInput ? .smooth(duration: 0.18, extraBounce: 0)
+            : .spring(response: 0.28, dampingFraction: 0.78).delay(Double(1 - index) * 0.035),
+                   value: showsAccessories)
+        .transition(.scale(scale: 0.6).combined(with: .opacity))
+        .allowsHitTesting(showsAccessories)
+        .accessibilityHidden(!showsAccessories)
+        .accessibilityLabel(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
+        .accessibilityValue(selected ? "On" : "Off")
+        .help(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
+    }
+
+    private var filterMenu: some View {
+        VStack(spacing: 4) {
+            ForEach(LauncherFilter.allCases) { filter in
+                Button {
+                    model.setFilter(filter)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: filter.icon).frame(width: 22)
+                        Text(NSLocalizedString(filter.title, tableName: "Launcher", comment: "Launcher filter"))
+                        Spacer()
+                        if model.filter == filter { Image(systemName: "checkmark") }
+                    }
+                    .font(.system(size: 14))
+                    .padding(.horizontal, 14)
+                    .frame(height: 40)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .background(model.filter == filter || hoveredFilter == filter ? ThemeColor.kInteractionHover.color(for: colorScheme) : .clear,
+                            in: RoundedRectangle(cornerRadius: 12))
+                .onHover { inside in
+                    if inside { hoveredFilter = filter }
+                    else if hoveredFilter == filter { hoveredFilter = nil }
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: 220)
+        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24))
+        .onDisappear { hoveredFilter = nil }
+    }
+
+    private var searchShell: some View {
         VStack(spacing: 0) {
             HStack(spacing: LauncherLayout.inputSpacing) {
                 if model.hasScope {
@@ -275,65 +425,14 @@ struct LauncherView: View {
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
         }
-        .frame(width: WindowMetrics.launcherWidth)
+        .frame(width: searchWidth)
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         // Blank input/result areas must belong to the shell's pointer region.
         .contentShape(shellShape)
         .clipShape(shellShape)
-        .background {
-            shellShape
-                .fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                // Keep the glass hit-testable: disabling its interaction lets
-                // WindowServer target another app through otherwise blank areas.
-                .glassEffect(reduceTransparency ? .identity : .regular, in: shellShape)
-                .environment(\.colorScheme, colorScheme)
-                .accessibilityHidden(true)
-        }
-        .overlay {
-            if reduceTransparency || colorSchemeContrast == .increased {
-                shellShape.strokeBorder(
-                    (hasInput ? ThemeColor.kBorder : ThemeColor.kBorderFocused).color(for: colorScheme),
-                    lineWidth: 1
-                )
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            } else {
-                // The native glass already supplies a rim. Dark surfaces need
-                // only a faint upper-left highlight, with no bright lower edge.
-                shellShape.strokeBorder(
-                    LinearGradient(stops: [
-                        .init(color: .white.opacity(colorScheme == .dark ? 0.18 : 0.80), location: 0),
-                        .init(color: .white.opacity(colorScheme == .dark ? 0.06 : 0.24), location: 0.30),
-                        .init(color: .black.opacity(colorScheme == .dark ? 0.12 : 0.08), location: 0.65),
-                        .init(color: .white.opacity(colorScheme == .dark ? 0.04 : 0.32), location: 1)
-                    ], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1
-                )
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            }
-        }
-        .padding(LauncherLayout.shadowPadding)
-        .background {
-            // Draw the shadow outside the shell in the padded canvas,
-            // without negative layout padding.
-            shellShape.fill(.black)
-                .padding(LauncherLayout.shadowPadding)
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.40 : 0.24), radius: LauncherLayout.shadowRadius,
-                        x: 0, y: LauncherLayout.shadowOffsetY)
-                .mask {
-                    Rectangle().overlay {
-                        shellShape.fill(.black)
-                            .padding(LauncherLayout.shadowPadding)
-                            .blendMode(.destinationOut)
-                    }
-                    .compositingGroup()
-                }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
+        .nativeGlassBackground(in: shellShape, interactive: true)
+        .contentShape(shellShape)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
         }
@@ -364,6 +463,34 @@ struct LauncherView: View {
             .padding(.horizontal, 28)
     }
 
+}
+
+private struct LauncherAccessoryButtonStyle: ButtonStyle {
+    let size: CGFloat
+    @State private var isHovered = false
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(width: size, height: size)
+            .nativeGlassBackground(in: Circle())
+            .overlay {
+                Circle()
+                    .fill(ThemeColor.kInteractionHover.color(for: colorScheme))
+                    .opacity(isEnabled ? (configuration.isPressed ? 1 : isHovered ? 0.6 : 0) : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            // Keep the material inside the button label so its whole circle
+            // participates in the button's native press and release gesture.
+            .contentShape(.interaction, Circle())
+            .scaleEffect(configuration.isPressed && isEnabled ? 0.96 : 1)
+            .onHover { isHovered = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
+    }
 }
 
 /// The input field owns editing and Return still copies the computed result.

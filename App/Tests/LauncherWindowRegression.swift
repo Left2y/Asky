@@ -36,7 +36,11 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--command-icons") {
+                    if CommandLine.arguments.contains("--accessories-preview") {
+                        try await previewAccessories()
+                    } else if CommandLine.arguments.contains("--accessories") {
+                        try await checkAccessories()
+                    } else if CommandLine.arguments.contains("--command-icons") {
                         try await checkCommandIcons()
                     } else if CommandLine.arguments.contains("--system-app-names") {
                         try await checkSystemAppNames()
@@ -62,6 +66,107 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private static func previewAccessories() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-preview-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [
+            WindowSearchProvider(source: .app, delay: .milliseconds(10), count: 3),
+            WindowSearchProvider(source: .file, delay: .milliseconds(250), count: 2),
+            WindowSearchProvider(source: .shortcut, delay: .milliseconds(10), count: 2),
+        ])
+        let controller = LauncherController(model: model)
+        defer { controller.hide() }
+        if CommandLine.arguments.contains("--motion") {
+            try await Task.sleep(for: .seconds(1))
+            for _ in 0..<3 {
+                controller.show()
+                (NSApp.windows.first { $0 is LauncherPanel && $0.isVisible } as? LauncherPanel)?.onBlur = {}
+                NSApp.activate(ignoringOtherApps: true)
+                try await Task.sleep(for: .seconds(2))
+                model.inputText = "Safari"
+                try await Task.sleep(for: .seconds(2))
+                model.inputText = ""
+                try await Task.sleep(for: .seconds(2))
+                controller.hide()
+                try await Task.sleep(for: .seconds(1))
+            }
+        } else {
+            controller.show()
+            (NSApp.windows.first { $0 is LauncherPanel && $0.isVisible } as? LauncherPanel)?.onBlur = {}
+            NSApp.activate(ignoringOtherApps: true)
+            try await Task.sleep(for: .seconds(180))
+        }
+    }
+
+    private static func checkAccessories() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-accessories-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [
+            WindowSearchProvider(source: .app, delay: .milliseconds(10), count: 3),
+            WindowSearchProvider(source: .file, delay: .milliseconds(250), count: 2),
+            WindowSearchProvider(source: .shortcut, delay: .milliseconds(10), count: 2),
+        ])
+        let controller = LauncherController(model: model)
+        controller.show()
+        defer { controller.hide() }
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
+            throw NSError(domain: "LauncherAccessories", code: 1)
+        }
+        try require(!model.isPinned && model.filter == .all, "launcher must default to unpinned, all sources")
+        model.isPinned = true
+        panel.onBlur()
+        try require(controller.isVisible, "pin must preserve panel on blur")
+        try await Task.sleep(for: .milliseconds(1300))
+        try require(abs(panel.frame.width - LauncherLayout.toolbarWidth - 264) <= 1, "toolbar must retain the original 720 pt width")
+        try require(abs(panel.frame.height - 328) <= 1, "accessories must not increase empty panel height: \(panel.frame.height)")
+        let field = searchField(in: panel.contentView!)!
+        let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+        let emptyFieldWidth = field.frame.width
+        model.inputText = "Safari"
+        try await Task.sleep(for: .milliseconds(300))
+        try require(field.frame.width >= emptyFieldWidth + 150, "typing must return accessory space to the search field")
+        try require(abs(panel.frame.width - 984) <= 1, "typing must not change total window width")
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(220))
+        try require(abs(panel.frame.height - 328) <= 1, "clearing must collapse the result window promptly")
+        try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing must restore the empty field width promptly")
+        try await Task.sleep(for: .milliseconds(400))
+        try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing input must restore accessories within original width")
+
+        model.isFilterMenuPresented = true
+        try await Task.sleep(for: .milliseconds(100))
+        try require(panel.frame.height >= 584, "menu must have an unclipped hit-test canvas")
+        panel.onEscape()
+        try require(!model.isFilterMenuPresented && controller.isVisible, "Escape must close menu before launcher")
+        for filter in [LauncherFilter.applications, .files, .shortcuts, .quickLinks] {
+            model.setFilter(filter)
+            model.inputText = filter == .quickLinks ? "go" : "Safari"
+            try await Task.sleep(for: .milliseconds(450))
+            try require(!model.results.isEmpty && model.results.allSatisfy { filter.includes($0.source) }, "filter must return only requested category: \(filter)")
+            let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+            try require(abs(top - inputTop) <= 1, "filter/menu/result resizing must preserve field position")
+        }
+        model.setFilter(.files)
+        model.inputText = "go query"
+        try require(!model.hasScope && model.inputText == "go query", "filtered input must not consume command keywords")
+        model.inputText = "1+1"
+        try require(model.calculation == nil, "files-only query must not display calculation")
+        model.setFilter(.applications)
+        model.inputText = "empty"
+        try await Task.sleep(for: .milliseconds(450))
+        try require(model.results.isEmpty, "empty filtered results must not fall back to AI")
+        model.isPinned = false
+        panel.onBlur()
+        try require(!controller.isVisible, "unpin must restore blur dismissal")
+        controller.show()
+        model.isPinned = true
+        panel.onEscape()
+        try require(!controller.isVisible && !model.isPinned && model.filter == .all, "Escape must dismiss pinned launcher and reset session")
+        print("accessories: filter isolation, input position, menu canvas, pin/blur/Escape passed")
     }
 
     private static func checkCommandIcons() async throws {
@@ -428,6 +533,7 @@ enum LauncherWindowRegression {
         }
         try await Task.sleep(for: .milliseconds(200))
         controller.show()
+        NSApp.activate(ignoringOtherApps: true)
         let foreground = scrollView(in: content)!
         foreground.contentView.scroll(to: NSPoint(x: 0, y: 200))
         foreground.reflectScrolledClipView(foreground.contentView)

@@ -80,14 +80,12 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 首版技术默认基于 macOS 26 原生能力。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
 
-搜索浮窗的最新材质以用户 2026-10-10 提供的玻璃截图为视觉依据：光照方向 -45°、强度 80%、Refraction 50、Depth 40、Dispersion 48、Frost 50、Splay 32。这些数值是 Figma 的渲染参数，不是 macOS 的公开玻璃参数，不能逐项写入原生材质。Figma 连接在本轮返回 Unknown tool，未重新读取节点。
+启动器、AI 对话、剪贴板及其玻璃控件、预览和授权浮层统一使用 `NativeGlassBackground`：普通模式仅使用原生 `.glassEffect(.regular, in:)`，不叠加 `background` 的黑白填充或自制渐变描边；原生材质负责磨砂、光学边缘和背景适配。按钮可使用 Regular 的 interactive 变体。保留窗口几何，移除自绘投影并使用 AppKit 原生窗口阴影。
 
-用户最终明确要求直接使用 Regular 玻璃材质。搜索框背景使用 `.glassEffect(.regular, in: shellShape)`，底色使用 `background` 变量的 Palette/white60 / Palette/black60（2026-10-11 按用户要求从 70% 调为 60%），不再使用 Clear、光学层透明度或独立遮罩。前景输入和图标按系统颜色模式解析；原生 Regular 负责材质适配，不再承诺它不会根据背景独立调整亮暗。
-
-减少透明度关闭玻璃并使用不透明语义背景；提高对比度或减少透明度时使用语义边框。保留现有边缘高光、外部阴影与窗口几何。当前验证见[Regular 玻璃记录](validation/2026-10-10-launcher-regular-glass.md)；此前 Clear 和 82% 光学层方案已替换。
+不使用 Clear 材质，避免背景文字直接折射进阅读区。降低透明度或增强对比度时关闭玻璃，改用不透明语义背景和清晰边框。剪贴板搜索框、固定按钮和历史卡片使用不带染色的原生 Regular 玻璃，移除深色语义填充；卡片仅在选中时增加描边。其他内容卡片保留原有内容层。原生材质随背景变化，不承诺固定黑白表面或 Figma 光学参数的逐项等价。验证见[原生玻璃统一记录](validation/2026-10-11-native-glass.md)。
 
 - 浮动入口外壳、导航、工具栏与关键操作适合玻璃；使用系统协调的效果容器，避免各层独立叠加。
-- 对话正文、长文本与结果内容保持清晰阅读层，不能把每个卡片都做成玻璃。
+- 对话正文、长文本与结果内容保持清晰阅读层；剪贴板历史卡片按上述独立规范处理。
 - background 等语义变量用于需要的内容与控件角色，不把一层自定义不透明背景覆盖在系统玻璃上。
 - 选中、悬停、焦点和禁用需要可辨识；品牌颜色叠加不能破坏系统玻璃的光学表现。
 - 不通过截取桌面、持续抓取壁纸或自制大图模糊模拟原生效果。

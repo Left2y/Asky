@@ -45,12 +45,12 @@ final class ClipboardController {
     private var hoverTask: Task<Void, Never>?
     private let dragSource = ClipboardDragSource()
     private var refreshTimer: Timer?
-    private var localClickMonitor: Any?
-    private var globalClickMonitor: Any?
+    private let outsideClickDismissal = OutsideClickDismissal()
+    private var hiding = false
     var query = "" { didSet { selection = 0; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
     var selection = 0
-    var pinned = false
+    var pinned = false { didSet { updateOutsideClickDismissal() } }
     var status: String?
 
     init(app: AppModel) {
@@ -61,7 +61,7 @@ final class ClipboardController {
         for window in [panel, preview] {
             window.isOpaque = false
             window.backgroundColor = .clear
-            window.hasShadow = false
+            window.hasShadow = true
             window.level = .floating
             window.hidesOnDeactivate = false
             window.isReleasedWhenClosed = false
@@ -72,10 +72,9 @@ final class ClipboardController {
         preview.title = NSLocalizedString("剪贴板完整预览", comment: "")
         panel.dismiss = { [weak self] in self?.hide() }
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
-        // A non-activating panel at .normal level sits behind the frontmost app's windows,
-        // so float while focused and only drop back when unpinned and focus moves elsewhere.
+        // Keyboard application switching must also release the outside-click shield.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { if let self, !self.pinned { self.panel.level = .normal } }
+            MainActor.assumeIsolated { if let self, !self.pinned { self.hide() } }
         }
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.panel.level = .floating }
@@ -103,7 +102,7 @@ final class ClipboardController {
         panel.level = .floating
         panel.orderFrontRegardless()
         panel.makeKey()
-        monitorOutsideClicks()
+        updateOutsideClickDismissal()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
@@ -111,10 +110,10 @@ final class ClipboardController {
     }
 
     func hide() {
-        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
-        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
-        localClickMonitor = nil
-        globalClickMonitor = nil
+        guard !hiding else { return }
+        hiding = true
+        defer { hiding = false }
+        outsideClickDismissal.hide()
         dismissPreview()
         refreshTimer?.invalidate()
         refreshTimer = nil
@@ -123,24 +122,12 @@ final class ClipboardController {
         items = []
     }
 
-    private func monitorOutsideClicks() {
-        guard localClickMonitor == nil, globalClickMonitor == nil else { return }
-        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
-        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
-            MainActor.assumeIsolated { self?.dismissIfOutside() }
-            return event
-        }
-        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
-            MainActor.assumeIsolated { self?.dismissIfOutside() }
-        }
-    }
-
-    private func dismissIfOutside() {
-        guard panel.isVisible, !pinned else { return }
-        let location = NSEvent.mouseLocation
-        guard !shellFrame.contains(location),
-              !(preview.isVisible && preview.frame.contains(location)) else { return }
-        hide()
+    private func updateOutsideClickDismissal() {
+        guard panel.isVisible, !pinned else { outsideClickDismissal.hide(); return }
+        outsideClickDismissal.show(below: panel, contains: { [weak self] point in
+            guard let self else { return false }
+            return self.shellFrame.contains(point) || (self.preview.isVisible && self.preview.frame.contains(point))
+        }, dismiss: { [weak self] in self?.hide() })
     }
 
     func refresh() {
@@ -300,8 +287,7 @@ private struct ClipboardHistoryView: View {
                         .frame(height: 24)
                 }
                 .padding(.horizontal, 16).frame(height: 36)
-                .background(ThemeColor.kBackground, in: Capsule())
-                .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+                .nativeGlassBackground(in: Capsule())
                 HStack(spacing: 12) {
                     ClipboardHeaderButton(symbol: controller.pinned ? "pin.fill" : "pin",
                                           title: controller.pinned ? NSLocalizedString("取消固定窗口", comment: "") : NSLocalizedString("固定窗口", comment: ""),
@@ -330,7 +316,7 @@ private struct ClipboardHistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
-        .background { ClipboardGlass(radius: 32) }
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 32))
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .overlay(alignment: .bottom) {
             if let status = controller.status {
@@ -340,24 +326,6 @@ private struct ClipboardHistoryView: View {
             }
         }
         .padding(LauncherLayout.shadowPadding)
-        .background {
-            // Match the search shell's external shadow, outside glass compositing.
-            let shape = RoundedRectangle(cornerRadius: 32)
-            shape.fill(.black)
-                .padding(LauncherLayout.shadowPadding)
-                .shadow(color: .black.opacity(scheme == .dark ? 0.40 : 0.24),
-                        radius: LauncherLayout.shadowRadius, x: 0, y: LauncherLayout.shadowOffsetY)
-                .mask {
-                    Rectangle().overlay {
-                        shape.fill(.black)
-                            .padding(LauncherLayout.shadowPadding)
-                            .blendMode(.destinationOut)
-                    }
-                    .compositingGroup()
-                }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
         .onExitCommand { controller.hide() }
         .accessibilityValue(controller.status ?? "")
     }
@@ -369,26 +337,16 @@ private struct ClipboardHeaderButton: View {
     let title: String
     let action: () -> Void
     @Environment(\.colorScheme) private var scheme
-    @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .frame(width: 32, height: 32)
-                .background {
-                    Circle().fill(ThemeColor.kBackground.color(for: scheme))
-                        .overlay {
-                            if hovering {
-                                Circle().fill(ThemeColor.kInteractionHover.color(for: scheme))
-                            }
-                        }
-                }
+                .nativeGlassBackground(in: Circle(), interactive: true)
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(ThemeColor.kIconSubtle.color(for: scheme))
-        .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
-        .onHover { hovering = $0 }
         .accessibilityLabel(title).help(title)
     }
 }
@@ -418,10 +376,13 @@ private struct ClipboardHistoryCard: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 12).frame(width: 264, height: 160)
-        .background(ThemeColor.kBackground, in: RoundedRectangle(cornerRadius: 24))
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24), interactive: true)
         .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(selected ? ThemeColor.kBorderIntense : ThemeColor.kBorder, lineWidth: selected ? 2 : 1)
+            if selected {
+                RoundedRectangle(cornerRadius: 24)
+                    .strokeBorder(ThemeColor.kBorderIntense, lineWidth: 2)
+                    .allowsHitTesting(false)
+            }
         }
         .background(ClipboardAnchor { anchor = $0 })
         .contentShape(RoundedRectangle(cornerRadius: 24))
@@ -464,20 +425,8 @@ private struct ClipboardFullPreview: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
-        .background { ClipboardGlass(radius: Self.radius) }
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: Self.radius))
         .clipShape(RoundedRectangle(cornerRadius: Self.radius))
-        .overlay { RoundedRectangle(cornerRadius: Self.radius).stroke(ThemeColor.kBorder, lineWidth: 1) }
-    }
-}
-
-private struct ClipboardGlass: View {
-    let radius: CGFloat
-    @Environment(\.accessibilityReduceTransparency) private var opaque
-    @Environment(\.colorScheme) private var scheme
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: radius)
-        if opaque { shape.fill(ThemeColor.kBackground.color(for: scheme, opaque: true)) }
-        else { shape.fill(ThemeColor.kBackground).glassEffect(.regular, in: shape) }
     }
 }
 

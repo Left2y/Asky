@@ -28,6 +28,7 @@ final class AgentWindowController {
                              styleMask: [.borderless, .resizable, .miniaturizable, .fullSizeContentView],
                              backing: .buffered, defer: true)
             w.title = "Asky AI"
+            w.hasShadow = true
             w.titlebarAppearsTransparent = true
             w.titleVisibility = .hidden
             w.isOpaque = false
@@ -90,7 +91,6 @@ struct AgentView: View {
     @State private var showingHistory = false
     @State private var historyQuery = ""
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: AgentLayout.radius, style: .continuous) }
@@ -138,14 +138,8 @@ struct AgentView: View {
             .animation(navigationAnimation, value: showingHistory)
         }
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
-        // Keep the shell material behind the content so it does not flatten
-        // the header's independent glass controls into the window surface.
-        .background {
-            shape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                .glassEffect(reduceTransparency ? .identity : .regular, in: shape)
-        }
+        .nativeGlassBackground(in: shape)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(ThemeColor.kBorder.color(for: colorScheme), lineWidth: 1).allowsHitTesting(false))
         .ignoresSafeArea()
         .onChange(of: model.newConversationRevision) { showingHistory = false; historyQuery = "" }
         .onExitCommand { if showingHistory { showingHistory = false } else { close() } }
@@ -183,11 +177,7 @@ struct AgentView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 16).frame(maxWidth: .infinity).frame(height: 36)
-                    .background {
-                        Capsule().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                            .glassEffect(reduceTransparency ? .identity : .regular, in: .capsule)
-                            .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
-                    }
+                    .nativeGlassBackground(in: Capsule())
                     .transition(.opacity)
                 } else {
                     Text(model.conversations.first { $0.id == model.conversationID }?.title ?? NSLocalizedString("新对话", comment: ""))
@@ -283,21 +273,15 @@ private struct AgentGreeting: View {
 
 private struct AgentHeaderButtonStyle: ButtonStyle {
     let colorScheme: ColorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.isEnabled) private var isEnabled
     @State private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
-            .background {
-                Circle().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                    .glassEffect(reduceTransparency ? .identity : .regular, in: .circle)
-                    .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
-                    .overlay {
-                        if isEnabled && (hovering || configuration.isPressed) {
-                            Circle().fill(ThemeColor.kInteractionHover.color(for: colorScheme))
-                        }
-                    }
-                    .allowsHitTesting(false)
+            .nativeGlassBackground(in: Circle())
+            .overlay {
+                if isEnabled && (hovering || configuration.isPressed) {
+                    Circle().fill(ThemeColor.kInteractionHover.color(for: colorScheme))
+                }
             }
             .contentShape(.interaction, Circle())
             .opacity(isEnabled && configuration.isPressed ? 0.7 : 1)

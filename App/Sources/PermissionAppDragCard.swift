@@ -126,12 +126,7 @@ struct PermissionAppCard: View {
         }
         .padding(16)
         .foregroundStyle(ThemeColor.kText)
-        .background {
-            let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-            shape.fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                .glassEffect(reduceTransparency ? .identity : .regular, in: shape)
-        }
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(ThemeColor.kBorder, lineWidth: 1))
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 16, style: .continuous), forceOpaque: reduceTransparency)
         .contentShape(RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(NSLocalizedString("Asky 应用授权卡片，拖到系统设置的应用列表", comment: ""))

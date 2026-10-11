@@ -16,6 +16,7 @@ Asky 首先提供不依赖 AI 的 macOS 效率入口，再通过按需运行的 
 | [Agent Runtime](agent-runtime.md) | Pi 选型、扩展、模型接入、任务与进程生命周期 | AI 集成、会话、原生通信 |
 | [原生工具与 MCP](native-tools-and-mcp.md) | 系统适配器、工具契约、权限、执行与回读 | macOS 操作、MCP、敏感写入 |
 | [数据、记忆与提醒](data-and-memory.md) | 数据归属、保留、来源限制、删除与提醒计划 | 数据存储、记忆、情境增强 |
+| [隐私政策草案](../PRIVACY.md) | 不向作者上传、设备处理、第三方接收、保存与删除边界 | 对外隐私说明；发布前须补全主体与联系方式 |
 | [资源生命周期与性能](resource-lifecycle.md) | 内存预算、分页、并发、释放与测量 | 常驻资源、性能、缓存 |
 | [实施与验证](implementation-and-validation.md) | 阶段门槛、验收映射、风险与验证记录要求 | 开发顺序、自用验收 |
 

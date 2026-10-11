@@ -63,6 +63,10 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 ### 配置与隐私
 
+**Asky 当前版本没有向项目作者上传用户数据的接口。剪贴板、对话、文件与系统资料不会通过应用上传到作者服务器；AI 请求直接发送到你配置的模型服务。** 作者可能收到你主动提交的 Issue、日志或截图，请先脱敏。
+
+详见[隐私政策草案](PRIVACY.md)，包括本机保存、第三方处理和当前删除限制。正式发布前需补全主体、联系方式及应用内告知；状态见[隐私发布核查记录](docs/validation/2026-10-11-privacy-policy.md)。
+
 使用 AI 前，在“设置 › 模型设置”中填写服务商的 API 地址、模型名和 API Key。Key 存储在 macOS 钥匙串中；本地数据位于 `~/Library/Application Support/KulaHere/`。
 
 系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
@@ -174,6 +178,10 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 - Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings uses native sidebar navigation with grouped configuration lists on the right and a resizable window. The app theme is under General › Appearance.
 
 ### Configuration and Privacy
+
+**The current version of Asky has no endpoint that uploads user data to the project author. Clipboard contents, conversations, files, and system data are not uploaded by the app to an author-operated server; AI requests go directly to your configured model service.** The author may receive issues, logs, or screenshots you submit voluntarily; redact them first.
+
+See the [draft privacy policy (Chinese)](PRIVACY.md) for local storage, third-party processing, and current deletion limits. Publisher details, privacy contact information, and in-app notices must be completed before release; see the [privacy release review (Chinese)](docs/validation/2026-10-11-privacy-policy.md).
 
 Before using AI, enter your provider's API endpoint, model name, and API key under Settings › Model Settings. Keys are stored in macOS Keychain; local data resides in `~/Library/Application Support/KulaHere/`.
 

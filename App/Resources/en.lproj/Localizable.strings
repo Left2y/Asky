@@ -364,3 +364,6 @@
 "回退插件" = "Rolling back plugin";
 "卸载插件" = "Uninstalling plugin";
 "操作完成" = "Operation completed";
+
+"飞书" = "Lark";
+"通过飞书 CLI 管理文档、日程、任务和消息" = "Manage documents, calendars, tasks, and messages with Lark CLI";

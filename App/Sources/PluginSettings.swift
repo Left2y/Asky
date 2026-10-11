@@ -25,16 +25,19 @@ struct PluginSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section(label("官方插件")) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Orca")
-                        Text(label("添加项目，启动指定 Agent 并提交任务")) .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if plugins.contains(where: { $0.repository == PluginManager.officialRepositories[0] }) {
-                        Text(label("已安装")).foregroundStyle(.secondary)
-                    } else {
-                        Button(label("安装")) { requestInstall(PluginManager.officialRepositories[0]) }.accessibilityLabel(label("安装")).disabled(busy)
+                ForEach(PluginManager.officialRepositories, id: \.self) { source in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca")
+                            Text(label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if plugins.contains(where: { $0.repository == source }) {
+                            Text(label("已安装")).foregroundStyle(.secondary)
+                        } else {
+                            Button(label("安装")) { requestInstall(source) }.accessibilityLabel(label("安装")).disabled(busy)
+                        }
                     }
                 }
             }

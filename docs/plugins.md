@@ -1,6 +1,6 @@
 # GitHub 插件
 
-Asky 插件是用户主动安装的可信本机代码。主应用携带插件宿主，不携带官方插件实现；官方与自行安装的插件使用同一套安装和执行接口。官方插件各自拥有独立仓库，首个为 [Orca](https://github.com/Niall-Young/asky-plugin-orca)。不提供系统沙箱，也不宣称能力声明能限制插件自行执行的代码。
+Asky 插件是用户主动安装的可信本机代码。主应用携带插件宿主，不携带官方插件实现；官方与自行安装的插件使用同一套安装和执行接口。官方插件各自拥有独立仓库，包括 [Orca](https://github.com/Niall-Young/asky-plugin-orca) 与 [飞书 / Lark](https://github.com/Niall-Young/asky-plugin-lark)。不提供系统沙箱，也不宣称能力声明能限制插件自行执行的代码。
 
 ## 安装与生命周期
 
@@ -19,6 +19,8 @@ Asky 插件是用户主动安装的可信本机代码。主应用携带插件宿
 ## API v1
 
 仓库包含 `asky-plugin.json`、JS/ESM 入口和可选操作指导。参考最小结构：
+
+清单可选 `icon` 字段指定插件目录内的本地图片相对路径，例如 `"icon": "assets/icon.png"`。推荐透明边缘的方形 PNG；宿主读取上限为 2 MiB，不加载远程 URL、绝对路径或目录外文件。安装与回退后使用该版本的图片；缺失、不可读或无法解码时，官方 Orca / 飞书插件使用本机对应应用的图标，其他情况使用内置蓝色玻璃拼图占位图标。未指定 `icon` 的旧版清单继续兼容。
 
 ```json
 {
@@ -80,3 +82,11 @@ export default {
 Orca 插件默认按明确项目路径添加/复用项目，从项目默认 base 创建独立 worktree，启动指定 Agent，等待就绪并发送 prompt。默认 Agent 为 codex；原目录未提交修改不会复制。返回交接 ID、工作区和 input_accepted / turn_started 等阶段，提交后不监控完成。后续查询和发送消息由用户请求。
 
 首版不提供远程 Orca、模型启动参数、多 Agent 编排、自动合并或发布。真实验收与模拟测试分别记录在 [验证记录](validation/2026-10-11-plugins.md)。
+
+## 飞书 / Lark
+
+飞书插件复用用户已安装、授权的 `lark-cli`，无 npm 运行依赖，不进入应用包。配置 CLI 路径和 user/bot 身份；默认 user。此为 Asky 官方集成，非飞书官方出品。
+
+通过 `help` 浏览命令、`query` 读取内置 skills / schema 与业务资源、`execute` 执行确认后的写操作。业务查询前读取实时 CLI Risk；无法分类时拒绝执行。所有写入使用 always 确认，CLI exit 10 需用户进一步明确同意，不能自动加 --yes。
+
+写入先保存 requestID 检查点，未知结果不重放。通用写入口无法自动验证任意外部资源，readback 返回 null；模型随后用 query 回读真实对象。查询不自动清除历史 pendingVerification。首版不提供 raw api、登录、凭证或 CLI 更新管理。实际验证见 [飞书插件验证](validation/2026-10-11-lark-plugin.md)。

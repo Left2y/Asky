@@ -3,7 +3,7 @@ import Contracts
 import LocalStore
 
 public actor PluginManager {
-    public static let officialRepositories = ["https://github.com/Niall-Young/asky-plugin-orca"]
+    public static let officialRepositories = ["https://github.com/Niall-Young/asky-plugin-orca", "https://github.com/Niall-Young/asky-plugin-lark"]
     private let store: LocalStore
     private let runtime: PluginRuntimeConfiguration
     private let root: URL

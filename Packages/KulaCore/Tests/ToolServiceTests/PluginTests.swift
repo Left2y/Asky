@@ -35,6 +35,7 @@ private func installer(version: String = "1", dependency: Bool = false, failure:
 @Suite struct PluginTests {
     @Test func repositoryAndManifestValidation() throws {
         #expect(try PluginManager.repositoryURL("https://github.com/niall-young/asky-plugin-orca.git/") == PluginManager.officialRepositories[0])
+        #expect(try PluginManager.repositoryURL("https://github.com/niall-young/asky-plugin-lark.git") == "https://github.com/Niall-Young/asky-plugin-lark")
         for url in ["file:///tmp/repo", "https://user:token@github.com/a/b", "https://github.com/a/b/tree/main", "https://github.com/a/b?token=x"] {
             #expect(throws: Error.self) { try PluginManager.repositoryURL(url) }
         }

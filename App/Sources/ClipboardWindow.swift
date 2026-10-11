@@ -320,8 +320,9 @@ private struct ClipboardHistoryView: View {
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .overlay(alignment: .bottom) {
             if let status = controller.status {
-                Text(status).textStyle(.secondary).padding(.horizontal, 12).padding(.vertical, 4)
-                    .background(.regularMaterial, in: Capsule()).padding(.bottom, 4)
+                ClipboardStatusToast(message: status)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
                     .allowsHitTesting(false)
             }
         }

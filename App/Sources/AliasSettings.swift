@@ -19,6 +19,7 @@ struct AliasSettings: View {
                 ForEach(app.preferences.aliases) { item in
                     HStack {
                         Text(item.alias).font(.system(.body, design: .monospaced)).frame(width: 90, alignment: .leading)
+                        targetIcon(kind: item.kind, target: item.target)
                         VStack(alignment: .leading) {
                             Text(item.kind == "app" ? URL(filePath: item.target).deletingPathExtension().lastPathComponent : item.target)
                             Text(item.kind == "app" ? "应用" : "快捷指令").foregroundStyle(.secondary)
@@ -37,6 +38,7 @@ struct AliasSettings: View {
                 }.onChange(of: kind) { _, _ in target = "" }
                 if kind == "app" {
                     LabeledContent("应用") {
+                        if !target.isEmpty { targetIcon(kind: kind, target: target) }
                         Text(target.isEmpty ? "尚未选择" : URL(filePath: target).deletingPathExtension().lastPathComponent)
                         Button("选择…") {
                             let panel = NSOpenPanel()
@@ -49,7 +51,12 @@ struct AliasSettings: View {
                 } else {
                     Picker("快捷指令", selection: $target) {
                         Text("请选择").tag("")
-                        ForEach(Array(Set(shortcuts + (target.isEmpty ? [] : [target]))).sorted(), id: \.self) { Text($0).tag($0) }
+                        ForEach(Array(Set(shortcuts + (target.isEmpty ? [] : [target]))).sorted(), id: \.self) { name in
+                            HStack {
+                                targetIcon(kind: "shortcut", target: name)
+                                Text(name)
+                            }.tag(name)
+                        }
                     }
                     Button("刷新快捷指令") { Task { shortcuts = await ToolService.listLauncherShortcuts() } }
                     if shortcuts.isEmpty { Text("暂无快捷指令，可先在 macOS“快捷指令”中创建。").foregroundStyle(.secondary) }
@@ -63,6 +70,14 @@ struct AliasSettings: View {
         }
         .formStyle(.grouped)
          .task { shortcuts = await ToolService.listLauncherShortcuts() }
+    }
+
+    private func targetIcon(kind: String, target: String) -> some View {
+        Image(nsImage: ToolService.launcherIcon(filePath: kind == "app" ? target : "/System/Applications/Shortcuts.app"))
+        .resizable()
+        .scaledToFit()
+        .frame(width: 28, height: 28)
+        .accessibilityHidden(true)
     }
 
     private func reset() { editing = nil; alias = ""; target = ""; message = nil }

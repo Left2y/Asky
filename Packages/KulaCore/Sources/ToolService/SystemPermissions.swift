@@ -169,4 +169,94 @@ public enum SystemPermissions {
     public static func revealApp() {
         NSWorkspace.shared.activateFileViewerSelecting([appURL])
     }
+
+    public static func openAuthorizationSettings(_ permission: SystemPermission) throws -> PermissionSettingsSession {
+        let session = PermissionSettingsSession(permission: permission)
+        try openSettings(permission)
+        return session
+    }
+}
+
+/// Track only the settings application and permission pane opened by this flow.
+@MainActor
+public final class PermissionSettingsSession {
+    private let permission: SystemPermission
+    private var application: NSRunningApplication?
+
+    fileprivate init(permission: SystemPermission) { self.permission = permission }
+
+    private func resolveApplication() -> NSRunningApplication? {
+        if let application { return application.isTerminated ? nil : application }
+        application = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences").first
+        return application
+    }
+
+    private var paneTitles: Set<String> {
+        switch permission {
+        case .screenRecording:
+            ["录屏与系统录音", "屏幕录制", "屏幕与系统音频录制", "Screen Recording", "Screen & System Audio Recording"]
+        case .accessibility:
+            ["辅助功能", "设备控制和数据访问", "Accessibility", "Device Control and Data Access"]
+        default: []
+        }
+    }
+
+    private var visibleWindows: [[String: Any]] {
+        guard let application = resolveApplication(),
+              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return [] }
+        return windows.filter {
+            ($0[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == application.processIdentifier &&
+            ($0[kCGWindowLayer as String] as? NSNumber)?.intValue == 0
+        }
+    }
+
+    /// Convert Quartz screen coordinates to AppKit coordinates for side-by-side placement.
+    public var windowFrame: CGRect? {
+        guard let window = visibleWindows.first,
+              let bounds = window[kCGWindowBounds as String] as? [String: Any],
+              let rect = CGRect(dictionaryRepresentation: bounds as CFDictionary),
+              let primary = NSScreen.screens.first else { return nil }
+        return CGRect(x: rect.minX, y: primary.frame.maxY - rect.maxY, width: rect.width, height: rect.height)
+    }
+
+    /// Close a matching pane when Accessibility permits it. Otherwise hide that pane's app.
+    /// Never quit System Settings or dismiss a different pane the user has navigated to.
+    public func dismiss() {
+        guard let application = resolveApplication() else { return }
+        if AXIsProcessTrusted() {
+            let element = AXUIElementCreateApplication(application.processIdentifier)
+            var windows: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &windows) == .success,
+                  let windows = windows as? [AXUIElement] else { return }
+            for window in windows {
+                var title: CFTypeRef?
+                guard AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &title) == .success,
+                      let title = title as? String, paneTitles.contains(title) else { continue }
+                var closeButton: CFTypeRef?
+                if AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &closeButton) == .success,
+                   let closeButton,
+                   AXUIElementPerformAction(closeButton as! AXUIElement, kAXPressAction as CFString) == .success { return }
+                _ = application.hide()
+                return
+            }
+        } else if visibleWindows.contains(where: { paneTitles.contains($0[kCGWindowName as String] as? String ?? "") }) {
+            _ = application.hide()
+        }
+    }
+}
+
+/// A fresh grant completes immediately; regranting must first observe the old grant disappear.
+public struct PermissionAuthorizationProgress: Sendable {
+    private var observedUnauthorized: Bool
+    public private(set) var completed = false
+
+    public init(initialState: PermissionState) { observedUnauthorized = initialState != .authorized }
+
+    public mutating func observe(_ state: PermissionState) -> Bool {
+        guard !completed else { return false }
+        if state != .authorized { observedUnauthorized = true; return false }
+        guard observedUnauthorized else { return false }
+        completed = true
+        return true
+    }
 }

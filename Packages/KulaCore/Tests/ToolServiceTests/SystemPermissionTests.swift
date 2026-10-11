@@ -5,6 +5,24 @@ import UniformTypeIdentifiers
 
 @MainActor
 struct SystemPermissionTests {
+    @Test func authorizationOnlyCompletesAfterRealGrantAndOnlyOnce() {
+        var progress = PermissionAuthorizationProgress(initialState: .denied)
+        let transitions = [progress.observe(.denied), progress.observe(.restricted), progress.observe(.authorized)]
+        #expect(transitions == [false, false, true])
+        #expect(progress.completed)
+        let repeatGrant = progress.observe(.authorized)
+        #expect(!repeatGrant)
+    }
+
+    @Test func reauthorizationWaitsForRevocationBeforeClosing() {
+        var progress = PermissionAuthorizationProgress(initialState: .authorized)
+        let existingGrant = [progress.observe(.authorized), progress.observe(.authorized)]
+        #expect(existingGrant == [false, false])
+        #expect(!progress.completed)
+        let regrant = [progress.observe(.denied), progress.observe(.authorized)]
+        #expect(regrant == [false, true])
+    }
+
     @Test func booleanPermissionsAllowExplicitRequestButNeverRequestWhenAuthorized() {
         for permission in [SystemPermission.accessibility, .screenRecording] {
             #expect(permission.canRequest(from: .denied))

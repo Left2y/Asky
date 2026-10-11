@@ -122,12 +122,59 @@ enum SettingsRegression {
                       split.splitViewItems[1].viewController.view.bounds.width >= 540 else {
                     fatalError("settings detail clipped at minimum window size")
                 }
+                try await assertStandaloneAuthorizationFlow(parent: window)
                 try? FileManager.default.removeItem(at: root)
-                print("Settings native light/dark snapshots passed")
+                print("Settings native light/dark snapshots and standalone authorization lifecycle passed")
                 exit(0)
             } catch { fputs("Settings regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    /// Simulate permission changes without granting real TCC access or opening System Settings.
+    private static func assertStandaloneAuthorizationFlow(parent: NSWindow) async throws {
+        for regrant in [false, true] {
+            var reads = 0
+            var opened = 0
+            var dismissed = 0
+            let controller = PermissionAuthorizationWindow(readState: { _ in
+                reads += 1
+                if regrant {
+                    return reads == 3 ? .denied : .authorized
+                }
+                return reads < 3 ? .denied : .authorized
+            }, openSettings: { _ in
+                opened += 1
+                return PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: { dismissed += 1 })
+            })
+            controller.show(.accessibility, colorScheme: .light)
+            try await Task.sleep(for: .milliseconds(150))
+            guard let panel = controller.window, panel.isVisible,
+                  panel.sheetParent == nil, parent.attachedSheet == nil,
+                  panel.styleMask.contains(.nonactivatingPanel),
+                  panel.level == .floating, !panel.hidesOnDeactivate,
+                  opened == 1, dismissed == 0 else {
+                fatalError("authorization is modal or dismissed before a fresh grant")
+            }
+            for _ in 0..<30 where controller.window != nil {
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            guard controller.window == nil, dismissed == 1 else {
+                fatalError("authorization completion failed to close the panel and its settings session")
+            }
+        }
+        var dismissed = false
+        let cancelled = PermissionAuthorizationWindow(readState: { _ in .denied },
+            openSettings: { _ in
+                PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: { dismissed = true })
+            })
+        cancelled.show(.screenRecording, colorScheme: .dark)
+        try await Task.sleep(for: .milliseconds(150))
+        cancelled.window?.close()
+        try await Task.sleep(for: .milliseconds(600))
+        guard cancelled.window == nil, !dismissed else {
+            fatalError("cancelling authorization should stop observation without dismissing System Settings")
+        }
     }
 
     private static func assertDetailBelowToolbar(_ split: NSSplitViewController, window: NSWindow) {

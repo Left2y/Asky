@@ -93,8 +93,6 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 从[文档索引](docs/README.md)开始阅读。产品范围见 [V1 PRD](docs/PRD.md)，模块与进程边界见[架构大纲](docs/framework.md)。
 
-Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例缩放，加载失败可重试。排版使用应用语义主题，随浅色／深色外观切换；图片下载上限 10 MiB，内存缓存上限 32 MiB，不读取 Markdown 中的本地文件图片。
-
 ### 开发与验证
 
 以下命令均从仓库根目录运行。先构建 MCP Bridge，再运行核心包测试：
@@ -186,8 +184,6 @@ The project is under active development. The repository includes the native app,
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.
 - **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) and [Lark plugin](https://github.com/Niall-Young/asky-plugin-lark) ship separately and are not bundled. Plugins support custom manifest icons, use the local Orca app icon, and show a bundled placeholder when no artwork is available. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
 - **MCP extensions**: Expose local tools to external clients through a separately authorized MCP Bridge.
-
-Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio and failed loads can be retried. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
 
 ### Quick Start
 

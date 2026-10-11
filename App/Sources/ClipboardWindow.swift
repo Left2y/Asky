@@ -279,7 +279,7 @@ private struct ClipboardHistoryView: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 40) {
+            HStack(spacing: 16) {
                 HStack(spacing: 12) {
                     Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
                     LauncherSearchField(text: $controller.query, fontSize: 16,

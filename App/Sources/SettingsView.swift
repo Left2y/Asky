@@ -243,6 +243,19 @@ private struct SourceSettings: View {
     @State private var account = ""
     @State private var folder = ""
 
+    private var proposedFolder: NotesFolder {
+        NotesFolder(account: account.trimmingCharacters(in: .whitespacesAndNewlines),
+                    folder: folder.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private var hasFolderInput: Bool {
+        !proposedFolder.account.isEmpty && !proposedFolder.folder.isEmpty
+    }
+
+    private var isFolderAlreadyAuthorized: Bool {
+        app.settings.notesFolders.contains(proposedFolder)
+    }
+
     static let labels: [(DataSourceID, String)] = [
         (.calendar, NSLocalizedString("日历", comment: "")), (.reminders, NSLocalizedString("提醒事项", comment: "")), (.notes, NSLocalizedString("备忘录", comment: "")), (.contacts, NSLocalizedString("通讯录", comment: "")), (.chrome, NSLocalizedString("Chrome 标签与书签", comment: "")),
         (.shortcuts, NSLocalizedString("快捷指令", comment: "")), (.messages, NSLocalizedString("信息（仅草稿交接）", comment: "")), (.memory, NSLocalizedString("个人记忆", comment: "")), (.maps, NSLocalizedString("路线时间（MapKit）", comment: "")),
@@ -272,10 +285,19 @@ private struct SourceSettings: View {
                     TextField(NSLocalizedString("账户（如 iCloud）", comment: ""), text: $account)
                     TextField(NSLocalizedString("文件夹", comment: ""), text: $folder)
                     Button(NSLocalizedString("添加", comment: "")) {
-                        guard !account.isEmpty, !folder.isEmpty else { return }
-                        app.settings.notesFolders.append(NotesFolder(account: account, folder: folder))
+                        guard hasFolderInput, !isFolderAlreadyAuthorized else { return }
+                        app.settings.notesFolders.append(proposedFolder)
                         account = ""; folder = ""
                     }
+                    .disabled(!hasFolderInput || isFolderAlreadyAuthorized)
+                }
+                Text(NSLocalizedString("请先填写备忘录中的账户名和已有文件夹名，再点击添加。此处只设置允许访问的范围，不会新建文件夹；系统权限将在使用备忘录时请求。", comment: ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if hasFolderInput && isFolderAlreadyAuthorized {
+                    Text(NSLocalizedString("此备忘录文件夹已添加。", comment: ""))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             Section(NSLocalizedString("系统权限", comment: "")) {

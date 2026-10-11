@@ -47,7 +47,7 @@ export function describeResult(r: ExecutionResult): string {
   if (r.error) body.error = r.error;
   if (r.targets?.length) body.targets = r.targets;
   const note: Record<string, string> = {
-    completed: "已执行并经原生回读确认。",
+    completed: r.readback !== undefined ? "已执行并经原生回读确认。" : "原生读取/执行成功；以下为本次工具返回的数据。",
     suggestion: "未执行：这是 AI 推断的操作，已作为建议展示给用户，由用户决定。",
     rejected: "未执行：用户拒绝了该操作。",
     cancelled: "未执行：操作已取消。",

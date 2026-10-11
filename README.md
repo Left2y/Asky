@@ -82,6 +82,8 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。日历、提醒事项、通讯录与通知使用请求结果立即刷新状态，过期的后台检查不会覆盖新结果。辅助功能和屏幕录制点击“去授权”后打开独立的原生玻璃浮窗，并自动打开对应系统权限页。未授权时浮窗先清除本应用该项的旧条目（ad-hoc 签名下旧构建留下的条目显示已开启却不生效，且会让系统设置拒绝再次拖入），清除完成后才开放拖拽卡片；将浮窗中的 Asky.app 卡片拖入系统设置即可添加并开启，不触发系统权限弹窗。重新授权时先删除旧条目再拖入。屏幕录制开启后需重启才生效，浮窗随后提供“重新启动 Asky”。拖动开始时原位卡片隐藏，取消或未被接收时恢复，被接收后保持隐藏。浮窗持续检查当前应用进程的权限，确认授权后自动关闭，并关闭或收起本次权限页；若已切到其他系统设置页，则保留该页面。临时转移路径运行的应用需先移到“应用程序”并重新打开。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
 
+日历与提醒事项工具会在系统授权变化后刷新 EventKit 数据实例。若系统未返回任何日历或提醒列表，会先尝试刷新，再报告无法确认的数据读取异常，不据此断言账户未配置；搜索无匹配与读取失败分别处理。
+
 ### 项目结构与文档
 
 | 路径 | 用途 |
@@ -232,6 +234,8 @@ See the [draft privacy policy (Chinese)](PRIVACY.md) for local storage, third-pa
 Before using AI, enter your provider's API endpoint, model name, and API key under Settings › Model Settings. Keys are stored in macOS Keychain; local data resides in `~/Library/Application Support/KulaHere/`.
 
 Manage system permissions under Settings › System Permissions. Tools request authorization as needed. Calendar, Reminders, Contacts, and Notifications update immediately from the request result; stale background checks cannot overwrite it. For Accessibility and Screen Recording, click Grant Access to open an independent native glass panel and the matching System Settings pane automatically. When access is missing, the panel clears this app’s old entry, then enables the drag card. Dragging the Asky.app card into System Settings adds and enables it without a system permission prompt. Screen recording may require restarting Asky; the panel offers a restart button. To grant access again, remove the old entry before dragging. The source card disappears when dragging starts, returns if the drag is cancelled or rejected, and stays hidden after an accepted drop. The panel keeps checking the running app’s access and closes when authorization is confirmed, also closing or hiding its permission pane; a different pane you have navigated to is preserved. A translocated app must first be moved to Applications and reopened. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
+
+Calendar and Reminders tools refresh their EventKit store after system authorization changes. If no calendars or reminder lists are returned, they attempt a refresh and then report an unconfirmed data-access issue rather than claiming the account is unconfigured; an empty search and a read failure remain distinct.
 
 ### Project Structure and Documentation
 

@@ -5,8 +5,39 @@ import ToolService
 
 /// Owns the single EKEventStore. Access is requested only when the user enables the source.
 public final class EventKitBridge: @unchecked Sendable {
-    public let store = EKEventStore()
-    public init() {}
+    private let eventStore = EKEventStore()
+    private let accessLock = NSLock()
+    private var access = EventStoreAccessState()
+    public init() {
+        _ = access.observe(calendar: calendarAuthorized, reminders: remindersAuthorized)
+    }
+
+    /// Settings may grant access using another store. Refresh this store before using any objects
+    /// after a permission transition; refreshSourcesIfNecessary alone does not clear denied data.
+    public var store: EKEventStore {
+        accessLock.lock()
+        defer { accessLock.unlock() }
+        if access.observe(calendar: calendarAuthorized, reminders: remindersAuthorized) {
+            eventStore.reset()
+        }
+        return eventStore
+    }
+
+    func calendars(for entity: EKEntityType) throws -> [EKCalendar] {
+        let store = self.store
+        store.refreshSourcesIfNecessary()
+        var calendars = store.calendars(for: entity)
+        if calendars.isEmpty {
+            // One read-only recovery attempt for a stale connection/cache, never retry a write.
+            store.reset()
+            store.refreshSourcesIfNecessary()
+            calendars = store.calendars(for: entity)
+        }
+        guard !calendars.isEmpty else {
+            throw ToolError(.adapterFailure, "系统授权已开启，但 EventKit 未返回\(entity == .event ? "日历" : "提醒列表")。无法确认是账户为空还是系统数据连接异常；不能据此断言没有日历或提醒事项。请重新打开 Asky 后重试，并核对系统 App 与 Asky 设置 › 系统权限。")
+        }
+        return calendars
+    }
 
     public var calendarAuthorized: Bool { EKEventStore.authorizationStatus(for: .event) == .fullAccess }
     public var remindersAuthorized: Bool { EKEventStore.authorizationStatus(for: .reminder) == .fullAccess }
@@ -63,9 +94,9 @@ public struct CalendarListTool: ToolAdapter {
 
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
         try ek.requireCalendar()
-        ek.store.refreshSourcesIfNecessary()
+        let calendars = try ek.calendars(for: .event)
         let defaultID = ek.store.defaultCalendarForNewEvents?.calendarIdentifier
-        return AdapterOutput(output: .array(ek.store.calendars(for: .event).map {
+        return AdapterOutput(output: .array(calendars.map {
             ["application": .string("Apple Calendar"),
              "id": .string($0.calendarIdentifier), "name": .string($0.title),
              "account": .string($0.source.title), "writable": .bool($0.allowsContentModifications),
@@ -93,6 +124,7 @@ public struct CalendarSearchTool: ToolAdapter {
         }
         let q = try Args.string(a["query"], "query", required: false)?.lowercased()
         let limit = Args.int(a["limit"], default: 50, max: 200)
+        _ = try ek.calendars(for: .event)
         let events = ek.store.events(matching: ek.store.predicateForEvents(withStart: start, end: end, calendars: nil))
             .filter { q == nil || ($0.title ?? "").lowercased().contains(q!) || ($0.location ?? "").lowercased().contains(q!) }
             .prefix(limit)
@@ -118,8 +150,7 @@ public struct CalendarCreateTool: ToolAdapter {
 
     func calendar(_ a: JSONValue) throws -> EKCalendar {
         let selector = try Args.string(a["calendar"], "calendar", required: false)
-        ek.store.refreshSourcesIfNecessary()
-        let calendars = ek.store.calendars(for: .event)
+        let calendars = try ek.calendars(for: .event)
         let id = try CalendarSelection.resolve(selector: selector,
             defaultID: ek.store.defaultCalendarForNewEvents?.calendarIdentifier,
             calendars: calendars.map(CalendarChoice.init))
@@ -269,10 +300,15 @@ public struct RemindersListTool: ToolAdapter {
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
         try ek.requireReminders()
         let limit = Args.int(a["limit"], default: 50, max: 200)
+        _ = try ek.calendars(for: .reminder)
         let pred = ek.store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
-        let items: [JSONValue] = await withCheckedContinuation { cont in
+        let items: [JSONValue] = try await withCheckedThrowingContinuation { cont in
             ek.store.fetchReminders(matching: pred) { rs in
-                cont.resume(returning: (rs ?? []).prefix(limit).map { r in
+                guard let rs else {
+                    cont.resume(throwing: ToolError(.adapterFailure, "系统提醒事项读取失败，不能据此判断没有提醒事项。请重新打开 Asky 后重试。"))
+                    return
+                }
+                cont.resume(returning: rs.prefix(limit).map { r in
                     var o: [String: JSONValue] = ["id": .string(r.calendarItemIdentifier), "title": .string(r.title ?? ""),
                                                   "list": .string(r.calendar?.title ?? "")]
                     if let d = r.dueDateComponents?.date { o["due"] = .string(Args.iso(d)) }
@@ -298,6 +334,7 @@ public struct RemindersCreateTool: ToolAdapter {
 
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
         try ek.requireReminders()
+        _ = try ek.calendars(for: .reminder)
         guard let cal = ek.store.defaultCalendarForNewReminders(), cal.allowsContentModifications else {
             throw ToolError(.targetReadOnly, "默认提醒列表不可写")
         }

@@ -2,11 +2,17 @@ import AppKit
 import EventKit
 @preconcurrency import Contacts
 import UserNotifications
+import UniformTypeIdentifiers
 import Contracts
 
 public enum SystemPermission: String, CaseIterable, Identifiable, Sendable {
     case calendar, reminders, contacts, screenRecording, accessibility, automation, notifications
     public var id: String { rawValue }
+    public var supportsAppDrag: Bool { self == .accessibility || self == .screenRecording }
+    // These APIs report only a Boolean, so false cannot distinguish never requested from denied.
+    public func canRequest(from state: PermissionState) -> Bool {
+        state.canRequest || (supportsAppDrag && state == .denied)
+    }
     public var title: String {
         switch self {
         case .calendar: "日历"
@@ -96,13 +102,15 @@ public enum SystemPermissions {
         if let task = pending[permission] { return try await task.value }
         let task = Task { @MainActor in
             let current = await state(permission)
-            guard current.canRequest else { return current }
+            guard permission.canRequest(from: current) else { return current }
             NSApp.activate()
             switch permission {
             case .calendar: _ = try await events.requestFullAccessToEvents()
             case .reminders: _ = try await events.requestFullAccessToReminders()
             case .contacts: _ = try await contacts.requestAccess(for: .contacts)
             case .notifications: _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert])
+            case .screenRecording: _ = CGRequestScreenCaptureAccess()
+            case .accessibility: _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
             default: break
             }
             return await state(permission)
@@ -132,5 +140,33 @@ public enum SystemPermissions {
         guard let url = URL(string: link), NSWorkspace.shared.open(url) else {
             throw ToolError(.adapterFailure, "无法打开系统设置。请手动进入系统设置 › 隐私与安全性 › \(permission.title)。")
         }
+    }
+
+    /// Drag the running bundle, never another build found by bundle identifier.
+    public static var appURL: URL { Bundle.main.bundleURL }
+    public static var appIcon: NSImage { NSWorkspace.shared.icon(forFile: appURL.path) }
+
+    public static func canDragApp(at url: URL) -> Bool {
+        url.isFileURL && url.pathExtension == "app" && !url.pathComponents.contains("AppTranslocation")
+    }
+
+    public static func appDragProvider() -> NSItemProvider? {
+        appDragProvider(for: appURL)
+    }
+
+    static func appDragProvider(for url: URL) -> NSItemProvider? {
+        guard canDragApp(at: url) else { return nil }
+        let provider = NSItemProvider()
+        provider.suggestedName = url.lastPathComponent
+        let data = Data(url.absoluteString.utf8)
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier, visibility: .all) { completion in
+            completion(data, nil)
+            return nil
+        }
+        return provider
+    }
+
+    public static func revealApp() {
+        NSWorkspace.shared.activateFileViewerSelecting([appURL])
     }
 }

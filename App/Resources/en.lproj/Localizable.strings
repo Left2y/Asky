@@ -289,3 +289,16 @@
 
 "请先填写备忘录中的账户名和已有文件夹名，再点击添加。此处只设置允许访问的范围，不会新建文件夹；系统权限将在使用备忘录时请求。" = "Enter the account and an existing folder name from Notes, then click Add. This only sets the allowed scope; it does not create a folder. System permission is requested when Notes is used.";
 "此备忘录文件夹已添加。" = "This Notes folder has already been added.";
+
+/* Drag-to-add system permissions */
+"已开启" = "Enabled";
+"将 Asky 拖到对应系统设置页的应用列表" = "Drag Asky to the app list in the corresponding System Settings pane";
+"请先将 Asky.app 移到“应用程序”文件夹并重新打开，再拖拽授权。" = "Move Asky.app to Applications and reopen it before dragging to grant access.";
+"在 Finder 中显示" = "Show in Finder";
+"拖到系统设置的应用列表" = "Drag to the System Settings app list";
+"Asky 应用授权卡片，拖到系统设置的应用列表" = "Asky permission card, drag to the System Settings app list";
+"去授权" = "Grant Access";
+"重新授权" = "Grant Access Again";
+"需要授权" = "Access Required";
+"在系统设置中选中 Asky，点击“−”删除旧条目，再拖入上方应用卡片并开启开关。" = "In System Settings, select Asky and click “−” to remove the old entry, then drag the app card above into the list and turn on the switch.";
+"打开系统设置，将上方应用卡片拖入列表并开启开关。若已有 Asky 条目，先点击“−”删除，再拖入。" = "Open System Settings, drag the app card above into the list, and turn on the switch. If Asky is already listed, click “−” to remove it before dragging again.";

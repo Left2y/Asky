@@ -147,16 +147,18 @@ build/outside-click-regression
 
 ### 发布打包
 
-先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release008DerivedData`。在干净的 `build/release-runtime-0.0.8` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.8`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
+0.0.9 包含更新退出重启修复。0.0.8 的旧退出流程仍可能卡住，首次升级到修复版请退出旧应用，再用 DMG 将新应用替换到“应用程序”；修复版的自动更新需要从 0.0.9 向更高版本验证。
+
+先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release009DerivedData`。在干净的 `build/release-runtime-0.0.9` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.9`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
 
 ```sh
-python3 scripts/package-release.py --version 0.0.8 --build 8 \
-  --derived-data build/Release008DerivedData \
-  --runtime build/release-runtime-0.0.8 \
+python3 scripts/package-release.py --version 0.0.9 --build 9 \
+  --derived-data build/Release009DerivedData \
+  --runtime build/release-runtime-0.0.9 \
   --node-root build/node-v22.23.3-darwin-arm64
 ```
 
-脚本生成 `build/releases/0.0.8/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
+脚本生成 `build/releases/0.0.9/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
 ### 开源协议
 
@@ -296,16 +298,18 @@ Record only checks actually executed in `docs/validation/`. Track automated chec
 
 ### Release Packaging
 
-Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release008DerivedData`. In a clean `build/release-runtime-0.0.8` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.8`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
+Version 0.0.9 fixes quitting and restarting during updates. The old quit flow in 0.0.8 can still hang; quit the old app and replace it in Applications using the DMG for this first upgrade. Verify automatic updates from 0.0.9 to a later version.
+
+Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release009DerivedData`. In a clean `build/release-runtime-0.0.9` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.9`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
 
 ```sh
-python3 scripts/package-release.py --version 0.0.8 --build 8 \
-  --derived-data build/Release008DerivedData \
-  --runtime build/release-runtime-0.0.8 \
+python3 scripts/package-release.py --version 0.0.9 --build 9 \
+  --derived-data build/Release009DerivedData \
+  --runtime build/release-runtime-0.0.9 \
   --node-root build/node-v22.23.3-darwin-arm64
 ```
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.8/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.9/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
 
 ### License
 

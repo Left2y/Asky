@@ -41,6 +41,39 @@ public enum AppUpdateError: LocalizedError, Equatable {
 enum AppUpdate {
     static let repository = "Niall-Young/Asky"
     static let latestReleaseURL = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
+    static let latestPageURL = URL(string: "https://github.com/\(repository)/releases/latest")!
+
+    /// Only use download links for this repository and this release, excluding source archives.
+    static func parseWebRelease(pageURL: URL, assetsHTML: Data) throws -> AppRelease {
+        let tag = try releaseTag(from: pageURL)
+        let prefix = "/\(repository)/releases/download/\(tag)/"
+        let html = String(decoding: assetsHTML, as: UTF8.self)
+        let expression = try NSRegularExpression(pattern: #"href=["']([^"']+)["']"#)
+        let links = expression.matches(in: html, range: NSRange(html.startIndex..., in: html)).compactMap { match -> URL? in
+            guard let range = Range(match.range(at: 1), in: html),
+                  let url = URL(string: String(html[range]), relativeTo: latestPageURL)?.absoluteURL,
+                  url.scheme == "https", url.host == "github.com", url.query == nil, url.fragment == nil,
+                  url.path.hasPrefix(prefix) else { return nil }
+            return url
+        }
+        let zips = links.filter { $0.lastPathComponent.lowercased().hasSuffix(".zip") }
+        guard let archive = zips.first(where: { $0.lastPathComponent.lowercased().contains("macos") }) ?? zips.first else {
+            throw AppUpdateError.missingArchive
+        }
+        let checksum = links.first { $0.lastPathComponent == archive.lastPathComponent + ".sha256" }
+        return AppRelease(version: normalizedVersion(tag), name: "Asky \(normalizedVersion(tag))",
+                          pageURL: pageURL, archiveURL: archive, checksumURL: checksum)
+    }
+
+    static func releaseTag(from pageURL: URL) throws -> String {
+        let prefix = "/\(repository)/releases/tag/"
+        guard pageURL.scheme == "https", pageURL.host == "github.com", pageURL.path.hasPrefix(prefix) else {
+            throw AppUpdateError.noRelease
+        }
+        let tag = String(pageURL.path.dropFirst(prefix.count))
+        guard !tag.isEmpty, !tag.contains("/") else { throw AppUpdateError.noRelease }
+        return tag
+    }
 
     private struct ReleasePayload: Decodable {
         struct Asset: Decodable {
@@ -101,7 +134,9 @@ enum AppUpdate {
 
     static func request(_ url: URL) -> URLRequest {
         var request = URLRequest(url: url, timeoutInterval: 30)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        if url.host == "api.github.com" {
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        }
         request.setValue("Asky-Updater", forHTTPHeaderField: "User-Agent")
         return request
     }
@@ -135,6 +170,41 @@ enum AppUpdate {
     """
 }
 
+/// Remember the API cooldown so repeated checks use the public Release page directly.
+actor AppReleaseLookup {
+    static let shared = AppReleaseLookup()
+    private var apiRetryAt = Date.distantPast
+    typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
+    func latest(fetch: Fetch = { try await URLSession.shared.data(for: $0) }) async throws -> AppRelease {
+        if Date() >= apiRetryAt {
+            let (data, response) = try await fetch(AppUpdate.request(AppUpdate.latestReleaseURL))
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 403 || status == 429 {
+                let http = response as? HTTPURLResponse
+                let reset = http?.value(forHTTPHeaderField: "x-ratelimit-reset").flatMap(Double.init).map(Date.init(timeIntervalSince1970:))
+                let retry = http?.value(forHTTPHeaderField: "retry-after").flatMap(Double.init) ?? 60
+                apiRetryAt = max(reset ?? .distantPast, Date().addingTimeInterval(max(60, retry)))
+            } else {
+                if status == 404 { throw AppUpdateError.noRelease }
+                guard (200..<300).contains(status) else { throw AppUpdateError.network("HTTP \(status)") }
+                return try AppUpdate.parseRelease(data)
+            }
+        }
+        let (_, pageResponse) = try await fetch(AppUpdate.request(AppUpdate.latestPageURL))
+        let status = (pageResponse as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 404 { throw AppUpdateError.noRelease }
+        guard (200..<300).contains(status) else { throw AppUpdateError.network("HTTP \(status)") }
+        guard let pageURL = pageResponse.url else { throw AppUpdateError.noRelease }
+        _ = try AppUpdate.releaseTag(from: pageURL)
+        let assetsURL = URL(string: pageURL.absoluteString.replacingOccurrences(of: "/releases/tag/", with: "/releases/expanded_assets/"))!
+        let (assets, assetsResponse) = try await fetch(AppUpdate.request(assetsURL))
+        let assetsStatus = (assetsResponse as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(assetsStatus) else { throw AppUpdateError.network("HTTP \(assetsStatus)") }
+        return try AppUpdate.parseWebRelease(pageURL: pageURL, assetsHTML: assets)
+    }
+}
+
 extension ToolService {
     public static var currentAppVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -148,14 +218,10 @@ extension ToolService {
 
     /// Returns the latest release only when it is newer than the running app.
     public static func checkForAppUpdate() async throws -> AppRelease? {
-        let data: Data
-        let response: URLResponse
-        do { (data, response) = try await URLSession.shared.data(for: AppUpdate.request(AppUpdate.latestReleaseURL)) }
+        let release: AppRelease
+        do { release = try await AppReleaseLookup.shared.latest() }
+        catch let error as AppUpdateError { throw error }
         catch { throw AppUpdateError.network(error.localizedDescription) }
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if status == 404 { throw AppUpdateError.noRelease }
-        guard (200..<300).contains(status) else { throw AppUpdateError.network("HTTP \(status)") }
-        let release = try AppUpdate.parseRelease(data)
         return AppUpdate.isNewer(release.version, than: currentAppVersion) ? release : nil
     }
 

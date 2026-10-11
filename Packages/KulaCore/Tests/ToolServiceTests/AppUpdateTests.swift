@@ -3,6 +3,66 @@ import Testing
 @testable import ToolService
 
 @Suite struct AppUpdateTests {
+    private static let page = URL(string: "https://github.com/Niall-Young/Asky/releases/tag/v0.0.9")!
+    private static let assets = Data("""
+    <a href="/Niall-Young/Asky/archive/refs/tags/v0.0.9.zip">Source</a>
+    <a href="https://example.com/Niall-Young/Asky/releases/download/v0.0.9/Fake.zip">Other host</a>
+    <a href="/Niall-Young/Asky/releases/download/v0.0.8/Old.zip">Old</a>
+    <a href="/Niall-Young/Asky/releases/download/v0.0.9/Asky-0.0.9-macos-arm64.zip">ZIP</a>
+    <a href="/Niall-Young/Asky/releases/download/v0.0.9/Asky-0.0.9-macos-arm64.zip.sha256">SHA</a>
+    """.utf8)
+
+    @Test func webFallbackExcludesSourceArchivesAndUnrelatedDownloads() throws {
+        let release = try AppUpdate.parseWebRelease(pageURL: Self.page, assetsHTML: Self.assets)
+        #expect(release.version == "0.0.9")
+        #expect(release.archiveURL.lastPathComponent == "Asky-0.0.9-macos-arm64.zip")
+        #expect(release.checksumURL?.lastPathComponent == "Asky-0.0.9-macos-arm64.zip.sha256")
+        #expect(throws: AppUpdateError.missingArchive) {
+            try AppUpdate.parseWebRelease(pageURL: Self.page, assetsHTML: Data(#"<a href="/Niall-Young/Asky/archive/refs/tags/v0.0.9.zip">Source</a>"#.utf8))
+        }
+        #expect(throws: AppUpdateError.noRelease) {
+            try AppUpdate.parseWebRelease(pageURL: AppUpdate.latestPageURL, assetsHTML: Self.assets)
+        }
+    }
+
+    private actor Server {
+        var apiCalls = 0
+        let status: Int
+        init(status: Int) { self.status = status }
+        func fetch(_ request: URLRequest) throws -> (Data, URLResponse) {
+            let url = try #require(request.url)
+            if url == AppUpdate.latestReleaseURL {
+                apiCalls += 1
+                return (Data(), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil,
+                    headerFields: ["x-ratelimit-reset": String(Date().addingTimeInterval(3600).timeIntervalSince1970)])!)
+            }
+            #expect(request.value(forHTTPHeaderField: "Accept") == nil)
+            if url == AppUpdate.latestPageURL {
+                return (Data(), HTTPURLResponse(url: AppUpdateTests.page, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+            }
+            #expect(url.absoluteString == "https://github.com/Niall-Young/Asky/releases/expanded_assets/v0.0.9")
+            return (AppUpdateTests.assets, HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+    }
+
+    @Test(arguments: [403, 429]) func limitedAPIFallsBackAndHonorsCooldown(status: Int) async throws {
+        let server = Server(status: status)
+        let lookup = AppReleaseLookup()
+        for _ in 0..<2 {
+            let release = try await lookup.latest(fetch: { try await server.fetch($0) })
+            #expect(release.version == "0.0.9")
+            #expect(release.checksumURL != nil)
+        }
+        #expect(await server.apiCalls == 1)
+    }
+
+    @Test func missingReleaseRemainsAnError() async {
+        let server = Server(status: 404)
+        await #expect(throws: AppUpdateError.noRelease) {
+            try await AppReleaseLookup().latest(fetch: { try await server.fetch($0) })
+        }
+    }
+
     @Test func parsesReleaseAndPrefersMacArchiveWithChecksum() throws {
         let json = """
         {"tag_name":"v0.0.3","name":"Asky 0.0.3","html_url":"https://github.com/Niall-Young/Asky/releases/tag/v0.0.3",

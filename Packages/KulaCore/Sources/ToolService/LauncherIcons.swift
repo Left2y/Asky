@@ -2,6 +2,17 @@ import AppKit
 import Contracts
 
 extension ToolService {
+    @MainActor public static func pluginApplicationIcon(repository: String) -> NSImage? {
+        let bundleID: String
+        switch repository.lowercased() {
+        case "https://github.com/niall-young/asky-plugin-orca": bundleID = "com.stablyai.orca"
+        case "https://github.com/niall-young/asky-plugin-lark": bundleID = "com.bytedance.macos.feishu"
+        default: return nil
+        }
+        guard let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return nil }
+        return launcherIcon(filePath: application.path)
+    }
+
     @MainActor private static let launcherIcons: NSCache<NSString, NSImage> = {
         let cache = NSCache<NSString, NSImage>()
         cache.countLimit = 128

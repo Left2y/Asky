@@ -15,6 +15,25 @@ enum SettingsRegression {
             do {
                 let root = FileManager.default.temporaryDirectory.appending(path: "Asky-settings-\(UUID())")
                 let legacyStore = try LocalStore(root: root)
+                if CommandLine.arguments.contains("--plugin-icons") {
+                    var samples: [InstalledPlugin] = []
+                    for (id, name, icon) in [("custom", "Custom artwork", "icon.png"), ("fallback", "Missing artwork", "missing.png")] {
+                        let json = """
+                        {"id":"\(id)","name":"\(name)","version":"1","apiVersion":1,"entry":"index.mjs","icon":"\(icon)","tools":[]}
+                        """
+                        let record = """
+                        {"manifest":\(json),"repository":"https://github.com/example/\(id)","commit":"fixture","enabled":false,"configuration":{}}
+                        """
+                        samples.append(try JSONDecoder().decode(InstalledPlugin.self, from: Data(record.utf8)))
+                        let directory = root.appending(path: "plugins/\(id)")
+                        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                        if id == "custom" {
+                            guard let png = NSImage(named: "Bookmark")?.tiffRepresentation else { fatalError("missing custom icon fixture") }
+                            try png.write(to: directory.appending(path: icon))
+                        }
+                    }
+                    legacyStore.setCodableSetting("plugins.installed", samples)
+                }
                 legacyStore.setCodableSetting("keywords", KeywordRegistry(commands: [
                     KeywordCommand(keyword: "go", name: "Custom", urlTemplate: "https://example.com"),
                 ]))

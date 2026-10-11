@@ -32,6 +32,8 @@ public struct PluginManifest: Codable, Sendable, Hashable {
     public var apiVersion: Int
     public var entry: String
     public var instructions: String?
+    /// Optional artwork relative to the plugin directory. Unreadable artwork uses the host fallback.
+    public var icon: String?
     public var configuration: [PluginConfigurationField]?
     public var tools: [PluginTool]
 

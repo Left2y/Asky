@@ -22,6 +22,15 @@ public actor PluginManager {
         records = store.codableSetting("plugins.installed", as: [InstalledPlugin].self) ?? []
     }
     public func installed() -> [InstalledPlugin] { records }
+    /// Read presentation resources through the same confined path rules as plugin code.
+    public func iconData(for id: String) -> Data? {
+        guard let plugin = records.first(where: { $0.id == id }), let path = plugin.manifest.icon,
+              let file = try? PluginManifest.resource(path, at: root.appending(path: plugin.id)),
+              let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+              size <= 2 * 1024 * 1024,
+              let data = try? Data(contentsOf: file), data.count <= 2 * 1024 * 1024 else { return nil }
+        return data
+    }
     private func save() { store.setCodableSetting("plugins.installed", records) }
     public static func repositoryURL(_ input: String) throws -> String {
         guard let u = URLComponents(string: input.trimmingCharacters(in: .whitespacesAndNewlines)),

@@ -11,6 +11,7 @@ struct PluginSettings: View {
     @State private var busy = false
     @State private var status = ""
     @State private var editing: InstalledPlugin?
+    @State private var icons: [String: NSImage] = [:]
     private var manager: PluginManager { app.tools.plugins }
     private func label(_ key: String) -> String { NSLocalizedString(key, comment: "") }
     var body: some View {
@@ -27,6 +28,7 @@ struct PluginSettings: View {
             Section(label("官方插件")) {
                 ForEach(PluginManager.officialRepositories, id: \.self) { source in
                     HStack {
+                        pluginIcon(repository: source)
                         VStack(alignment: .leading) {
                             Text(source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca")
                             Text(label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务"))
@@ -44,8 +46,9 @@ struct PluginSettings: View {
             Section(label("已安装插件")) {
                 if plugins.isEmpty { Text(label("尚未安装插件")).foregroundStyle(.secondary) }
                 ForEach(plugins) { plugin in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            pluginIcon(repository: plugin.repository)
                             VStack(alignment: .leading) {
                                 Text(plugin.manifest.name).font(.headline)
                                 Text("\(plugin.isOfficial ? label("官方") : label("自行安装")) · \(plugin.manifest.version) · \(plugin.commit.prefix(8))")
@@ -54,16 +57,21 @@ struct PluginSettings: View {
                             Spacer()
                             Toggle(label("启用"), isOn: Binding(get: { plugin.enabled }, set: { value in
                                 Task { await manager.setEnabled(plugin.id, value); await reload() }
-                            })).fixedSize().disabled(busy)
+                            }))
+                            .labelsHidden().toggleStyle(.switch).fixedSize()
+                            .accessibilityLabel(label("启用"))
+                            .help(label("启用")).disabled(busy)
                         }
-                        Text(plugin.repository).font(.caption).textSelection(.enabled)
                         if plugin.needsConfiguration { Text(label("需要配置")).foregroundStyle(.orange) }
-                        HStack {
+                        HStack(spacing: 8) {
+                            Text(plugin.repository).font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                            Spacer(minLength: 12)
                             Button(label("配置")) { editing = plugin }.accessibilityLabel(label("配置"))
                             Button(label("更新")) { perform("更新插件") { try await manager.install(repository: plugin.repository) } }.accessibilityLabel(label("更新"))
                             Button(label("回退")) { perform("回退插件") { try await manager.rollback(plugin.id) } }.accessibilityLabel(label("回退")).disabled(plugin.previousCommit == nil)
                             Button(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }.accessibilityLabel(label("卸载"))
-                        }.disabled(busy)
+                        }.controlSize(.small).disabled(busy)
                     }.padding(.vertical, 4)
                 }
             }
@@ -90,7 +98,33 @@ struct PluginSettings: View {
         do { pendingRepository = try PluginManager.repositoryURL(url); confirmInstall = true }
         catch { status = error.localizedDescription }
     }
-    private func reload() async { plugins = await manager.installed() }
+    private func pluginIcon(repository: String) -> some View {
+        Group {
+            if let icon = icons[repository] {
+                Image(nsImage: icon).resizable().scaledToFit()
+            } else {
+                Image("Plugin").resizable().scaledToFit()
+            }
+        }
+        .frame(width: 36, height: 36)
+        .accessibilityHidden(true)
+    }
+    private func reload() async {
+        let installed = await manager.installed()
+        var artwork: [String: NSImage] = [:]
+        for source in PluginManager.officialRepositories {
+            artwork[source] = ToolService.pluginApplicationIcon(repository: source)
+        }
+        for plugin in installed {
+            if let data = await manager.iconData(for: plugin.id), let image = NSImage(data: data), image.isValid {
+                artwork[plugin.repository] = image
+            } else {
+                artwork[plugin.repository] = ToolService.pluginApplicationIcon(repository: plugin.repository)
+            }
+        }
+        icons = artwork
+        plugins = installed
+    }
     private func perform(_ title: String, operation: @escaping () async throws -> Void) {
         busy = true; status = label(title)
         Task {

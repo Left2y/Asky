@@ -104,8 +104,10 @@ public final class AppsProvider: SearchProvider {
             let language = localization.deletingPathExtension().lastPathComponent
             translations[language, default: [:]].merge(dictionary) { _, stringsValue in stringsValue }
         }
-        // Keep every macOS translation searchable, independently of display language.
-        for dictionary in translations.values {
+        // Index only the user's language families plus English: fuzzy matching against
+        // every translation (e.g. Turkish "Etkinlik Monitörü") yields unrelated hits.
+        let searchable = Set(preferredLanguages.map(Self.languageFamily) + ["en", "english", "base"])
+        for (language, dictionary) in translations where searchable.contains(Self.languageFamily(language)) {
             for key in keys {
                 if let name = dictionary[key] as? String, !name.isEmpty { names.insert(name) }
             }
@@ -120,6 +122,10 @@ public final class AppsProvider: SearchProvider {
         }
         return IndexedApp(name: localizedNames.first ?? bundleNames.first ?? fileName,
                           path: url.path, searchNames: names)
+    }
+
+    private static func languageFamily(_ identifier: String) -> String {
+        String(identifier.lowercased().prefix { $0 != "_" && $0 != "-" })
     }
 
 }

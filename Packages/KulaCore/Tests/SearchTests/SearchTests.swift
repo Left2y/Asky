@@ -88,7 +88,7 @@ final class BatchSink {
                     .write(to: resources.appendingPathComponent("InfoPlist.strings"))
             }
         }
-        let provider = AppsProvider(roots: [root, root])
+        let provider = AppsProvider(roots: [root, root], preferredLanguages: ["zh-Hans-CN"])
         for (english, chinese) in [("WeChat", "微信"), ("DingTalk", "钉钉")] {
             for query in [english, chinese] {
                 let results = await provider.search(query, limit: 5)
@@ -120,7 +120,7 @@ final class BatchSink {
             try PropertyListSerialization.data(fromPropertyList: table, format: format, options: 0)
                 .write(to: resources.appendingPathComponent("InfoPlist.loctable"))
         }
-        let provider = AppsProvider(roots: [root])
+        let provider = AppsProvider(roots: [root], preferredLanguages: ["zh-Hans-CN"])
         for (query, app) in [("电话", "Phone"), ("電話", "Phone"), ("Phone", "Phone"),
                              ("备忘录", "Notes"), ("備忘錄", "Notes"), ("Notes", "Notes")] {
             let results = await provider.search(query, limit: 5)
@@ -150,7 +150,8 @@ final class BatchSink {
                                    (["en-AU"], "System Settings")] {
             let provider = AppsProvider(roots: [root], preferredLanguages: languages)
             #expect(await provider.search("Settings", limit: 5).first?.title == title)
-            #expect(await provider.search("系统设置", limit: 5).first?.title == title)
+            let chineseHit = await provider.search("系统设置", limit: 5).first?.title
+            #expect(chineseHit == (languages[0].hasPrefix("zh") ? title : nil))
             #expect(await provider.search("Sprocket", limit: 5).isEmpty)
             #expect(await provider.search("手机设置", limit: 5).isEmpty)
         }
@@ -160,6 +161,25 @@ final class BatchSink {
             .write(to: strings.appendingPathComponent("InfoPlist.strings"))
         let provider = AppsProvider(roots: [root], preferredLanguages: ["zh-Hans-CN"])
         #expect(await provider.search("Settings", limit: 5).first?.title == "本地设置")
+    }
+
+    @Test func appsProviderIgnoresTranslationsOutsideUserLanguages() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let resources = root.appendingPathComponent("Activity Monitor.app/Contents/Resources")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        let table: [String: Any] = [
+            "en": ["CFBundleDisplayName": "Activity Monitor"],
+            "zh_CN": ["CFBundleDisplayName": "活动监视器"],
+            "tr": ["CFBundleDisplayName": "Etkinlik Monitörü"],
+            "nb": ["CFBundleDisplayName": "Aktivitetsmonitor"]
+        ]
+        try PropertyListSerialization.data(fromPropertyList: table, format: .binary, options: 0)
+            .write(to: resources.appendingPathComponent("InfoPlist.loctable"))
+        let provider = AppsProvider(roots: [root], preferredLanguages: ["zh-Hans-CN"])
+        #expect(await provider.search("kimi", limit: 5).isEmpty)
+        #expect(await provider.search("活动监视器", limit: 5).count == 1)
+        #expect(await provider.search("Activity", limit: 5).count == 1)
     }
 
     @Test func appsProviderIncludesFinderHiddenAppsButSkipsDotEntries() async throws {

@@ -367,7 +367,11 @@ private struct ResultList: View {
         return model.results.compactMap { seen.insert(Self.section(for: $0)).inserted ? Self.section(for: $0) : nil }
     }
 
-    private var showsHeaders: Bool { !model.hasScope && sections.count > 1 }
+    private var showsHeaders: Bool {
+        // The AI fallback is an action, not another kind of local match.
+        let resultSections = Set(model.results.filter { $0.source != .askAI }.map(Self.section(for:)))
+        return !model.hasScope && resultSections.count > 1
+    }
 
     private var height: CGFloat {
         let rows = CGFloat(model.results.count) * LauncherLayout.rowHeight
@@ -402,7 +406,7 @@ private struct ResultList: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(r.title)
-                                .accessibilityAddTraits(i == model.selection ? .isSelected : [])
+                                .accessibilityAddTraits(i == model.selection && r.source != .currency ? .isSelected : [])
                                 .id(r.id)
                             }
                         }
@@ -494,11 +498,12 @@ private struct ResultRow: View {
         }
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)
-        .background(hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
+        .background(result.source == .currency ? AnyShapeStyle(.clear) :
+                        hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
                         selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
-        .onHover { hovering = $0 }
+        .onHover { hovering = result.source != .currency && $0 }
     }
 
     @ViewBuilder private var icon: some View {

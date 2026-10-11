@@ -318,11 +318,11 @@ private struct ClipboardHistoryView: View {
         .foregroundStyle(ThemeColor.kText)
         .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 32))
         .clipShape(RoundedRectangle(cornerRadius: 32))
-        .overlay(alignment: .bottom) {
+        .overlay(alignment: .top) {
             if let status = controller.status {
                 ClipboardStatusToast(message: status)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
+                    .padding(.top, 12)
                     .allowsHitTesting(false)
             }
         }

@@ -367,3 +367,9 @@
 
 "飞书" = "Lark";
 "通过飞书 CLI 管理文档、日程、任务和消息" = "Manage documents, calendars, tasks, and messages with Lark CLI";
+"关于作者" = "About the Author";
+"作者" = "Author";
+"欢迎联系我，反馈问题或分享建议。" = "Get in touch to report an issue or share a suggestion.";
+"联系与反馈" = "Contact and Feedback";
+"邮箱" = "Email";
+"无法打开链接，请检查默认浏览器或邮件应用。" = "Unable to open the link. Check your default browser or email app.";

@@ -26,6 +26,7 @@ struct SettingsView: View {
             case .mcp: MCPSettings(app: app)
             case .plugins: PluginSettings(app: app)
             case .about: AboutSettings()
+            case .author: AuthorSettings()
             }
         }
         .toggleStyle(.switch)

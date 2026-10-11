@@ -470,7 +470,11 @@ private struct ChatBubble: View {
             }
         case .tool(let status):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: item.toolSymbol).frame(width: 20)
+                if let source = item.toolSource {
+                    DataSourceIcon(source: source).frame(width: 20, height: 20)
+                } else {
+                    Image(systemName: item.toolSymbol).frame(width: 20)
+                }
                 Text(item.text).textSelection(.enabled)
             }
             .textStyle(AgentLayout.message)

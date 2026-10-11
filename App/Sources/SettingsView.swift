@@ -314,14 +314,7 @@ private struct SourceSettings: View {
     }
 
     @ViewBuilder private func sourceIcon(_ source: DataSourceID) -> some View {
-        if source == .memory {
-            Image("AskyLogo").resizable().scaledToFit()
-        } else if let icon = ToolService.dataSourceApplicationIcon(source) {
-            Image(nsImage: icon).resizable().scaledToFit()
-        } else {
-            Image(systemName: "app.fill").resizable().scaledToFit()
-                .foregroundStyle(.secondary)
-        }
+        DataSourceIcon(source: source)
     }
 }
 

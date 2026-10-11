@@ -17,6 +17,11 @@ struct ChatItem: Identifiable, Hashable {
     var workSeconds: Int? = nil
     var attachments: [AttachmentRef] = []
 
+    var toolSource: DataSourceID? {
+        guard let name = toolName else { return nil }
+        return DataSourceID.allCases.first { name.hasPrefix($0.rawValue + "_") }
+    }
+
     var toolSymbol: String {
         let name = toolName ?? ""
         switch name {

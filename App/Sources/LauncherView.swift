@@ -622,6 +622,10 @@ private struct ResultRow: View {
         switch result.source {
         case .app, .file:
             Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+        case .shortcut:
+            DataSourceIcon(source: .shortcuts)
+        case .chromeTab:
+            DataSourceIcon(source: .chrome)
         case .terminal:
             CommandIcon(terminalIcon: terminalIcon)
         case .currency:
@@ -644,7 +648,7 @@ private struct ResultRow: View {
             } else if result.target.kind == "launcher-alias", result.primaryAction == .open {
                 Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
-                Image(nsImage: ToolService.launcherIcon(filePath: "/System/Applications/Shortcuts.app")).resizable().scaledToFit()
+                DataSourceIcon(source: .shortcuts)
             } else if result.target.kind == "bookmark-search" {
                 Image("Bookmark").resizable().scaledToFit()
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {

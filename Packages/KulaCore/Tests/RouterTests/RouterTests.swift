@@ -15,6 +15,9 @@ import DirectActions
         #expect(router.route("> ls -la") == .terminal(command: "ls -la"))
         #expect(router.route("ls -la") == .search(query: "ls -la"))
         #expect(router.route(">") == .search(query: ">"))
+        #expect(router.route(">pwd") == .search(query: ">pwd"))
+        #expect(router.route("> ") == .search(query: ">"))
+        #expect(router.route(">\u{3000}pwd") == .terminal(command: "pwd"))
     }
 
     @Test func calculationBeatsSearch() {

@@ -21,9 +21,9 @@ public struct LauncherInputState: Equatable {
     }
 
     public mutating func edit(_ value: String, keywords: KeywordRegistry) {
-        if !hasScope, value.drop(while: { $0.isWhitespace }).hasPrefix(">") {
+        if !hasScope, let query = Self.matchTerminal(value) {
             terminal = true
-            text = String(value.drop(while: { $0.isWhitespace }).dropFirst().drop(while: { $0.isWhitespace }))
+            text = query
         } else if !hasScope, let query = Self.matchBookmarks(value) {
             bookmarks = true
             text = query
@@ -59,6 +59,13 @@ public struct LauncherInputState: Equatable {
         guard text.isEmpty, hasScope else { return false }
         leaveCommand()
         return true
+    }
+
+    /// Like keyword commands, the terminal token is committed only by a following space.
+    static func matchTerminal(_ input: String) -> String? {
+        let trimmed = input.drop(while: { $0.isWhitespace })
+        guard trimmed.first == ">", trimmed.dropFirst().first?.isWhitespace == true else { return nil }
+        return String(trimmed.dropFirst().drop(while: { $0.isWhitespace }))
     }
 
     private static func matchBookmarks(_ input: String) -> String? {

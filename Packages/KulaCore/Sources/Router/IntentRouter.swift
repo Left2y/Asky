@@ -31,8 +31,8 @@ public struct IntentRouter: Sendable {
     public func route(_ raw: String) -> Route {
         let input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if input.isEmpty { return .empty }
-        if input.hasPrefix(">") {
-            let cmd = input.dropFirst().trimmingCharacters(in: .whitespaces)
+        if let command = LauncherInputState.matchTerminal(raw) {
+            let cmd = command.trimmingCharacters(in: .whitespacesAndNewlines)
             return cmd.isEmpty ? .search(query: input) : .terminal(command: cmd)
         }
         if let v = Calculator.evaluate(input) { return .calculation(expression: input, value: v) }

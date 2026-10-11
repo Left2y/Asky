@@ -45,10 +45,19 @@ enum LauncherTerminalRegression {
         guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }),
               let field = findField(panel.contentView!) else { throw NSError(domain: "TerminalRegression", code: 2) }
         (panel as? LauncherPanel)?.onBlur = {}
-        model.inputText = ">"
+        panel.makeFirstResponder(field)
+        guard let editor = field.currentEditor() as? NSTextView else {
+            throw NSError(domain: "TerminalRegression", code: 3)
+        }
+        editor.insertText(">", replacementRange: editor.selectedRange())
+        field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
         try await Task.sleep(for: .milliseconds(200))
-        try require(model.isTerminalScope && model.inputText.isEmpty && model.results.isEmpty, "bare prefix enters idle terminal mode")
-        try require(field.stringValue.isEmpty, "prefix consumed in native field")
+        try require(!model.hasScope && model.inputText == ">" && editor.string == ">", "bare prefix stays visible in ordinary search")
+        try require(!model.results.contains { $0.source == .terminal }, "bare prefix offers no terminal action")
+        editor.insertText(" ", replacementRange: editor.selectedRange())
+        field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
+        try require(model.isTerminalScope && model.inputText.isEmpty && model.results.isEmpty, "space enters idle terminal mode")
+        try require(field.stringValue.isEmpty && editor.string.isEmpty && editor.selectedRange().location == 0, "space consumes prefix and resets native caret immediately")
         model.inputText = "printf '%s' 'go chat' > result.txt"
         try await Task.sleep(for: .milliseconds(200))
         try require(findField(panel.contentView!)?.stringValue == model.inputText, "native field displays only command")
@@ -61,7 +70,10 @@ enum LauncherTerminalRegression {
         try require(model.backspaceOnEmptyInput(), "Backspace exits terminal mode")
         try require(!model.hasScope, "ordinary search resumes")
         model.query = ">pwd"
-        try require(model.isTerminalScope && model.inputText == "pwd", "pasted prefix without space")
+        try require(!model.hasScope && model.inputText == ">pwd", "pasted prefix without space remains search")
+        try require(!model.results.contains { $0.source == .terminal }, "undelimited pasted command offers no terminal action")
+        model.query = "> pwd"
+        try require(model.isTerminalScope && model.inputText == "pwd", "pasted prefix with space enters terminal mode")
         model.query = "go cats"
         try require(!model.isTerminalScope && model.commandInput?.command.keyword == "go", "web keywords still work")
         let settings = SettingsWindow.make(app: app)

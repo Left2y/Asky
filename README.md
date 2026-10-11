@@ -54,7 +54,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ### 使用方法
 
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
-- 输入英文 `>` 进入终端模式，例如 `> pwd`；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 通用 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
+- 输入英文 `>` 后按空格进入终端模式，例如 `> pwd`；单独的 `>` 或 `>pwd` 保持普通搜索；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 通用 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
 - 在“设置 › 通用 › 文件搜索范围”点击“选择文件夹…”，通过系统文件夹选择窗口添加搜索目录。
 - 输入 `1+1`，输入框末尾以浅色显示 `= 2`，下方卡片上下显示公式与结果：上方公式左对齐，下方结果右对齐，回车复制结果；长算式最多显示两行并从中间截断，悬停查看全文。输入 `1美元` 或 `100人民币`，下方横向展示输入币种与人民币的换算卡片（人民币输入默认换算为美元），其他币种保持列表显示在卡片下方。输入 `100 USD CNY` 可只查看指定币种。卡片显示旗帜、币种和金额，不提供选中、悬停或复制操作。汇率使用 ECB 日参考数据；断网时使用已有缓存，无缓存则显示不可用。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
@@ -167,7 +167,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
 - Type `1+1` to see a faint `= 2` suffix and a stacked card with the expression aligned left above the right-aligned result; press Return to copy the result. Long expressions occupy up to two lines with middle truncation; hover to see the full expression. Type `1美元`, `1 USD`, or `100人民币` to see a horizontal pair of cards showing the input currency and Chinese yuan (yuan inputs default to US dollars), with all other currencies listed underneath. Use `100 USD CNY` for a specific pair. Cards show flags, currencies, and amounts, without selection, hover, or copy actions. Rates use ECB daily references; offline use falls back to the cache or reports unavailable.
-- Type ASCII `>` to enter terminal mode, for example `> pwd`; Return opens the selected terminal and runs the command in the configured working directory. Choose an installed system Terminal, iTerm2, or Ghostty (1.3+) under Settings › General › Terminal › Terminal for Commands; the launcher and result show that app’s icon. Backspace on an empty field leaves terminal mode. First use may require Automation permission.
+- Type ASCII `>` followed by a space to enter terminal mode, for example `> pwd`; `>` alone or `>pwd` stays in ordinary search; Return opens the selected terminal and runs the command in the configured working directory. Choose an installed system Terminal, iTerm2, or Ghostty (1.3+) under Settings › General › Terminal › Terminal for Commands; the launcher and result show that app’s icon. Backspace on an empty field leaves terminal mode. First use may require Automation permission.
 - Under Settings › General › File Search Scope, click “Choose Folder…” to add a search directory using the system folder picker.
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
 - Press `Ctrl + Option + Command + /` to open AI with a blank new conversation (without Shift); customize the combination or restore its default in Settings › Hotkeys › AI Conversation; an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.

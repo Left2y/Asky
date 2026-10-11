@@ -81,7 +81,7 @@ public struct IntentRouter: Sendable {
         case .calculation(let expr, let v):
             let s = Calculator.format(v)
             return [SearchResult(source: .calculator, target: TargetRef(kind: "calc", identifier: expr),
-                                 title: s, subtitle: "\(expr) · ↩ 复制", actions: [.copy(s)], score: 100)]
+                                 title: s, subtitle: expr, actions: [.copy(s)], score: 100)]
         case .conversion(let c):
             let v = Calculator.format((c.value * 1e6).rounded() / 1e6)
             return [SearchResult(source: .conversion, target: TargetRef(kind: "unit", identifier: c.display),

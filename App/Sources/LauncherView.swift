@@ -230,7 +230,7 @@ struct LauncherView: View {
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
                     fontSize: 18,
                     textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
-                    placeholder: "",
+                    placeholder: NSLocalizedString("搜索或输入你的任务", comment: "Launcher empty input placeholder"),
                     completion: model.calculationCompletion,
                     backspaceOnEmpty: model.backspaceOnEmptyInput,
                     move: model.move,

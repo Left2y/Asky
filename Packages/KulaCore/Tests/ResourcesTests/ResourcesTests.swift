@@ -22,7 +22,7 @@ import Foundation
         #expect(Budgets.textCacheBytes == 16 << 20)
         #expect(Budgets.historyFirstPage == 40)
         #expect(Budgets.messageWindow == 120)
-        #expect(Budgets.maxToolRounds == 8)
+        #expect(Budgets.maxToolRounds == 50)
     }
 
     @Test func boundedQueueDropsOldestAndCoalesces() {

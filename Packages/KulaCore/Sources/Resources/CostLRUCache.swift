@@ -81,5 +81,5 @@ public enum Budgets {
     public static let messageWindow = 120
     public static let decodeConcurrency = 2
     public static let piIdleSeconds: TimeInterval = 60
-    public static let maxToolRounds = 8
+    public static let maxToolRounds = 50
 }

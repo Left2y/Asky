@@ -26,7 +26,7 @@ public struct AgentHostConfig: Sendable {
     public var idleTimeout: Duration = .seconds(60)
     public var handshakeTimeout: Duration = .seconds(15)
     public var shutdownGrace: Duration = .seconds(2)
-    public var maxToolRounds = 8
+    public var maxToolRounds = 50
     public init() {}
 }
 

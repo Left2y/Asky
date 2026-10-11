@@ -3,6 +3,7 @@ import SwiftUI
 import DirectActions
 import LocalStore
 import Router
+import ToolService
 
 @main @MainActor
 enum SettingsRegression {
@@ -63,6 +64,7 @@ enum SettingsRegression {
                         return true
                     } catch { model.hotKeyStatus = "组合键已被占用"; return false }
                 }
+                try await assertPermissionRefreshRace()
                 let window = SettingsWindow.make(app: model)
                 guard let split = window.contentViewController as? NSSplitViewController,
                       split.splitViewItems.count == 2,
@@ -159,6 +161,24 @@ enum SettingsRegression {
         guard card.alphaValue == 0, accepted == [false, true] else { fatalError("accepted drag incorrectly restored the source card") }
     }
 
+    private static func assertPermissionRefreshRace() async throws {
+        var pendingRead: CheckedContinuation<PermissionState, Never>?
+        let model = PermissionSettingsModel(readState: { _ in
+            await withCheckedContinuation { pendingRead = $0 }
+        }, requestAccess: { _ in .authorized })
+        let refresh = Task { await model.refresh() }
+        while pendingRead == nil { await Task.yield() }
+        await model.request(.calendar)
+        guard model.states[.calendar] == .authorized, model.requesting == nil else {
+            fatalError("successful request did not immediately update permission status")
+        }
+        pendingRead?.resume(returning: .notDetermined)
+        await refresh.value
+        guard model.states[.calendar] == .authorized else {
+            fatalError("stale background read overwrote the completed request")
+        }
+    }
+
     /// Simulate permission changes without granting real TCC access or opening System Settings.
     private static func assertStandaloneAuthorizationFlow(parent: NSWindow) async throws {
         for regrant in [false, true] {
@@ -193,6 +213,25 @@ enum SettingsRegression {
             guard controller.window == nil, dismissed == 1 else {
                 fatalError("authorization completion failed to close the panel and its settings session")
             }
+        }
+        var registration: CheckedContinuation<Void, Never>?
+        var openedWhilePreparing = false
+        let preparing = PermissionAuthorizationWindow(readState: { _ in .denied },
+            openSettings: { _ in
+                openedWhilePreparing = true
+                return PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: {})
+            }, resetAuthorization: { _ in }, registerForAuthorization: { _ in
+                await withCheckedContinuation { registration = $0 }
+            })
+        preparing.show(.screenRecording, colorScheme: .light)
+        while registration == nil { await Task.yield() }
+        guard !openedWhilePreparing else { fatalError("settings opened before system request completed") }
+        // Closing while a native request is pending must not reopen settings when it returns.
+        preparing.cancel()
+        registration?.resume()
+        try await Task.sleep(for: .milliseconds(150))
+        guard preparing.window == nil, !openedWhilePreparing else {
+            fatalError("cancelled registration reopened the authorization flow")
         }
         var dismissed = false
         let cancelled = PermissionAuthorizationWindow(readState: { _ in .denied },

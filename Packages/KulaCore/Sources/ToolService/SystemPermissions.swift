@@ -1,5 +1,6 @@
 import AppKit
 import EventKit
+import ScreenCaptureKit
 @preconcurrency import Contacts
 import UserNotifications
 import UniformTypeIdentifiers
@@ -114,10 +115,10 @@ public enum SystemPermissions {
             guard permission.canRequest(from: current) else { return current }
             NSApp.activate()
             switch permission {
-            case .calendar: _ = try await events.requestFullAccessToEvents()
-            case .reminders: _ = try await events.requestFullAccessToReminders()
-            case .contacts: _ = try await contacts.requestAccess(for: .contacts)
-            case .notifications: _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert])
+            case .calendar: return try await events.requestFullAccessToEvents() ? .authorized : await state(permission)
+            case .reminders: return try await events.requestFullAccessToReminders() ? .authorized : await state(permission)
+            case .contacts: return try await contacts.requestAccess(for: .contacts) ? .authorized : await state(permission)
+            case .notifications: return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) ? .authorized : await state(permission)
             case .screenRecording: _ = CGRequestScreenCaptureAccess()
             case .accessibility: _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
             default: break
@@ -196,10 +197,19 @@ public enum SystemPermissions {
     }
 
     /// Lets the running process add itself to the list, so the entry carries its real signature.
-    /// Both calls return at once; the toggle is then switched on in System Settings.
-    public static func registerForAuthorization(_ permission: SystemPermission) {
+    /// Wait for the screen permission request to finish before enabling the drag fallback.
+    /// This enumerates available content only; it does not capture or retain screen pixels.
+    public static func registerForAuthorization(_ permission: SystemPermission) async {
         switch permission {
-        case .screenRecording: _ = CGRequestScreenCaptureAccess()
+        case .screenRecording:
+            guard !CGPreflightScreenCaptureAccess() else { return }
+            NSApp.activate()
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { _, _ in
+                    // Denial still registers the current process; the settings toggle is the fallback.
+                    continuation.resume()
+                }
+            }
         case .accessibility: _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         default: break
         }

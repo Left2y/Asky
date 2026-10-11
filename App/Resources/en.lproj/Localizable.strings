@@ -334,3 +334,5 @@
 "无法安装 Asky" = "Unable to Install Asky";
 "请在 Finder 中将 Asky.app 拖入“应用程序”，然后从那里重新打开。" = "Drag Asky.app into Applications in Finder, then open it from there.";
 "打开应用程序文件夹" = "Open Applications Folder";
+
+"正在准备授权，请先完成系统提示…" = "Preparing access. Complete the system prompt first…";

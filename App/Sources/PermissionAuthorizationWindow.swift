@@ -7,6 +7,7 @@ import ToolService
 @MainActor @Observable
 private final class PermissionAuthorizationModel {
     let permission: SystemPermission
+    var preparing = true
     var regrant = false
     var cardAbsent = false
     var dropped = false
@@ -33,7 +34,7 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
     private let readState: (SystemPermission) async -> PermissionState
     private let openPermissionSettings: (SystemPermission) throws -> PermissionAuthorizationSettingsHandle
     private let resetAuthorization: (SystemPermission) async -> Void
-    private let registerForAuthorization: (SystemPermission) -> Void
+    private let registerForAuthorization: (SystemPermission) async -> Void
 
     var window: NSPanel? { panel }
 
@@ -43,7 +44,7 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
              return PermissionAuthorizationSettingsHandle(windowFrame: { session.windowFrame }, dismiss: { session.dismiss() })
          },
          resetAuthorization: @escaping (SystemPermission) async -> Void = { await SystemPermissions.resetAuthorization($0) },
-         registerForAuthorization: @escaping (SystemPermission) -> Void = { SystemPermissions.registerForAuthorization($0) }) {
+         registerForAuthorization: @escaping (SystemPermission) async -> Void = { await SystemPermissions.registerForAuthorization($0) }) {
         self.readState = readState
         self.openPermissionSettings = openSettings
         self.resetAuthorization = resetAuthorization
@@ -98,9 +99,11 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
             if initial != .authorized {
                 await self.resetAuthorization(permission)
                 guard self.generation == generation, !Task.isCancelled else { return }
-                self.registerForAuthorization(permission)
+                await self.registerForAuthorization(permission)
+                guard self.generation == generation, !Task.isCancelled else { return }
                 model.needsRelaunch = permission.requiresRelaunchAfterGrant
             }
+            model.preparing = false
             var progress = PermissionAuthorizationProgress(initialState: initial)
             self.openSettings(for: model)
             for _ in 0..<20 {
@@ -235,12 +238,14 @@ private struct PermissionAuthorizationView: View {
             if canDrag {
                 PermissionAppDragCard(onStarted: { model.cardAbsent = true }, onEnded: dropEnded)
                     .frame(height: 80)
-                    .opacity(model.cardAbsent ? 0 : 1)
-                    .allowsHitTesting(!model.cardAbsent)
+                    .opacity(model.preparing || model.cardAbsent ? 0 : 1)
+                    .allowsHitTesting(!model.preparing && !model.cardAbsent)
             } else {
                 PermissionAppCard(colorScheme: colorScheme, reduceTransparency: reduceTransparency).opacity(0.5)
             }
-            Text(NSLocalizedString(!canDrag
+            Text(NSLocalizedString(model.preparing
+                ? "正在准备授权，请先完成系统提示…"
+                : !canDrag
                 ? "请先将 Asky.app 移到“应用程序”文件夹并重新打开，再拖拽授权。"
                 : model.needsRelaunch
                 ? "在系统设置中打开 Asky 的开关，然后重新启动 Asky 使屏幕录制生效。列表中没有 Asky 时，将卡片拖入。"
@@ -257,7 +262,7 @@ private struct PermissionAuthorizationView: View {
                 Button(NSLocalizedString("打开系统设置", comment: ""), action: reopenSettings)
                     .buttonStyle(.glass)
             }
-            if model.needsRelaunch {
+            if model.needsRelaunch && !model.preparing {
                 Button(NSLocalizedString("重新启动 Asky", comment: ""), action: relaunch)
                     .buttonStyle(.glassProminent)
             }

@@ -73,7 +73,9 @@ enum LauncherWindowRegression {
         (panel as? LauncherPanel)?.onBlur = {}
         defer { controller.hide() }
         for (query, file) in [("电话", "Phone.app"), ("备忘录", "Notes.app"),
-                              ("计算器", "Calculator.app"), ("系统设置", "System Settings.app")] {
+                              ("计算器", "Calculator.app"), ("系统设置", "System Settings.app"),
+                              ("音频MIDI设置", "Audio MIDI Setup.app"), ("活动监视器", "Activity Monitor.app"),
+                              ("终端", "Terminal.app"), ("日历", "Calendar.app")] {
             model.query = query
             for _ in 0..<60 {
                 if !model.isSearching { break }
@@ -83,8 +85,10 @@ enum LauncherWindowRegression {
             try require(model.results.contains { $0.source == .app &&
                 URL(fileURLWithPath: $0.target.identifier).lastPathComponent == file },
                 "missing system app for \(query)")
-            print("\(query) => \(file) passed")
-            if query == "电话", let view = panel?.contentView,
+            let result = model.results.first { URL(fileURLWithPath: $0.target.identifier).lastPathComponent == file }
+            try require(result?.title == query, "expected Chinese title \(query), got \(result?.title ?? "nil")")
+            print("\(query) => \(file), title=\(result!.title) passed")
+            if query == "系统设置", let view = panel?.contentView,
                let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                 view.cacheDisplay(in: view.bounds, to: bitmap)
                 if let png = bitmap.representation(using: .png, properties: [:]) {

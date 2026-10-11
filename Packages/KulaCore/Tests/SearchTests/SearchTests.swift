@@ -130,6 +130,38 @@ final class BatchSink {
         #expect(await provider.search("DoNotIndexThis", limit: 5).isEmpty)
     }
 
+    @Test func appsProviderUsesUserLanguageAndMacPlatformNames() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let resources = root.appendingPathComponent("Settings.app/Contents/Resources")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        let table: [String: Any] = [
+            "en": ["CFBundleDisplayName": "Settings"],
+            "en~mac": ["CFBundleDisplayName": "System Settings"],
+            "en_AU~appletv": ["CFBundleDisplayName": "Sprocket"],
+            "zh_CN": ["CFBundleDisplayName": "通用设置"],
+            "zh_CN~mac": ["CFBundleDisplayName": "系统设置"],
+            "zh_CN~iphone": ["CFBundleDisplayName": "手机设置"],
+            "zh_TW~mac": ["CFBundleDisplayName": "系統設定"]
+        ]
+        try PropertyListSerialization.data(fromPropertyList: table, format: .binary, options: 0)
+            .write(to: resources.appendingPathComponent("InfoPlist.loctable"))
+        for (languages, title) in [(["zh-Hans-CN"], "系统设置"), (["zh-Hant-TW"], "系統設定"),
+                                   (["en-AU"], "System Settings")] {
+            let provider = AppsProvider(roots: [root], preferredLanguages: languages)
+            #expect(await provider.search("Settings", limit: 5).first?.title == title)
+            #expect(await provider.search("系统设置", limit: 5).first?.title == title)
+            #expect(await provider.search("Sprocket", limit: 5).isEmpty)
+            #expect(await provider.search("手机设置", limit: 5).isEmpty)
+        }
+        let strings = resources.appendingPathComponent("zh_CN.lproj")
+        try FileManager.default.createDirectory(at: strings, withIntermediateDirectories: true)
+        try "\"CFBundleDisplayName\" = \"本地设置\";".data(using: .utf16)!
+            .write(to: strings.appendingPathComponent("InfoPlist.strings"))
+        let provider = AppsProvider(roots: [root], preferredLanguages: ["zh-Hans-CN"])
+        #expect(await provider.search("Settings", limit: 5).first?.title == "本地设置")
+    }
+
     @Test func appsProviderIncludesFinderHiddenAppsButSkipsDotEntries() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

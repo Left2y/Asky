@@ -8,6 +8,7 @@ import LocalStore
 public final class AppsProvider: SearchProvider {
     public let source = SearchSource.app
     private let roots: [URL]
+    private let preferredLanguages: [String]
     private struct IndexedApp {
         let name: String
         let path: String
@@ -16,7 +17,11 @@ public final class AppsProvider: SearchProvider {
     private let index = Mutex<[IndexedApp]?>(nil)
     private let usage = Mutex<[String: Date]>([:])
 
-    public init(roots: [URL] = AppsProvider.defaultRoots) { self.roots = roots }
+    public init(roots: [URL] = AppsProvider.defaultRoots,
+                preferredLanguages: [String] = Locale.preferredLanguages) {
+        self.roots = roots
+        self.preferredLanguages = preferredLanguages
+    }
 
     public static var defaultRoots: [URL] {
         ["/Applications", "/System/Applications", "/System/Applications/Utilities", "/Applications/Utilities",
@@ -73,21 +78,21 @@ public final class AppsProvider: SearchProvider {
         // Index the app's own translations, even when macOS uses a different language.
         // InfoPlist.strings may be XML/binary plists or OpenStep strings in UTF-16.
         let resources = url.appendingPathComponent("Contents/Resources", isDirectory: true)
-        // Modern system apps use language-keyed loctables instead of lproj strings.
-        // Index only app-name fields, not unrelated localized UI strings.
+        // Match the user's language explicitly: Bundle's implicit selection can be
+        // limited by the host app's own development language. Platform variants
+        // must never let iPhone/Apple TV names leak into macOS search results.
+        var translations: [String: [String: Any]] = [:]
         if let data = try? Data(contentsOf: resources.appendingPathComponent("InfoPlist.loctable")),
            let table = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
-            let languages = table.compactMap { $0.value is [String: Any] ? $0.key : nil }.sorted()
-            for language in languages {
-                guard let dictionary = table[language] as? [String: Any] else { continue }
-                for key in keys {
-                    if let name = dictionary[key] as? String, !name.isEmpty { names.insert(name) }
+            for (language, value) in table where !language.contains("~") {
+                if let dictionary = value as? [String: Any], keys.contains(where: { dictionary[$0] is String }) {
+                    translations[language] = dictionary
                 }
             }
-            if let language = Bundle.preferredLocalizations(from: languages).first,
-               let dictionary = table[language] as? [String: Any] {
-                let preferredNames = keys.compactMap { dictionary[$0] as? String }.filter { !$0.isEmpty }
-                if !preferredNames.isEmpty { localizedNames = preferredNames }
+            for (language, value) in table where language.hasSuffix("~mac") {
+                guard let dictionary = value as? [String: Any] else { continue }
+                let base = String(language.dropLast(4))
+                translations[base, default: [:]].merge(dictionary) { _, macValue in macValue }
             }
         }
         let localizations = (try? FileManager.default.contentsOfDirectory(
@@ -96,9 +101,22 @@ public final class AppsProvider: SearchProvider {
             guard let data = try? Data(contentsOf: localization.appendingPathComponent("InfoPlist.strings")),
                   let dictionary = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
             else { continue }
+            let language = localization.deletingPathExtension().lastPathComponent
+            translations[language, default: [:]].merge(dictionary) { _, stringsValue in stringsValue }
+        }
+        // Keep every macOS translation searchable, independently of display language.
+        for dictionary in translations.values {
             for key in keys {
                 if let name = dictionary[key] as? String, !name.isEmpty { names.insert(name) }
             }
+        }
+        let languages = translations.keys.filter { language in
+            keys.contains { (translations[language]?[$0] as? String).map { !$0.isEmpty } ?? false }
+        }.sorted()
+        if let language = Bundle.preferredLocalizations(from: languages, forPreferences: preferredLanguages).first,
+           let dictionary = translations[language] {
+            let preferredNames = keys.compactMap { dictionary[$0] as? String }.filter { !$0.isEmpty }
+            if !preferredNames.isEmpty { localizedNames = preferredNames }
         }
         return IndexedApp(name: localizedNames.first ?? bundleNames.first ?? fileName,
                           path: url.path, searchNames: names)

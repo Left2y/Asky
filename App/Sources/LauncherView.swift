@@ -53,8 +53,9 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        // The SwiftUI shell supplies the shadow; avoid a rectangular window shadow.
-        hasShadow = true
+        // Liquid Glass supplies its optical edge and depth. A second AppKit
+        // shadow outlines the transparent glass envelope below the surface.
+        hasShadow = SurfaceCompatibility.useLegacyMaterial
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
         isReleasedWhenClosed = false
@@ -431,7 +432,7 @@ struct LauncherView: View {
         // Blank input/result areas must belong to the shell's pointer region.
         .contentShape(shellShape)
         .clipShape(shellShape)
-        .nativeGlassBackground(in: shellShape, interactive: true)
+        .nativeGlassBackground(in: shellShape)
         .contentShape(shellShape)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }

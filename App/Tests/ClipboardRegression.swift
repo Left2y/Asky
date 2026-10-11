@@ -110,6 +110,66 @@ enum ClipboardRegression {
                     // Retain the controller while a human or computer-use inspects the actual window.
                     while true { try await Task.sleep(for: .seconds(1)); _ = controller.items.count }
                 }
+                if CommandLine.arguments.contains("--hover-mouse") {
+                    // Exercise WindowServer delivery to the actual drag overlay, not controller callbacks.
+                    panel().makeKey()
+                    controller.pinned = false
+                    panel().orderFrontRegardless()
+                    panel().contentView!.layoutSubtreeIfNeeded()
+                    @MainActor func surfaces(_ view: NSView) -> [ClipboardCardMouseView] {
+                        if let card = view as? ClipboardCardMouseView { return [card] }
+                        return view.subviews.flatMap(surfaces)
+                    }
+                    let cards = surfaces(panel().contentView!).sorted {
+                        $0.convert(.zero, to: nil).x < $1.convert(.zero, to: nil).x
+                    }
+                    precondition(cards.count >= 2)
+                    let originalPointer = NSEvent.mouseLocation
+                    func movePointer(_ point: NSPoint) {
+                        let location = CGPoint(x: point.x, y: NSScreen.screens[0].frame.maxY - point.y)
+                        CGWarpMouseCursorPosition(location)
+                        CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: location,
+                                mouseButton: .left)?.post(tap: .cghidEventTap)
+                    }
+                    defer { movePointer(originalPointer) }
+                    let preview = application.windows.first { $0.title == "剪贴板完整预览" }!
+                    let outside = NSPoint(x: shellFrame().minX + 8, y: shellFrame().maxY - 8)
+                    let first = panel().convertToScreen(cards[0].convert(cards[0].bounds, to: nil))
+                    let second = panel().convertToScreen(cards[1].convert(cards[1].bounds, to: nil))
+                    movePointer(outside)
+                    try await Task.sleep(for: .milliseconds(300))
+                    movePointer(NSPoint(x: first.midX, y: first.midY))
+                    try await Task.sleep(for: .milliseconds(600))
+                    precondition(!preview.isVisible, "real brief hover must not show a preview")
+                    movePointer(outside)
+                    try await Task.sleep(for: .milliseconds(600))
+                    precondition(!preview.isVisible, "real pointer departure cancels pending preview")
+                    for (index, frame) in [first, second].enumerated() {
+                        movePointer(NSPoint(x: frame.midX, y: frame.midY))
+                        try await Task.sleep(for: .milliseconds(1200))
+                        precondition(preview.isVisible, "real card hover must display the full preview")
+                        precondition(abs(preview.frame.midX - frame.midX) < 1 ||
+                                     abs(preview.frame.minX - frame.minX) < 1 ||
+                                     abs(preview.frame.maxX - frame.maxX) < 1, "preview follows the hovered card")
+                        try snapshot(preview, "mouse-preview-\(index)")
+                        movePointer(NSPoint(x: preview.frame.midX, y: preview.frame.midY))
+                        try await Task.sleep(for: .milliseconds(350))
+                        precondition(preview.isVisible, "moving into the preview keeps it open")
+                        movePointer(outside)
+                        try await Task.sleep(for: .milliseconds(350))
+                        precondition(!preview.isVisible, "leaving both surfaces dismisses preview")
+                    }
+                    controller.hide()
+                    precondition(!preview.isVisible)
+                    try? FileManager.default.removeItem(at: root)
+                    print("Clipboard real mouse text/image hover, one-second delay, cancellation and preview handoff passed")
+                    exit(0)
+                }
+                // Direct-callback regressions must not consume concurrent desktop keyboard/pointer input.
+                panel().makeFirstResponder(nil)
+                panel().resignKey()
+                panel().ignoresMouseEvents = true
+                controller.query = ""
                 var settingsOpened = 0
                 app.onOpenSettings = { settingsOpened += 1 }
                 let comma = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
@@ -165,13 +225,21 @@ enum ClipboardRegression {
                 precondition(panel().level == .normal)
                 // Drive hover callbacks explicitly without the live pointer overriding timed checks.
                 controller.togglePinned()
+                let pointerBeforeSyntheticHover = NSEvent.mouseLocation
+                func restorePointer() {
+                    CGWarpMouseCursorPosition(CGPoint(x: pointerBeforeSyntheticHover.x,
+                        y: NSScreen.screens[0].frame.maxY - pointerBeforeSyntheticHover.y))
+                }
+                // Tracking callbacks can still arrive for an ignored window. Park away from cards/previews.
+                CGWarpMouseCursorPosition(CGPoint(x: shellFrame().midX,
+                    y: NSScreen.screens[0].frame.maxY - (shellFrame().maxY - 8)))
                 panel().ignoresMouseEvents = true
                 application.windows.first { $0.title == "剪贴板完整预览" }!.ignoresMouseEvents = true
                 @MainActor func card(_ minX: CGFloat) -> NSRect { NSRect(x: minX, y: shellFrame().minY + 12, width: 264, height: 160) }
                 @MainActor func previewFor(_ item: ClipboardItem, _ anchor: NSRect) async throws -> NSWindow {
                     controller.dismissPreview()
                     controller.hover(item, frame: anchor, inside: true)
-                    try await Task.sleep(for: .milliseconds(1700))
+                    try await Task.sleep(for: .milliseconds(1200))
                     let window = application.windows.first { $0.title == "剪贴板完整预览" }!
                     precondition(window.isVisible, "preview for \(item.contentHash) at \(anchor) panel \(panel().frame) visible \(panel().isVisible)")
                     return window
@@ -180,7 +248,7 @@ enum ClipboardRegression {
                 controller.dismissPreview()
                 let pendingPreview = application.windows.first { $0.title == "剪贴板完整预览" }!
                 controller.hover(picture, frame: middle, inside: true)
-                try await Task.sleep(for: .milliseconds(1000))
+                try await Task.sleep(for: .milliseconds(600))
                 precondition(!pendingPreview.isVisible, "brief hover must not show the preview")
                 controller.hover(picture, frame: middle, inside: false)
                 try await Task.sleep(for: .milliseconds(700))
@@ -190,7 +258,8 @@ enum ClipboardRegression {
                     controller.hide()
                     precondition(!preview.isVisible, "closing releases the preview")
                     try? FileManager.default.removeItem(at: root)
-                    print("Clipboard 1.5-second hover delay, cancellation and preview release passed")
+                    restorePointer()
+                    print("Clipboard 1-second hover delay, cancellation and preview release passed")
                     exit(0)
                 }
                 precondition(preview.frame.minY >= preview.screen!.visibleFrame.minY)
@@ -212,10 +281,11 @@ enum ClipboardRegression {
                 preview = try await previewFor(portrait, middle)
                 precondition(!preview.frame.intersects(shellFrame()), "preview never covers the panel")
                 precondition(preview.frame.width < 464, "tall image narrows to its aspect ratio")
-                precondition(abs(preview.frame.midX - middle.midX) < 0.5, "tall preview is centered under the card")
+                // AppKit rounds narrow window frames to screen pixels.
+                precondition(abs(preview.frame.midX - middle.midX) <= 1, "tall preview is centered under the card: preview=\(preview.frame), anchor=\(middle)")
                 // Real card anchors must report each card's on-screen frame.
                 @MainActor func anchors(_ view: NSView) -> [NSView] {
-                    (String(describing: type(of: view)).contains("AnchorView") ? [view] : []) + view.subviews.flatMap(anchors)
+                    (view is ClipboardCardMouseView ? [view] : []) + view.subviews.flatMap(anchors)
                 }
                 let frames = anchors(panel().contentView!).compactMap { v in v.window.map { $0.convertToScreen(v.convert(v.bounds, to: nil)) } }
                     .sorted { $0.minX < $1.minX }
@@ -237,6 +307,7 @@ enum ClipboardRegression {
                 controller.hide()
                 precondition(controller.items.isEmpty && panel().contentView == nil && !panel().isVisible)
                 try? FileManager.default.removeItem(at: root)
+                restorePointer()
                 print("Clipboard native snapshots, search, pin, delete, preview placement and release passed")
                 exit(0)
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }

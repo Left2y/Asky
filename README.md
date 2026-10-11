@@ -33,7 +33,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 ### 核心能力
 
 - **聚焦搜索**：搜索应用、文件、Chrome 标签页与本地书签，读取应用自带的本地化名称（含系统应用的 `InfoPlist.loctable`），支持应用别名、网页关键词、计算和换算。
-- **剪贴板历史**：独立面板浏览文本与图片，悬停 1.5 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
+- **剪贴板历史**：独立面板浏览文本与图片，悬停 1 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
 - **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。每条任务最多自动调用 50 次工具。工具调用中显示加载动画，成功后显示对应来源图标，失败时显示带圈的叉；错误详情默认折叠，点击右侧箭头展开。
 - **系统工具**：通过 ToolService 统一处理系统读写与授权；集成日历、提醒事项、备忘录和通讯录，信息草稿交由系统 App 确认发送。
 - **GitHub 插件**：在“设置 › 插件”按需安装官方或自行选择的公开 GitHub 仓库，支持配置、启停、更新、回退和卸载。官方 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca) 与 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 独立发布，不进入安装包；插件会执行可信本机代码，不提供沙箱。支持清单自定义图标，Orca 使用本机应用图标，缺省时显示内置占位图标。接口与安装依赖见[插件指南](docs/plugins.md)。
@@ -120,6 +120,7 @@ python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
+python3 App/Tests/run-clipboard-regression.py --hover-mouse
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-clipboard-regression.py --drag
 python3 App/Tests/run-clipboard-regression.py --drag-preview
@@ -190,7 +191,7 @@ The project is under active development. The repository includes the native app,
 ### Features
 
 - **Focused search**: Find apps, files, Chrome tabs, and local bookmarks, using each app’s localized names (including system app `InfoPlist.loctable` resources), with app aliases, web keywords, calculations, and unit conversions.
-- **Clipboard history**: Browse text and images in a dedicated panel with full previews after hovering for 1.5 seconds, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
+- **Clipboard history**: Browse text and images in a dedicated panel with full previews after hovering for 1 second, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
 - **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle. Each task allows up to 50 automatic tool calls. Tool calls show a spinner while running, their source icon on success, and a circled cross on failure; error details start collapsed and can be expanded with the arrow on the right.
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.
 - **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) and [Lark plugin](https://github.com/Niall-Young/asky-plugin-lark) ship separately and are not bundled. Plugins support custom manifest icons, use the local Orca app icon, and show a bundled placeholder when no artwork is available. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
@@ -277,6 +278,7 @@ python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
+python3 App/Tests/run-clipboard-regression.py --hover-mouse
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-clipboard-regression.py --drag
 python3 App/Tests/run-clipboard-regression.py --drag-preview

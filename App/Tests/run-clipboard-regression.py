@@ -40,4 +40,5 @@ shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Reso
 with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "ClipboardRegression", "CFBundleIdentifier": "app.asky.clipboard-regression",
                   "CFBundleName": "ClipboardRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], env=environment, cwd=root, check=True)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

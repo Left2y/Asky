@@ -43,6 +43,7 @@ final class ClipboardController {
     private let panel: ClipboardPanel
     private let preview: NSPanel
     private var hoverTask: Task<Void, Never>?
+    private var hoveredItemID: String?
     private let dragSource = ClipboardDragSource()
     private var refreshTimer: Timer?
     private let outsideClickDismissal = OutsideClickDismissal()
@@ -211,9 +212,17 @@ final class ClipboardController {
 
     func hover(_ item: ClipboardItem, frame: NSRect, inside: Bool) {
         guard !dragSource.active else { return }
+        if inside {
+            guard hoveredItemID != item.id else { return }
+            hoveredItemID = item.id
+        }
+        else {
+            guard hoveredItemID == item.id, !frame.contains(NSEvent.mouseLocation) else { return }
+            hoveredItemID = nil
+        }
         hoverTask?.cancel()
         hoverTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(inside ? 1500 : 200))
+            try? await Task.sleep(for: .milliseconds(inside ? 1000 : 200))
             guard !Task.isCancelled, let self, self.panel.isVisible else { return }
             if inside { self.showPreview(item, anchor: frame) }
             else { self.dismissPreview() }
@@ -221,6 +230,9 @@ final class ClipboardController {
     }
 
     func previewHover(_ inside: Bool) {
+        // SwiftUI may emit an initial exit as the preview content is installed.
+        // The card still owns the hover in that case; keep its preview and timer.
+        guard preview.isVisible, inside || hoveredItemID == nil else { return }
         hoverTask?.cancel()
         if !inside {
             hoverTask = Task { @MainActor [weak self] in
@@ -232,6 +244,7 @@ final class ClipboardController {
     }
 
     func dismissPreview() {
+        hoveredItemID = nil
         hoverTask?.cancel()
         hoverTask = nil
         preview.orderOut(nil)
@@ -368,7 +381,6 @@ private struct ClipboardHeaderButton: View {
 private struct ClipboardHistoryCard: View {
     let item: ClipboardItem
     let controller: ClipboardController
-    @State private var anchor: NSView?
     private var selected: Bool {
         controller.items.indices.contains(controller.selection) && controller.items[controller.selection].id == item.id
     }
@@ -398,12 +410,10 @@ private struct ClipboardHistoryCard: View {
                     .allowsHitTesting(false)
             }
         }
-        .background(ClipboardAnchor { anchor = $0 })
         .contentShape(RoundedRectangle(cornerRadius: 24))
-        // Read the frame at hover time: scrolling moves the card without re-laying it out.
-        .onHover { inside in controller.hover(item, frame: anchor.map(ClipboardAnchor.screenFrame) ?? .zero, inside: inside) }
         .overlay(ClipboardCardMouseSurface(
             copy: { controller.copy(item) },
+            hover: { view, inside in controller.hover(item, frame: ClipboardAnchor.screenFrame(view), inside: inside) },
             drag: { view, event in controller.beginDrag(item, from: view, event: event) }
         ).clipShape(RoundedRectangle(cornerRadius: 24)))
         .contextMenu {
@@ -476,23 +486,41 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
 /// SwiftUI gesture updates can run after NSApp.currentEvent has changed or been cleared.
 private struct ClipboardCardMouseSurface: NSViewRepresentable {
     let copy: () -> Void
+    let hover: (NSView, Bool) -> Void
     let drag: (NSView, NSEvent) -> Void
 
     func makeNSView(context: Context) -> ClipboardCardMouseView { ClipboardCardMouseView() }
     func updateNSView(_ view: ClipboardCardMouseView, context: Context) {
         view.copy = copy
+        view.hover = hover
         view.drag = drag
     }
 }
 
 final class ClipboardCardMouseView: NSView {
     var copy: () -> Void = {}
+    var hover: (NSView, Bool) -> Void = { _, _ in }
+    private var hoverTracking: NSTrackingArea?
     var drag: (NSView, NSEvent) -> Void = { _, _ in }
     private var press: NSPoint?
     private var dragged = false
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var mouseDownCanMoveWindow: Bool { false }
+
+    // The drag overlay receives pointer hits, so it must own hover tracking too.
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        // inVisibleRect follows scrolling/resizing without rebuilding the area.
+        guard hoverTracking == nil else { return }
+        let tracking = NSTrackingArea(rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
+        addTrackingArea(tracking)
+        hoverTracking = tracking
+    }
+
+    override func mouseEntered(with event: NSEvent) { hover(self, true) }
+    override func mouseExited(with event: NSEvent) { hover(self, false) }
 
     override func mouseDown(with event: NSEvent) {
         press = event.locationInWindow
@@ -513,19 +541,10 @@ final class ClipboardCardMouseView: NSView {
     }
 }
 
-private struct ClipboardAnchor: NSViewRepresentable {
-    let attach: (NSView) -> Void
-    func makeNSView(context: Context) -> AnchorView {
-        let view = AnchorView()
-        DispatchQueue.main.async { attach(view) }
-        return view
-    }
-    func updateNSView(_ view: AnchorView, context: Context) {}
+@MainActor
+private enum ClipboardAnchor {
     static func screenFrame(_ view: NSView) -> NSRect {
         guard let window = view.window else { return .zero }
         return window.convertToScreen(view.convert(view.bounds, to: nil))
-    }
-    final class AnchorView: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
 }

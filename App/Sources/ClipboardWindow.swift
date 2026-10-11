@@ -273,7 +273,7 @@ private struct ClipboardHistoryView: View {
                     LauncherSearchField(text: $controller.query, fontSize: 16,
                                         textColor: NSColor(ThemeColor.kText.color(for: scheme)),
                                         accessibilityLabel: "搜索剪贴板历史",
-                                        placeholder: "Search your clipboard contents",
+                                        placeholder: "搜索剪贴板内容",
                                         placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
                                         backspaceOnEmpty: { false }, move: controller.moveSelection,
                                         moveHorizontal: controller.moveSelection,

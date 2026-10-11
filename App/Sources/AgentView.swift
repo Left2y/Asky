@@ -153,13 +153,12 @@ struct AgentView: View {
         HStack(spacing: 40) {
             HStack(spacing: 12) {
                 Button { showingHistory.toggle(); model.reloadConversations() } label: {
-                    Image(systemName: showingHistory ? "chevron.left" : "list.bullet")
-                        .frame(width: 20, height: 20)
+                    headerIcon(showingHistory ? "chevron.left" : "list.bullet")
                 }
                 .accessibilityLabel(showingHistory ? "返回对话" : "历史对话")
                 .keyboardShortcut("h", modifiers: [.command, .shift])
                 Button { model.open(nil); showingHistory = false } label: {
-                    Image(systemName: "pencil").frame(width: 20, height: 20)
+                    headerIcon("pencil")
                 }
                 .disabled(model.isRunning)
                 .accessibilityLabel("新对话")
@@ -200,11 +199,11 @@ struct AgentView: View {
             .animation(navigationAnimation, value: model.conversationID)
             HStack(spacing: 12) {
                 Button { pinned.toggle(); setPinned(pinned) } label: {
-                    Image(systemName: pinned ? "pin.fill" : "pin").frame(width: 20, height: 20)
+                    headerIcon(pinned ? "pin.fill" : "pin")
                 }
                 .accessibilityLabel(pinned ? "取消置顶" : "置顶窗口")
                 .accessibilityValue(pinned ? "已置顶" : "未置顶")
-                Button(action: close) { Image(systemName: "xmark").frame(width: 20, height: 20) }
+                Button(action: close) { headerIcon("xmark") }
                     .accessibilityLabel("关闭对话窗口")
                     .keyboardShortcut("w", modifiers: .command)
             }
@@ -213,6 +212,13 @@ struct AgentView: View {
         .padding(12)
         .frame(height: showingHistory ? 60 : 56)
         .animation(navigationAnimation, value: showingHistory)
+    }
+
+    private func headerIcon(_ symbol: String) -> some View {
+        Image(systemName: symbol)
+            .frame(width: 20, height: 20)
+            .frame(width: 32, height: 32)
+            .contentShape(.interaction, Circle())
     }
 
     private var history: some View {
@@ -276,18 +282,18 @@ private struct AgentHeaderButtonStyle: ButtonStyle {
     @State private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle.color(for: colorScheme))
-            .padding(6).frame(width: 32, height: 32)
             .background {
                 Circle().fill(ThemeColor.kBackground.color(for: colorScheme, opaque: reduceTransparency))
-                    .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: .circle)
+                    .glassEffect(reduceTransparency ? .identity : .regular, in: .circle)
                     .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
                     .overlay {
                         if isEnabled && (hovering || configuration.isPressed) {
                             Circle().fill(ThemeColor.kInteractionHover.color(for: colorScheme))
                         }
                     }
+                    .allowsHitTesting(false)
             }
-            .contentShape(.circle)
+            .contentShape(.interaction, Circle())
             .opacity(isEnabled && configuration.isPressed ? 0.7 : 1)
             .onHover { hovering = $0 }
     }

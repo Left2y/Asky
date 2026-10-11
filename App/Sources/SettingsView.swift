@@ -163,7 +163,7 @@ private struct GeneralSettings: View {
     @Bindable var app: AppModel
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
-    @State private var newScope = ""
+    @State private var choosingScope = false
 
     var body: some View {
         Form {
@@ -186,14 +186,16 @@ private struct GeneralSettings: View {
                 ForEach(app.settings.fileScopes, id: \.self) { p in
                     HStack { Text(p).lineLimit(1); Spacer(); Button("移除") { app.settings.fileScopes.removeAll { $0 == p } } }
                 }
-                HStack {
-                    TextField("添加目录路径", text: $newScope)
-                    Button("添加") {
-                        let p = (newScope as NSString).expandingTildeInPath
-                        if FileManager.default.fileExists(atPath: p), !app.settings.fileScopes.contains(p) { app.settings.fileScopes.append(p) }
-                        newScope = ""
+                Button("选择文件夹…", systemImage: "folder.badge.plus") {
+                    choosingScope = true
+                    Task { @MainActor in
+                        defer { choosingScope = false }
+                        guard let folder = await ToolService.chooseLauncherSearchFolder() else { return }
+                        let path = folder.path
+                        if !app.settings.fileScopes.contains(path) { app.settings.fileScopes.append(path) }
                     }
                 }
+                .disabled(choosingScope)
                 TextField("排除的目录名（逗号分隔）", text: Binding(
                     get: { app.settings.excludedDirectories.joined(separator: ", ") },
                     set: { app.settings.excludedDirectories = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))

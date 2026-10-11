@@ -61,7 +61,7 @@ public enum SemanticColors {
         "borderPositive": ("Palette/green", "Palette/green"),
         "borderSelected": ("Colors/borderPrimary", "Colors/borderPrimary"),
         "borderFocused": ("Colors/borderPrimary", "Colors/borderPrimary"),
-        "background": ("Palette/white70", "Palette/black70"),
+        "background": ("Palette/white60", "Palette/black60"),
         "backgroundDisbled": ("Palette/black2", "Palette/white2"),
         "backgroundPrimary": ("Palette/black100", "Palette/white100"),
         "backgroundPrimaryHover": ("Palette/black80", "Palette/white80"),

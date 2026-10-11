@@ -82,7 +82,7 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 搜索浮窗的最新材质以用户 2026-10-10 提供的玻璃截图为视觉依据：光照方向 -45°、强度 80%、Refraction 50、Depth 40、Dispersion 48、Frost 50、Splay 32。这些数值是 Figma 的渲染参数，不是 macOS 的公开玻璃参数，不能逐项写入原生材质。Figma 连接在本轮返回 Unknown tool，未重新读取节点。
 
-用户最终明确要求直接使用 Regular 玻璃材质。搜索框背景使用 `.glassEffect(.regular, in: shellShape)`，底色保留 `background` 变量的 Palette/white70 / Palette/black70，不再使用 Clear、光学层透明度或独立遮罩。前景输入和图标按系统颜色模式解析；原生 Regular 负责材质适配，不再承诺它不会根据背景独立调整亮暗。
+用户最终明确要求直接使用 Regular 玻璃材质。搜索框背景使用 `.glassEffect(.regular, in: shellShape)`，底色使用 `background` 变量的 Palette/white60 / Palette/black60（2026-10-11 按用户要求从 70% 调为 60%），不再使用 Clear、光学层透明度或独立遮罩。前景输入和图标按系统颜色模式解析；原生 Regular 负责材质适配，不再承诺它不会根据背景独立调整亮暗。
 
 减少透明度关闭玻璃并使用不透明语义背景；提高对比度或减少透明度时使用语义边框。保留现有边缘高光、外部阴影与窗口几何。当前验证见[Regular 玻璃记录](validation/2026-10-10-launcher-regular-glass.md)；此前 Clear 和 82% 光学层方案已替换。
 
@@ -226,7 +226,7 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 | borderPositive | Palette/green | Palette/green |
 | borderSelected | Colors/borderPrimary | Colors/borderPrimary |
 | borderFocused | Colors/borderPrimary | Colors/borderPrimary |
-| background | Palette/white70 | Palette/black70 |
+| background | Palette/white60 | Palette/black60 |
 | backgroundDisbled | Palette/black2 | Palette/white2 |
 | backgroundPrimary | Palette/black100 | Palette/white100 |
 | backgroundPrimaryHover | Palette/black80 | Palette/white80 |

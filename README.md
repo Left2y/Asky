@@ -34,7 +34,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 
 - **聚焦搜索**：搜索应用、文件、Chrome 标签页与本地书签，读取应用自带的本地化名称（含系统应用的 `InfoPlist.loctable`），支持应用别名、网页关键词、计算和换算。
 - **剪贴板历史**：独立面板浏览文本与图片，悬停 1.5 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
-- **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。每条任务最多自动调用 50 次工具。
+- **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。每条任务最多自动调用 50 次工具。工具调用中显示加载动画，成功后显示对应来源图标，失败时显示带圈的叉；错误详情默认折叠，点击右侧箭头展开。
 - **系统工具**：通过 ToolService 统一处理系统读写与授权；集成日历、提醒事项、备忘录和通讯录，信息草稿交由系统 App 确认发送。
 - **GitHub 插件**：在“设置 › 插件”按需安装官方或自行选择的公开 GitHub 仓库，支持配置、启停、更新、回退和卸载。官方 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca) 与 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 独立发布，不进入安装包；插件会执行可信本机代码，不提供沙箱。支持清单自定义图标，Orca 使用本机应用图标，缺省时显示内置占位图标。接口与安装依赖见[插件指南](docs/plugins.md)。
 - **MCP 扩展**：通过独立授权的 MCP Bridge 向外部客户端提供本地工具。
@@ -92,6 +92,8 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 | `docs` | 产品、架构、设计与验证文档 |
 
 从[文档索引](docs/README.md)开始阅读。产品范围见 [V1 PRD](docs/PRD.md)，模块与进程边界见[架构大纲](docs/framework.md)。
+
+Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例缩放，加载失败可重试。排版使用应用语义主题，随浅色／深色外观切换；图片下载上限 10 MiB，内存缓存上限 32 MiB，不读取 Markdown 中的本地文件图片。
 
 ### 开发与验证
 
@@ -180,10 +182,12 @@ The project is under active development. The repository includes the native app,
 
 - **Focused search**: Find apps, files, Chrome tabs, and local bookmarks, using each app’s localized names (including system app `InfoPlist.loctable` resources), with app aliases, web keywords, calculations, and unit conversions.
 - **Clipboard history**: Browse text and images in a dedicated panel with full previews after hovering for 1.5 seconds, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
-- **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle. Each task allows up to 50 automatic tool calls.
+- **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle. Each task allows up to 50 automatic tool calls. Tool calls show a spinner while running, their source icon on success, and a circled cross on failure; error details start collapsed and can be expanded with the arrow on the right.
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.
 - **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) and [Lark plugin](https://github.com/Niall-Young/asky-plugin-lark) ship separately and are not bundled. Plugins support custom manifest icons, use the local Orca app icon, and show a bundled placeholder when no artwork is available. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
 - **MCP extensions**: Expose local tools to external clients through a separately authorized MCP Bridge.
+
+Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio and failed loads can be retried. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
 
 ### Quick Start
 

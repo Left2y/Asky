@@ -69,6 +69,27 @@ enum AgentReplyRegression {
         precondition(model.state == nil && model.newConversationRevision == revision + 1)
         precondition(!store.messages(conversationID: attachmentID, limit: 40).isEmpty, "new conversation preserves old history")
         print("New conversation regression passed: blank draft, cleared attachments, preserved history")
+        if CommandLine.arguments.contains("--tool-preview") {
+            let toolID = try store.create(title: "工具调用样式")
+            model.open(toolID)
+            for (id, tool, status, error) in [
+                ("calendar", "calendar_list", ExecutionStatus.completed, Optional<String>.none),
+                ("lark", "plugin_lark__help", .failed, "Error: unknown command \"message\" for \"lark-cli\"\n    at run (plugins/lark/index.mjs:21:5)"),
+                ("running", "notes_search", nil, nil)
+            ] as [(String, String, ExecutionStatus?, String?)] {
+                model.handle(.toolCall(taskID: "tools", ActionRequest(requestID: id, tool: tool, arguments: .object([:]), origin: .agent(sessionID: toolID), intent: .explicitRequest)), conversationID: toolID)
+                if let status {
+                    model.handle(.toolResult(taskID: "tools", ExecutionResult(requestID: id, status: status, error: error.map { ToolError(.invalidArguments, $0) })), conversationID: toolID)
+                }
+            }
+            precondition(!model.items[0].text.contains("已完成"))
+            precondition(!model.items[1].text.contains("Error:"))
+            precondition(model.items[1].toolError?.contains("unknown command") == true)
+            precondition(model.items[1].pluginID == "lark")
+            let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+            controller.show()
+            runPreview(controller, application: application)
+        }
         if CommandLine.arguments.contains("--attachment-preview") {
             model.open(attachmentID)
             let controller = AgentWindowController(model: model, presentation: WindowPresentation())

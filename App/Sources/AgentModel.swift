@@ -14,12 +14,19 @@ struct ChatItem: Identifiable, Hashable {
     var text: String
     var needsPermissionSettings = false
     var toolName: String? = nil
+    var toolError: String? = nil
     var workSeconds: Int? = nil
     var attachments: [AttachmentRef] = []
 
     var toolSource: DataSourceID? {
         guard let name = toolName else { return nil }
         return DataSourceID.allCases.first { name.hasPrefix($0.rawValue + "_") }
+    }
+
+    var pluginID: String? {
+        guard let name = toolName, name.hasPrefix("plugin_"),
+              let end = name.range(of: "__") else { return nil }
+        return String(name[name.index(name.startIndex, offsetBy: 7)..<end.lowerBound])
     }
 
     var toolSymbol: String {
@@ -41,6 +48,8 @@ struct ChatItem: Identifiable, Hashable {
 @MainActor @Observable
 final class AgentModel {
     func openSettings(permissions: Bool = false) { app.openSettings(permissions: permissions) }
+
+    var pluginManager: PluginManager { app.tools.plugins }
 
     static let firstPage = 40
     static let window = 120
@@ -212,13 +221,13 @@ final class AgentModel {
         case .toolCall(_, let req):
             appendTrimmed(ChatItem(id: req.requestID, kind: .tool(nil), text: String(format: NSLocalizedString("调用 %@…", comment: ""), req.tool), toolName: req.tool))
         case .toolResult(_, let r):
-            let text = "\(Self.statusLabel(r.status))\(r.error.map { "：\($0.message)" } ?? "")"
             if let i = items.lastIndex(where: { $0.id == r.requestID }) {
                 items[i].needsPermissionSettings = r.error?.code == .permissionDenied || r.error?.code == .sourceDisabled
                 items[i].kind = .tool(r.status)
-                items[i].text = items[i].text.replacingOccurrences(of: "…", with: "") + " · " + text
+                items[i].text = items[i].text.replacingOccurrences(of: "…", with: "")
+                items[i].toolError = r.error?.message
             } else {
-                appendTrimmed(ChatItem(id: r.requestID, kind: .tool(r.status), text: text, needsPermissionSettings: r.error?.code == .permissionDenied || r.error?.code == .sourceDisabled))
+                appendTrimmed(ChatItem(id: r.requestID, kind: .tool(r.status), text: NSLocalizedString("工具调用", comment: ""), needsPermissionSettings: r.error?.code == .permissionDenied || r.error?.code == .sourceDisabled, toolError: r.error?.message))
             }
         case .clarification(_, let q):
             // The clarification is the authoritative reply for this turn. Do not

@@ -354,7 +354,7 @@ private struct Transcript: View {
                     }
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         VStack(alignment: .leading, spacing: 6) {
-                            ChatBubble(item: item)
+                            ChatBubble(item: item, pluginManager: model.pluginManager)
                             if item.needsPermissionSettings {
                                 Button(NSLocalizedString("管理权限…", comment: "")) { model.openSettings(permissions: true) }
                                     .buttonStyle(.link)
@@ -407,6 +407,7 @@ private struct Transcript: View {
 
 private struct ChatBubble: View {
     let item: ChatItem
+    var pluginManager: PluginManager? = nil
     @State private var hovering = false
     @State private var copyHovering = false
     @State private var copyFeedbackID: UUID?
@@ -453,16 +454,7 @@ private struct ChatBubble: View {
                 }
             }
         case .tool(let status):
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let source = item.toolSource {
-                    DataSourceIcon(source: source).frame(width: 20, height: 20)
-                } else {
-                    Image(systemName: item.toolSymbol).frame(width: 20)
-                }
-                Text(item.text).textSelection(.enabled)
-            }
-            .textStyle(AgentLayout.message)
-            .foregroundStyle(status == nil || status == .completed ? ThemeColor.kTextSubtlest : ThemeColor.kTextNegative)
+            ToolCallRow(item: item, status: status, pluginManager: pluginManager)
         case .notice:
             Text(item.text).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
         case .error:
@@ -576,6 +568,71 @@ private struct Composer: View {
         .dropDestination(for: URL.self) { urls, _ in
             urls.forEach { model.attach(fileURL: $0) }
             return !urls.isEmpty
+        }
+    }
+}
+
+private struct ToolCallRow: View {
+    let item: ChatItem
+    let status: ExecutionStatus?
+    let pluginManager: PluginManager?
+    @State private var expanded = false
+    @State private var pluginIcon: NSImage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Group {
+                    if status == nil {
+                        ProgressView().controlSize(.small)
+                    } else if status == .failed {
+                        Image(systemName: "xmark.circle")
+                            .accessibilityLabel(AgentModel.statusLabel(.failed))
+                    } else if let pluginIcon {
+                        Image(nsImage: pluginIcon).resizable().scaledToFit()
+                    } else if item.pluginID != nil {
+                        Image("Plugin").resizable().scaledToFit()
+                    } else if let source = item.toolSource {
+                        DataSourceIcon(source: source)
+                    } else {
+                        Image(systemName: item.toolSymbol)
+                    }
+                }
+                .frame(width: 20, height: 20)
+                Text(item.text).textSelection(.enabled)
+                if let status, status != .completed, status != .failed {
+                    Text(AgentModel.statusLabel(status))
+                }
+                Spacer(minLength: 0)
+                if item.toolError != nil {
+                    Button { expanded.toggle() } label: {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 12)).frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(AgentIconButtonStyle())
+                    .accessibilityLabel(NSLocalizedString(expanded ? "收起错误详情" : "展开错误详情", comment: ""))
+                    .accessibilityValue(expanded ? "expanded" : "collapsed")
+                }
+            }
+            if expanded, let error = item.toolError {
+                Text(error).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 28)
+            }
+        }
+        .textStyle(AgentLayout.message)
+        .foregroundStyle(ThemeColor.kTextSubtlest)
+        .task(id: item.pluginID) {
+            guard let id = item.pluginID, let pluginManager else { return }
+            if let data = await pluginManager.iconData(for: id), let image = NSImage(data: data), image.isValid {
+                pluginIcon = image
+            } else {
+                let installed = await pluginManager.installed()
+                let repository = installed.first(where: { $0.id == id })?.repository
+                    ?? PluginManager.officialRepositories.first(where: { $0.hasSuffix("asky-plugin-" + id) })
+                if let repository {
+                    pluginIcon = ToolService.pluginApplicationIcon(repository: repository)
+                }
+            }
         }
     }
 }

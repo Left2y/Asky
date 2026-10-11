@@ -62,6 +62,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
 - `go`（Google 搜索）、`chat`（ChatGPT）、`yt`（YouTube）、`dy`（抖音）、`tb`（淘宝）、`jd`（京东）、`bl`（bilibili）、`gh`（GitHub）和 `>`（终端）是固定内置指令，无需配置，不能添加、修改或删除。可在“设置 › 指令”查看带对应品牌 Logo 的内置指令并配置终端；设置列表、搜索框与指令结果统一使用 24 × 24 pt、6 pt 圆角图标，周围留白透明、不添加底板或描边，`>` 显示当前所选终端的图标。旧的网页关键词配置不再参与启动器路由；输入 `go 内容`、`chat 问题` 或 `yt 搜索内容` 等即可使用。
 - 输入英文 `>` 后按空格进入终端模式，例如 `> pwd`；单独的 `>` 或 `>pwd` 保持普通搜索；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 指令 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
+- 在“设置 › 系统权限 › Chrome 书签与链接搜索”查看访问状态，点击“去授权”并在系统选择器中选择 Chrome 文件夹。未授权时，不显示链接和书签搜索入口或结果，`bm` 不进入书签模式；授权后重新打开启动器恢复这两项功能，输入 `bm 关键词` 搜索书签。仅读取本地和账号书签，不读取浏览历史。
 - 在“设置 › 通用 › 文件搜索范围”点击“选择文件夹…”，通过系统文件夹选择窗口添加搜索目录。
 - 输入 `1+1`，输入框末尾以浅色显示 `= 2`，下方卡片上下显示公式与结果：上方公式左对齐，下方结果右对齐，回车复制结果；长算式最多显示两行并从中间截断，悬停查看全文。输入 `1美元` 或 `100人民币`，下方横向展示输入币种与人民币的换算卡片（人民币输入默认换算为美元），其他币种保持列表显示在卡片下方。输入 `100 USD CNY` 可只查看指定币种。卡片显示旗帜、币种和金额，不提供选中、悬停或复制操作。汇率使用 ECB 日参考数据；断网时使用已有缓存，无缓存则显示不可用。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
@@ -118,6 +119,7 @@ python3 App/Tests/run-launcher-calculation-regression.py
 python3 App/Tests/run-launcher-window-regression.py --ai-routing
 python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
+python3 App/Tests/run-launcher-window-regression.py --bookmarks
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --hover-mouse
@@ -125,6 +127,7 @@ python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-clipboard-regression.py --drag
 python3 App/Tests/run-clipboard-regression.py --drag-preview
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-settings-regression.py --permissions-only
 python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
@@ -135,7 +138,7 @@ python3 App/Tests/run-application-termination-regression.py
 
 剪贴板 `--drag` 检查真实鼠标拖放与未固定面板关闭；`--drag-preview` 保留带测试卡片的未固定面板供人工拖放。设置 `ASKY_CLIPBOARD_DROP_POINT=x,y` 可将 `--drag` 目标改为屏幕坐标下的外部输入框，搭配 `ASKY_CLIPBOARD_DRAG_IMAGE=1` 拖第二张图片卡片；外部目标内容需另行回读确认。
 
-并行构建时，设置回归脚本支持用 `ASKY_DERIVED_DATA` 指定独立的 DerivedData 目录（兼容旧变量 `KULAHERE_DERIVED_DATA`），默认使用 `build/DerivedData`。
+并行构建时，启动器与设置回归脚本支持用 `ASKY_DERIVED_DATA` 指定独立的 DerivedData 目录，默认使用 `build/DerivedData`。启动器同时隔离回归产物；设置脚本兼容旧变量 `KULAHERE_DERIVED_DATA`。
 
 原生输入框与快捷键的独立检查：
 
@@ -216,6 +219,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 ### Usage
 
+- View access under Settings › System Permissions › Chrome bookmarks and link search. Click “Grant Access” and select the Chrome folder in the system picker. Without access, link and bookmark search entries and results are hidden, and `bm` cannot enter bookmark mode. After authorization, reopen the launcher to enable both features; enter `bm query` to search bookmarks. Only local and account bookmarks are read, never browsing history.
 - With no input, the search field and two circular glass buttons share the original 720 pt width. Typing hides the buttons and returns the full width to search. Each invocation defaults to unpinned with all sources. Pin keeps the window visible when switching apps; Filter limits results to applications, files, Quick Links (built-in web commands and aliases), or system Shortcuts. All restores mixed search. Escape closes the filter menu first, then the window, including pinned windows. Closing the window resets both filter and pin state.
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
 - Type `1+1` to see a faint `= 2` suffix and a stacked card with the expression aligned left above the right-aligned result; press Return to copy the result. Long expressions occupy up to two lines with middle truncation; hover to see the full expression. Type `1美元`, `1 USD`, or `100人民币` to see a horizontal pair of cards showing the input currency and Chinese yuan (yuan inputs default to US dollars), with all other currencies listed underneath. Use `100 USD CNY` for a specific pair. Cards show flags, currencies, and amounts, without selection, hover, or copy actions. Rates use ECB daily references; offline use falls back to the cache or reports unavailable.
@@ -276,6 +280,7 @@ python3 App/Tests/run-launcher-calculation-regression.py
 python3 App/Tests/run-launcher-window-regression.py --ai-routing
 python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
+python3 App/Tests/run-launcher-window-regression.py --bookmarks
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --hover-mouse
@@ -283,6 +288,7 @@ python3 App/Tests/run-clipboard-regression.py --settings-shortcut
 python3 App/Tests/run-clipboard-regression.py --drag
 python3 App/Tests/run-clipboard-regression.py --drag-preview
 python3 App/Tests/run-settings-regression.py
+python3 App/Tests/run-settings-regression.py --permissions-only
 python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
@@ -293,7 +299,7 @@ python3 App/Tests/run-application-termination-regression.py
 
 Clipboard `--drag` checks a real mouse drop and unpinned panel dismissal; `--drag-preview` keeps an unpinned panel with test cards open for manual drops. Set `ASKY_CLIPBOARD_DROP_POINT=x,y` to target an external input at screen coordinates, and add `ASKY_CLIPBOARD_DRAG_IMAGE=1` to drag the second image card. Read back external destination contents separately to confirm the result.
 
-For concurrent builds, the settings regression script accepts `ASKY_DERIVED_DATA` to select an isolated DerivedData directory (`KULAHERE_DERIVED_DATA` remains supported). It defaults to `build/DerivedData`.
+For concurrent builds, the launcher and settings regression scripts accept `ASKY_DERIVED_DATA` to select an isolated DerivedData directory, defaulting to `build/DerivedData`. Launcher regression artifacts are isolated as well; the settings script also supports the legacy `KULAHERE_DERIVED_DATA` variable.
 
 Standalone checks for native input fields and hotkeys:
 

@@ -43,6 +43,8 @@ final class PermissionSettingsModel {
 }
 
 struct PermissionSettings: View {
+    @Bindable var app: AppModel
+    @State private var requestingChrome = false
     @State private var model = PermissionSettingsModel()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -83,19 +85,51 @@ struct PermissionSettings: View {
                     }
                     .padding(.vertical, 4)
                 }
-                Button(NSLocalizedString("刷新权限状态", comment: "")) { Task { await model.refresh() } }
+                HStack(spacing: 12) {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 16, weight: .medium)).foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.blue, in: RoundedRectangle(cornerRadius: 7))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("Chrome 书签与链接搜索", comment: ""))
+                        Text(NSLocalizedString(app.chromeBookmarkAccessState?.rawValue ?? "正在检查…", comment: ""))
+                            .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                        Text(NSLocalizedString("授权 Chrome 文件夹后启用书签和链接搜索；不读取浏览历史。", comment: ""))
+                            .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 12)
+                    Button(NSLocalizedString(requestingChrome ? "正在请求…" :
+                        app.chromeBookmarkAccessState == .authorized ? "重新授权" : "去授权", comment: "")) {
+                        requestingChrome = true
+                        Task {
+                            await app.authorizeChromeBookmarkFolder()
+                            await app.refreshChromeBookmarkAccess()
+                            requestingChrome = false
+                        }
+                    }.disabled(requestingChrome || model.requesting != nil)
+                }
+                .padding(.vertical, 4)
+                Button(NSLocalizedString("刷新权限状态", comment: "")) { Task { await refresh() } }
                 if let message = model.message { Text(message).textStyle(.secondary).textSelection(.enabled) }
             }
         }
         .formStyle(.grouped)
-        .task { await model.refresh() }
+        .task { await refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            Task { await model.refresh() }
+            Task { await refresh() }
         }
         .onReceive(refreshTimer) { _ in
             guard scenePhase == .active, model.requesting == nil else { return }
-            Task { await model.refresh() }
+            Task { await refresh() }
         }
+    }
+
+    private func refresh() async {
+        guard !requestingChrome else { return }
+        await model.refresh()
+        await app.refreshChromeBookmarkAccess()
     }
 
     private func openSettings(_ permission: SystemPermission) {

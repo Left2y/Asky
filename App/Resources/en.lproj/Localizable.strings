@@ -392,3 +392,13 @@
 "复制代码" = "Copy code";
 
 "已复制代码" = "Code copied";
+
+"授权 Chrome 书签" = "Allow Chrome bookmarks";
+"选择 Chrome 文件夹以允许读取书签。Asky 只读取书签文件，不读取浏览历史。" = "Select the Chrome folder to allow reading bookmarks. Asky reads bookmark files only, not browsing history.";
+"授权" = "Allow";
+
+"Chrome 书签与链接搜索" = "Chrome bookmarks and link search";
+"授权 Chrome 文件夹后启用书签和链接搜索；不读取浏览历史。" = "Allow access to the Chrome folder to enable bookmark and link search. Browsing history is not read.";
+"未授权，请选择 Chrome 书签文件夹" = "Not authorized. Select the Chrome bookmarks folder.";
+"未找到 Chrome 书签目录" = "Chrome bookmarks folder not found.";
+"无法读取 Chrome 书签目录" = "Chrome bookmarks folder is inaccessible.";

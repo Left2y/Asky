@@ -20,11 +20,11 @@ public struct LauncherInputState: Equatable {
         return command.map { $0.keyword + " " + text } ?? text
     }
 
-    public mutating func edit(_ value: String, keywords: KeywordRegistry) {
+    public mutating func edit(_ value: String, keywords: KeywordRegistry, bookmarksEnabled: Bool = true) {
         if !hasScope, let query = Self.matchTerminal(value) {
             terminal = true
             text = query
-        } else if !hasScope, let query = Self.matchBookmarks(value) {
+        } else if bookmarksEnabled, !hasScope, let query = Self.matchBookmarks(value) {
             bookmarks = true
             text = query
         } else if !hasScope, let (matched, query) = keywords.matchInput(value) {
@@ -35,9 +35,9 @@ public struct LauncherInputState: Equatable {
         }
     }
 
-    public mutating func replaceRawQuery(_ value: String, keywords: KeywordRegistry) {
+    public mutating func replaceRawQuery(_ value: String, keywords: KeywordRegistry, bookmarksEnabled: Bool = true) {
         leaveCommand()
-        edit(value, keywords: keywords)
+        edit(value, keywords: keywords, bookmarksEnabled: bookmarksEnabled)
     }
 
     /// Enters bookmark search with `query` already typed.

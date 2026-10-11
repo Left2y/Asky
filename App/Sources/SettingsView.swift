@@ -21,7 +21,7 @@ struct SettingsView: View {
             case .keywords: CommandSettings(app: app)
             case .general: GeneralSettings(app: app)
             case .sources: SourceSettings(app: app)
-            case .permissions: PermissionSettings()
+            case .permissions: PermissionSettings(app: app)
             case .memory: MemorySettings(app: app)
             case .mcp: MCPSettings(app: app)
             case .plugins: PluginSettings(app: app)

@@ -16,6 +16,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var fileScopes: [String] = [FileManager.default.homeDirectoryForCurrentUser.path]
     var excludedDirectories: [String] = ["Library", ".Trash", "node_modules", ".git"]
     var notesFolders: [NotesFolder] = []
+    var chromeBookmarkFolderAccess: Data?
     var clipboardEnabled = true
     var clipboardExcludedApps: [String] = ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
                                             "com.apple.keychainaccess", "com.apple.Passwords"]
@@ -79,6 +80,27 @@ final class AppModel {
     func openSettings(permissions: Bool = false) {
         if permissions { settingsTab = "permissions" }
         onOpenSettings?()
+    }
+
+    private(set) var chromeBookmarkAccessState: ChromeBookmarkService.AccessState?
+
+    @discardableResult
+    func refreshChromeBookmarkAccess() async -> ChromeBookmarkService.AccessState {
+        let access = settings.chromeBookmarkFolderAccess
+        let state = await Task.detached(priority: .userInitiated) {
+            ChromeBookmarkService.accessState(accessBookmark: access)
+        }.value
+        guard !Task.isCancelled, access == settings.chromeBookmarkFolderAccess else {
+            return chromeBookmarkAccessState ?? .denied
+        }
+        chromeBookmarkAccessState = state
+        return state
+    }
+
+    func authorizeChromeBookmarkFolder() async {
+        guard let access = await ToolService.chooseChromeBookmarkFolder() else { return }
+        settings.chromeBookmarkFolderAccess = access
+        await refreshChromeBookmarkAccess()
     }
 
     var settings: AppSettings {

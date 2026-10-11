@@ -82,7 +82,7 @@ final class LauncherModel {
         let text = inputText
         filter = value
         filterText = text
-        if value == .all { inputState.replaceRawQuery(text, keywords: app.keywords) }
+        if value == .all { inputState.replaceRawQuery(text, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
         isFilterMenuPresented = false
         if value != .all { inputState.leaveCommand() }
         rebuildProviders()
@@ -94,7 +94,7 @@ final class LauncherModel {
     var query: String {
         get { filter == .all ? inputState.rawQuery : filterText }
         set {
-            if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords) }
+            if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
             update()
         }
@@ -119,25 +119,50 @@ final class LauncherModel {
     private var remainingSearchProviders = 0
     private var batches: [SearchBatch] = []
     private var direct: [SearchResult] = []
+    private var chromeAccessTask: Task<Void, Never>?
+    private let chromeAccessOverride: Bool?
+    private(set) var chromeBookmarkAccessAllowed = false
     private var searchTask: Task<Void, Never>?
     private var currencyTask: Task<Void, Never>?
     private var terminalTask: Task<Void, Never>?
     var onHide: () -> Void = {}
     var onAskAI: (String) -> Void = { _ in }
 
-    init(app: AppModel, searchProviders: [any SearchProvider]? = nil) {
+    init(app: AppModel, searchProviders: [any SearchProvider]? = nil, chromeBookmarkAccessAllowed: Bool? = nil) {
         self.app = app
         self.searchProviders = searchProviders
+        self.chromeAccessOverride = chromeBookmarkAccessAllowed
         coordinator = SearchCoordinator(providers: [])
         rebuildProviders()
     }
 
     func rebuildProviders() {
+        chromeAccessTask?.cancel()
+        chromeBookmarkAccessAllowed = chromeAccessOverride ?? (searchProviders != nil)
+        configureProviders()
+        guard searchProviders == nil, chromeAccessOverride == nil else { return }
+        chromeAccessTask = Task { [weak self] in
+            guard let self else { return }
+            let state = await self.app.refreshChromeBookmarkAccess()
+            guard !Task.isCancelled else { return }
+            self.chromeBookmarkAccessAllowed = state == .authorized
+            self.configureProviders()
+            let rawQuery = self.query
+            if self.filter == .all {
+                self.inputState.replaceRawQuery(rawQuery, keywords: self.app.keywords,
+                                                bookmarksEnabled: self.canSearchBookmarks)
+            }
+            self.update()
+        }
+    }
+
+    private func configureProviders() {
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
         if let searchProviders {
-            let general = searchProviders.filter { $0.source != .bookmark && filter.includes($0.source) }
-            let marks = searchProviders.filter { $0.source == .bookmark }
+            let general = searchProviders.filter { $0.source != .bookmark &&
+                ($0.source != .link || chromeBookmarkAccessAllowed) && filter.includes($0.source) }
+            let marks = searchProviders.filter { $0.source == .bookmark && chromeBookmarkAccessAllowed }
             searchProviderCount = general.count
             searchSources = Set(general.map(\.source))
             coordinator = SearchCoordinator(providers: general)
@@ -147,16 +172,27 @@ final class LauncherModel {
         let reader = SettingsReader(store: app.store)
         let useChrome = app.settings.enabledSources.contains(.chrome)
         let links = LinksProvider(knownSites: { [chrome] in
-            useChrome ? ChromeBookmarkService.load().map(\.url) + chrome.cachedURLs : []
+            useChrome ? ((try? ChromeBookmarkService.read(accessBookmark: reader.load().chromeBookmarkFolderAccess)) ?? []).map(\.url) + chrome.cachedURLs : []
         })
-        var providers: [any SearchProvider] = [apps, shortcuts, links,
+        var providers: [any SearchProvider] = [apps, shortcuts,
             SpotlightProvider(settings: {
                 let s = reader.load()
                 return (s.fileScopes.map { URL(filePath: $0) }, s.excludedDirectories)
             })]
-        if useChrome {
-            providers.append(chrome)
-            bookmarkCoordinator = SearchCoordinator(providers: [ChromeBookmarksProvider()])
+        if useChrome { providers.append(chrome) }
+        if useChrome && chromeBookmarkAccessAllowed {
+            providers.append(links)
+            bookmarkCoordinator = SearchCoordinator(providers: [ChromeBookmarksProvider(load: {
+                try ChromeBookmarkService.read(accessBookmark: reader.load().chromeBookmarkFolderAccess)
+            }, onFailure: { [weak self] query, _ in
+                Task { @MainActor in
+                    guard let self, self.isBookmarkScope, self.inputText.trimmingCharacters(in: .whitespacesAndNewlines) == query else { return }
+                    self.chromeBookmarkAccessAllowed = false
+                    self.configureProviders()
+                    self.inputState.replaceRawQuery(self.query, keywords: self.app.keywords, bookmarksEnabled: false)
+                    self.update()
+                }
+            })])
         } else {
             bookmarkCoordinator = nil
         }
@@ -172,6 +208,7 @@ final class LauncherModel {
         isFilterMenuPresented = false
         filter = .all
         filterText = ""
+        chromeAccessTask?.cancel()
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
         searchTask?.cancel()
@@ -208,13 +245,14 @@ final class LauncherModel {
     var terminalIcon: NSImage? { ToolService.launcherTerminalIcon(terminalApplication) }
 
     var isTerminalScope: Bool { inputState.terminal }
+    private var canSearchBookmarks: Bool { chromeBookmarkAccessAllowed && app.settings.enabledSources.contains(.chrome) }
     var isBookmarkScope: Bool { inputState.bookmarks }
     var hasScope: Bool { inputState.hasScope }
 
     var inputText: String {
         get { filter == .all ? inputState.text : filterText }
         set {
-            if filter == .all { inputState.edit(newValue, keywords: app.keywords) }
+            if filter == .all { inputState.edit(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
             update()
         }
@@ -243,6 +281,10 @@ final class LauncherModel {
     }
 
     private func update() {
+        if inputState.bookmarks && !canSearchBookmarks {
+            let rawQuery = inputState.rawQuery
+            inputState.replaceRawQuery(rawQuery, keywords: app.keywords, bookmarksEnabled: false)
+        }
         currencyConversion = nil
         status = nil
         selection = 0
@@ -389,7 +431,8 @@ final class LauncherModel {
         }
         if filter == .all, !hasScope, !merged.contains(where: { $0.source == .askAI }),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
-        merged = merged.filter { filter.includes($0.source) }
+        merged = merged.filter { filter.includes($0.source) &&
+            (![.link, .bookmark].contains($0.source) || canSearchBookmarks) }
         let order: [SearchSource] = [.app, .link, .bookmark, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
         let priority = merged.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") || $0.source == .shortcut }
         let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.target.kind != "launcher-alias" && $0.source != .shortcut }
@@ -420,7 +463,9 @@ final class LauncherModel {
 
     func execute(_ r: SearchResult, action: ResultAction?) {
         guard let action else { return }
+        guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
         if r.target.kind == Self.bookmarkSearchKind {
+            guard chromeBookmarkAccessAllowed, bookmarkCoordinator != nil else { return }
             inputState.enterBookmarks(r.target.identifier)
             update()
             return

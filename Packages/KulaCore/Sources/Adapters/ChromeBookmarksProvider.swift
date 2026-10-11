@@ -5,16 +5,26 @@ import ToolService
 
 public struct ChromeBookmarksProvider: SearchProvider {
     public let source = SearchSource.bookmark
-    private let load: @Sendable () -> [ChromeBookmark]
+    private let load: @Sendable () throws -> [ChromeBookmark]
+    private let onFailure: @Sendable (String, ChromeBookmarkService.ReadFailure) -> Void
 
-    public init(load: @escaping @Sendable () -> [ChromeBookmark] = { ChromeBookmarkService.load() }) {
+    public init(load: @escaping @Sendable () throws -> [ChromeBookmark] = { try ChromeBookmarkService.read() },
+                onFailure: @escaping @Sendable (String, ChromeBookmarkService.ReadFailure) -> Void = { _, _ in }) {
         self.load = load
+        self.onFailure = onFailure
     }
 
     public func search(_ query: String, limit: Int) async -> [SearchResult] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, limit > 0, !Task.isCancelled else { return [] }
-        return load().compactMap { bookmark -> SearchResult? in
+        let bookmarks: [ChromeBookmark]
+        do { bookmarks = try load() }
+        catch {
+            guard !Task.isCancelled else { return [] }
+            onFailure(q, error as? ChromeBookmarkService.ReadFailure ?? .unreadable)
+            return []
+        }
+        return bookmarks.compactMap { bookmark -> SearchResult? in
             guard !Task.isCancelled else { return nil }
             let titleScore = FuzzyMatch.score(q, in: bookmark.title)
             let urlScore = bookmark.url.absoluteString.localizedCaseInsensitiveContains(q) ? 0.5 : 0.0

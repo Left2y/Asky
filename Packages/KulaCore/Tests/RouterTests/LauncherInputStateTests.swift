@@ -120,4 +120,15 @@ import DirectActions
         state.replaceRawQuery("", keywords: keywords)
         #expect(!state.hasScope)
     }
+    @Test func disabledBookmarksNeverConsumeTheScopeKeyword() {
+        var state = LauncherInputState()
+        let keywords = KeywordRegistry()
+        state.edit("bm deepseek", keywords: keywords, bookmarksEnabled: false)
+        #expect(!state.bookmarks && state.text == "bm deepseek")
+        state.replaceRawQuery("bm deepseek", keywords: keywords, bookmarksEnabled: true)
+        #expect(state.bookmarks && state.text == "deepseek")
+        state.replaceRawQuery(state.rawQuery, keywords: keywords, bookmarksEnabled: false)
+        #expect(!state.bookmarks && state.text == "bm deepseek")
+    }
+
 }

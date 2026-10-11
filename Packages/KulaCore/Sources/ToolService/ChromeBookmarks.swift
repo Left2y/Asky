@@ -8,21 +8,84 @@ public struct ChromeBookmark: Sendable, Hashable {
 
 /// Local Chrome bookmark files only. Never reads history or starts the browser.
 public enum ChromeBookmarkService {
-    public static func load(root: URL = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Google/Chrome")) -> [ChromeBookmark] {
+    public enum ReadFailure: Error, Sendable, Equatable { case permissionDenied, unreadable }
+
+    public enum AccessState: String, Sendable {
+        case authorized = "已授权"
+        case denied = "未授权，请选择 Chrome 书签文件夹"
+        case missing = "未找到 Chrome 书签目录"
+        case unreadable = "无法读取 Chrome 书签目录"
+    }
+
+    private static func resolve(root: URL, accessBookmark: Data?) throws -> URL {
+        guard let accessBookmark else { return root }
+        var stale = false
+        do {
+            return try URL(resolvingBookmarkData: accessBookmark, options: [.withSecurityScope],
+                           relativeTo: nil, bookmarkDataIsStale: &stale)
+        } catch { throw ReadFailure.permissionDenied }
+    }
+
+    public static func accessState(root: URL = defaultRoot, accessBookmark: Data? = nil) -> AccessState {
+        do {
+            let folder = try resolve(root: root, accessBookmark: accessBookmark)
+            let accessed = folder.startAccessingSecurityScopedResource()
+            defer { if accessed { folder.stopAccessingSecurityScopedResource() } }
+            _ = try FileManager.default.attributesOfItem(atPath: folder.path)
+            _ = try read(root: folder)
+            return .authorized
+        } catch ReadFailure.permissionDenied { return .denied }
+        catch {
+            let error = error as NSError
+            if error.code == NSFileReadNoSuchFileError { return .missing }
+            if error.code == NSFileReadNoPermissionError ||
+                (error.domain == NSPOSIXErrorDomain && [1, 13].contains(error.code)) { return .denied }
+            return .unreadable
+        }
+    }
+
+    public static var defaultRoot: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Google/Chrome")
+    }
+
+    public static func load(root: URL = defaultRoot) -> [ChromeBookmark] {
+        (try? read(root: root)) ?? []
+    }
+
+    public static func read(root: URL = defaultRoot, accessBookmark: Data? = nil) throws -> [ChromeBookmark] {
+        let root = try resolve(root: root, accessBookmark: accessBookmark)
+        let accessed = root.startAccessingSecurityScopedResource()
+        defer { if accessed { root.stopAccessingSecurityScopedResource() } }
         let fm = FileManager.default
-        let profiles = (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        func classify(_ error: Error) -> ReadFailure {
+            let error = error as NSError
+            if error.code == NSFileReadNoPermissionError ||
+                (error.domain == NSPOSIXErrorDomain && [1, 13].contains(error.code)) { return .permissionDenied }
+            return .unreadable
+        }
+        let profiles: [URL]
+        do { profiles = try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) }
+        catch {
+            if (error as NSError).code == NSFileReadNoSuchFileError { return [] }
+            throw classify(error)
+        }
         var seen = Set<URL>()
         var bookmarks: [ChromeBookmark] = []
         for profile in profiles.filter({ $0.lastPathComponent == "Default" || $0.lastPathComponent.hasPrefix("Profile ") })
             .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).prefix(16) {
-            // Signed-in Chrome keeps synced bookmarks in AccountBookmarks, local ones in Bookmarks.
             for name in ["Bookmarks", "AccountBookmarks"] {
                 guard !Task.isCancelled else { return [] }
                 let file = profile.appendingPathComponent(name)
-                guard let size = (try? fm.attributesOfItem(atPath: file.path)[.size]) as? NSNumber,
-                      size.intValue <= 8 * 1024 * 1024,
-                      let data = try? Data(contentsOf: file) else { continue }
+                let data: Data
+                do {
+                    let attributes = try fm.attributesOfItem(atPath: file.path)
+                    guard let size = attributes[.size] as? NSNumber, size.intValue <= 8 * 1024 * 1024 else { continue }
+                    data = try Data(contentsOf: file)
+                } catch {
+                    if (error as NSError).code == NSFileReadNoSuchFileError { continue }
+                    throw classify(error)
+                }
                 for bookmark in decode(data) where seen.insert(bookmark.url).inserted {
                     bookmarks.append(bookmark)
                     if bookmarks.count >= 20_000 { return bookmarks }

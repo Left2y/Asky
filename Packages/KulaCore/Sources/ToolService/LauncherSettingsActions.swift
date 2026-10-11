@@ -23,6 +23,25 @@ extension ToolService {
         return response == .OK ? panel.url?.standardizedFileURL : nil
     }
 
+    @MainActor
+    public static func chooseChromeBookmarkFolder() async -> Data? {
+        let panel = NSOpenPanel()
+        panel.title = NSLocalizedString("授权 Chrome 书签", comment: "")
+        panel.message = NSLocalizedString("选择 Chrome 文件夹以允许读取书签。Asky 只读取书签文件，不读取浏览历史。", comment: "")
+        panel.prompt = NSLocalizedString("授权", comment: "")
+        panel.directoryURL = ChromeBookmarkService.defaultRoot.deletingLastPathComponent()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        NSApp.activate()
+        let response: NSApplication.ModalResponse = await withCheckedContinuation { continuation in
+            panel.begin { continuation.resume(returning: $0) }
+        }
+        guard response == .OK, let folder = panel.url else { return nil }
+        return try? folder.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+    }
+
     public static func listLauncherShortcuts() async -> [String] {
         await ShortcutsService.list()
     }

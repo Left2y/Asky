@@ -1,4 +1,5 @@
 import Testing
+import Synchronization
 import Foundation
 import Contracts
 import ToolService
@@ -35,6 +36,23 @@ struct ChromeBookmarksTests {
         let account = Data(#"{"roots":{"bookmark_bar":{"type":"folder","children":[{"type":"url","name":"Kimi","url":"https://www.kimi.com/code"}]}}}"#.utf8)
         try account.write(to: root.appendingPathComponent("Profile 2/AccountBookmarks"))
         #expect(ChromeBookmarkService.load(root: root).map(\.title).contains("Kimi"))
+        let access = try root.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+        #expect(try ChromeBookmarkService.read(accessBookmark: access).map(\.title).contains("Kimi"))
+        #expect(ChromeBookmarkService.accessState(accessBookmark: access) == .authorized)
         #expect(ChromeBookmarkService.load(root: root.appendingPathComponent("missing")).isEmpty)
     }
+    @Test func readFailuresReachProviderWithoutBecomingMissingMatches() async throws {
+        let failures = Mutex<[ChromeBookmarkService.ReadFailure]>([])
+        let provider = ChromeBookmarksProvider(load: { throw ChromeBookmarkService.ReadFailure.permissionDenied },
+                                               onFailure: { _, failure in failures.withLock { $0.append(failure) } })
+        #expect(await provider.search("deepseek", limit: 8).isEmpty)
+        #expect(failures.withLock { $0 } == [.permissionDenied])
+        #expect(ChromeBookmarkService.accessState(accessBookmark: Data("invalid".utf8)) == .denied)
+        #expect(ChromeBookmarkService.accessState(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)) == .missing)
+        #expect(throws: ChromeBookmarkService.ReadFailure.permissionDenied) {
+            try ChromeBookmarkService.read(accessBookmark: Data("invalid".utf8))
+        }
+        #expect(try ChromeBookmarkService.read(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)).isEmpty)
+    }
+
 }

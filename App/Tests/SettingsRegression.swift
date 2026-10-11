@@ -95,6 +95,27 @@ enum SettingsRegression {
                 }
                 window.center()
                 window.makeKeyAndOrderFront(nil)
+                if CommandLine.arguments.contains("--permissions-only") {
+                    model.settingsTab = SettingsPage.permissions.rawValue
+                    await model.refreshChromeBookmarkAccess()
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(500))
+                        window.contentView?.layoutSubtreeIfNeeded()
+                        assertDetailBelowToolbar(split, window: window)
+                        guard model.chromeBookmarkAccessState != nil,
+                              let view = window.contentView,
+                              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                            fatalError("Chrome bookmark access must be checked on the permissions page")
+                        }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(
+                            to: URL(filePath: "build/settings-permissions-access-\(appearance).png"))
+                    }
+                    try? FileManager.default.removeItem(at: root)
+                    print("Chrome bookmark permission page snapshots passed")
+                    exit(0)
+                }
                 if preview {
                     if CommandLine.arguments.contains("--commands") { model.settingsTab = "keywords" }
                     application.activate(); return

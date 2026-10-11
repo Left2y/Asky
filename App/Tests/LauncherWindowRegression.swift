@@ -2,6 +2,8 @@ import AppKit
 import Contracts
 import Search
 import LocalStore
+import Adapters
+import ToolService
 
 private struct WindowSearchProvider: SearchProvider {
     let source: SearchSource
@@ -36,7 +38,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--accessories-preview") {
+                    if CommandLine.arguments.contains("--bookmarks") {
+                        try await checkBookmarks()
+                    } else if CommandLine.arguments.contains("--accessories-preview") {
                         try await previewAccessories()
                     } else if CommandLine.arguments.contains("--accessories") {
                         try await checkAccessories()
@@ -66,6 +70,62 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private static func checkBookmarks() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-bookmarks-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let fixture = Data(#"{"roots":{"bookmark_bar":{"type":"folder","children":[{"type":"url","name":"DeepSeek 开放平台","url":"https://platform.deepseek.com/usage"}]}}}"#.utf8)
+        let provider = ChromeBookmarksProvider(load: { ChromeBookmarkService.decode(fixture) })
+        let denied = LauncherModel(app: app, searchProviders: [provider,
+            WindowSearchProvider(source: .link, delay: .milliseconds(10), count: 1),
+            WindowSearchProvider(source: .app, delay: .milliseconds(10), count: 1)],
+            chromeBookmarkAccessAllowed: false)
+        for text in ["deepseek", "https://deepseek.com", "bm deepseek"] {
+            denied.query = text
+            try await Task.sleep(for: .milliseconds(250))
+            try require(!denied.isBookmarkScope, "ungranted bm must stay out of bookmark scope")
+            try require(!denied.results.contains { [.link, .bookmark].contains($0.source) },
+                        "ungranted link and bookmark features must not appear")
+        }
+        let staleEntry = SearchResult(source: .bookmark,
+            target: TargetRef(kind: "bookmark-search", identifier: "deepseek"), title: "搜索书签", actions: [.open])
+        denied.execute(staleEntry, action: .open)
+        try require(!denied.isBookmarkScope, "stale bookmark entry cannot bypass authorization")
+        let model = LauncherModel(app: app, searchProviders: [provider,
+            WindowSearchProvider(source: .app, delay: .milliseconds(10), count: 1)])
+        let controller = LauncherController(model: model)
+        controller.show()
+        (NSApp.windows.first { $0 is LauncherPanel && $0.isVisible } as? LauncherPanel)?.onBlur = {}
+        defer { controller.hide() }
+        model.query = "deepseek"
+        try await Task.sleep(for: .milliseconds(350))
+        guard let entry = model.results.first(where: { $0.target.kind == "bookmark-search" }) else {
+            throw NSError(domain: "LauncherWindowRegression", code: 1, userInfo: [NSLocalizedDescriptionKey: "bookmark entry must be available"])
+        }
+        model.execute(entry, action: entry.primaryAction)
+        try await Task.sleep(for: .milliseconds(350))
+        try require(model.isBookmarkScope && model.results.count == 1, "bookmark keyword must show matching result")
+        print("Bookmark entry results", model.results.map(\.title))
+        model.inputText = "deep"
+        model.inputText = "deepseek"
+        try await Task.sleep(for: .milliseconds(350))
+        try require(model.results.count == 1 && !model.isSearching, "replacement bookmark queries must finish")
+        if CommandLine.arguments.contains("--live-bookmarks") {
+            let live = LauncherModel(app: app)
+            for _ in 0..<40 {
+                if live.chromeBookmarkAccessAllowed { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            live.query = "bm deepseek"
+            try await Task.sleep(for: .milliseconds(500))
+            try require(live.results.contains { $0.title == "DeepSeek 开放平台" }, "local Chrome DeepSeek bookmark must be delivered")
+            live.query = "kimi"
+            try await Task.sleep(for: .milliseconds(500))
+            try require(live.results.contains { $0.source == .link }, "authorized known-site link search must be restored")
+        }
+
     }
 
     private static func previewAccessories() async throws {

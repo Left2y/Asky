@@ -155,16 +155,25 @@ private extension NSAttributedString.Key {
 
 private final class ChatInlineLayoutManager: NSLayoutManager {
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
-        guard let storage = textStorage, let container = textContainers.first else { return }
+        guard let storage = textStorage, !textContainers.isEmpty else { return }
         let characters = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
         storage.enumerateAttribute(.chatInlineCode, in: characters) { value, range, _ in
             guard let color = value as? NSColor else { return }
             let glyphs = glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-            enumerateEnclosingRects(forGlyphRange: glyphs, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0),
-                                    in: container) { rect, _ in
+            let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont
+                ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+            enumerateLineFragments(forGlyphRange: glyphs) { fragment, _, container, lineGlyphs, _ in
+                let segment = NSIntersectionRange(glyphs, lineGlyphs)
+                guard segment.length > 0 else { return }
+                let horizontalBounds = self.boundingRect(forGlyphRange: segment, in: container)
+                let baseline = fragment.minY + self.location(forGlyphAt: segment.location).y
+                // Enclosing selection rects include line spacing and were clipped at the text view edge.
+                // Draw against the font baseline so all four corners remain inside the text bounds.
+                let pill = NSRect(x: horizontalBounds.minX + origin.x,
+                    y: baseline - font.ascender - 2 + origin.y,
+                    width: horizontalBounds.width, height: ceil(font.ascender - font.descender) + 4)
                 color.setFill()
-                NSBezierPath(roundedRect: rect.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: 0, dy: -2),
-                             xRadius: 4, yRadius: 4).fill()
+                NSBezierPath(roundedRect: pill, xRadius: 8, yRadius: 8).fill()
             }
         }
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)

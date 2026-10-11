@@ -135,6 +135,12 @@ final class LauncherModel {
         inputState.command.map { (command: $0, text: inputState.text) }
     }
 
+    var terminalApplication: LauncherTerminalApplication {
+        app.settings.terminalApplicationID.flatMap(LauncherTerminalApplication.init(rawValue:)) ?? .system
+    }
+
+    var terminalIcon: NSImage? { ToolService.launcherTerminalIcon(terminalApplication) }
+
     var isTerminalScope: Bool { inputState.terminal }
     var isBookmarkScope: Bool { inputState.bookmarks }
     var hasScope: Bool { inputState.hasScope }
@@ -418,9 +424,10 @@ final class LauncherModel {
         guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         terminalTask?.cancel()
         let cwd = URL(filePath: app.settings.terminalWorkingDirectory)
+        let application = terminalApplication
         terminalTask = Task {
             do {
-                try await ToolService.openLauncherTerminal(command: command, workingDirectory: cwd)
+                try await ToolService.openLauncherTerminal(command: command, workingDirectory: cwd, application: application)
                 onHide()
             } catch {
                 status = error.localizedDescription

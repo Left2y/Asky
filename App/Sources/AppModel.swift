@@ -19,6 +19,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     var clipboardEnabled = true
     var clipboardExcludedApps: [String] = ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
                                             "com.apple.keychainaccess", "com.apple.Passwords"]
+    /// Optional so settings written before terminal selection still decode without resetting.
+    var terminalApplicationID: String?
     var terminalWorkingDirectory: String = FileManager.default.homeDirectoryForCurrentUser.path
     var memoryExtractionPaused = false
     var backgroundAI = false

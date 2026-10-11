@@ -169,6 +169,7 @@ private struct GeneralSettings: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
     @State private var choosingScope = false
+    @State private var terminals: [LauncherTerminalApplication] = []
 
     var body: some View {
         Form {
@@ -206,6 +207,20 @@ private struct GeneralSettings: View {
                     set: { app.settings.excludedDirectories = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
             }
             Section("终端") {
+                Picker(NSLocalizedString("执行命令的终端", comment: ""), selection: Binding(
+                    get: { app.settings.terminalApplicationID ?? LauncherTerminalApplication.system.rawValue },
+                    set: { app.settings.terminalApplicationID = $0 })) {
+                    ForEach(terminalChoices) { terminal in
+                        HStack {
+                            if let icon = ToolService.launcherTerminalIcon(terminal) {
+                                Image(nsImage: icon).resizable().scaledToFit().frame(width: 20, height: 20)
+                            }
+                            Text(terminal.name + (terminals.contains(terminal) ? "" : NSLocalizedString("（未安装）", comment: "")))
+                        }.tag(terminal.rawValue)
+                    }
+                }
+                Text(NSLocalizedString("支持系统终端、iTerm2 与 Ghostty 1.3+，列表显示已安装的终端。", comment: ""))
+                    .foregroundStyle(.secondary)
                 TextField("工作目录", text: $app.settings.terminalWorkingDirectory)
             }
             Section("剪贴板") {
@@ -221,6 +236,12 @@ private struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { terminals = ToolService.installedLauncherTerminals() }
+    }
+
+    private var terminalChoices: [LauncherTerminalApplication] {
+        let selected = app.settings.terminalApplicationID.flatMap(LauncherTerminalApplication.init(rawValue:)) ?? .system
+        return terminals.contains(selected) ? terminals : terminals + [selected]
     }
 }
 

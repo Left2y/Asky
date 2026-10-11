@@ -27,7 +27,17 @@ enum LauncherTerminalRegression {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("Asky-terminal-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
+        let legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(app.settings)) as! [String: Any]
+        var oldSettings = legacy
+        oldSettings.removeValue(forKey: "terminalApplicationID")
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONSerialization.data(withJSONObject: oldSettings))
+        try require(decoded.terminalApplicationID == nil && decoded.fileScopes == app.settings.fileScopes, "old settings preserve values and default to system terminal")
         let model = LauncherModel(app: app, searchProviders: [])
+        try require(model.terminalApplication == .system && model.terminalIcon != nil, "system app icon is available")
+        app.settings.terminalApplicationID = LauncherTerminalApplication.iTerm.rawValue
+        try require(model.terminalApplication == .iTerm, "selection changes launcher terminal")
+        try require(SettingsReader(store: app.store).load().terminalApplicationID == LauncherTerminalApplication.iTerm.rawValue, "terminal selection persists")
+        app.settings.terminalApplicationID = nil
         let controller = LauncherController(model: model)
         controller.show()
         defer { controller.hide() }
@@ -41,7 +51,7 @@ enum LauncherTerminalRegression {
         try require(field.stringValue.isEmpty, "prefix consumed in native field")
         model.inputText = "printf '%s' 'go chat' > result.txt"
         try await Task.sleep(for: .milliseconds(200))
-        try require(field.stringValue == model.inputText, "native field displays only command")
+        try require(findField(panel.contentView!)?.stringValue == model.inputText, "native field displays only command")
         try require(model.results.count == 1 && model.results.first?.primaryAction == .runTerminal(command: model.inputText), "only terminal action is offered")
         if let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
             view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -54,6 +64,16 @@ enum LauncherTerminalRegression {
         try require(model.isTerminalScope && model.inputText == "pwd", "pasted prefix without space")
         model.query = "go cats"
         try require(!model.isTerminalScope && model.commandInput?.command.keyword == "go", "web keywords still work")
+        let settings = SettingsWindow.make(app: app)
+        settings.center()
+        settings.makeKeyAndOrderFront(nil)
+        try await Task.sleep(for: .milliseconds(250))
+        if let view = settings.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])?.write(to: URL(filePath: "build/terminal-settings.png"))
+        }
+        settings.orderOut(nil)
+        print("Terminal settings: legacy decoding, selected app, icon and persistence passed")
         print("Native field: prefix, shell redirection, empty state, Backspace and keyword replacement passed")
         if CommandLine.arguments.contains("--handoff") {
             let marker = root.appendingPathComponent("handoff.txt")
@@ -72,8 +92,8 @@ enum LauncherTerminalRegression {
         }
     }
 
-    static func findField(_ view: NSView) -> CompletionTextField? {
-        if let field = view as? CompletionTextField { return field }
+    static func findField(_ view: NSView) -> NSTextField? {
+        if let field = view as? NSTextField, field.isEditable { return field }
         return view.subviews.compactMap(findField).first
     }
 }

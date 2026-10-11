@@ -331,7 +331,9 @@ struct LauncherView: View {
 
     @ViewBuilder private var commandIcon: some View {
         if model.isTerminalScope {
-            Image(systemName: "terminal").font(.system(size: 20)).foregroundStyle(ThemeColor.kIcon)
+            if let icon = model.terminalIcon {
+                Image(nsImage: icon).resizable().scaledToFit()
+            }
         } else if model.isBookmarkScope {
             Image("Bookmark").resizable().scaledToFit()
         } else if let command = model.commandInput?.command,
@@ -402,7 +404,7 @@ private struct ResultList: View {
                                     model.selection = i
                                     model.submit(.executeSelection)
                                 } label: {
-                                    ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r))
+                                    ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r), terminalIcon: model.terminalIcon)
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(r.title)
@@ -465,6 +467,7 @@ private struct ResultRow: View {
     let result: SearchResult
     let selected: Bool
     let keyword: String?
+    var terminalIcon: NSImage?
     @State private var hovering = false
 
     var body: some View {
@@ -510,6 +513,10 @@ private struct ResultRow: View {
         switch result.source {
         case .app, .file:
             Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+        case .terminal:
+            if let terminalIcon {
+                Image(nsImage: terminalIcon).resizable().scaledToFit()
+            }
         case .link:
             Image("Link").resizable().scaledToFit()
         case .askAI:

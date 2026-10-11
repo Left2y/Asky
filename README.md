@@ -54,7 +54,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ### 使用方法
 
 - 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
-- 输入英文 `>` 进入终端模式，例如 `> pwd`；回车打开 macOS「终端」，在配置的工作目录执行命令。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
+- 输入英文 `>` 进入终端模式，例如 `> pwd`；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 通用 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
 - 在“设置 › 通用 › 文件搜索范围”点击“选择文件夹…”，通过系统文件夹选择窗口添加搜索目录。
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
 - 使用 `Ctrl + Option + Command + /` 直接打开 AI 并开启空白新对话（无需 Shift）；可在“设置 › 触发快捷键 › AI 对话”中录制自定义组合键或恢复默认；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
@@ -164,7 +164,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ### Usage
 
 - Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
-- Type ASCII `>` to enter terminal mode, for example `> pwd`; Return opens macOS Terminal and runs the command in the configured working directory. Backspace on an empty field leaves terminal mode. First use may require Automation permission.
+- Type ASCII `>` to enter terminal mode, for example `> pwd`; Return opens the selected terminal and runs the command in the configured working directory. Choose an installed system Terminal, iTerm2, or Ghostty (1.3+) under Settings › General › Terminal › Terminal for Commands; the launcher and result show that app’s icon. Backspace on an empty field leaves terminal mode. First use may require Automation permission.
 - Under Settings › General › File Search Scope, click “Choose Folder…” to add a search directory using the system folder picker.
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
 - Press `Ctrl + Option + Command + /` to open AI with a blank new conversation (without Shift); customize the combination or restore its default in Settings › Hotkeys › AI Conversation; an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.

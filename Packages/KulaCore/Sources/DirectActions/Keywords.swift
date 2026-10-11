@@ -49,7 +49,14 @@ public struct KeywordCommand: Sendable, Codable, Hashable, Identifiable {
 
     public static let builtIn: [KeywordCommand] = [
         KeywordCommand(keyword: "go", name: "Google 搜索", urlTemplate: "https://www.google.com/search?q={query}"),
-    ] + websitePresets
+    ] + websitePresets + [
+        KeywordCommand(keyword: "yt", name: "YouTube 搜索", urlTemplate: "https://www.youtube.com/results?search_query={query}"),
+        KeywordCommand(keyword: "dy", name: "抖音搜索", urlTemplate: "https://www.douyin.com/search/{query}"),
+        KeywordCommand(keyword: "tb", name: "淘宝搜索", urlTemplate: "https://s.taobao.com/search?q={query}"),
+        KeywordCommand(keyword: "jd", name: "京东搜索", urlTemplate: "https://search.jd.com/Search?keyword={query}"),
+        KeywordCommand(keyword: "bl", name: "bilibili 搜索", urlTemplate: "https://search.bilibili.com/all?keyword={query}"),
+        KeywordCommand(keyword: "gh", name: "GitHub 搜索", urlTemplate: "https://github.com/search?q={query}"),
+    ]
 }
 
 /// In-memory keyword set with CRUD; persistence is owned by the caller (settings store).

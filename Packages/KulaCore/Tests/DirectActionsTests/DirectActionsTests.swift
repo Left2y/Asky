@@ -72,8 +72,8 @@ import Foundation
 @Suite struct KeywordTests {
     @Test func crudAndValidation() throws {
         var reg = KeywordRegistry()
-        try reg.upsert(KeywordCommand(keyword: "gh", name: "GitHub", urlTemplate: "https://github.com/search?q={query}"))
-        #expect(reg.match("gh kula")?.1 == "kula")
+        try reg.upsert(KeywordCommand(keyword: "git", name: "GitHub", urlTemplate: "https://github.com/search?q={query}"))
+        #expect(reg.match("git kula")?.1 == "kula")
         #expect(throws: KeywordRegistry.RegistryError.duplicate) {
             try reg.upsert(KeywordCommand(keyword: "go", name: "x", urlTemplate: "https://x.com/{query}"))
         }
@@ -83,8 +83,8 @@ import Foundation
         #expect(throws: KeywordRegistry.RegistryError.invalidKeyword) {
             try reg.upsert(KeywordCommand(keyword: ">", name: "x", urlTemplate: "https://x.com/{query}"))
         }
-        reg.remove("gh")
-        #expect(reg.match("gh kula") == nil)
+        reg.remove("git")
+        #expect(reg.match("git kula") == nil)
     }
 
     @Test func plainWebsiteAddressesAndPersistence() throws {
@@ -109,7 +109,7 @@ import Foundation
         let upgraded = registry
         registry.addMissingWebsitePresets(excluding: ["gemini"])
         #expect(registry == upgraded)
-        #expect(KeywordRegistry().commands.count == 2)
+        #expect(KeywordRegistry().commands.count == 8)
     }
 
     @Test func chatGPTCarriesQueryWithoutUserTemplate() throws {

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import Contracts
 import DirectActions
@@ -41,6 +42,40 @@ import DirectActions
         #expect(cmd.keyword == "go" && q == "swift testing")
         let rows = router.directResults(for: .keyword(cmd, query: q))
         #expect(rows.first?.target.identifier.contains("swift%20testing") == true)
+    }
+
+    @Test(arguments: ["yt", "dy", "tb", "jd", "bl", "gh"])
+    func builtInSiteSearchCarriesEncodedQuery(_ keyword: String) throws {
+        let query = "中文 & + # / ?"
+        var state = LauncherInputState()
+        state.edit("\(keyword.uppercased()) ", keywords: KeywordRegistry())
+        #expect(state.command?.keyword == keyword)
+        #expect(state.text.isEmpty)
+        state.edit(query, keywords: KeywordRegistry())
+        guard case .keyword(let command, let routedQuery) = router.route(state.rawQuery) else {
+            Issue.record("expected site search command"); return
+        }
+        #expect(routedQuery == query)
+        let row = try #require(router.directResults(for: .keyword(command, query: routedQuery)).first)
+        let url = try #require(URL(string: row.target.identifier))
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let destinations: [String: (String, String)] = [
+            "yt": ("www.youtube.com", "search_query"), "tb": ("s.taobao.com", "q"),
+            "jd": ("search.jd.com", "keyword"), "bl": ("search.bilibili.com", "keyword"),
+            "gh": ("github.com", "q"),
+        ]
+        if keyword == "dy" {
+            #expect(url.host == "www.douyin.com")
+            #expect(components.percentEncodedPath.removingPercentEncoding == "/search/" + query)
+            #expect(components.percentEncodedPath.contains("%2F"))
+            #expect(components.query == nil)
+        } else {
+            let destination = try #require(destinations[keyword])
+            #expect(url.host == destination.0)
+            #expect(components.queryItems == [URLQueryItem(name: destination.1, value: query)])
+        }
+        #expect(components.fragment == nil)
+        #expect(row.actions == [.openURL(url)])
     }
 
     @Test func commandInputRequiresCompletedTokenAndPreservesEmptyScope() {

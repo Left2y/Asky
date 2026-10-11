@@ -284,7 +284,10 @@ private struct ClipboardHistoryView: View {
                 .background(ThemeColor.kBackground, in: Capsule())
                 .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
                 HStack(spacing: 12) {
-                    action(controller.pinned ? "pin.fill" : "pin", title: "固定窗口", run: controller.togglePinned)
+                    ClipboardHeaderButton(symbol: controller.pinned ? "pin.fill" : "pin",
+                                          title: controller.pinned ? "取消固定窗口" : "固定窗口",
+                                          action: controller.togglePinned)
+                        .accessibilityValue(controller.pinned ? "已固定" : "未固定")
                 }
             }.padding(12)
             Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
@@ -320,12 +323,34 @@ private struct ClipboardHistoryView: View {
         .accessibilityValue(controller.status ?? "")
     }
 
-    private func action(_ symbol: String, title: String, run: @escaping () -> Void) -> some View {
-        Button(action: run) { Image(systemName: symbol).frame(width: 32, height: 32) }
-            .buttonStyle(.plain).foregroundStyle(ThemeColor.kIconSubtle)
-            .background(ThemeColor.kBackground, in: Circle())
-            .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
-            .accessibilityLabel(title).help(title)
+}
+
+private struct ClipboardHeaderButton: View {
+    let symbol: String
+    let title: String
+    let action: () -> Void
+    @Environment(\.colorScheme) private var scheme
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .frame(width: 32, height: 32)
+                .background {
+                    Circle().fill(ThemeColor.kBackground.color(for: scheme))
+                        .overlay {
+                            if hovering {
+                                Circle().fill(ThemeColor.kInteractionHover.color(for: scheme))
+                            }
+                        }
+                }
+                .contentShape(.interaction, Circle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(ThemeColor.kIconSubtle.color(for: scheme))
+        .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+        .onHover { hovering = $0 }
+        .accessibilityLabel(title).help(title)
     }
 }
 

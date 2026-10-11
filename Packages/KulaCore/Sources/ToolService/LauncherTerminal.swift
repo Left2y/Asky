@@ -7,7 +7,7 @@ extension ToolService {
         guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         guard launcherTerminalApplicationURL(application) != nil else {
             throw NSError(domain: "LauncherTerminal", code: 2, userInfo: [NSLocalizedDescriptionKey:
-                String(format: NSLocalizedString("%@ 未安装，请在设置 › 通用 › 终端中重新选择。", comment: ""), application.name)])
+                String(format: NSLocalizedString("%@ 未安装，请在设置 › 指令 › 终端中重新选择。", comment: ""), application.name)])
         }
         try await LauncherTerminalHandoff.shared.open(command: command, directory: workingDirectory, application: application)
     }

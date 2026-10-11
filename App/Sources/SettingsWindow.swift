@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general = "advanced", model, hotkey, aliases
+    case general = "advanced", model, hotkey, aliases, keywords
     case sources, permissions, memory, mcp
 
     var id: String { rawValue }
@@ -12,6 +12,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .model: NSLocalizedString("模型设置", comment: "")
         case .hotkey: NSLocalizedString("触发快捷键", comment: "")
         case .aliases: NSLocalizedString("别名与快捷指令", comment: "")
+        case .keywords: NSLocalizedString("指令", comment: "")
         case .sources: NSLocalizedString("数据来源", comment: "")
         case .permissions: NSLocalizedString("系统权限", comment: "")
         case .memory: NSLocalizedString("记忆", comment: "")
@@ -24,6 +25,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .model: "sparkles"
         case .hotkey: "keyboard"
         case .aliases: "command"
+        case .keywords: "terminal"
         case .sources: "square.stack.3d.up"
         case .permissions: "hand.raised.fill"
         case .memory: "brain"
@@ -34,7 +36,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         switch self {
         case .general, .hotkey: .gray
         case .model, .memory: .purple
-        case .aliases: .orange
+        case .aliases, .keywords: .orange
         case .sources: .blue
         case .permissions: .green
         case .mcp: .teal

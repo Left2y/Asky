@@ -21,9 +21,9 @@ enum SettingsRegression {
                 guard model.keywords.commands == KeywordCommand.builtIn,
                       model.keywords.match("go hello")?.0.urlTemplate.contains("google.com") == true,
                       model.keywords.match("chat hello")?.0.url(for: "hello")?.host == "chatgpt.com",
-                      SettingsPage.allCases.allSatisfy({ $0.rawValue != "keywords" }),
-                      SettingsPage.resolve("keywords") == .general else {
-                    fatalError("legacy settings changed fixed presets or keyword configuration remains visible")
+                      SettingsPage.allCases.contains(.keywords),
+                      SettingsPage.resolve("keywords") == .keywords else {
+                    fatalError("legacy settings changed fixed presets or command settings are missing")
                 }
                 var input = LauncherInputState()
                 input.edit("> pwd", keywords: model.keywords)
@@ -73,7 +73,10 @@ enum SettingsRegression {
                 }
                 window.center()
                 window.makeKeyAndOrderFront(nil)
-                if preview { application.activate(); return }
+                if preview {
+                    if CommandLine.arguments.contains("--commands") { model.settingsTab = "keywords" }
+                    application.activate(); return
+                }
                 for appearance in ["light", "dark"] {
                     model.preferences.appearance = appearance
                     for page in SettingsPage.allCases {

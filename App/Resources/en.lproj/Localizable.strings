@@ -266,3 +266,23 @@
 "请分析这些附件" = "Please analyze these attachments";
 "对话" = "Conversation";
 " · 缓存" = " · Cached";
+
+"指令" = "Commands";
+
+"内置指令" = "Built-in Commands";
+
+"输入指令后按空格，再输入内容。内置指令固定，无需添加或修改。" = "Type a command, press Space, then enter content. Built-in commands are fixed and need no setup.";
+
+"Google 搜索" = "Google Search";
+
+"YouTube 搜索" = "YouTube Search";
+
+"抖音搜索" = "Douyin Search";
+
+"淘宝搜索" = "Taobao Search";
+
+"京东搜索" = "JD Search";
+
+"bilibili 搜索" = "bilibili Search";
+
+"GitHub 搜索" = "GitHub Search";

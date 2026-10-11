@@ -1,6 +1,5 @@
 import AppKit
 import EventKit
-import ScreenCaptureKit
 @preconcurrency import Contacts
 import UserNotifications
 import UniformTypeIdentifiers
@@ -194,25 +193,6 @@ public enum SystemPermissions {
             guard (try? process.run()) != nil else { return }
             process.waitUntilExit()
         }.value
-    }
-
-    /// Lets the running process add itself to the list, so the entry carries its real signature.
-    /// Wait for the screen permission request to finish before enabling the drag fallback.
-    /// This enumerates available content only; it does not capture or retain screen pixels.
-    public static func registerForAuthorization(_ permission: SystemPermission) async {
-        switch permission {
-        case .screenRecording:
-            guard !CGPreflightScreenCaptureAccess() else { return }
-            NSApp.activate()
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { _, _ in
-                    // Denial still registers the current process; the settings toggle is the fallback.
-                    continuation.resume()
-                }
-            }
-        case .accessibility: _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
-        default: break
-        }
     }
 
     public static func relaunchApp() throws {

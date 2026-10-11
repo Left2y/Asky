@@ -34,7 +34,6 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
     private let readState: (SystemPermission) async -> PermissionState
     private let openPermissionSettings: (SystemPermission) throws -> PermissionAuthorizationSettingsHandle
     private let resetAuthorization: (SystemPermission) async -> Void
-    private let registerForAuthorization: (SystemPermission) async -> Void
 
     var window: NSPanel? { panel }
 
@@ -43,12 +42,10 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
              let session = try SystemPermissions.openAuthorizationSettings($0)
              return PermissionAuthorizationSettingsHandle(windowFrame: { session.windowFrame }, dismiss: { session.dismiss() })
          },
-         resetAuthorization: @escaping (SystemPermission) async -> Void = { await SystemPermissions.resetAuthorization($0) },
-         registerForAuthorization: @escaping (SystemPermission) async -> Void = { await SystemPermissions.registerForAuthorization($0) }) {
+         resetAuthorization: @escaping (SystemPermission) async -> Void = { await SystemPermissions.resetAuthorization($0) }) {
         self.readState = readState
         self.openPermissionSettings = openSettings
         self.resetAuthorization = resetAuthorization
-        self.registerForAuthorization = registerForAuthorization
         super.init()
     }
 
@@ -93,13 +90,10 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
             let initial = await self.readState(permission)
             guard self.generation == generation, !Task.isCancelled else { return }
             model.regrant = initial == .authorized
-            // A switched-on entry that does not apply belongs to another build's signature. Remove it,
-            // then let this process add itself so the entry matches the code that is running.
-            // Dragging the card stays available when the entry does not appear.
+            // A switched-on entry that does not apply belongs to another build's signature and makes
+            // System Settings reject the drop. Remove it so dragging the card adds and enables this build.
             if initial != .authorized {
                 await self.resetAuthorization(permission)
-                guard self.generation == generation, !Task.isCancelled else { return }
-                await self.registerForAuthorization(permission)
                 guard self.generation == generation, !Task.isCancelled else { return }
                 model.needsRelaunch = permission.requiresRelaunchAfterGrant
             }
@@ -244,16 +238,16 @@ private struct PermissionAuthorizationView: View {
                 PermissionAppCard(colorScheme: colorScheme, reduceTransparency: reduceTransparency).opacity(0.5)
             }
             Text(NSLocalizedString(model.preparing
-                ? "正在准备授权，请先完成系统提示…"
+                ? "正在准备授权…"
                 : !canDrag
                 ? "请先将 Asky.app 移到“应用程序”文件夹并重新打开，再拖拽授权。"
                 : model.needsRelaunch
-                ? "在系统设置中打开 Asky 的开关，然后重新启动 Asky 使屏幕录制生效。列表中没有 Asky 时，将卡片拖入。"
+                ? "将卡片拖入系统设置，然后重新启动 Asky 使屏幕录制生效。"
                 : model.dropped && !model.cardAbsent
-                ? "仍未生效。请确认 Asky 的开关已打开；列表中没有 Asky 时再拖一次。"
+                ? "仍未生效，请再拖一次。"
                 : model.regrant
                 ? "先删除旧条目，再拖入卡片并开启。"
-                : "在系统设置中打开 Asky 的开关。列表中没有 Asky 时，将卡片拖入。", comment: ""))
+                : "将卡片拖入系统设置，开启 Asky 开关。", comment: ""))
                 .font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle)
                 .fixedSize(horizontal: false, vertical: true)
             if let message = model.message {

@@ -335,4 +335,6 @@
 "请在 Finder 中将 Asky.app 拖入“应用程序”，然后从那里重新打开。" = "Drag Asky.app into Applications in Finder, then open it from there.";
 "打开应用程序文件夹" = "Open Applications Folder";
 
-"正在准备授权，请先完成系统提示…" = "Preparing access. Complete the system prompt first…";
+"正在准备授权…" = "Preparing access…";
+"将卡片拖入系统设置，然后重新启动 Asky 使屏幕录制生效。" = "Drag the card into System Settings, then restart Asky for screen recording to take effect.";
+"仍未生效，请再拖一次。" = "Not active yet. Drag the card again.";

@@ -186,7 +186,6 @@ enum SettingsRegression {
             var opened = 0
             var dismissed = 0
             var resets = 0
-            var registered = 0
             let controller = PermissionAuthorizationWindow(readState: { _ in
                 reads += 1
                 if regrant {
@@ -196,7 +195,7 @@ enum SettingsRegression {
             }, openSettings: { _ in
                 opened += 1
                 return PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: { dismissed += 1 })
-            }, resetAuthorization: { _ in resets += 1 }, registerForAuthorization: { _ in registered += 1 })
+            }, resetAuthorization: { _ in resets += 1 })
             controller.show(.accessibility, colorScheme: .light)
             try await Task.sleep(for: .milliseconds(150))
             guard let panel = controller.window, panel.isVisible,
@@ -204,7 +203,7 @@ enum SettingsRegression {
                   panel.styleMask.contains(.nonactivatingPanel),
                   panel.level == .floating, !panel.hidesOnDeactivate,
                   opened == 1, dismissed == 0,
-                  resets == (regrant ? 0 : 1), registered == (regrant ? 0 : 1) else {
+                  resets == (regrant ? 0 : 1) else {
                 fatalError("authorization is modal or dismissed before a fresh grant")
             }
             for _ in 0..<30 where controller.window != nil {
@@ -214,30 +213,30 @@ enum SettingsRegression {
                 fatalError("authorization completion failed to close the panel and its settings session")
             }
         }
-        var registration: CheckedContinuation<Void, Never>?
+        var pendingReset: CheckedContinuation<Void, Never>?
         var openedWhilePreparing = false
         let preparing = PermissionAuthorizationWindow(readState: { _ in .denied },
             openSettings: { _ in
                 openedWhilePreparing = true
                 return PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: {})
-            }, resetAuthorization: { _ in }, registerForAuthorization: { _ in
-                await withCheckedContinuation { registration = $0 }
+            }, resetAuthorization: { _ in
+                await withCheckedContinuation { pendingReset = $0 }
             })
         preparing.show(.screenRecording, colorScheme: .light)
-        while registration == nil { await Task.yield() }
-        guard !openedWhilePreparing else { fatalError("settings opened before system request completed") }
-        // Closing while a native request is pending must not reopen settings when it returns.
+        while pendingReset == nil { await Task.yield() }
+        guard !openedWhilePreparing else { fatalError("settings opened before stale entry reset completed") }
+        // Closing while the reset is pending must not reopen settings when it returns.
         preparing.cancel()
-        registration?.resume()
+        pendingReset?.resume()
         try await Task.sleep(for: .milliseconds(150))
         guard preparing.window == nil, !openedWhilePreparing else {
-            fatalError("cancelled registration reopened the authorization flow")
+            fatalError("cancelled reset reopened the authorization flow")
         }
         var dismissed = false
         let cancelled = PermissionAuthorizationWindow(readState: { _ in .denied },
             openSettings: { _ in
                 PermissionAuthorizationSettingsHandle(windowFrame: { parent.frame }, dismiss: { dismissed = true })
-            }, resetAuthorization: { _ in }, registerForAuthorization: { _ in })
+            }, resetAuthorization: { _ in })
         cancelled.show(.screenRecording, colorScheme: .dark)
         try await Task.sleep(for: .milliseconds(150))
         cancelled.window?.close()

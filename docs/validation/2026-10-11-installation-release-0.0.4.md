@@ -37,3 +37,10 @@ README 中英文已同步 DMG 安装方式、首次启动提示和打包入口�
 - GUI 点击后的即时结果出现 app_not_found / permission_denied，未仅凭点击调用记为通过；通过后续进程和运行路径回读确认实际交接与退出状态。
 
 原生窗口截图：`build/installation-prompt.png`、`build/installation-existing.png`。构建与打包日志：`build/release-0.0.4-*.log`。既有 build/ 忽略规则覆盖所有这些本机产物。
+
+## GitHub 发布回读
+
+- 已发布 [Asky 0.0.4](https://github.com/Niall-Young/Asky/releases/tag/v0.0.4)，设为 latest，非草稿、非 prerelease。
+- GitHub latest API 回读 tag 为 v0.0.4，四个附件均为 uploaded，远端 size 与 SHA-256 digest 全部与本机产物一致。
+- v0.0.4 标签准确指向打包源码提交 `1baf518cfb35bb267fdad2713ce45e9e580258c8`；实现与验证记录已推送 main。
+- API 回读证据保存在既有忽略的 `build/release-0.0.4-github-readback.json`。

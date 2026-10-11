@@ -80,7 +80,7 @@ private struct ChatInlineImagePlaceholder: InlineImageProvider {
 
 #Preview("Markdown 回复") {
     ChatMarkdownView(text: """
-    你好！我是 **KulaHere**，你的 macOS 个人助理。
+    你好！我是 **Asky**，你的 macOS 个人助理。
 
     比如：
     - 查看或新建日程、提醒事项

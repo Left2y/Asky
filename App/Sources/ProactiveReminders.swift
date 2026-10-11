@@ -9,7 +9,7 @@ import Scheduler
 /// and delivers plans as silent UserNotifications. Runs only while `proactiveReminders` is on.
 @MainActor
 final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
-    static let category = "kulahere.reminder"
+    static let category = "asky.reminder"
     private let app: AppModel
     private let scheduler: ContextScheduler
     private var observers: [NSObjectProtocol] = []

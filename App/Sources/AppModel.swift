@@ -214,6 +214,6 @@ final class AppModel {
     var isMCPListening: Bool { mcpServer != nil }
 
     static var bridgeExecutablePath: String {
-        Bundle.main.bundleURL.appending(path: "Contents/MacOS/kulahere-mcp").path
+        Bundle.main.bundleURL.appending(path: "Contents/MacOS/asky-mcp").path
     }
 }

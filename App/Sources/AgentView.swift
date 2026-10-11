@@ -27,7 +27,7 @@ final class AgentWindowController {
                                                  height: WindowMetrics.agentInitialSize.height),
                              styleMask: [.borderless, .resizable, .miniaturizable, .fullSizeContentView],
                              backing: .buffered, defer: true)
-            w.title = "KulaHere AI"
+            w.title = "Asky AI"
             w.titlebarAppearsTransparent = true
             w.titleVisibility = .hidden
             w.isOpaque = false

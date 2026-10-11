@@ -13,7 +13,7 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-const dataDir = resolve(arg("--data-dir") ?? join(process.env.TMPDIR ?? "/tmp", "kulahere-runtime"));
+const dataDir = resolve(arg("--data-dir") ?? join(process.env.TMPDIR ?? "/tmp", "asky-runtime"));
 const agentDir = join(dataDir, "pi");
 mkdirSync(join(agentDir, "sessions"), { recursive: true, mode: 0o700 });
 

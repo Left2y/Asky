@@ -1,10 +1,10 @@
 {
-  "name": "kulahere-agent-runtime",
+  "name": "asky-agent-runtime",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "Thin Pi host for KulaHere: JSONL stdio protocol v1, whitelisted native tools only.",
+  "description": "Thin Pi host for Asky: JSONL stdio protocol v1, whitelisted native tools only.",
   "engines": {
     "node": ">=22"
   },

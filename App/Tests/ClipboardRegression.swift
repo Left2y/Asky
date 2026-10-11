@@ -10,7 +10,7 @@ enum ClipboardRegression {
         application.setActivationPolicy(.accessory)
         Task { @MainActor in
             do {
-                let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-clipboard-\(UUID())")
+                let root = FileManager.default.temporaryDirectory.appending(path: "Asky-clipboard-\(UUID())")
                 let app = try AppModel(root: root)
                 let store = ClipboardStore(app.store)
                 let text = ClipboardItem(kind: .text, text: "Paste anywhere, this is one example text", byteSize: 42,

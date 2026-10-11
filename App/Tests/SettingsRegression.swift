@@ -9,7 +9,7 @@ enum SettingsRegression {
         application.setActivationPolicy(preview ? .regular : .accessory)
         Task { @MainActor in
             do {
-                let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-settings-\(UUID())")
+                let root = FileManager.default.temporaryDirectory.appending(path: "Asky-settings-\(UUID())")
                 let model = try AppModel(root: root)
                 let legacy = Data(#"{"appearance":"dark","hotKeyCode":49,"hotKeyModifiers":6144,"hotKeyLabel":"⌃⌥ Space","clipboardHotKeyLabel":"custom clipboard"}"#.utf8)
                 let migrated = try JSONDecoder().decode(SettingsPreferences.self, from: legacy)
@@ -62,7 +62,7 @@ enum SettingsRegression {
                         model.settingsTab = tab
                         try await Task.sleep(for: .milliseconds(250))
                         window.contentView?.layoutSubtreeIfNeeded()
-                        guard window.title == "\(page.title) — KulaHere 设置" else {
+                        guard window.title == "\(page.title) — Asky 设置" else {
                             fatalError("settings title did not follow selection: \(tab)")
                         }
                         guard let view = window.contentView,

@@ -5,12 +5,12 @@ import PackageDescription
 let package = Package(
     name: "MCPBridge",
     platforms: [.macOS(.v26)],
-    products: [.executable(name: "kulahere-mcp", targets: ["kulahere-mcp"])],
+    products: [.executable(name: "asky-mcp", targets: ["asky-mcp"])],
     dependencies: [
         .package(path: "../Packages/KulaCore"),
     ],
     targets: [
-        .executableTarget(name: "kulahere-mcp", dependencies: [
+        .executableTarget(name: "asky-mcp", dependencies: [
             .product(name: "MCPLink", package: "KulaCore"),
             .product(name: "Contracts", package: "KulaCore"),
         ]),

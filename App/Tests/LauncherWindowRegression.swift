@@ -63,7 +63,7 @@ enum LauncherWindowRegression {
     }
 
     private static func checkSystemAppNames() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-system-names-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-system-names-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [AppsProvider()])
@@ -100,7 +100,7 @@ enum LauncherWindowRegression {
     }
 
     private static func checkAliasRouting() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-alias-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-alias-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [
@@ -169,7 +169,7 @@ enum LauncherWindowRegression {
                     "appearance and hotkey preferences must survive reload")
         NSApp.appearance = NSAppearance(named: .aqua)
         let credentials = ModelCredentialSession()
-        let fakeKeychain = Keychain(service: "app.kulahere.nonexistent-regression")
+        let fakeKeychain = Keychain(service: "app.asky.nonexistent-regression")
         await credentials.remember("synthetic", account: "model")
         for _ in 0..<2 {
             let value = try await credentials.read(account: "model", keychain: fakeKeychain,
@@ -184,7 +184,7 @@ enum LauncherWindowRegression {
     }
 
     private static func checkAIRouting() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-routing-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-routing-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [
@@ -348,7 +348,7 @@ enum LauncherWindowRegression {
 
     private static func checkSystemDelivery(controller: LauncherController, panel: LauncherPanel, content: NSView) async throws {
         try require(CGPreflightPostEventAccess(), "system scroll test requires existing event-post access")
-        let report = FileManager.default.temporaryDirectory.appending(path: "KulaHere-scroll-\(UUID())")
+        let report = FileManager.default.temporaryDirectory.appending(path: "Asky-scroll-\(UUID())")
         let background = Process()
         background.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
         background.arguments = ["--scroll-background", report.path, String(describing: panel.frame.minX),
@@ -397,7 +397,7 @@ enum LauncherWindowRegression {
     }
 
     private static func checkWindow() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-window-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-window-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [

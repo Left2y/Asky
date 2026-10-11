@@ -61,7 +61,7 @@ enum SettingsWindow {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
-        let toolbar = NSToolbar(identifier: "KulaHereSettings")
+        let toolbar = NSToolbar(identifier: "AskySettings")
         toolbar.delegate = controller
         toolbar.allowsUserCustomization = false
         toolbar.displayMode = .iconOnly
@@ -113,7 +113,7 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
     func updateChrome() {
         heading.stringValue = SettingsPage.resolve(app.settingsTab).title
         heading.sizeToFit()
-        view.window?.title = "\(heading.stringValue) — KulaHere 设置"
+        view.window?.title = "\(heading.stringValue) — Asky 设置"
         switch app.preferences.appearance {
         case "light": view.window?.appearance = NSAppearance(named: .aqua)
         case "dark": view.window?.appearance = NSAppearance(named: .darkAqua)

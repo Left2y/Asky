@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="App/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" alt="KulaHere" width="128" height="128" />
+<img src="App/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" alt="Asky" width="128" height="128" />
 
-# KulaHere
+# Asky
 
 macOS 原生效率入口，连接本地搜索、剪贴板与按需 AI 助手。<br />
 A native macOS launcher for local search, clipboard history, and an on-demand AI assistant.
@@ -24,7 +24,9 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 
 ### 项目简介
 
-KulaHere 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、剪贴板历史和 AI 对话。搜索与本地工具独立运行；AI 是按需启用的增强能力。
+Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、剪贴板历史和 AI 对话。搜索与本地工具独立运行；AI 是按需启用的增强能力。
+
+应用、工程与 scheme 统一为 `Asky`，构建产物为 `Asky.app`，MCP 可执行文件为 `asky-mcp`。为兼容现有安装，沿用原有 bundle identifier、数据目录与钥匙串标识。新 MCP 配置使用 `ASKY_MCP_CREDENTIAL` / `ASKY_MCP_SOCKET`；旧环境变量及 App 内的 `kulahere-mcp` 命令路径继续可用。
 
 项目处于开发阶段，仓库包含原生 App、Swift 核心包、TypeScript Agent Runtime 和 MCP Bridge。系统权限、模型兼容性及完整交互流程仍需在实际环境中验收。
 
@@ -45,8 +47,8 @@ KulaHere 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索
 ```sh
 (cd AgentRuntime && npm ci && npm run build)
 xcodegen generate
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
-open build/DerivedData/Build/Products/Debug/KulaHere.app
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
+open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
 ### 使用方法
@@ -100,7 +102,7 @@ python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-agent-reply-regression.py
 ```
 
-并行构建时，设置回归脚本支持用 `KULAHERE_DERIVED_DATA` 指定独立的 DerivedData 目录，默认使用 `build/DerivedData`。
+并行构建时，设置回归脚本支持用 `ASKY_DERIVED_DATA` 指定独立的 DerivedData 目录（兼容旧变量 `KULAHERE_DERIVED_DATA`），默认使用 `build/DerivedData`。
 
 原生输入框与快捷键的独立检查：
 
@@ -121,7 +123,7 @@ build/conversation-search-regression
 
 第三方依赖及其附带资源仍遵循各自的许可证；本项目的 MIT 许可不替代它们的授权条款。
 
-[English](#english) · [返回顶部](#kulahere)
+[English](#english) · [返回顶部](#asky)
 
 ---
 
@@ -130,7 +132,9 @@ build/conversation-search-regression
 
 ### Overview
 
-Built with SwiftUI and AppKit, KulaHere provides a menu bar entry point, focused search, clipboard history, and AI conversations. Search and local tools operate independently; AI is an optional enhancement invoked on demand.
+Built with SwiftUI and AppKit, Asky provides a menu bar entry point, focused search, clipboard history, and AI conversations. Search and local tools operate independently; AI is an optional enhancement invoked on demand.
+
+The app, project, and scheme are named `Asky`; build products are `Asky.app` and `asky-mcp`. The original bundle identifier, data directory, and Keychain identifiers are preserved for existing installations. New MCP configurations use `ASKY_MCP_CREDENTIAL` / `ASKY_MCP_SOCKET`; legacy environment variables and the bundled `kulahere-mcp` command path remain supported.
 
 The project is under active development. The repository includes the native app, Swift core packages, a TypeScript Agent Runtime, and an MCP Bridge. System permissions, model compatibility, and complete interaction flows still require acceptance testing in real environments.
 
@@ -151,8 +155,8 @@ Run these commands from the repository root to build the development app:
 ```sh
 (cd AgentRuntime && npm ci && npm run build)
 xcodegen generate
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project KulaHere.xcodeproj -scheme KulaHere -configuration Debug -derivedDataPath build/DerivedData build
-open build/DerivedData/Build/Products/Debug/KulaHere.app
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
+open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
 ### Usage
@@ -206,7 +210,7 @@ python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-agent-reply-regression.py
 ```
 
-For concurrent builds, the settings regression script accepts `KULAHERE_DERIVED_DATA` to select an isolated DerivedData directory. It defaults to `build/DerivedData`.
+For concurrent builds, the settings regression script accepts `ASKY_DERIVED_DATA` to select an isolated DerivedData directory (`KULAHERE_DERIVED_DATA` remains supported). It defaults to `build/DerivedData`.
 
 Standalone checks for native input fields and hotkeys:
 
@@ -227,4 +231,4 @@ This project is licensed under the [MIT License](LICENSE), which permits use, mo
 
 Third-party dependencies and their bundled resources remain subject to their respective licenses; this project's MIT license does not replace those terms.
 
-[中文](#中文) · [Back to top](#kulahere)
+[中文](#中文) · [Back to top](#asky)

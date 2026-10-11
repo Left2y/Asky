@@ -11,7 +11,7 @@ public struct MCPStdioServer: Sendable {
     private let listTools: @Sendable () throws -> [ToolDefinition]
     private let callTool: @Sendable (String, JSONValue) throws -> ExecutionResult
 
-    public init(name: String = "kulahere", version: String,
+    public init(name: String = "asky", version: String,
                 listTools: @escaping @Sendable () throws -> [ToolDefinition],
                 callTool: @escaping @Sendable (String, JSONValue) throws -> ExecutionResult) {
         self.name = name
@@ -74,7 +74,7 @@ public struct MCPStdioServer: Sendable {
     static func render(_ r: ExecutionResult) -> JSONValue {
         var lines = ["status: \(r.status.rawValue)"]
         switch r.status {
-        case .completed: lines.append("已在 KulaHere 中完成。")
+        case .completed: lines.append("已在 Asky 中完成。")
         case .rejected: lines.append("未执行。")
         case .pendingVerification: lines.append("结果未能核实，请勿假定已完成。")
         case .suggestion: lines.append("仅为建议，未执行。")

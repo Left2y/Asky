@@ -1,4 +1,4 @@
-# KulaHere 原生界面与设计系统
+# Asky 原生界面与设计系统
 
 更新日期：2026 年 10 月 10 日。状态：已核对变量、聚焦搜索与 AI 对话节点，启动器与对话样式已实现，完整视觉与辅助功能验收仍待完成。
 
@@ -6,7 +6,7 @@
 
 ## 设计来源与检查结果
 
-来源：[KulaHere Figma，node 6:12](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=6-12)。
+来源：[Asky Figma，node 6:12](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=6-12)。
 
 2026 年 10 月 9 日只读检查：node 6:12 为名为 Button 的 PAGE，子节点为 0。文件级数据有 6 个变量集合、106 个变量、24 个文字 Styles，0 个本地 Paint Styles、0 个本地 Effect Styles。没有可从该目标直接复刻的屏幕、组件几何或玻璃效果规范；页面名 Button 不能视为一个已设计按钮组件。
 
@@ -19,9 +19,9 @@
 | Opacity | 1 | Default；disabled = 30 |
 | Colors | 40 | Light / Dark；语义颜色与别名，2026-10-10 更新 |
 
-后续指定的[聚焦搜索 Field，node 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-348)为启动器收起状态的设计依据：720 × 60、左 24 / 右 20 留白、12 间距、17 pt `magnifyingglass`（21 × 22 图标槽）、16/400/Default 输入和 “Search” 提示。此节点替代之前的输入区尺寸与玻璃处理。
+后续指定的[聚焦搜索 Field，node 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=22-348)为启动器收起状态的设计依据：720 × 60、左 24 / 右 20 留白、12 间距、17 pt `magnifyingglass`（21 × 22 图标槽）、16/400/Default 输入和 “Search” 提示。此节点替代之前的输入区尺寸与玻璃处理。
 
-[UI 页 22:293](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/Asky?node-id=22-293)中的新聊天 43:1071、AI 对话 42:760、历史记录 38:653 是对话界面的设计依据：720 × 640、32 圆角、70% 语义背景与原生 Regular Liquid Glass、1 pt border。顶部 12 pt 内距、32 pt 圆形按钮与 18/500/Default 居中标题；正文左右 32 pt，用户气泡 16 圆角与 12/10 内距，正文和工具行使用 14/400/Default。工具行保留 8 pt 图文间距，示例搜索图标按实际工具替换。底部外距 12 pt，输入区 24 圆角、最小 44 pt 文字区域、32 pt 附件与发送按钮。顶部增加新对话与可切换置顶按钮；空状态显示 24/500 问候，历史行高 48 pt 并显示更新日期。历史页替换正文和输入区，不保留常驻侧栏；新对话与设置也可从附件菜单进入。Figma 壁纸属于桌面展示背景，不作为 App 资产。窗口阴影由 AppKit 提供，光学效果由系统实现，不声称逐项复刻 Figma 滤镜。见[新对话样式验证](validation/2026-10-10-ai-chat-refresh.md)。
+[UI 页 22:293](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=22-293)中的新聊天 43:1071、AI 对话 42:760、历史记录 38:653 是对话界面的设计依据：720 × 640、32 圆角、70% 语义背景与原生 Regular Liquid Glass、1 pt border。顶部 12 pt 内距、32 pt 圆形按钮与 18/500/Default 居中标题；正文左右 32 pt，用户气泡 16 圆角与 12/10 内距，正文和工具行使用 14/400/Default。工具行保留 8 pt 图文间距，示例搜索图标按实际工具替换。底部外距 12 pt，输入区 24 圆角、最小 44 pt 文字区域、32 pt 附件与发送按钮。顶部增加新对话与可切换置顶按钮；空状态显示 24/500 问候，历史行高 48 pt 并显示更新日期。历史页替换正文和输入区，不保留常驻侧栏；新对话与设置也可从附件菜单进入。Figma 壁纸属于桌面展示背景，不作为 App 资产。窗口阴影由 AppKit 提供，光学效果由系统实现，不声称逐项复刻 Figma 滤镜。见[新对话样式验证](validation/2026-10-10-ai-chat-refresh.md)。
 
 后续 Figma 变更先核对来源，再更新附录与原生映射；不要在文件中自动创建组件或改写用户变量。本稿附录为设计数据快照，不是自动生成的生产源码。
 

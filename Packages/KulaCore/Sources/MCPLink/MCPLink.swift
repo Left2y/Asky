@@ -62,7 +62,7 @@ public struct LineFramer: Sendable {
 }
 
 public enum MCPLinkError: Error, Equatable, CustomStringConvertible {
-    /// The app is not running (or not listening). Recoverable: start KulaHere and retry.
+    /// The app is not running (or not listening). Recoverable: start Asky and retry.
     case appUnavailable
     case denied(String)
     case closed
@@ -70,9 +70,9 @@ public enum MCPLinkError: Error, Equatable, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .appUnavailable: "KulaHere 未运行或未开启外部 MCP。请启动 KulaHere 后重试。"
+        case .appUnavailable: "Asky 未运行或未开启外部 MCP。请启动 Asky 后重试。"
         case .denied(let m): "接入被拒绝：\(m)"
-        case .closed: "与 KulaHere 的连接已断开。请重试。"
+        case .closed: "与 Asky 的连接已断开。请重试。"
         case .protocolError(let m): "协议错误：\(m)"
         }
     }

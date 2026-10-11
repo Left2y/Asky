@@ -164,11 +164,11 @@ private struct Fixture {
         #expect(String(decoding: raw, as: UTF8.self).contains(#""id":7"#))   // integer ids round-trip as integers
     }
 
-    /// Spawns the built `kulahere-mcp` (swift build in MCPBridge/) against a live link server.
+    /// Spawns the built `asky-mcp` (swift build in MCPBridge/) against a live link server.
     static let bridge = URL(filePath: #filePath).deletingLastPathComponent()
-        .appending(path: "../../../../MCPBridge/.build/debug/kulahere-mcp").standardized.path
-    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: bridge)), .timeLimit(.minutes(1)))
-    func bridgeBinaryEndToEnd() async throws {
+        .appending(path: "../../../../MCPBridge/.build/debug/asky-mcp").standardized.path
+    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: bridge)), .timeLimit(.minutes(1)), arguments: ["ASKY", "KULAHERE"])
+    func bridgeBinaryEndToEnd(prefix: String) async throws {
         let f = try await Fixture.make()
         try f.server.start()
         defer { f.server.stop() }
@@ -179,7 +179,7 @@ private struct Fixture {
 
         let p = Process()
         p.executableURL = URL(filePath: Self.bridge)
-        p.environment = ["KULAHERE_MCP_CREDENTIAL": cred, "KULAHERE_MCP_SOCKET": f.path]
+        p.environment = ["\(prefix)_MCP_CREDENTIAL": cred, "\(prefix)_MCP_SOCKET": f.path]
         let inPipe = Pipe(), outPipe = Pipe()
         p.standardInput = inPipe
         p.standardOutput = outPipe
@@ -196,7 +196,7 @@ private struct Fixture {
         p.waitUntilExit()
         let lines = out.split(separator: 0x0A).compactMap { try? JSONDecoder().decode(JSONValue.self, from: Data($0)) }
         #expect(lines.count == 3)
-        #expect(lines.first?["result"]?["serverInfo"]?["name"] == "kulahere")
+        #expect(lines.first?["result"]?["serverInfo"]?["name"] == "asky")
         #expect(lines.dropFirst().first?["result"]?["tools"]?.arrayValue?.compactMap { $0["name"]?.stringValue } == ["cal_list"])
         #expect(lines.last?["result"]?["isError"] == true)     // read-only instance: write refused
         #expect(f.write.runs.withLock { $0 } == 0)

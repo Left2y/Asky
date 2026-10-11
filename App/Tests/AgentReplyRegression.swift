@@ -11,7 +11,7 @@ enum AgentReplyRegression {
     static func main() async throws {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
-        let root = FileManager.default.temporaryDirectory.appending(path: "KulaHere-reply-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-reply-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = AgentModel(app: app)

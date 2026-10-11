@@ -118,10 +118,10 @@ public enum SystemPermissions {
         // External clients cannot cause system prompts. Grant access in the native app first.
         if case .mcp = origin {} else if current.canRequest {
             do { current = try await request(permission) }
-            catch { throw ToolError(.permissionDenied, "\(permission.title)授权请求失败：\(error.localizedDescription)。请打开 KulaHere 设置 › 系统权限。") }
+            catch { throw ToolError(.permissionDenied, "\(permission.title)授权请求失败：\(error.localizedDescription)。请打开 Asky 设置 › 系统权限。") }
         }
         guard current == .authorized else {
-            throw ToolError(.permissionDenied, "\(permission.title)：\(current.rawValue)。请打开 KulaHere 设置 › 系统权限；授权后重新发送请求。")
+            throw ToolError(.permissionDenied, "\(permission.title)：\(current.rawValue)。请打开 Asky 设置 › 系统权限；授权后重新发送请求。")
         }
     }
 

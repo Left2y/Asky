@@ -14,7 +14,7 @@ if not (products / "Search.o").exists():
     sys.exit("Build the Debug app with the README command first.")
 
 sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
-           if path.stem != "KulaHereApp"]
+           if path.stem != "AskyApp"]
 command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
            "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
 command += ["-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
@@ -36,8 +36,8 @@ bundle = root / "build/AgentReplyRegression.app/Contents"
 (bundle / "Resources").mkdir(exist_ok=True)
 executable = bundle / "MacOS/AgentReplyRegression"
 shutil.copy2(binary, executable)
-shutil.copy2(products / "KulaHere.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
+shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
 with (bundle / "Info.plist").open("wb") as output:
-    plistlib.dump({"CFBundleExecutable": "AgentReplyRegression", "CFBundleIdentifier": "app.kulahere.reply-regression",
+    plistlib.dump({"CFBundleExecutable": "AgentReplyRegression", "CFBundleIdentifier": "app.asky.reply-regression",
                   "CFBundleName": "AgentReplyRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

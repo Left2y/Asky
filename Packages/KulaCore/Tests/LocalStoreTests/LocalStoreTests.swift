@@ -62,11 +62,11 @@ func tempRoot() -> URL {
     @Test func clipboardDedupesByHashAndSearchesShortTokens() throws {
         let s = try LocalStore(inMemoryWithRoot: tempRoot())
         let c = ClipboardStore(s)
-        try c.insert(ClipboardItem(kind: .text, text: "会议纪要 KulaHere", byteSize: 5, contentHash: "h"))
-        try c.insert(ClipboardItem(kind: .text, text: "会议纪要 KulaHere", byteSize: 5, contentHash: "h"))
+        try c.insert(ClipboardItem(kind: .text, text: "会议纪要 Asky", byteSize: 5, contentHash: "h"))
+        try c.insert(ClipboardItem(kind: .text, text: "会议纪要 Asky", byteSize: 5, contentHash: "h"))
         #expect(c.recent(limit: 10).count == 1)
         #expect(c.search("会议").count == 1)      // 2 chars → LIKE fallback
-        #expect(c.search("KulaHere").count == 1) // trigram index
+        #expect(c.search("Asky").count == 1) // trigram index
         #expect(c.search("100%").isEmpty)        // LIKE metacharacters escaped
     }
 

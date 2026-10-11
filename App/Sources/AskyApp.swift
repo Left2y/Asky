@@ -5,7 +5,7 @@ import Carbon.HIToolbox
 
 @main
 @MainActor
-enum KulaHereMain {
+enum AskyMain {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { model = try AppModel() } catch {
             let alert = NSAlert()
-            alert.messageText = "KulaHere 无法打开本地数据"
+            alert.messageText = "Asky 无法打开本地数据"
             alert.informativeText = "\(error)"
             alert.runModal()
             NSApp.terminate(nil)
@@ -175,9 +175,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let icon = NSImage(named: "StatusIcon")
         icon?.size = NSSize(width: 14, height: 14)
         icon?.isTemplate = true
-        icon?.accessibilityDescription = "KulaHere"
+        icon?.accessibilityDescription = "Asky"
         item.button?.image = icon
-        item.button?.setAccessibilityLabel("KulaHere")
+        item.button?.setAccessibilityLabel("Asky")
         let menu = NSMenu()
         menu.addItem(withTitle: "打开启动器", action: #selector(openLauncher), keyEquivalent: "").target = self
         menu.addItem(withTitle: "剪贴板历史", action: #selector(openClipboard), keyEquivalent: "").target = self
@@ -185,7 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "退出 KulaHere", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "退出 Asky", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
         statusItem = item
     }

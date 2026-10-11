@@ -160,7 +160,7 @@ final class ClipboardController {
         guard items.indices.contains(selection) else { return }
         guard ClipboardAccess.copy(items[selection]) else { status = "无法复制：原始内容已不可用"; return }
         hide()
-        // The panel never activates KulaHere, so the previous app is still frontmost and receives ⌘V.
+        // The panel never activates Asky, so the previous app is still frontmost and receives ⌘V.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(80))
             _ = ClipboardAccess.pasteIntoFrontmostApp()

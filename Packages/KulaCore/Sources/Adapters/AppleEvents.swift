@@ -1,7 +1,7 @@
 import Foundation
 import Contracts
 
-/// Runs AppleScript in-process so TCC "Automation" prompts are attributed to KulaHere itself.
+/// Runs AppleScript in-process so TCC "Automation" prompts are attributed to Asky itself.
 /// Calls are serialized; arguments are only ever embedded through `AppleScript.literal`.
 public actor AppleScriptRunner {
     public static let shared = AppleScriptRunner()

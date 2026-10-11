@@ -75,7 +75,7 @@ public final class MCPLinkServer: Sendable {
     private let path: String
     private let gateway: MCPGateway
     private let state = Mutex<(listenFD: Int32, source: DispatchSourceRead?, connections: Int)>((-1, nil, 0))
-    private let queue = DispatchQueue(label: "kulahere.mcp.link")
+    private let queue = DispatchQueue(label: "asky.mcp.link")
 
     public init(socketPath: String = MCPLink.defaultSocketPath(), gateway: MCPGateway) {
         path = socketPath

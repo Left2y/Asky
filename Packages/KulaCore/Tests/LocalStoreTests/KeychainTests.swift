@@ -13,7 +13,7 @@ import Security
     }
 
     @Test func metadataAndNoninteractiveReadsUseOnlyTheRequestedAccount() throws {
-        let keychain = Keychain(service: "app.kulahere.tests.\(UUID().uuidString)")
+        let keychain = Keychain(service: "app.asky.tests.\(UUID().uuidString)")
         defer { keychain.delete(account: "model") }
         #expect(!keychain.contains(account: "model"))
         #expect(try keychain.read(account: "model", allowInteraction: false) == nil)

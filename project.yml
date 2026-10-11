@@ -1,4 +1,4 @@
-name: KulaHere
+name: Asky
 options:
   bundleIdPrefix: app.kulahere
   deploymentTarget:
@@ -16,7 +16,7 @@ packages:
   KulaCore:
     path: Packages/KulaCore
 targets:
-  KulaHere:
+  Asky:
     type: application
     platform: macOS
     sources:
@@ -25,20 +25,20 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: KulaHere
+        CFBundleDisplayName: Asky
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
         LSUIElement: true
         LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: ""
-        NSCalendarsFullAccessUsageDescription: KulaHere 在你明确要求时读取或创建日历事件，并用于冲突检查。
-        NSRemindersFullAccessUsageDescription: KulaHere 在你明确要求时读取或创建提醒事项。
-        NSContactsUsageDescription: KulaHere 用于在你发起的任务中确认联系人。
-        NSAppleEventsUsageDescription: KulaHere 用于列出与切换 Chrome 标签、在授权的备忘录文件夹中搜索与追加内容。
+        NSCalendarsFullAccessUsageDescription: Asky 在你明确要求时读取或创建日历事件，并用于冲突检查。
+        NSRemindersFullAccessUsageDescription: Asky 在你明确要求时读取或创建提醒事项。
+        NSContactsUsageDescription: Asky 用于在你发起的任务中确认联系人。
+        NSAppleEventsUsageDescription: Asky 用于列出与切换 Chrome 标签、在授权的备忘录文件夹中搜索与追加内容。
         # Dev builds locate AgentRuntime/dist next to the sources; release builds bundle it under Resources.
         KHSourceRoot: $(SRCROOT)
     entitlements:
-      path: App/KulaHere.entitlements
+      path: App/Asky.entitlements
       properties:
         com.apple.security.automation.apple-events: true
         com.apple.security.personal-information.calendars: true
@@ -46,31 +46,36 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.kulahere.KulaHere
-        PRODUCT_NAME: KulaHere
+        PRODUCT_NAME: Asky
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "-"
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_STRICT_CONCURRENCY: complete
+    postBuildScripts:
+      - name: Preserve legacy MCP command path
+        script: |
+          ln -sf asky-mcp "$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/kulahere-mcp"
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: MarkdownUI
       - package: KulaCore
         products: [Contracts, Theme, Router, DirectActions, Resources, LocalStore, ToolService,
                    AgentHost, Memory, Scheduler, Search, Adapters, MCPLink, MCPGateway]
-      - target: kulahere-mcp
+      - target: asky-mcp
         copy:
           destination: executables
         link: false
 
-  kulahere-mcp:
+  asky-mcp:
     type: tool
     platform: macOS
     sources:
-      - path: MCPBridge/Sources/kulahere-mcp
+      - path: MCPBridge/Sources/asky-mcp
     settings:
       base:
-        PRODUCT_NAME: kulahere-mcp
+        PRODUCT_NAME: asky-mcp
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_IDENTITY: "-"
         SKIP_INSTALL: YES
@@ -79,11 +84,11 @@ targets:
         products: [MCPLink, Contracts]
 
 schemes:
-  KulaHere:
+  Asky:
     build:
       targets:
-        KulaHere: all
-        kulahere-mcp: all
+        Asky: all
+        asky-mcp: all
     run:
       config: Debug
     archive:

@@ -99,7 +99,7 @@ export class Runtime {
   private async handle(m: HostMessage): Promise<void> {
     switch (m.type) {
       case "hello":
-        this.send({ type: "ready", protocol: PROTOCOL_VERSION, runtime: `kulahere-agent-runtime/0.1.0 pi/${piVersion()} node/${process.versions.node}` });
+        this.send({ type: "ready", protocol: PROTOCOL_VERSION, runtime: `asky-agent-runtime/0.1.0 pi/${piVersion()} node/${process.versions.node}` });
         return;
       case "configure": {
         const next = this.configuring.then(() => this.configure(m));
@@ -128,7 +128,7 @@ export class Runtime {
       modelsPath: join(this.agentDir, "models.json"),
     });
     modelRuntime.registerProvider(PROVIDER, {
-      name: "KulaHere",
+      name: "Asky",
       baseUrl: m.baseURL,
       api: "openai-completions",
       models: [{

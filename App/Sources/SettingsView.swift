@@ -637,9 +637,9 @@ private struct MCPSettings: View {
         """
         {
           "mcpServers": {
-            "kulahere": {
+            "asky": {
               "command": "\(AppModel.bridgeExecutablePath)",
-              "env": { "KULAHERE_MCP_CREDENTIAL": "\(credential)" }
+              "env": { "ASKY_MCP_CREDENTIAL": "\(credential)" }
             }
           }
         }

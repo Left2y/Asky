@@ -10,7 +10,7 @@
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build`：通过。
 - 在 `Packages/KulaCore` 执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`：230 项 Swift Testing 测试通过。
 - 独立原生探针直接编译最终 `ConfirmationCenter.swift` 与构建出的 Contracts，展示截图中的模拟删除请求；没有调用 ToolService 或 EventKit，没有删除真实日程。
-- Orca computer-use 捕获并人工检查浅色与深色 NSAlert：260 × 321pt，图标、说明、两个系统按钮完整显示。探针使用默认图标，正式应用由系统读取 Asky 的应用图标。
+- Orca computer-use 捕获并人工检查浅色与深色 NSAlert：260 × 321pt，图标、说明、两个系统按钮完整显示。初次探针使用默认占位图标；后续已在确认组件中显式读取应用包内的 AppIcon.icns，并在同一原生探针中确认显示 Asky logo。
 - 浅色探针 Escape 后读回 `decision=rejected`；深色探针点击确认后读回 `decision=approved`。工具的动作后截图因窗口随探针退出而失败，结果以探针写出的返回值及进程退出为依据。
 - 本地截图保存于 `build/validation/confirmation-system-dialog/light.png` 与 `dark.png`，由现有 build 忽略规则排除。
 
@@ -19,3 +19,7 @@
 本次验证了最终组件的系统窗口及模拟确认结果；未再次发起真实日程删除，也未验证真实系统权限申请。多请求排队、退出中止沿用现有确认语义，未做交互式多请求回归。
 
 README 与 AGENTS.md 检查后保持不变：本次仅更换确认界面的系统呈现，不改变操作方式、开发命令或架构边界。
+
+## 应用图标补充验证
+
+确认弹窗显式从 Bundle.main 读取 AppIcon.icns，避免依赖系统默认图标解析。重新运行 xcodegen、Debug xcodebuild 与 KulaCore swift test，全部通过（230 项测试）。使用最终源码重新编译原生探针并捕获窗口，确认 Asky logo 已显示；截图位于忽略的 build/validation/confirmation-system-dialog/with-logo.png。README 与 AGENTS.md 仍无文档或持久规则影响。

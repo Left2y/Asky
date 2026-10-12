@@ -36,6 +36,10 @@ final class ConfirmationCenter {
         let request = pending.request
         let alert = NSAlert()
         alert.alertStyle = .informational
+        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            alert.icon = icon
+        }
         alert.messageText = NSLocalizedString("确认操作", comment: "")
         let originLabel: String
         switch request.origin {

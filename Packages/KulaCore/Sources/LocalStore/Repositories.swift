@@ -242,6 +242,8 @@ public struct ClipboardItem: Sendable, Hashable, Identifiable {
     public var kind: ClipboardKind
     public var text: String?
     public var filePath: String?
+    /// Original file references; never owned or deleted by clipboard history.
+    public var filePaths: [String]
     public var thumbPath: String?
     public var byteSize: Int
     public var sourceApp: String?
@@ -251,13 +253,14 @@ public struct ClipboardItem: Sendable, Hashable, Identifiable {
     public var createdAt: Date
 
     public init(id: String = UUID().uuidString, kind: ClipboardKind, text: String? = nil, filePath: String? = nil,
-                thumbPath: String? = nil, byteSize: Int, sourceApp: String? = nil, sourceBundleID: String? = nil,
+                thumbPath: String? = nil, filePaths: [String] = [], byteSize: Int, sourceApp: String? = nil, sourceBundleID: String? = nil,
                 pinned: Bool = false, contentHash: String, createdAt: Date = Date()) {
         self.id = id
         self.kind = kind
         self.text = text
         self.filePath = filePath
         self.thumbPath = thumbPath
+        self.filePaths = filePaths.isEmpty && kind == .file ? filePath.map { [$0] } ?? [] : filePaths
         self.byteSize = byteSize
         self.sourceApp = sourceApp
         self.sourceBundleID = sourceBundleID
@@ -282,10 +285,10 @@ public struct ClipboardStore: Sendable {
                 return
             }
             try db.run("""
-                INSERT INTO clipboard(id, kind, text, file_path, thumb_path, byte_size, source_app, source_bundle_id, pinned, content_hash, created_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO clipboard(id, kind, text, file_path, thumb_path, byte_size, source_app, source_bundle_id, pinned, content_hash, created_at, file_paths_json)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
                 """, [item.id, item.kind.rawValue, item.text, item.filePath, item.thumbPath, item.byteSize, item.sourceApp,
-                      item.sourceBundleID, item.pinned, item.contentHash, item.createdAt])
+                      item.sourceBundleID, item.pinned, item.contentHash, item.createdAt, JSONText.encode(item.filePaths)])
             if let t = item.text { try db.run("INSERT INTO clipboard_fts(id, text) VALUES(?,?)", [item.id, t]) }
         }
     }
@@ -323,8 +326,10 @@ public struct ClipboardStore: Sendable {
         return try db.transaction {
             var paths: [String] = []
             for id in ids {
-                if let r = try db.query("SELECT file_path, thumb_path FROM clipboard WHERE id = ?", [id]).first {
-                    paths += [r.string("file_path"), r.string("thumb_path")].compactMap { $0 }
+                if let r = try db.query("SELECT kind, file_path, thumb_path FROM clipboard WHERE id = ?", [id]).first {
+                    if r.string("kind") == ClipboardKind.image.rawValue {
+                        paths += [r.string("file_path"), r.string("thumb_path")].compactMap { $0 }
+                    }
                 }
                 try db.run("DELETE FROM clipboard_fts WHERE id = ?", [id])
                 try db.run("DELETE FROM clipboard WHERE id = ?", [id])
@@ -356,6 +361,7 @@ public struct ClipboardStore: Sendable {
     static func decode(_ r: Row) -> ClipboardItem {
         ClipboardItem(id: r.string("id") ?? "", kind: ClipboardKind(rawValue: r.string("kind") ?? "") ?? .text,
                       text: r.string("text"), filePath: r.string("file_path"), thumbPath: r.string("thumb_path"),
+                      filePaths: JSONText.decode(r.string("file_paths_json"), as: [String].self) ?? [],
                       byteSize: r.int("byte_size") ?? 0, sourceApp: r.string("source_app"),
                       sourceBundleID: r.string("source_bundle_id"), pinned: r.bool("pinned"),
                       contentHash: r.string("content_hash") ?? "", createdAt: r.date("created_at") ?? .distantPast)

@@ -4,7 +4,7 @@ import LocalStore
 import Resources
 import ToolService
 
-/// Watches `NSPasteboard.changeCount` (cheap integer poll) and records text / images.
+/// Watches `NSPasteboard.changeCount` (cheap integer poll) and records text, images and original file references.
 /// Skips concealed or transient content, password managers and user-excluded apps.
 @MainActor
 final class ClipboardMonitor {
@@ -44,7 +44,14 @@ final class ClipboardMonitor {
         let store = ClipboardStore(app.store)
         let dir = app.store.clipboardDirectory
 
-        if let text = snapshot.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !snapshot.fileURLs.isEmpty {
+            let paths = snapshot.fileURLs.map(\.path)
+            let data = Data(JSONText.encode(paths).utf8)
+            let names = snapshot.fileURLs.map(\.lastPathComponent).joined(separator: "\n")
+            try? store.insert(ClipboardItem(kind: .file, text: names, filePath: paths.first, filePaths: paths,
+                                            byteSize: data.count, sourceApp: sourceApp, sourceBundleID: sourceBundleID,
+                                            contentHash: "files:" + Self.hash(data)))
+        } else if let text = snapshot.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let data = Data(text.utf8)
             try? store.insert(ClipboardItem(kind: .text, text: text, byteSize: data.count, sourceApp: sourceApp,
                                             sourceBundleID: sourceBundleID, contentHash: Self.hash(data)))

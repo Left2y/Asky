@@ -477,8 +477,9 @@ final class LauncherModel {
         switch action {
         case .open:
             if r.source == .clipboard {
-                if let item = ClipboardStore(app.store).recent(limit: 500).first(where: { $0.id == r.target.identifier }),
-                   let path = item.filePath { copyFile(path, kind: item.kind) }
+                if let item = ClipboardStore(app.store).recent(limit: 500).first(where: { $0.id == r.target.identifier }) {
+                    _ = ClipboardAccess.copy(item)
+                }
                 onHide()
                 return
             }
@@ -510,13 +511,6 @@ final class LauncherModel {
         case .askAI(let prompt):
             onAskAI(prompt)
         }
-    }
-
-    private func copyFile(_ path: String, kind: ClipboardKind) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        if kind == .image, let img = NSImage(contentsOfFile: path) { pb.writeObjects([img]) }
-        else { pb.writeObjects([URL(filePath: path) as NSURL]) }
     }
 
     private func switchChromeTab(_ r: SearchResult) {

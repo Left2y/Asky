@@ -70,6 +70,17 @@ func tempRoot() -> URL {
         #expect(c.search("100%").isEmpty)        // LIKE metacharacters escaped
     }
 
+    @Test func fileReferenceCleanupDoesNotReturnOriginalPaths() throws {
+        let s = try LocalStore(inMemoryWithRoot: tempRoot())
+        let store = ClipboardStore(s)
+        let item = ClipboardItem(kind: .file, text: "Original", filePath: "/tmp/Original", byteSize: 1,
+            contentHash: "file", createdAt: Date().addingTimeInterval(-32 * 86400))
+        try store.insert(item)
+        #expect(store.recent(limit: 1).first?.filePaths == ["/tmp/Original"])
+        #expect(try store.cleanup().isEmpty)
+        #expect(store.recent(limit: 1).isEmpty)
+    }
+
     @Test func conversationPagingAndDeleteCascade() throws {
         let s = try LocalStore(inMemoryWithRoot: tempRoot())
         let cs = ConversationStore(s)

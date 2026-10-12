@@ -177,13 +177,17 @@ final class ClipboardController {
     func beginDrag(_ item: ClipboardItem, from view: NSView, event: NSEvent) {
         guard !dragSource.active, event.type == .leftMouseDragged else { return }
         dismissPreview()
-        guard let pasteboardItem = ClipboardAccess.dragItem(for: item) else {
+        guard let pasteboardItems = ClipboardAccess.dragItems(for: item) else {
             status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
             return
         }
         copy(item)
-        let dragging = NSDraggingItem(pasteboardWriter: pasteboardItem)
-        dragging.setDraggingFrame(view.bounds, contents: ClipboardDragSource.snapshot(of: view))
+        let preview = ClipboardDragSource.snapshot(of: view)
+        let dragging = pasteboardItems.enumerated().map { index, writer in
+            let entry = NSDraggingItem(pasteboardWriter: writer)
+            entry.setDraggingFrame(view.bounds.offsetBy(dx: CGFloat(index) * 4, dy: CGFloat(index) * 4), contents: preview)
+            return entry
+        }
         dragSource.active = true
         // The outside-click shields are real windows and would intercept the destination's drop.
         outsideClickDismissal.hide()
@@ -192,7 +196,7 @@ final class ClipboardController {
             if operation != [], !self.pinned { self.hide() }
             else { self.updateOutsideClickDismissal() }
         }
-        view.beginDraggingSession(with: [dragging], event: event, source: dragSource)
+        view.beginDraggingSession(with: dragging, event: event, source: dragSource)
             .animatesToStartingPositionsOnCancelOrFail = true
     }
 
@@ -253,7 +257,7 @@ final class ClipboardController {
 
     private func showPreview(_ item: ClipboardItem, anchor: NSRect) {
         guard let screen = panel.screen else { return }
-        let image = item.filePath.flatMap { NSImage(contentsOfFile: $0) }
+        let image = item.kind == .image ? item.filePath.flatMap { NSImage(contentsOfFile: $0) } : nil
         let available = screen.visibleFrame.insetBy(dx: 8, dy: 8)
         let inset = ClipboardFullPreview.inset
         var width = min(464.0, available.width)
@@ -396,6 +400,14 @@ private struct ClipboardHistoryCard: View {
             if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                 Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else if item.kind == .file {
+                HStack(alignment: .top, spacing: 8) {
+                    if let icon = ClipboardAccess.fileIcon(for: item) {
+                        Image(nsImage: icon).resizable().frame(width: 32, height: 32)
+                    }
+                    Text(item.text ?? item.filePaths.map { URL(filePath: $0).lastPathComponent }.joined(separator: "\n"))
+                        .textStyle(.resultPrimary).lineLimit(4)
+                }.frame(width: 232, height: 96, alignment: .topLeading).clipped()
             } else {
                 Text(item.text ?? NSLocalizedString("图片不可用", comment: "")).textStyle(.resultPrimary).lineLimit(4)
                     .frame(width: 232, height: 96, alignment: .topLeading).clipped()

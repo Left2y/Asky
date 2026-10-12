@@ -30,9 +30,29 @@ enum ClipboardRegression {
                 try store.insert(ClipboardItem(kind: .text, text: String(repeating: "完整文字可以滚动查看。\n", count: 60), byteSize: 2000,
                                                contentHash: "long", createdAt: Date().addingTimeInterval(2)))
                 try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "fourth"))
+                let fileTest = CommandLine.arguments.contains("--files")
+                let fileURLs = [root.appending(path: "复制文件.txt"), root.appending(path: "second.pdf")]
+                if fileTest {
+                    _ = try store.delete(ids: store.recent(limit: 20).map(\.id))
+                    for url in fileURLs { try Data("real file: \(url.lastPathComponent)".utf8).write(to: url) }
+                    let monitor = ClipboardMonitor(app: app)
+                    monitor.start()
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.writeObjects(fileURLs.map { $0 as NSURL })
+                    NSPasteboard.general.setString("复制文件.txt\nsecond.pdf", forType: .string)
+                    for _ in 0..<30 {
+                        if store.recent(limit: 1).first?.kind == .file { break }
+                        try await Task.sleep(for: .milliseconds(100))
+                    }
+                    monitor.stop()
+                    let recorded = store.recent(limit: 1).first!
+                    precondition(recorded.kind == .file && recorded.filePaths == fileURLs.map(\.path), "monitor must prioritize complete file selection")
+                    precondition(ClipboardAccess.copy(recorded), "file selection must copy")
+                    precondition(ClipboardAccess.snapshot().fileURLs == fileURLs, "copy must restore all URLs")
+                }
                 let controller = ClipboardController(app: app)
                 let dragPreview = CommandLine.arguments.contains("--drag-preview")
-                let dragTest = CommandLine.arguments.contains("--drag")
+                let dragTest = CommandLine.arguments.contains("--drag") || fileTest
                 if CommandLine.arguments.contains("--preview") || dragPreview || dragTest { controller.pinned = true }
                 controller.show()
                 if !CommandLine.arguments.contains("--preview"), !dragPreview { controller.pinned = true }
@@ -59,9 +79,10 @@ enum ClipboardRegression {
                     let destination = NSWindow(contentRect: NSRect(x: screen.minX + 24, y: screen.minY + 24,
                         width: 240, height: 160), styleMask: [.titled], backing: .buffered, defer: false)
                     destination.title = "Clipboard drag destination"
+                    let fileReceiver = ClipboardFileDropReceiver(frame: NSRect(x: 0, y: 0, width: 240, height: 160))
                     let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: 240, height: 160))
                     editor.isRichText = false
-                    destination.contentView = editor
+                    destination.contentView = fileTest ? fileReceiver : editor
                     if externalPoint == nil { destination.orderFrontRegardless() }
                     panel().makeKey()
                     controller.pinned = false
@@ -94,7 +115,15 @@ enum ClipboardRegression {
                     mouse(.leftMouseUp, end)
                     try await Task.sleep(for: .milliseconds(500))
                     if externalPoint == nil {
-                        precondition(editor.string == text.text, "native text destination must receive the card contents")
+                        if fileTest {
+                            precondition(fileReceiver.urls == fileURLs, "native destination must receive every original URL")
+                            for url in fileReceiver.urls {
+                                let received = try Data(contentsOf: url)
+                                precondition(received == Data("real file: \(url.lastPathComponent)".utf8))
+                            }
+                        } else {
+                            precondition(editor.string == text.text, "native text destination must receive the card contents")
+                        }
                     }
                     if panel().isVisible {
                         fputs("Drag not accepted: source=\(start), destination=\(end), status=\(controller.status ?? "none")\n", stderr)
@@ -102,6 +131,7 @@ enum ClipboardRegression {
                     precondition(!panel().isVisible, "accepted unpinned drag must close the source panel")
                     destination.orderOut(nil)
                     try? FileManager.default.removeItem(at: root)
+                    if fileTest { print("File monitor, history copy, real mouse multi-file drag and destination byte readback passed") }
                     print(externalPoint == nil ? "Clipboard real mouse drag, destination text and unpinned panel dismissal passed"
                         : "External destination accepted the clipboard drag; verify destination contents separately")
                     exit(0)
@@ -313,5 +343,22 @@ enum ClipboardRegression {
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+}
+
+
+@MainActor
+final class ClipboardFileDropReceiver: NSView {
+    var urls: [URL] = []
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        registerForDraggedTypes([.fileURL])
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { .copy }
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        urls = (sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        return !urls.isEmpty
     }
 }

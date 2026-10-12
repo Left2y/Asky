@@ -5,6 +5,50 @@ import LocalStore
 
 @Suite @MainActor
 struct ClipboardAccessTests {
+    @Test func fileSelectionRoundTripsWithoutDeletingOriginals() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let urls = [root.appending(path: "中文 file.txt"), root.appending(path: "Folder")]
+        try Data("actual contents".utf8).write(to: urls[0])
+        try FileManager.default.createDirectory(at: urls[1], withIntermediateDirectories: true)
+        let pb = NSPasteboard.withUniqueName()
+        defer { pb.releaseGlobally() }
+        pb.writeObjects(urls.map { $0 as NSURL })
+        pb.setString("中文 file.txt\nFolder", forType: .string)
+        let snapshot = ClipboardAccess.snapshot(from: pb)
+        #expect(snapshot.fileURLs == urls)
+        let store = ClipboardStore(try LocalStore(root: root.appending(path: "history")))
+        let item = ClipboardItem(kind: .file, text: snapshot.text, filePath: urls[0].path,
+            filePaths: snapshot.fileURLs.map(\.path), byteSize: 100, contentHash: "files")
+        try store.insert(item)
+        let restored = try #require(store.recent(limit: 1).first)
+        #expect(ClipboardAccess.copy(restored, to: pb))
+        #expect(ClipboardAccess.snapshot(from: pb).fileURLs == urls)
+        #expect(pb.string(forType: .string) == nil)
+        let writers = try #require(ClipboardAccess.dragItems(for: restored))
+        #expect(writers.compactMap { $0.string(forType: .fileURL).flatMap(URL.init(string:)) } == urls)
+        #expect(writers.allSatisfy { $0.string(forType: .string) == nil })
+        #expect(try store.delete(ids: [restored.id]).isEmpty)
+        #expect(FileManager.default.fileExists(atPath: urls[0].path))
+        #expect(FileManager.default.fileExists(atPath: urls[1].path))
+        try FileManager.default.removeItem(at: urls[0])
+        pb.clearContents()
+        pb.setString("keep", forType: .string)
+        #expect(!ClipboardAccess.copy(restored, to: pb))
+        #expect(ClipboardAccess.dragItems(for: restored) == nil)
+        #expect(pb.string(forType: .string) == "keep")
+    }
+
+    @Test func legacyAndConcealedFilePasteboards() {
+        let pb = NSPasteboard.withUniqueName()
+        defer { pb.releaseGlobally() }
+        pb.setPropertyList(["/tmp/a", "/tmp/b"], forType: NSPasteboard.PasteboardType("NSFilenamesPboardType"))
+        #expect(ClipboardAccess.snapshot(from: pb).fileURLs.map(\.path) == ["/tmp/a", "/tmp/b"])
+        pb.setString("", forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        #expect(ClipboardAccess.snapshot(from: pb).fileURLs.isEmpty)
+    }
+
     @Test func textCopyAndDragPreserveFullContents() {
         let text = "完整文字\nsecond line 🐈"
         let item = ClipboardItem(kind: .text, text: text, byteSize: text.utf8.count, contentHash: "text")
@@ -12,6 +56,9 @@ struct ClipboardAccessTests {
         defer { pb.releaseGlobally() }
         #expect(ClipboardAccess.copy(item, to: pb))
         #expect(pb.string(forType: .string) == text)
+        pb.clearContents()
+        pb.setString("file:///tmp/example.txt", forType: .string)
+        #expect(ClipboardAccess.snapshot(from: pb).fileURLs.isEmpty)
         #expect(ClipboardAccess.dragItem(for: item)?.string(forType: .string) == text)
     }
 

@@ -73,6 +73,8 @@ public enum Schema {
         "ALTER TABLE clipboard ADD COLUMN source_bundle_id TEXT;",
         // v4: last time a memory was given to the model, for pruning unused memories.
         "ALTER TABLE memories ADD COLUMN last_used_at REAL;",
+        // v5: one copied selection preserves all original file references.
+        "ALTER TABLE clipboard ADD COLUMN file_paths_json TEXT NOT NULL DEFAULT '[]';",
     ]
 
     public static func migrate(_ db: Database) throws {

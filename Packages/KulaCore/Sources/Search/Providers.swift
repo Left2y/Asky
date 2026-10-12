@@ -214,11 +214,11 @@ public struct ClipboardProvider: SearchProvider {
             switch item.kind {
             case .text: title = String((item.text ?? "").prefix(120)).replacingOccurrences(of: "\n", with: " ")
             case .image: title = "图片"
-            case .file: title = URL(fileURLWithPath: item.filePath ?? "").lastPathComponent
+            case .file: title = item.text ?? URL(fileURLWithPath: item.filePath ?? "").lastPathComponent
             }
             return SearchResult(source: .clipboard, target: TargetRef(kind: "clipboard", identifier: item.id), title: title,
                                 subtitle: "剪贴板 · \(item.sourceApp ?? "")",
-                                actions: item.text.map { [.copy($0)] } ?? [.open], score: 0.35)
+                                actions: item.kind == .text ? (item.text.map { [.copy($0)] } ?? [.open]) : [.open], score: 0.35)
         }
     }
 }

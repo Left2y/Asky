@@ -212,10 +212,14 @@ private struct SettingsSidebar: View {
                     Text(page.title)
                 } icon: {
                     Image(systemName: page.symbol)
-                        .font(.system(size: 12, weight: .medium))
+                        .resizable()
+                        .scaledToFit()
+                        .fontWeight(.medium)
                         .foregroundStyle(.white)
+                        .frame(width: 11, height: 11)
+                        .frame(width: 18, height: 18)
+                        .background(page.color, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                         .frame(width: 22, height: 22)
-                        .background(page.color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .padding(.vertical, 3)
                 .tag(page.rawValue)

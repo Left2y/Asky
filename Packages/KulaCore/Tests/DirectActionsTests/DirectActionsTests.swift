@@ -7,15 +7,29 @@ import Foundation
                       ("3×4", 12), ("-2+5", 3), ("2^3^2", 512), ("10 % 3", 1),
                       ("(12-1)*3", 33), ("(12–1)*3", 33), ("(12−1)×3", 33),
                       ("(12—1)*3", 33), ("（１２－１）＊３", 33),
-                      ("((12−1)×3+7)÷2", 20), ("（12－1）×（2＋3）", 55)])
+                      ("((12−1)×3+7)÷2", 20), ("（12－1）×（2＋3）", 55),
+                      ("【 (12-12) +1】*12", 12), ("[(12-12)+1]*12", 12),
+                      ("{[2+3]*(4-1)}", 15), ("［（１２－１２）＋１］＊１２", 12),
+                      ("2(3+4)", 14), ("(2+3) (4-1)", 15), ("(2+3) 4", 20),
+                      ("-2^2", -4), ("(-2)^2", 4), ("2^-3", 0.125), ("2*-3", -6),
+                      (".5 + 1.25", 1.75), ("1e3+2.5E-1", 1000.25),
+                      ("√9+sqrt(16)", 7), ("2√9", 6), ("sqrt(2+7)", 3),
+                      ("20%", 0.2), ("100*20%", 20), ("(20+30)%", 0.5), ("10%3", 1)])
     func evaluates(_ input: String, _ expected: Double) {
         #expect(Calculator.evaluate(input) == expected)
     }
 
     @Test(arguments: ["hello", "1/0", "-5", "42", "2+", "system(\"ls\")", "1+2;rm",
-                      "（12－1", "（12－1）÷0", "１２", "−５", "（12－1）×", "１＋２；rm"])
+                      "（12－1", "（12－1）÷0", "１２", "−５", "（12－1）×", "１＋２；rm", "[1+2)", "【1+2", "{[1+2}]", "2 3+4",
+                      "1e+2.3", "sqrt(-1)", "√-9", "sqrt(9", "10%0", "2^^3"])
     func rejects(_ input: String) {
         #expect(Calculator.evaluate(input) == nil)
+    }
+
+    @Test func boundedRecursion() {
+        #expect(Calculator.evaluate(String(repeating: "-", count: 1000) + "1+2") == nil)
+        #expect(Calculator.evaluate(String(repeating: "2^", count: 1000) + "2") == nil)
+        #expect(Calculator.evaluate(String(repeating: "(", count: 1000) + "1+2" + String(repeating: ")", count: 1000)) == nil)
     }
 
     @Test func formatting() {

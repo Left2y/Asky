@@ -37,6 +37,16 @@ import DirectActions
         #expect(result.primaryAction == .copy("33"))
     }
 
+    @Test(arguments: ["【 (12-12) +1】*12", "[(12-12)+1]*12", "{(12-12)+1}*12"])
+    func nestedGroupingRoutesToCalculator(_ expression: String) throws {
+        let route = router.route(expression)
+        #expect(route == .calculation(expression: expression, value: 12))
+        #expect(!router.includesSearch(route))
+        let result = try #require(router.directResults(for: route).first)
+        #expect(result.subtitle == expression)
+        #expect(result.primaryAction == .copy("12"))
+    }
+
     @Test func conversionAndCurrency() {
         if case .conversion(let c) = router.route("10 km mi") {
             #expect(abs(c.value - 6.21371) < 0.001)

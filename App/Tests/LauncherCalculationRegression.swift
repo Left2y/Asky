@@ -103,6 +103,19 @@ enum LauncherCalculationRegression {
             try require(model.results.first?.primaryAction == .copy("33"), "parenthesized copy action")
         }
         try capture(panel, "calculator-parentheses-\(appearance)")
+        for (expression, expected) in [("【 (12-12) +1】*12", "12"), ("{[2+3]*(4-1)}", "15"),
+                                       ("2(3+4)", "14"), ("-2^2", "-4"), ("100*20%", "20"),
+                                       ("√9+sqrt(16)", "7")] {
+            setQuery(expression)
+            try await Task.sleep(for: .milliseconds(250))
+            try require(model.calculation?.expression == expression, "grouped formula preserved")
+            try require(model.calculation?.result == expected, "basic arithmetic: \(expression)")
+            try require(model.calculationCompletion == "= \(expected)", "basic arithmetic completion")
+            try require(model.results.first?.primaryAction == .copy(expected), "basic arithmetic copy action")
+        }
+        setQuery("【 (12-12) +1】*12")
+        try await Task.sleep(for: .milliseconds(250))
+        try capture(panel, "calculator-square-brackets-\(appearance)")
         let longExpression = Array(repeating: "123456789", count: 24).joined(separator: "+")
         setQuery(longExpression)
         try await Task.sleep(for: .milliseconds(250))

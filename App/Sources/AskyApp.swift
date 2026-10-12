@@ -79,6 +79,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         pressure = MemoryPressureMonitor { [weak self] _ in
             Task { @MainActor in self?.launcher.hide() }
         }
+        #if DEBUG
+        if CommandLine.arguments.contains("--test-clipboard") {
+            clipboardWindow.pinned = true
+            clipboardWindow.show()
+            clipboardWindow.query = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TEST_QUERY"] ?? ""
+        }
+        #endif
         Task {
             await model.start()
             reminders.start()

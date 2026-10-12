@@ -144,6 +144,8 @@ python3 App/Tests/run-agent-reply-regression.py
 python3 App/Tests/run-application-termination-regression.py
 ```
 
+Debug 主应用可用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-clipboard` 打开固定的正式剪贴板面板，用于跨应用拖放验收；可通过 `ASKY_CLIPBOARD_TEST_QUERY` 环境变量筛选测试卡片。该模式只记录拖拽类型、数量及接受结果，不记录内容或路径。验证前退出其他 Asky 实例，尤其是 `/Applications/Asky.app` 的旧版本，避免快捷键竞争及误测旧面板。
+
 剪贴板 `--files` 检查文件监听、整组复制和真实鼠标文件拖放，并回读接收文件的内容；`--drag` 检查真实鼠标拖放与未固定面板关闭；`--drag-preview` 保留带测试卡片的未固定面板供人工拖放。设置 `ASKY_CLIPBOARD_DROP_POINT=x,y` 可将 `--drag` 目标改为屏幕坐标下的外部输入框，搭配 `ASKY_CLIPBOARD_DRAG_IMAGE=1` 拖第二张图片卡片；外部目标内容需另行回读确认。
 
 启动器 `--bottom-clearance` 专项检查列表滚动、键盘首尾导航与最后一项的底部留白，覆盖亮暗模式；不运行系统事件投递与异步搜索时序检查。
@@ -313,6 +315,8 @@ python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Ha
 python3 App/Tests/run-agent-reply-regression.py
 python3 App/Tests/run-application-termination-regression.py
 ```
+
+In the Debug app, `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-clipboard` opens the pinned production clipboard panel for cross-app drag acceptance testing. Set `ASKY_CLIPBOARD_TEST_QUERY` to filter test cards. This mode logs only the dragged kind, item count, and acceptance result, with no contents or paths. Quit other Asky instances first, especially older copies of `/Applications/Asky.app`, to avoid hotkey conflicts and testing the wrong panel.
 
 Clipboard `--files` checks file monitoring, multi-file copying, real mouse dragging, and received file contents; `--drag` checks a real mouse drop and unpinned panel dismissal; `--drag-preview` keeps an unpinned panel with test cards open for manual drops. Set `ASKY_CLIPBOARD_DROP_POINT=x,y` to target an external input at screen coordinates, and add `ASKY_CLIPBOARD_DRAG_IMAGE=1` to drag the second image card. Read back external destination contents separately to confirm the result.
 

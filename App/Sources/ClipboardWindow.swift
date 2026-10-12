@@ -181,6 +181,11 @@ final class ClipboardController {
             status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
             return
         }
+        #if DEBUG
+        if CommandLine.arguments.contains("--test-clipboard") {
+            NSLog("Clipboard drag started: %@, %ld items", item.kind.rawValue, pasteboardItems.count)
+        }
+        #endif
         let preview = ClipboardDragSource.snapshot(of: view)
         let dragging = pasteboardItems.enumerated().map { index, writer in
             let entry = NSDraggingItem(pasteboardWriter: writer)
@@ -191,6 +196,11 @@ final class ClipboardController {
         // The outside-click shields are real windows and would intercept the destination's drop.
         outsideClickDismissal.hide()
         dragSource.onEnd = { [weak self] operation in
+            #if DEBUG
+            if CommandLine.arguments.contains("--test-clipboard") {
+                NSLog("Clipboard drag ended: operation %lu", operation.rawValue)
+            }
+            #endif
             guard let self else { return }
             if operation != [], !self.pinned { self.hide() }
             else { self.updateOutsideClickDismissal() }

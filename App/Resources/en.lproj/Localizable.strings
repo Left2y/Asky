@@ -426,6 +426,10 @@
 "允许 AI 搜索公开网页" = "Allow AI to search public webpages";
 
 "搜索词发送至 Bing，结果摘要发送至配置的模型服务；无需额外 API Key。" = "Queries are sent to Bing and result snippets to your configured model provider. No extra API key is required.";
+
+"完全磁盘访问（读取信息）" = "Full Disk Access (read Messages)";
+"让后台 AI 读取最近 30 天的短信与 iMessage" = "Let background AI read the last 30 days of SMS and iMessage";
+"用于发现短信里别人的请求、你答应过的事和取件、缴费、预约等通知。需要在系统权限中授予“完全磁盘访问”；验证码短信会被丢弃，长数字只保留后 4 位，其余内容会发送到你配置的模型服务。" = "Used to spot requests from others, things you promised, and pickup, bill or appointment notices. Requires Full Disk Access in System Permissions. Verification-code messages are dropped and long numbers keep only their last 4 digits; the rest is sent to your configured model service.";
 "Settings" = "Settings";
 "Tools" = "Tools";
 "Agent" = "Agent";

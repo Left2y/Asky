@@ -28,6 +28,9 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Older settings enable public web search without resetting other source choices.
     var webSearchEnabled: Bool?
     var proactiveReminders = false
+    /// Lets background AI read recent SMS/iMessage; nil (settings saved before this option) means off.
+    /// Optional so older settings still decode. Also needs Full Disk Access.
+    var advisorReadsMessages: Bool?
 
     static let key = "app.settings"
 }

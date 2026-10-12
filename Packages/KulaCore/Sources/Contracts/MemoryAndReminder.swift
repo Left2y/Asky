@@ -69,6 +69,8 @@ public struct MemoryRecord: Sendable, Hashable, Codable, Identifiable {
 
 public enum ReminderReason: String, Sendable, Codable, CaseIterable {
     case conflict, travel, importantDate
+    /// Model-judged suggestion that connects events, tasks and memories; only produced when background AI is on.
+    case insight
 }
 
 public enum ReminderPlanStatus: String, Sendable, Codable {

@@ -50,6 +50,19 @@ public final class ContactsBridge: @unchecked Sendable {
             throw ToolError(.targetNotFound, "找不到联系人")
         }
     }
+
+    /// Normalized phone/email → display name, for labelling Messages senders. Empty without Contacts access.
+    public func nameIndex() -> [String: String] {
+        guard authorized else { return [:] }
+        var index: [String: String] = [:]
+        let request = CNContactFetchRequest(keysToFetch: Self.keys)
+        try? store.enumerateContacts(with: request) { contact, _ in
+            let p = self.person(contact)
+            guard !p.name.isEmpty else { return }
+            for handle in p.handles { index[MessagesHistoryReader.normalize(handle)] = p.name }
+        }
+        return index
+    }
 }
 
 public struct ContactsSearchTool: ToolAdapter {

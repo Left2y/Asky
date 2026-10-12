@@ -145,6 +145,7 @@ struct PermissionSettings: View {
         case .accessibility: "accessibility"
         case .automation: "gearshape.2"
         case .notifications: "bell.badge"
+        case .fullDiskAccess: "externaldrive.badge.checkmark"
         }
     }
 
@@ -156,6 +157,7 @@ struct PermissionSettings: View {
         case .automation: .gray
         case .accessibility: .blue
         case .notifications: .purple
+        case .fullDiskAccess: .green
         }
     }
 }

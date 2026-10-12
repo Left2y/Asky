@@ -378,6 +378,16 @@ private struct SourceSettings: View {
             Section(NSLocalizedString("情境提醒", comment: "")) {
                 Toggle(NSLocalizedString("主动提醒（冲突、出行准备、重要日期）", comment: ""), isOn: $app.settings.proactiveReminders)
                 Toggle(NSLocalizedString("后台 AI 判断（默认关闭）", comment: ""), isOn: $app.settings.backgroundAI)
+                Text(NSLocalizedString("开启后，模型会结合日程、待办和记忆，找出需要提前准备、彼此关联或临近截止却没安排时间的事，只在值得时提醒。内容会发送到你配置的模型服务。", comment: ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle(NSLocalizedString("让后台 AI 读取最近 30 天的短信与 iMessage", comment: ""), isOn: Binding(
+                    get: { app.settings.advisorReadsMessages ?? false },
+                    set: { app.settings.advisorReadsMessages = $0 }))
+                    .disabled(!app.settings.backgroundAI)
+                Text(NSLocalizedString("用于发现短信里别人的请求、你答应过的事和取件、缴费、预约等通知。需要在系统权限中授予“完全磁盘访问”；验证码短信会被丢弃，长数字只保留后 4 位，其余内容会发送到你配置的模型服务。", comment: ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

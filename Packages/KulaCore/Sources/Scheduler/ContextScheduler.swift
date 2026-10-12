@@ -154,7 +154,7 @@ public struct ContextScheduler: Sendable {
         self.rules = rules
     }
 
-    public func reconcile(events: [EventSnapshot], importantDates: [ImportantDate] = [],
+    public func reconcile(events: [EventSnapshot], importantDates: [ImportantDate] = [], insights: [ReminderPlan] = [],
                           eta: (EventSnapshot) -> TimeInterval? = { _ in nil },
                           etaBetween: (EventSnapshot, EventSnapshot) -> TimeInterval? = { _, _ in nil },
                           travelEnabled: Bool, now: Date = Date()) throws -> ReconcileOutcome {
@@ -163,13 +163,19 @@ public struct ContextScheduler: Sendable {
         var candidates = rules.conflicts(inHorizon, etaBetween: travelEnabled ? etaBetween : { _, _ in nil }, now: now)
         if travelEnabled { candidates += inHorizon.compactMap { rules.travel($0, eta: eta($0), now: now) } }
         candidates += importantDates.compactMap { rules.importantDate($0, now: now) }
+        // Model suggestions are placed after deterministic ones, so they never take a real conflict's daily slot.
+        candidates += insights.filter { $0.reason == .insight && $0.fireDate < horizonEnd }
         candidates = candidates.filter { store.isCategoryEnabled($0.reason) }
 
         var out = ReconcileOutcome()
         var liveKeys = Set<String>()
         let byKey = Dictionary(candidates.map { ($0.dedupeKey, $0) }, uniquingKeysWith: { a, _ in a })
 
-        for (key, var plan) in byKey.sorted(by: { $0.value.fireDate < $1.value.fireDate }) {
+        let ordered = byKey.sorted { a, b in
+            let ai = a.value.reason == .insight, bi = b.value.reason == .insight
+            return ai != bi ? !ai : a.value.fireDate < b.value.fireDate
+        }
+        for (key, var plan) in ordered {
             liveKeys.insert(key)
             if let existing = store.plan(dedupeKey: key) {
                 if existing.status == .handled || existing.status == .delivered {

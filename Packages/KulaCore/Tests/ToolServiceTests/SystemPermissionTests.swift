@@ -24,7 +24,7 @@ struct SystemPermissionTests {
     }
 
     @Test func booleanPermissionsAllowExplicitRequestButNeverRequestWhenAuthorized() {
-        for permission in [SystemPermission.accessibility, .screenRecording] {
+        for permission in [SystemPermission.accessibility, .screenRecording, .fullDiskAccess] {
             #expect(permission.canRequest(from: .denied))
             #expect(!permission.canRequest(from: .authorized))
             #expect(!permission.canRequest(from: .restricted))
@@ -38,6 +38,7 @@ struct SystemPermissionTests {
     @Test func onlyDragPermissionsResetTheirOwnTCCServiceAndOnlyScreenRecordingNeedsRelaunch() {
         #expect(SystemPermission.screenRecording.tccService == "ScreenCapture")
         #expect(SystemPermission.accessibility.tccService == "Accessibility")
+        #expect(SystemPermission.fullDiskAccess.tccService == "SystemPolicyAllFiles")
         for permission in SystemPermission.allCases where !permission.supportsAppDrag {
             #expect(permission.tccService == nil)
         }

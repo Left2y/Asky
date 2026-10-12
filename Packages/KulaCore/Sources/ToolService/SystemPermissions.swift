@@ -6,9 +6,9 @@ import UniformTypeIdentifiers
 import Contracts
 
 public enum SystemPermission: String, CaseIterable, Identifiable, Sendable {
-    case calendar, reminders, contacts, screenRecording, accessibility, automation, notifications
+    case calendar, reminders, contacts, screenRecording, accessibility, automation, notifications, fullDiskAccess
     public var id: String { rawValue }
-    public var supportsAppDrag: Bool { self == .accessibility || self == .screenRecording }
+    public var supportsAppDrag: Bool { self == .accessibility || self == .screenRecording || self == .fullDiskAccess }
     // These APIs report only a Boolean, so false cannot distinguish never requested from denied.
     public func canRequest(from state: PermissionState) -> Bool {
         state.canRequest || (supportsAppDrag && state == .denied)
@@ -22,6 +22,7 @@ public enum SystemPermission: String, CaseIterable, Identifiable, Sendable {
         case .accessibility: "辅助功能（自动粘贴）"
         case .automation: "自动化（Chrome、备忘录）"
         case .notifications: "通知"
+        case .fullDiskAccess: "完全磁盘访问（读取信息）"
         }
     }
     var pane: String {
@@ -33,12 +34,14 @@ public enum SystemPermission: String, CaseIterable, Identifiable, Sendable {
         case .accessibility: "Privacy_Accessibility"
         case .automation: "Privacy_Automation"
         case .notifications: ""
+        case .fullDiskAccess: "Privacy_AllFiles"
         }
     }
     var tccService: String? {
         switch self {
         case .screenRecording: "ScreenCapture"
         case .accessibility: "Accessibility"
+        case .fullDiskAccess: "SystemPolicyAllFiles"
         default: nil
         }
     }
@@ -97,6 +100,9 @@ public enum SystemPermissions {
         case .screenRecording: return CGPreflightScreenCaptureAccess() ? .authorized : .denied
         case .accessibility: return AXIsProcessTrusted() ? .authorized : .denied
         case .automation: return .perTarget
+        // There is no query API; the Messages database opening read-only is the only reliable signal.
+        case .fullDiskAccess:
+            return await Task.detached { MessagesHistoryReader().isReadable }.value ? .authorized : .denied
         case .notifications:
             switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
             case .notDetermined: return .notDetermined
@@ -227,6 +233,8 @@ public final class PermissionSettingsSession {
             ["录屏与系统录音", "屏幕录制", "屏幕与系统音频录制", "Screen Recording", "Screen & System Audio Recording"]
         case .accessibility:
             ["辅助功能", "设备控制和数据访问", "Accessibility", "Device Control and Data Access"]
+        case .fullDiskAccess:
+            ["完全磁盘访问权限", "完全磁盘访问", "Full Disk Access"]
         default: []
         }
     }

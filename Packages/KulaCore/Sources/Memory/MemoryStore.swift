@@ -71,12 +71,17 @@ public struct MemoryStore: Sendable {
         (try? db.query("SELECT * FROM memories WHERE id = ?", [id]))?.first.map(Self.decode)
     }
 
-    /// User correction: the new record supersedes the old one; the old one stays traceable but inactive.
+    /// Replaces a memory with new content; the old record stays traceable but inactive.
+    /// User corrections are confirmed facts. Automatic revisions keep the old confirmation state and add the
+    /// conversation that revealed the change as a source.
     @discardableResult
-    public func correct(_ id: String, newContent: String, now: Date = Date()) throws -> MemoryRecord? {
-        guard let old = get(id) else { return nil }
-        let new = MemoryRecord(content: newContent, kind: old.kind == .inference ? .fact : old.kind, sourceIDs: old.sourceIDs,
-                               subjects: old.subjects, project: old.project, confirmed: true, pinned: old.pinned,
+    public func correct(_ id: String, newContent: String, addingSource: String? = nil, byUser: Bool = true,
+                        now: Date = Date()) throws -> MemoryRecord? {
+        guard let old = get(id), old.status == .active else { return nil }
+        var sourceIDs = old.sourceIDs
+        if let s = addingSource, !sourceIDs.contains(s) { sourceIDs.append(s) }
+        let new = MemoryRecord(content: newContent, kind: byUser && old.kind == .inference ? .fact : old.kind, sourceIDs: sourceIDs,
+                               subjects: old.subjects, project: old.project, confirmed: byUser || old.confirmed, pinned: old.pinned,
                                supersedes: old.id, permissions: old.permissions, createdAt: now, updatedAt: now)
         return try db.transaction {
             let saved = try insert(new)
@@ -84,6 +89,36 @@ public struct MemoryStore: Sendable {
                        [saved.id, now, old.id])
             try db.run("DELETE FROM memories_fts WHERE id = ?", [old.id])
             return saved
+        }
+    }
+
+    /// Records that memories were handed to the model, so pruning keeps what is actually used.
+    public func markUsed(_ ids: [String], now: Date = Date()) {
+        for id in ids { _ = try? db.run("UPDATE memories SET last_used_at = ? WHERE id = ?", [now, id]) }
+    }
+
+    /// Unconfirmed memories unused for this long are deleted.
+    public static let unconfirmedLifetime: TimeInterval = 60 * 24 * 3600
+    /// Episodes (projects, decisions) unused for this long are deleted even when confirmed.
+    public static let episodeLifetime: TimeInterval = 180 * 24 * 3600
+
+    /// Deletes active memories that went stale: never pinned, and not created, updated or used recently.
+    /// Stated facts and preferences the user confirmed are kept.
+    @discardableResult
+    public func pruneStale(now: Date = Date()) throws -> Int {
+        let unconfirmed = now.addingTimeInterval(-Self.unconfirmedLifetime)
+        let episodes = now.addingTimeInterval(-Self.episodeLifetime)
+        return try db.transaction {
+            let ids = try db.query("""
+                SELECT id FROM memories WHERE status = 'active' AND pinned = 0
+                  AND MAX(updated_at, COALESCE(last_used_at, 0)) < CASE
+                    WHEN confirmed = 0 THEN ? WHEN kind = 'episode' THEN ? ELSE -1 END
+                """, [unconfirmed, episodes]).compactMap { $0.string("id") }
+            for id in ids {
+                try db.run("DELETE FROM memories_fts WHERE id = ?", [id])
+                try db.run("DELETE FROM memories WHERE id = ?", [id])
+            }
+            return ids.count
         }
     }
 
@@ -265,6 +300,7 @@ public struct ContextAssembler: Sendable {
             let label = m.kind == .inference && !m.confirmed ? "（推测）" : ""
             out.append(ContextSnippet(sourceID: "memory:\(m.id)", text: label + m.content))
         }
+        memories.markUsed(out.map { String($0.sourceID.dropFirst(7)) })
         return out
     }
 }

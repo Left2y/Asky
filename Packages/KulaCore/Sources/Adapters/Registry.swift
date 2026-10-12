@@ -65,14 +65,16 @@ public struct MemorySaveTool: ToolAdapter {
 }
 
 /// User correction of an existing memory; the old record stays traceable but inactive.
+/// Memory edits are reversible from settings, so an explicit user request runs without an extra prompt.
 public struct MemoryCorrectTool: ToolAdapter {
     let memories: MemoryStore
     public init(_ memories: MemoryStore) { self.memories = memories }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "memory_correct", summary: "按用户的纠正更新一条已有记忆（需用户确认）",
+        ToolDefinition(name: "memory_correct", summary: "按用户的纠正更新一条已有记忆",
                        inputSchema: Args.schema(["id": ["type": "string", "description": "memory_search 返回的 source，如 memory:xxx"],
                                                  "content": Args.stringProp], required: ["id", "content"]),
-                       source: .memory, effect: .write, writeKind: .modify, confirmation: .always, externallyExposable: false)
+                       source: .memory, effect: .write, writeKind: .modify, confirmation: .explicitDirectOtherwiseConfirm,
+                       externallyExposable: false)
     }
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
         let m = try activeMemory(memories, a)
@@ -97,10 +99,11 @@ public struct MemoryForgetTool: ToolAdapter {
     let memories: MemoryStore
     public init(_ memories: MemoryStore) { self.memories = memories }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "memory_forget", summary: "删除用户要求忘记的一条记忆（需用户确认）",
+        ToolDefinition(name: "memory_forget", summary: "删除用户要求忘记的一条记忆",
                        inputSchema: Args.schema(["id": ["type": "string", "description": "memory_search 返回的 source，如 memory:xxx"]],
                                                 required: ["id"]),
-                       source: .memory, effect: .write, writeKind: .delete, confirmation: .always, externallyExposable: false)
+                       source: .memory, effect: .write, writeKind: .delete, confirmation: .explicitDirectOtherwiseConfirm,
+                       externallyExposable: false)
     }
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
         let m = try activeMemory(memories, a)

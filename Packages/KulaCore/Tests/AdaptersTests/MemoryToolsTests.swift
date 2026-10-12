@@ -37,14 +37,14 @@ import Memory
         #expect(bad.error?.code == .invalidArguments)
     }
 
-    @Test func correctAndForgetRequireConfirmation() async throws {
+    @Test func explicitCorrectAndForgetRunWithoutConfirmation() async throws {
         let s = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
         let old = try MemoryStore(s).saveStated("用户的常用机场是虹桥", kind: .fact)
+        let svc = await service(s, approve: false)   // presenter would reject any prompt
 
-        let rejected = await call(await service(s, approve: false), "memory_forget", ["id": .string("memory:\(old.id)")])
-        #expect(rejected.status == .rejected && MemoryStore(s).get(old.id) != nil)
+        let inferred = await call(svc, "memory_forget", ["id": .string("memory:\(old.id)")], intent: .aiSuggested)
+        #expect(inferred.status == .suggestion && MemoryStore(s).get(old.id)?.status == .active)
 
-        let svc = await service(s, approve: true)
         let fixed = await call(svc, "memory_correct", ["id": .string("memory:\(old.id)"), "content": "用户的常用机场是浦东"])
         #expect(fixed.status == .completed)
         #expect(MemoryStore(s).get(old.id)?.status == .superseded)

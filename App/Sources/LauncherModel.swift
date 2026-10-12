@@ -329,11 +329,19 @@ final class LauncherModel {
         batches = router.includesSearch(route) ? retainedBatches(for: query) : []
         if case .currency(let q) = route {
             isSearching = true
-            status = NSLocalizedString("正在获取汇率…", comment: "")
+            status = nil
             let exchange = app.exchange
             currencyTask = Task { [weak self] in
-                do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
-                let rows = await ToolService.launcherCurrencyResults(q, service: exchange)
+                let loadingHint = Task { @MainActor [weak self] in
+                    do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+                    self?.status = NSLocalizedString("正在获取汇率…", comment: "")
+                }
+                defer { loadingHint.cancel() }
+                let rows = await withTaskCancellationHandler {
+                    await ToolService.launcherCurrencyResults(q, service: exchange)
+                } onCancel: {
+                    loadingHint.cancel()
+                }
                 guard !Task.isCancelled, let self else { return }
                 self.isSearching = false
                 self.status = nil

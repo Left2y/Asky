@@ -60,6 +60,7 @@ enum LauncherCalculationRegression {
         func waitForCurrency(_ value: String) async throws {
             setQuery(value)
             try require(model.isSearching, "currency must enter loading state")
+            try require(model.status == nil, "cached currency must not flash a loading hint")
             try require(model.results.isEmpty, "currency loading must not publish an AI-only fallback")
             var submittedAI = false
             model.onAskAI = { _ in submittedAI = true }
@@ -71,6 +72,7 @@ enum LauncherCalculationRegression {
                 try await Task.sleep(for: .milliseconds(25))
             }
             try require(!model.isSearching, "currency loading must finish")
+            try require(model.status == nil, "cached currency must finish without a loading hint")
             try require(model.results.first?.source == .currency, "currency result must precede AI after loading: requested=\(value), actual=\(model.query), sources=\(model.results.map { $0.source })")
         }
         let currencyOnly = CommandLine.arguments.contains("--currency-only")

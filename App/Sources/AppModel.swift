@@ -153,6 +153,7 @@ final class AppModel {
     }
 
     func start() async {
+        Task { [exchange] in await ToolService.prefetchLauncherCurrency(service: exchange) }
         await native.register(into: tools, memories: memories)
         agent = makeAgentHost()
         refreshMCPServer()

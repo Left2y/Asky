@@ -102,6 +102,7 @@ public actor ExchangeRateService {
     private let cacheURL: URL
     private let fetcher: @Sendable (URL) async throws -> Data
     private var cached: ExchangeRates?
+    private var refreshTask: Task<ExchangeRates?, Never>?
     private let maxAge: TimeInterval
 
     public init(cacheURL: URL, maxAge: TimeInterval = 6 * 3600,
@@ -124,16 +125,44 @@ public actor ExchangeRateService {
         return cached
     }
 
-    public func rates(allowNetwork: Bool = true) async -> (ExchangeRates, fromCache: Bool)? {
-        let existing = cachedRates()
-        if let existing, Date().timeIntervalSince(existing.fetchedAt) < maxAge { return (existing, true) }
-        if allowNetwork, let data = try? await fetcher(Self.ecbURL), let fresh = ExchangeRates.parseECB(data) {
-            cached = fresh
-            try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? JSONEncoder().encode(fresh).write(to: cacheURL, options: .atomic)
-            return (fresh, false)
+    /// Preload once at launch without holding up app startup.
+    public func prefetch() async {
+        if let existing = cachedRates(), Date().timeIntervalSince(existing.fetchedAt) < maxAge { return }
+        _ = await refresh().value
+    }
+
+    /// All callers share the same refresh, including typing while launch prefetch is in flight.
+    private func refresh() -> Task<ExchangeRates?, Never> {
+        if let refreshTask { return refreshTask }
+        let fetcher = fetcher
+        let task = Task { () -> ExchangeRates? in
+            let fresh: ExchangeRates?
+            if let data = try? await fetcher(Self.ecbURL) {
+                fresh = ExchangeRates.parseECB(data)
+            } else {
+                fresh = nil
+            }
+            if let fresh {
+                cached = fresh
+                try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? JSONEncoder().encode(fresh).write(to: cacheURL, options: .atomic)
+            }
+            refreshTask = nil
+            return fresh
         }
-        return existing.map { ($0, true) }
+        refreshTask = task
+        return task
+    }
+
+    public func rates(allowNetwork: Bool = true) async -> (ExchangeRates, fromCache: Bool)? {
+        if let existing = cachedRates() {
+            if allowNetwork, Date().timeIntervalSince(existing.fetchedAt) >= maxAge {
+                _ = refresh()
+            }
+            return (existing, true)
+        }
+        guard allowNetwork, let fresh = await refresh().value else { return nil }
+        return (fresh, false)
     }
 
     public func conversions(_ q: CurrencyQuery, allowNetwork: Bool = true) async -> [CurrencyResult] {

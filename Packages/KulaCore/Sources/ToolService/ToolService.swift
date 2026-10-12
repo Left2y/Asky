@@ -57,13 +57,24 @@ extension ToolAdapter {
     public func readback(_ arguments: JSONValue, output: AdapterOutput?) async -> JSONValue? { output?.output }
 }
 
+/// Global approval mode for Asky's own AI conversations. Launcher and external MCP callers are never affected.
+public enum ApprovalMode: String, Sendable, Codable, CaseIterable {
+    /// Only operations the confirmation rules flag as risky ask the user.
+    case autoReview
+    /// Agent writes run without suggestions or confirmations.
+    case fullAccess
+}
+
 /// Snapshot of user-controlled policy, read at every call so revocations apply immediately.
 public struct PolicySnapshot: Sendable {
     public var enabledSources: Set<DataSourceID>
     public var mcpInstances: [String: MCPInstance]
-    public init(enabledSources: Set<DataSourceID>, mcpInstances: [String: MCPInstance] = [:]) {
+    public var approvalMode: ApprovalMode
+    public init(enabledSources: Set<DataSourceID>, mcpInstances: [String: MCPInstance] = [:],
+                approvalMode: ApprovalMode = .autoReview) {
         self.enabledSources = enabledSources
         self.mcpInstances = mcpInstances
+        self.approvalMode = approvalMode
     }
 }
 
@@ -157,7 +168,11 @@ public actor ToolService {
                                                argumentsDigest: request.argumentsDigest, origin: request.origin,
                                                title: preview.title, details: preview.details)
 
-        if request.intent == .aiSuggested {
+        // Full access only applies to Asky's own AI conversations, never Launcher or external MCP callers.
+        let fullAccess: Bool
+        if case .agent = request.origin { fullAccess = p.approvalMode == .fullAccess } else { fullAccess = false }
+
+        if request.intent == .aiSuggested && !fullAccess {
             return ExecutionResult(requestID: request.requestID, status: .suggestion, confirmation: confirmation)
         }
 
@@ -167,7 +182,7 @@ public actor ToolService {
             return prior
         }
 
-        if needsConfirmation(def, request) {
+        if !fullAccess && needsConfirmation(def, request) {
             persist(request, status: .awaitingConfirmation, result: nil)
             let decision = await presenter(confirmation)
             // Re-check policy after waiting: a source or instance may have been revoked meanwhile.

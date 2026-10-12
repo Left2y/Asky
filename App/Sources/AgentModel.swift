@@ -53,6 +53,12 @@ final class AgentModel {
 
     var pluginManager: PluginManager { app.tools.plugins }
 
+    /// Global setting shared by every conversation; ToolService reads it on each call.
+    var approvalMode: ApprovalMode {
+        get { app.settings.approvalMode ?? .autoReview }
+        set { app.settings.approvalMode = newValue }
+    }
+
     static let firstPage = 40
     static let window = 120
 

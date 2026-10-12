@@ -81,6 +81,39 @@ func req(_ tool: String, _ args: JSONValue = ["title": "x"], origin: CallerOrigi
         #expect(pres.count == 1 && a.count == 0)
     }
 
+    @Test func fullAccessSkipsAgentConfirmationAndSuggestion() async throws {
+        let pres = Presenter(.rejected)
+        let svc = try makeService(pres, policy: PolicyBox(PolicySnapshot(enabledSources: Set(DataSourceID.allCases),
+                                                                         approvalMode: .fullAccess)))
+        let a = FakeAdapter("delete", kind: .delete, rule: .always)
+        await svc.register(a)
+        let agent = CallerOrigin.agent(sessionID: "s")
+        #expect(await svc.submit(req("delete", origin: agent)).status == .completed)
+        #expect(await svc.submit(req("delete", ["title": "y"], origin: agent, intent: .aiSuggested)).status == .completed)
+        #expect(pres.count == 0 && a.count == 2)
+    }
+
+    @Test func fullAccessDoesNotApplyOutsideAgent() async throws {
+        let pres = Presenter(.rejected)
+        let inst = MCPInstance(id: "i", name: "c", enabled: true, readOnly: false, sources: [.calendar])
+        let svc = try makeService(pres, policy: PolicyBox(PolicySnapshot(enabledSources: [.calendar], mcpInstances: ["i": inst],
+                                                                         approvalMode: .fullAccess)))
+        let a = FakeAdapter("delete", kind: .delete, rule: .always)
+        await svc.register(a)
+        #expect(await svc.submit(req("delete", origin: .launcher)).status == .rejected)
+        #expect(await svc.submit(req("delete", ["title": "y"], origin: .mcp(instanceID: "i"))).status == .rejected)
+        #expect(pres.count == 2 && a.count == 0)
+    }
+
+    @Test func autoReviewStillConfirmsAgentDeletes() async throws {
+        let pres = Presenter(.rejected)
+        let svc = try makeService(pres)
+        let a = FakeAdapter("delete", kind: .delete, rule: .always)
+        await svc.register(a)
+        #expect(await svc.submit(req("delete", origin: .agent(sessionID: "s"))).status == .rejected)
+        #expect(pres.count == 1 && a.count == 0)
+    }
+
     @Test func forgedConfirmationIsIgnoredForMCP() async throws {
         let pres = Presenter(.rejected)
         let inst = MCPInstance(id: "i", name: "c", enabled: true, readOnly: false, sources: [.calendar])

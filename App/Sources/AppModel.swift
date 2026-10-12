@@ -31,6 +31,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Lets background AI read recent SMS/iMessage; nil (settings saved before this option) means off.
     /// Optional so older settings still decode. Also needs Full Disk Access.
     var advisorReadsMessages: Bool?
+    /// Global AI-conversation approval mode; nil (settings saved before this option) means auto review.
+    var approvalMode: ApprovalMode?
 
     static let key = "app.settings"
 }
@@ -137,7 +139,8 @@ final class AppModel {
         tools = ToolService(store: store, policy: {
             let s = reader.load()
             return PolicySnapshot(enabledSources: s.enabledSources.union(s.webSearchEnabled == false ? [.plugins] : [.plugins, .web]),
-                                  mcpInstances: Dictionary(uniqueKeysWithValues: instances.all().map { ($0.id, $0) }))
+                                  mcpInstances: Dictionary(uniqueKeysWithValues: instances.all().map { ($0.id, $0) }),
+                                  approvalMode: s.approvalMode ?? .autoReview)
         }, presenter: { request in await confirmations.present(request) },
            pluginRuntime: PluginRuntimeConfiguration(nodePath: NodeRuntimeLauncher.findNode(bundleResources: Bundle.main.resourceURL),
                runnerPath: Self.runtimeEntry().map { URL(filePath: $0).deletingLastPathComponent().appending(path: "plugin-runner.js").path }),

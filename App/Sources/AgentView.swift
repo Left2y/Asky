@@ -544,6 +544,7 @@ private struct Composer: View {
                 .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
                 .accessibilityLabel(NSLocalizedString("选择文件或图片", comment: ""))
                 Spacer()
+                ApprovalModePicker(model: model)
                 Button { if model.isRunning { model.stop() } else { model.send() } } label: {
                     Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")
                         .font(.system(size: 14, weight: .medium)).frame(width: 32, height: 32)
@@ -568,6 +569,89 @@ private struct Composer: View {
             urls.forEach { model.attach(fileURL: $0) }
             return !urls.isEmpty
         }
+    }
+}
+
+private struct ApprovalModePicker: View {
+    @Bindable var model: AgentModel
+    @State private var showing = false
+
+    private static let fullAccessColor = Color.orange
+
+    var body: some View {
+        let mode = model.approvalMode
+        Button { showing.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: Self.icon(mode)).font(.system(size: 13))
+                Text(Self.shortTitle(mode)).font(.system(size: 13))
+            }
+            .foregroundStyle(mode == .fullAccess ? AnyShapeStyle(Self.fullAccessColor) : AnyShapeStyle(ThemeColor.kTextSubtle))
+            .padding(.horizontal, 10).frame(height: 32)
+        }
+        .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
+        .accessibilityLabel(NSLocalizedString("审批模式", comment: ""))
+        .accessibilityValue(Self.title(mode))
+        .popover(isPresented: $showing, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(ApprovalMode.allCases, id: \.self) { option in
+                    ApprovalModeRow(option: option, selected: option == mode) {
+                        model.approvalMode = option
+                        showing = false
+                    }
+                }
+            }
+            .padding(6).frame(width: 340)
+        }
+    }
+
+    static func icon(_ mode: ApprovalMode) -> String {
+        mode == .fullAccess ? "exclamationmark.shield" : "checkmark.shield"
+    }
+
+    static func shortTitle(_ mode: ApprovalMode) -> String {
+        mode == .fullAccess ? NSLocalizedString("完全访问", comment: "") : NSLocalizedString("自动审批", comment: "")
+    }
+
+    static func title(_ mode: ApprovalMode) -> String {
+        mode == .fullAccess ? NSLocalizedString("完全访问权限", comment: "") : NSLocalizedString("自动审批", comment: "")
+    }
+
+    static func detail(_ mode: ApprovalMode) -> String {
+        mode == .fullAccess
+            ? NSLocalizedString("AI 执行任何操作都不再询问，包括删除、发送和修改", comment: "")
+            : NSLocalizedString("仅对检测到的风险操作请求批准", comment: "")
+    }
+}
+
+private struct ApprovalModeRow: View {
+    let option: ApprovalMode
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        let tint = option == .fullAccess ? AnyShapeStyle(Color.orange) : AnyShapeStyle(ThemeColor.kText)
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: ApprovalModePicker.icon(option)).font(.system(size: 15)).frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ApprovalModePicker.title(option)).font(.system(size: 13, weight: .medium))
+                    Text(ApprovalModePicker.detail(option)).font(.system(size: 12)).opacity(0.75)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                if selected { Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)) }
+            }
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .contentShape(.rect(cornerRadius: 8))
+            .background {
+                if hovering { RoundedRectangle(cornerRadius: 8).fill(ThemeColor.kInteractionHover) }
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

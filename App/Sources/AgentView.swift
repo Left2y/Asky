@@ -207,6 +207,9 @@ struct AgentView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 56)
+        .contentShape(Rectangle())
+        .gesture(WindowDragGesture())
+        .allowsWindowActivationEvents()
     }
 
     private func headerIcon(_ symbol: String) -> some View {

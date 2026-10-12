@@ -46,7 +46,7 @@ extension ToolService {
         case .messages: bundleID = "com.apple.MobileSMS"
         case .maps: bundleID = "com.apple.Maps"
         case .terminal: bundleID = "com.apple.Terminal"
-        case .clipboard, .plugins: return nil
+        case .clipboard, .plugins, .web: return nil
         case .memory: return nil // The App supplies its own bundled Asky logo.
         }
         guard let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return nil }

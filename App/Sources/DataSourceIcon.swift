@@ -27,6 +27,7 @@ struct DataSourceIcon: View {
         case .messages: "message"
         case .terminal: "terminal"
         case .maps: "map"
+        case .web: "globe"
         case .clipboard: "doc.on.clipboard"
         case .plugins: "puzzlepiece.extension"
         case .memory: "brain"

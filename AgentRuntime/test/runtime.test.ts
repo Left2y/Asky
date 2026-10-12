@@ -249,3 +249,25 @@ test("runtime rejects a v1 host handshake", async () => {
   try { p.send({ type: "hello", protocol: 1 }); assert.match((await p.next(f => f.type === "error")).message, /protocol mismatch/); }
   finally { p.child.stdin.end(); assert.equal(await p.exit, 0); }
 });
+
+test("public web search round trip preserves sources and search policy", async () => {
+  const mock = await startMock([() => toolCallReply("web_search", { query: "Swift", count: 3 }), () => textReply("来源：[Swift](https://swift.org/)")]);
+  const p = launch(mkdtempSync(join(tmpdir(), "asky-web-")));
+  try {
+    await handshake(p, mock);
+    const web = { name: "web_search", summary: "Search public web", inputSchema: { type: "object", properties: { query: { type: "string" }, count: { type: "integer" } }, required: ["query"] }, source: "web", effect: "read", confirmation: "never", externallyExposable: false, agentExposable: true };
+    p.send({ type: "resources", tools: [web], pluginGuidance: [] });
+    p.send({ type: "prompt", request: request("web1", "联网搜索 Swift") });
+    const call = await p.next((f) => f.type === "toolCall");
+    assert.equal(call.tool, "web_search");
+    assert.deepEqual(call.arguments, { query: "Swift", count: 3 });
+    p.send({ type: "toolResult", callID: call.callID, result: { requestID: call.callID, status: "completed", output: { results: [{ title: "Swift", url: "https://swift.org/", snippet: "Swift language" }], contentType: "search_snippets" } } });
+    const reply = await p.next((f) => f.type === "message");
+    assert.ok(reply.text.includes("https://swift.org/"));
+    await p.next((f) => f.type === "taskState" && f.state === "completed");
+    assert.ok(JSON.stringify(mock.requests[1].body.messages).includes("search_snippets"));
+    assert.ok(mock.requests[0].body.messages.find((m: any) => m.role === "system").content.includes("搜索摘要不等于已读取网页全文"));
+    p.send({ type: "shutdown" });
+    assert.equal(await p.exit, 0);
+  } finally { p.child.kill(); await new Promise<void>((r) => mock.server.close(() => r())); }
+});

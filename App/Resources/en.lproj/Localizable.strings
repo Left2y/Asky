@@ -420,3 +420,9 @@
 "未找到文件夹，请先在 Apple 备忘录中添加账户或创建文件夹，再刷新。" = "No folders found. Add an account or create a folder in Apple Notes, then refresh.";
 "无法读取备忘录文件夹，请重试。" = "Unable to load Notes folders. Please try again.";
 "打开自动化权限设置…" = "Open Automation Settings…";
+
+"联网搜索" = "Web Search";
+
+"允许 AI 搜索公开网页" = "Allow AI to search public webpages";
+
+"搜索词发送至 Bing，结果摘要发送至配置的模型服务；无需额外 API Key。" = "Queries are sent to Bing and result snippets to your configured model provider. No extra API key is required.";

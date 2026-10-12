@@ -2,7 +2,7 @@ import Foundation
 import CryptoKit
 
 public enum DataSourceID: String, Sendable, Codable, CaseIterable {
-    case calendar, reminders, notes, contacts, chrome, shortcuts, messages, terminal, memory, clipboard, maps, plugins
+    case calendar, reminders, notes, contacts, chrome, shortcuts, messages, terminal, memory, clipboard, maps, plugins, web
 }
 
 public enum ToolEffect: String, Sendable, Codable {

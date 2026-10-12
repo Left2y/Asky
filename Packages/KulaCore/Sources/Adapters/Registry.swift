@@ -61,7 +61,7 @@ public struct NativeTools: Sendable {
             NotesListFoldersTool(notes), NotesSearchTool(notes), NotesReadTool(notes), NotesCreateTool(notes), NotesAppendTool(notes),
             ContactsSearchTool(contacts), MessagesDraftTool(contacts),
             ChromeListTabsTool(chrome), ChromeActivateTabTool(chrome),
-            ShortcutsListTool(), ShortcutsRunTool(),
+            ShortcutsListTool(), ShortcutsRunTool(), WebSearchTool(),
         ]
         if let memories { all.append(MemorySearchTool(memories)) }
         return all

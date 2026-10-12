@@ -39,6 +39,7 @@ struct ChatItem: Identifiable, Hashable {
         case let n where n.hasPrefix("messages_"): return "message"
         case let n where n.hasPrefix("chrome_"): return "globe"
         case let n where n.hasPrefix("shortcuts_"): return "square.stack.3d.up"
+        case "web_search": return "globe"
         case "memory_search": return "brain"
         default: return "gearshape"
         }

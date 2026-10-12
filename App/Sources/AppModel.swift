@@ -25,6 +25,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     var terminalWorkingDirectory: String = FileManager.default.homeDirectoryForCurrentUser.path
     var memoryExtractionPaused = false
     var backgroundAI = false
+    /// Older settings enable public web search without resetting other source choices.
+    var webSearchEnabled: Bool?
     var proactiveReminders = false
 
     static let key = "app.settings"
@@ -131,7 +133,7 @@ final class AppModel {
         let instances = MCPInstanceStore(store)
         tools = ToolService(store: store, policy: {
             let s = reader.load()
-            return PolicySnapshot(enabledSources: s.enabledSources.union([.plugins]),
+            return PolicySnapshot(enabledSources: s.enabledSources.union(s.webSearchEnabled == false ? [.plugins] : [.plugins, .web]),
                                   mcpInstances: Dictionary(uniqueKeysWithValues: instances.all().map { ($0.id, $0) }))
         }, presenter: { request in await confirmations.present(request) },
            pluginRuntime: PluginRuntimeConfiguration(nodePath: NodeRuntimeLauncher.findNode(bundleResources: Bundle.main.resourceURL),

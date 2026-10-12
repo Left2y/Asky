@@ -6,6 +6,7 @@ import AgentHost
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 import ToolService
+import Scheduler
 
 struct ChatItem: Identifiable, Hashable {
     enum Kind: Hashable { case user, assistant, tool(ExecutionStatus?), notice, error }
@@ -40,7 +41,7 @@ struct ChatItem: Identifiable, Hashable {
         case let n where n.hasPrefix("chrome_"): return "globe"
         case let n where n.hasPrefix("shortcuts_"): return "square.stack.3d.up"
         case "web_search": return "globe"
-        case "memory_search": return "brain"
+        case "memory_search", "memory_save", "memory_correct", "memory_forget": return "brain"
         default: return "gearshape"
         }
     }
@@ -280,6 +281,24 @@ final class AgentModel {
         }
         if !app.settings.memoryExtractionPaused { _ = try? ExtractionQueue(app.store).enqueue(sid) }
         try? ActivityStore(app.store).append(kind: "conversation", sourceID: sid, text: String(items.last?.text.prefix(200) ?? ""))
+        extractMemories()
+    }
+
+    private var extracting = false
+
+    /// Processes a small batch of the extraction queue right after an explicit AI use.
+    private func extractMemories() {
+        guard !extracting, !app.settings.memoryExtractionPaused, app.settings.enabledSources.contains(.memory),
+              let cfg = app.modelConfiguration else { return }
+        extracting = true
+        let store = app.store, keychain = app.keychain, account = cfg.credentialRef
+        Task {
+            defer { extracting = false }
+            guard let key = await Task.detached(operation: { try? keychain.read(account: account, allowInteraction: false) }).value,
+                  !key.isEmpty else { return }
+            let client = ChatCompletionClient(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
+            await MemoryExtractor(store: store) { try await client.complete(system: $0, user: $1) }.run()
+        }
     }
 
     static func statusLabel(_ s: ExecutionStatus) -> String {

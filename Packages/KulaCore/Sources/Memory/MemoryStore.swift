@@ -50,6 +50,23 @@ public struct MemoryStore: Sendable {
         return r
     }
 
+    /// Source for memories the user asked the assistant to save in conversation.
+    public static let assistantSourceID = "assistant"
+
+    /// Saves a memory the user explicitly stated to the assistant. Identical active content is reused.
+    @discardableResult
+    public func saveStated(_ content: String, kind: MemoryKind, subjects: [String] = [], now: Date = Date()) throws -> MemoryRecord {
+        if let same = try db.query("SELECT * FROM memories WHERE content = ? AND status = 'active' LIMIT 1", [content]).first {
+            return Self.decode(same)
+        }
+        if sources.source(Self.assistantSourceID) == nil {
+            try sources.upsert(SourceRecord(id: Self.assistantSourceID, kind: "assistant", title: "对话中保存",
+                                            permissions: [.read, .aiUse], createdAt: now))
+        }
+        return try insert(MemoryRecord(content: content, kind: kind, sourceIDs: [Self.assistantSourceID], subjects: subjects,
+                                       confirmed: true, permissions: [.read, .aiUse], createdAt: now, updatedAt: now))
+    }
+
     public func get(_ id: String) -> MemoryRecord? {
         (try? db.query("SELECT * FROM memories WHERE id = ?", [id]))?.first.map(Self.decode)
     }

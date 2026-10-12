@@ -586,6 +586,7 @@ private struct ResultList: View {
     let maxHeight: CGFloat
     var excludedCurrencyCode: String? = nil
     @State private var retainedHeight: CGFloat = 0
+    private enum ScrollTarget: Hashable { case bottom }
 
     private struct LayoutRequest: Equatable {
         let query: String
@@ -652,9 +653,12 @@ private struct ResultList: View {
                             }
                         }
                     }
+                    Color.clear
+                        .frame(height: LauncherLayout.listBottomPadding)
+                        .id(ScrollTarget.bottom)
+                        .accessibilityHidden(true)
                 }
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
-                .padding(.bottom, LauncherLayout.listBottomPadding)
             }
             .scrollIndicators(.hidden)
             .frame(height: min(maxHeight, max(height, retainedHeight)))
@@ -672,7 +676,13 @@ private struct ResultList: View {
                 retainedHeight = target
             }
             .onChange(of: model.selection) { _, s in
-                if model.results.indices.contains(s) { proxy.scrollTo(model.results[s].id) }
+                guard model.results.indices.contains(s) else { return }
+                if model.results[s].id == visibleResults.last?.id {
+                    // Include the shell clearance when revealing the final row.
+                    proxy.scrollTo(ScrollTarget.bottom, anchor: .bottom)
+                } else {
+                    proxy.scrollTo(model.results[s].id)
+                }
             }
         }
     }

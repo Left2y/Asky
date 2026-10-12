@@ -555,6 +555,12 @@ enum LauncherWindowRegression {
         }
         try await Task.sleep(for: .milliseconds(200))
         try require(model.selection == model.results.count - 1, "repeated Down must stop at the last result")
+        guard let document = scroll.documentView else {
+            throw NSError(domain: "LauncherWindowRegression", code: 3)
+        }
+        let remaining = document.bounds.maxY - scroll.contentView.bounds.maxY
+        try require(abs(remaining) <= 1,
+                    "last selection must reveal the full document including bottom clearance, remaining=\(remaining)")
         let bottom = scroll.contentView.bounds.origin.y
         _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
         try await Task.sleep(for: .milliseconds(200))
@@ -702,8 +708,11 @@ enum LauncherWindowRegression {
             try require(abs(baseline.height - expectedHeight) <= 1,
                         "long results must use the increased 400 pt list budget within screen bounds")
         }
-        try await checkSystemDelivery(controller: controller, panel: panel, content: content)
+        if !CommandLine.arguments.contains("--bottom-clearance") {
+            try await checkSystemDelivery(controller: controller, panel: panel, content: content)
+        }
         try await checkScrolling(panel: panel, content: content, model: model, editor: editor)
+        if CommandLine.arguments.contains("--bottom-clearance") { return }
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
         var minHeight = baseline.height

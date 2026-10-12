@@ -112,6 +112,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
+python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
@@ -137,6 +138,8 @@ python3 App/Tests/run-application-termination-regression.py
 ```
 
 剪贴板 `--drag` 检查真实鼠标拖放与未固定面板关闭；`--drag-preview` 保留带测试卡片的未固定面板供人工拖放。设置 `ASKY_CLIPBOARD_DROP_POINT=x,y` 可将 `--drag` 目标改为屏幕坐标下的外部输入框，搭配 `ASKY_CLIPBOARD_DRAG_IMAGE=1` 拖第二张图片卡片；外部目标内容需另行回读确认。
+
+启动器 `--bottom-clearance` 专项检查列表滚动、键盘首尾导航与最后一项的底部留白，覆盖亮暗模式；不运行系统事件投递与异步搜索时序检查。
 
 并行构建时，启动器与设置回归脚本支持用 `ASKY_DERIVED_DATA` 指定独立的 DerivedData 目录，默认使用 `build/DerivedData`。启动器同时隔离回归产物；设置脚本兼容旧变量 `KULAHERE_DERIVED_DATA`。
 
@@ -273,6 +276,7 @@ After the Debug build in Quick Start, run native regression checks. Some interac
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
+python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
@@ -298,6 +302,8 @@ python3 App/Tests/run-application-termination-regression.py
 ```
 
 Clipboard `--drag` checks a real mouse drop and unpinned panel dismissal; `--drag-preview` keeps an unpinned panel with test cards open for manual drops. Set `ASKY_CLIPBOARD_DROP_POINT=x,y` to target an external input at screen coordinates, and add `ASKY_CLIPBOARD_DRAG_IMAGE=1` to drag the second image card. Read back external destination contents separately to confirm the result.
+
+Launcher `--bottom-clearance` checks list scrolling, keyboard navigation at both ends, and the final row's bottom clearance in light and dark modes. It skips system event delivery and asynchronous search timing checks.
 
 For concurrent builds, the launcher and settings regression scripts accept `ASKY_DERIVED_DATA` to select an isolated DerivedData directory, defaulting to `build/DerivedData`. Launcher regression artifacts are isolated as well; the settings script also supports the legacy `KULAHERE_DERIVED_DATA` variable.
 

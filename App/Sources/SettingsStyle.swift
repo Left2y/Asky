@@ -155,16 +155,34 @@ struct SettingsButton: View {
     let action: () -> Void
     let role: ButtonRole?
     var systemImage: String?
-    init(_ title: String, role: ButtonRole? = nil, systemImage: String? = nil, action: @escaping () -> Void) {
+    var isLoading: Bool
+    var isComplete: Bool
+    var loadingTitle: String?
+    init(_ title: String, role: ButtonRole? = nil, systemImage: String? = nil,
+         isLoading: Bool = false, isComplete: Bool = false, loadingTitle: String? = nil,
+         action: @escaping () -> Void) {
         self.title = title; self.role = role; self.systemImage = systemImage; self.action = action
+        self.isLoading = isLoading; self.isComplete = isComplete; self.loadingTitle = loadingTitle
     }
-    var body: some View { SettingsPushButton(title: title, role: role, systemImage: systemImage, action: action).fixedSize() }
+    var body: some View {
+        SettingsPushButton(title: title, role: role, systemImage: systemImage,
+                           hidesTitle: isLoading || isComplete, action: action)
+            .fixedSize()
+            .overlay {
+                if isComplete { Image(systemName: "checkmark").accessibilityHidden(true) }
+                else if isLoading {
+                    if let loadingTitle { Text(loadingTitle).font(.system(size: 14)) }
+                    else { ProgressView().controlSize(.small) }
+                }
+            }
+    }
 }
 
 private struct SettingsPushButton: NSViewRepresentable {
     let title: String
     let role: ButtonRole?
     let systemImage: String?
+    let hidesTitle: Bool
     let action: () -> Void
     @Environment(\.isEnabled) private var enabled
     @Environment(\.controlSize) private var controlSize
@@ -178,6 +196,11 @@ private struct SettingsPushButton: NSViewRepresentable {
     }
     func updateNSView(_ button: NSButton, context: Context) {
         button.title = title
+        button.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: 14),
+            .foregroundColor: hidesTitle ? NSColor.clear : role == .destructive ? NSColor.systemRed :
+                enabled ? NSColor.controlTextColor : NSColor.disabledControlTextColor
+        ])
         button.controlSize = controlSize == .large || controlSize == .extraLarge ? .large : .regular
         button.image = systemImage.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
         button.imagePosition = systemImage == nil ? .noImage : .imageLeading
@@ -195,9 +218,39 @@ private struct SettingsPushButton: NSViewRepresentable {
     }
 }
 
+struct SettingsCheckbox: NSViewRepresentable {
+    let title: String
+    @Binding var isOn: Bool
+    @Environment(\.isEnabled) private var enabled
+
+    func makeCoordinator() -> Coordinator { Coordinator(isOn: $isOn) }
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(checkboxWithTitle: title, target: context.coordinator,
+                              action: #selector(Coordinator.toggle(_:)))
+        button.font = .systemFont(ofSize: 14)
+        return button
+    }
+    func updateNSView(_ button: NSButton, context: Context) {
+        context.coordinator.isOn = $isOn
+        button.title = title
+        button.state = isOn ? .on : .off
+        button.isEnabled = enabled
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
+        nsView.intrinsicContentSize
+    }
+    final class Coordinator: NSObject {
+        var isOn: Binding<Bool>
+        init(isOn: Binding<Bool>) { self.isOn = isOn }
+        @objc func toggle(_ sender: NSButton) { isOn.wrappedValue = sender.state == .on }
+    }
+}
+
 struct SettingsChoice<Value: Hashable>: NSViewRepresentable {
     @Binding var selection: Value
     let options: [(Value, String)]
+    var images: [Value: NSImage] = [:]
+    @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator(selection: $selection, options: options) }
     func makeNSView(context: Context) -> NSPopUpButton {
         let button = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -210,8 +263,16 @@ struct SettingsChoice<Value: Hashable>: NSViewRepresentable {
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         context.coordinator.selection = $selection
         context.coordinator.options = options
+        button.isEnabled = enabled
         if button.itemTitles != options.map({ $0.1 }) {
             button.removeAllItems(); button.addItems(withTitles: options.map { $0.1 })
+        }
+        for (index, option) in options.enumerated() {
+            button.item(at: index)?.image = images[option.0].map { image in
+                let thumbnail = (image.copy() as? NSImage) ?? image
+                thumbnail.size = NSSize(width: 16, height: 16)
+                return thumbnail
+            }
         }
         if let index = options.firstIndex(where: { $0.0 == selection }) { button.selectItem(at: index) }
     }

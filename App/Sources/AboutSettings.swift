@@ -29,8 +29,9 @@ struct AboutSettings: View {
                 HStack {
                     Text(NSLocalizedString("在 GitHub 查看项目", comment: ""))
                     Spacer(minLength: 12)
-                    Link(NSLocalizedString("前往", comment: ""), destination: ToolService.appRepositoryURL)
-                        .buttonStyle(.bordered)
+                    SettingsButton(NSLocalizedString("前往", comment: "")) {
+                        _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
+                    }
                 }
             }
             Section(NSLocalizedString("软件更新", comment: "")) {

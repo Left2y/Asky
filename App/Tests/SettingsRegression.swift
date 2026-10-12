@@ -145,6 +145,7 @@ enum SettingsRegression {
                     print("Plugin native snapshots passed: \(Bundle.main.preferredLocalizations)")
                     exit(0)
                 }
+                _ = try model.gateway.register(name: "Settings layout fixture")
                 for appearance in ["light", "dark"] {
                     model.preferences.appearance = appearance
                     for page in SettingsPage.allCases {
@@ -155,6 +156,9 @@ enum SettingsRegression {
                         assertDetailBelowToolbar(split, window: window)
                         guard window.title == "\(page.title) — Asky 设置" else {
                             fatalError("settings title did not follow selection: \(tab)")
+                        }
+                        if page == .mcp {
+                            assertMCPCheckboxLayout(in: split.splitViewItems[1].viewController.view)
                         }
                         guard let view = window.contentView,
                               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing settings view") }
@@ -320,6 +324,18 @@ enum SettingsRegression {
         guard viewport.maxY <= window.contentLayoutRect.maxY + 0.5,
               viewport.height > 400 else {
             fatalError("settings scroll viewport overlaps toolbar: \(viewport), layout: \(window.contentLayoutRect)")
+        }
+    }
+
+    private static func assertMCPCheckboxLayout(in view: NSView) {
+        func buttons(in view: NSView) -> [NSButton] {
+            (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons(in: $0) }
+        }
+        let labels = ["calendar", "reminders", "notes", "contacts", "chrome", "shortcuts", "messages"]
+        let controls = buttons(in: view).filter { labels.contains($0.title) }
+        guard Set(controls.map(\.title)) == Set(labels),
+              controls.allSatisfy({ $0.bounds.height <= 32 && $0.bounds.width > 40 }) else {
+            fatalError("MCP tool checkbox labels disappeared or controls expanded vertically")
         }
     }
 

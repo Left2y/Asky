@@ -415,14 +415,15 @@ private struct ModelSettingsView: View {
     var body: some View {
         SettingsForm {
             Section(NSLocalizedString("供应商与模型", comment: "")) {
-                Picker(NSLocalizedString("供应商", comment: ""), selection: Binding(get: { provider }, set: { value in
-                    provider = value
-                    if value == "openai" { baseURL = "https://api.openai.com/v1"; model = "" }
-                    if value == "deepseek" { baseURL = "https://api.deepseek.com"; model = "" }
-                })) {
-                    Text(NSLocalizedString("自定义（OpenAI 兼容）", comment: "")).tag("custom")
-                    Text("OpenAI").tag("openai")
-                    Text("DeepSeek").tag("deepseek")
+                LabeledContent(NSLocalizedString("供应商", comment: "")) {
+                    SettingsChoice(selection: Binding(get: { provider }, set: { value in
+                        provider = value
+                        if value == "openai" { baseURL = "https://api.openai.com/v1"; model = "" }
+                        if value == "deepseek" { baseURL = "https://api.deepseek.com"; model = "" }
+                    }), options: [
+                        ("custom", NSLocalizedString("自定义（OpenAI 兼容）", comment: "")),
+                        ("openai", "OpenAI"), ("deepseek", "DeepSeek")
+                    ])
                 }
 
                 SettingsTextField(NSLocalizedString("API 地址", comment: ""), text: $baseURL, prompt: Text("https://api.example.com/v1"))
@@ -431,23 +432,14 @@ private struct ModelSettingsView: View {
             }
             Section {
                 HStack {
-                    Button { Task { await save() } } label: {
-                        Text(NSLocalizedString("保存", comment: ""))
-                            .opacity(saved || saving ? 0 : 1)
-                            .overlay {
-                                if saved { Image(systemName: "checkmark") }
-                                else if saving { ProgressView().controlSize(.small) }
-                            }
+                    SettingsButton(NSLocalizedString("保存", comment: ""), isLoading: saving, isComplete: saved) {
+                        Task { await save() }
                     }
                     .disabled(saving || saved || checking)
                     .accessibilityLabel(saved ? NSLocalizedString("已保存", comment: "") : NSLocalizedString("保存", comment: ""))
-                    Button { Task { await check() } } label: {
-                        Text(NSLocalizedString("检查已保存配置", comment: ""))
-                            .opacity(checked || checking ? 0 : 1)
-                            .overlay {
-                                if checked { Image(systemName: "checkmark") }
-                                else if checking { Text(NSLocalizedString("检查中…", comment: "")) }
-                            }
+                    SettingsButton(NSLocalizedString("检查已保存配置", comment: ""), isLoading: checking, isComplete: checked,
+                                   loadingTitle: NSLocalizedString("检查中…", comment: "")) {
+                        Task { await check() }
                     }
                     .disabled(checking || checked || saving || app.modelConfiguration == nil)
                     .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : checking ? NSLocalizedString("检查中", comment: "") : NSLocalizedString("检查已保存配置", comment: ""))
@@ -607,11 +599,10 @@ private struct MemorySettings: View {
                                 .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                             HStack {
                                 SettingsButton(NSLocalizedString("编辑", comment: "")) { editing = m.id; draft = m.content }
-                                Button(m.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定", comment: "")) { try? app.memories.setPinned(m.id, !m.pinned); reload() }
+                                SettingsButton(m.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定", comment: "")) { try? app.memories.setPinned(m.id, !m.pinned); reload() }
                                 if !m.confirmed { SettingsButton(NSLocalizedString("确认", comment: "")) { try? app.memories.confirm(m.id); reload() } }
                                 SettingsButton(NSLocalizedString("删除", comment: ""), role: .destructive) { try? app.memories.delete(m.id); reload() }
                             }
-                            .buttonStyle(.link)
                         }
                     }
                 }
@@ -665,18 +656,19 @@ private struct MCPSettings: View {
                         }
                         Toggle(NSLocalizedString("启用", comment: ""), isOn: $inst.enabled).onChange(of: inst.enabled) { save(inst) }
                         Toggle(NSLocalizedString("只读", comment: ""), isOn: $inst.readOnly).onChange(of: inst.readOnly) { save(inst) }
-                        HStack {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), alignment: .leading)],
+                                  alignment: .leading, spacing: 12) {
                             ForEach(Self.exposable, id: \.self) { s in
-                                Toggle(s.rawValue, isOn: Binding(
+                                SettingsCheckbox(title: s.rawValue, isOn: Binding(
                                     get: { inst.sources.contains(s) },
                                     set: { on in
                                         if on { inst.sources.append(s) } else { inst.sources.removeAll { $0 == s } }
                                         save(inst)
                                     }))
-                                .toggleStyle(.checkbox)
+                                .fixedSize()
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
-                        .textStyle(.secondary)
                     }
                 }
                 HStack {

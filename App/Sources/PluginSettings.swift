@@ -150,7 +150,9 @@ private struct PluginConfigurationEditor: View {
                     if field.type == "boolean" {
                         Toggle(field.label, isOn: Binding(get: { values[field.key]?.boolValue ?? false }, set: { values[field.key] = .bool($0) }))
                     } else if field.type == "enum" {
-                        Picker(field.label, selection: text(field.key)) { ForEach(field.options ?? [], id: \.self) { Text($0).tag($0) } }
+                        LabeledContent(field.label) {
+                            SettingsChoice(selection: text(field.key), options: (field.options ?? []).map { ($0, $0) })
+                        }
                     } else {
                         SettingsTextField(field.label, text: text(field.key))
                     }

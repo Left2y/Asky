@@ -33,16 +33,16 @@ struct CommandSettings: View {
                     .foregroundStyle(.secondary)
             }
             Section(NSLocalizedString("终端", comment: "")) {
-                Picker(NSLocalizedString("执行命令的终端", comment: ""), selection: Binding(
-                    get: { app.settings.terminalApplicationID ?? LauncherTerminalApplication.system.rawValue },
-                    set: { app.settings.terminalApplicationID = $0 })) {
-                    ForEach(terminalChoices) { terminal in
-                        HStack {
-                            CommandIcon(terminalIcon: ToolService.launcherTerminalIcon(terminal))
-                                .accessibilityHidden(true)
-                            Text(terminal.name + (terminals.contains(terminal) ? "" : NSLocalizedString("（未安装）", comment: "")))
-                        }.tag(terminal.rawValue)
-                    }
+                LabeledContent(NSLocalizedString("执行命令的终端", comment: "")) {
+                    SettingsChoice(selection: Binding(
+                        get: { app.settings.terminalApplicationID ?? LauncherTerminalApplication.system.rawValue },
+                        set: { app.settings.terminalApplicationID = $0 }),
+                        options: terminalChoices.map { terminal in
+                            (terminal.rawValue, terminal.name + (terminals.contains(terminal) ? "" : NSLocalizedString("（未安装）", comment: "")))
+                        },
+                        images: Dictionary(uniqueKeysWithValues: terminalChoices.compactMap { terminal in
+                            ToolService.launcherTerminalIcon(terminal).map { (terminal.rawValue, $0) }
+                        }))
                 }
                 Text(NSLocalizedString("支持系统终端、iTerm2 与 Ghostty 1.3+，列表显示已安装的终端。", comment: ""))
                     .foregroundStyle(.secondary)

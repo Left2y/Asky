@@ -32,9 +32,11 @@ struct AliasSettings: View {
             }
             Section(editing == nil ? NSLocalizedString("添加别名", comment: "") : NSLocalizedString("编辑别名", comment: "")) {
                 SettingsTextField(NSLocalizedString("别名", comment: ""), text: $alias)
-                Picker(NSLocalizedString("类型", comment: ""), selection: $kind) {
-                    Text(NSLocalizedString("应用", comment: "")).tag("app")
-                    Text(NSLocalizedString("快捷指令", comment: "")).tag("shortcut")
+                LabeledContent(NSLocalizedString("类型", comment: "")) {
+                    SettingsChoice(selection: $kind, options: [
+                        ("app", NSLocalizedString("应用", comment: "")),
+                        ("shortcut", NSLocalizedString("快捷指令", comment: ""))
+                    ])
                 }.onChange(of: kind) { _, _ in target = "" }
                 if kind == "app" {
                     LabeledContent(NSLocalizedString("应用", comment: "")) {
@@ -49,14 +51,12 @@ struct AliasSettings: View {
                         }
                     }
                 } else {
-                    Picker(NSLocalizedString("快捷指令", comment: ""), selection: $target) {
-                        Text(NSLocalizedString("请选择", comment: "")).tag("")
-                        ForEach(Array(Set(shortcuts + (target.isEmpty ? [] : [target]))).sorted(), id: \.self) { name in
-                            HStack {
-                                targetIcon(kind: "shortcut", target: name)
-                                Text(name)
-                            }.tag(name)
-                        }
+                    LabeledContent(NSLocalizedString("快捷指令", comment: "")) {
+                        SettingsChoice(selection: $target, options:
+                            [("", NSLocalizedString("请选择", comment: ""))] + shortcutChoices.map { ($0, $0) },
+                            images: Dictionary(uniqueKeysWithValues: shortcutChoices.map {
+                                ($0, ToolService.launcherIcon(filePath: "/System/Applications/Shortcuts.app"))
+                            }))
                     }
                     SettingsButton(NSLocalizedString("刷新快捷指令", comment: "")) { Task { shortcuts = await ToolService.listLauncherShortcuts() } }
                     if shortcuts.isEmpty { Text(NSLocalizedString("暂无快捷指令", comment: "")).foregroundStyle(.secondary) }
@@ -69,6 +69,10 @@ struct AliasSettings: View {
             }
         }
          .task { shortcuts = await ToolService.listLauncherShortcuts() }
+    }
+
+    private var shortcutChoices: [String] {
+        Array(Set(shortcuts + (target.isEmpty ? [] : [target]))).sorted()
     }
 
     private func targetIcon(kind: String, target: String) -> some View {

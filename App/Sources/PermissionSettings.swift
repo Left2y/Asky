@@ -75,7 +75,7 @@ struct PermissionSettings: View {
                         } else {
                             HStack(spacing: 8) {
                                 if let state = model.states[permission], permission.canRequest(from: state) {
-                                    Button(model.requesting == permission ? NSLocalizedString("正在请求…", comment: "") : NSLocalizedString("请求授权", comment: "")) {
+                                    SettingsButton(model.requesting == permission ? NSLocalizedString("正在请求…", comment: "") : NSLocalizedString("请求授权", comment: "")) {
                                         Task { await model.request(permission) }
                                     }.disabled(model.requesting != nil)
                                 }

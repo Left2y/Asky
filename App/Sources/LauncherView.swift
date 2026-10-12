@@ -586,7 +586,6 @@ private struct ResultList: View {
     let maxHeight: CGFloat
     var excludedCurrencyCode: String? = nil
     @State private var retainedHeight: CGFloat = 0
-    private enum ScrollTarget: Hashable { case bottom }
 
     private struct LayoutRequest: Equatable {
         let query: String
@@ -637,6 +636,7 @@ private struct ResultList: View {
                                 if r.source == .currency {
                                     ResultRow(result: r, selected: false, keyword: nil)
                                         .accessibilityLabel(r.title)
+                                        .padding(.bottom, r.id == visibleResults.last?.id ? LauncherLayout.listBottomPadding : 0)
                                         .id(r.id)
                                 } else {
                                     Button {
@@ -648,15 +648,14 @@ private struct ResultList: View {
                                     .buttonStyle(.plain)
                                     .accessibilityLabel(r.title)
                                     .accessibilityAddTraits(i == model.selection ? .isSelected : [])
+                                    // Keep clearance inside the final row's scroll target,
+                                    // so every selection uses the same minimal reveal.
+                                    .padding(.bottom, r.id == visibleResults.last?.id ? LauncherLayout.listBottomPadding : 0)
                                     .id(r.id)
                                 }
                             }
                         }
                     }
-                    Color.clear
-                        .frame(height: LauncherLayout.listBottomPadding)
-                        .id(ScrollTarget.bottom)
-                        .accessibilityHidden(true)
                 }
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
             }
@@ -677,12 +676,7 @@ private struct ResultList: View {
             }
             .onChange(of: model.selection) { _, s in
                 guard model.results.indices.contains(s) else { return }
-                if model.results[s].id == visibleResults.last?.id {
-                    // Include the shell clearance when revealing the final row.
-                    proxy.scrollTo(ScrollTarget.bottom, anchor: .bottom)
-                } else {
-                    proxy.scrollTo(model.results[s].id)
-                }
+                proxy.scrollTo(model.results[s].id)
             }
         }
     }

@@ -567,6 +567,15 @@ enum LauncherWindowRegression {
         try require(scroll.contentView.bounds.origin.y == bottom, "Down at the last result must not scroll back to the top")
         _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
         try require(model.selection == model.results.count - 2, "Up must move away from the last result")
+        try await Task.sleep(for: .milliseconds(200))
+        let beforeLast = scroll.contentView.bounds.origin.y
+        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        try await Task.sleep(for: .milliseconds(200))
+        let lastReveal = scroll.contentView.bounds.origin.y - beforeLast
+        try require(lastReveal >= -1 && lastReveal <= LauncherLayout.rowHeight + LauncherLayout.listBottomPadding + 1,
+                    "returning to the final row must use minimal reveal, delta=\(lastReveal)")
+        try require(abs(document.bounds.maxY - scroll.contentView.bounds.maxY) <= 1,
+                    "returning to the final row must preserve bottom clearance")
         for _ in 0..<(model.results.count + 3) {
             _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
         }

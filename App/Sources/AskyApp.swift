@@ -3,6 +3,7 @@ import SwiftUI
 import Resources
 import Carbon.HIToolbox
 import ToolService
+import Contracts
 
 @main
 @MainActor
@@ -36,6 +37,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let windowPresentation = WindowPresentation()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        if CommandLine.arguments.contains("--test-confirmations") {
+            // Exercise the real shared UI without starting the model or executing tools.
+            let confirmations = ConfirmationCenter()
+            Task { @MainActor in
+                let previews: [(String, CallerOrigin)] = [
+                    ("plugin_lark__execute", .agent(sessionID: "preview")),
+                    ("calendar_update", .agent(sessionID: "preview")),
+                    ("messages_send", .agent(sessionID: "preview")),
+                    ("notes_append", .mcp(instanceID: "preview"))
+                ]
+                for (tool, origin) in previews {
+                    let decision = await confirmations.present(ConfirmationRequest(
+                        requestID: UUID().uuidString, tool: tool,
+                        target: "样式预览：不会执行真实操作",
+                        changes: ["确认完整操作内容"], argumentsDigest: "preview", origin: origin))
+                    print("confirmation-preview \(tool): \(decision.rawValue)")
+                }
+                NSApp.terminate(nil)
+            }
+            return
+        }
+        #endif
         guard !AppInstallationPrompt.handleLaunchIfNeeded() else { return }
         do { model = try AppModel() } catch {
             let alert = NSAlert()

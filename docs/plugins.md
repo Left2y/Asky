@@ -79,9 +79,11 @@ export default {
 
 ## Orca
 
-Orca 插件默认按明确项目路径添加/复用项目，从项目默认 base 创建独立 worktree，启动指定 Agent，等待就绪并发送 prompt。默认 Agent 为 codex；原目录未提交修改不会复制。返回交接 ID、工作区和 input_accepted / turn_started 等阶段，提交后不监控完成。后续查询和发送消息由用户请求。
+Orca 插件 0.2 的本地实现（尚未发布）使用 skill 指导 Agent 操作本机 CLI：`cli_query` 读取当前版本 `skills get orca-cli`、命令帮助和已打开项目，`cli_execute` 按 argv 执行用户要求的命令。通过 `repo list` 按名称发现 repo ID，已打开项目无需用户提供绝对路径；新项目添加才需要目录。歧义时展示候选，命令参数以当前 CLI 文档为准，不再限定三个固定交接工具。
 
-首版不提供远程 Orca、模型启动参数、多 Agent 编排、自动合并或发布。真实验收与模拟测试分别记录在 [验证记录](validation/2026-10-11-plugins.md)。
+交接默认使用项目默认 base 的独立 worktree，原目录未提交修改不会复制；Agent、工作区和其他选项遵循用户要求。回报真实 worktree ID、终端 handle 与接收阶段，提交后不默认监控完成。通用写操作先保存 requestID 检查点，未知结果不重放；原生 readback 返回 null，保留 pendingVerification，由 Agent 使用 `cli_query` 按具体命令核实目标。旧版交接 ID 仍可用 query_handoff / send_message。
+
+CLI 支持的能力通过实时文档发现，插件不自动合并或发布。0.2 的检查与当前安装边界见[验证记录](validation/2026-10-12-orca-cli-skill.md)；旧版真实交接验收见[插件验证](validation/2026-10-11-plugins.md)。
 
 ## 飞书 / Lark
 

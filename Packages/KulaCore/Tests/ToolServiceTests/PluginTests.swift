@@ -137,37 +137,37 @@ private func installer(version: String = "1", dependency: Bool = false, failure:
         #expect(await manager.installed().first?.enabled == false)
     }
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ASKY_ORCA_LIVE_TEST"] == "1"))
-    func liveGitHubInstallAndOrcaHandoff() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "asky-orca-live-" + UUID().uuidString)
-        // Retain this test project because Orca owns the resulting independent checkout and Agent.
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let project = root.appending(path: "project")
-        _ = try await PluginProcess.command("git", ["init", "-b", "main", project.path])
-        try "Dedicated Asky plugin acceptance project.\n".write(to: project.appending(path: "README.md"), atomically: true, encoding: .utf8)
-        _ = try await PluginProcess.command("git", ["add", "README.md"], cwd: project)
-        _ = try await PluginProcess.command("git", ["-c", "user.name=Asky Test", "-c", "user.email=asky-test@example.invalid", "commit", "-m", "test: initial acceptance project"], cwd: project)
+    func liveOrcaCLISkillAndProjectDiscovery() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "asky-orca-discovery-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
         var repository = URL(filePath: #filePath)
         for _ in 0..<5 { repository.deleteLastPathComponent() }
-        let service = ToolService(store: try LocalStore(root: root.appending(path: "data")),
+        let service = ToolService(store: try LocalStore(root: root),
             policy: { PolicySnapshot(enabledSources: [.plugins]) }, presenter: { _ in .rejected },
             pluginRuntime: .init(nodePath: try PluginProcess.executable("node"), runnerPath: repository.appending(path: "AgentRuntime/dist/src/plugin-runner.js").path))
+        // Validate optional unpublished source through ToolService and its worker,
+        // without changing the user's installed plugin or sending Agent prompts.
+        if let source = ProcessInfo.processInfo.environment["ASKY_ORCA_PLUGIN_SOURCE"] {
+            await service.plugins.setInstallationCommand { _, args, _, _ in
+                if args.first == "clone" {
+                    try FileManager.default.copyItem(at: URL(filePath: source), to: URL(filePath: args.last!))
+                }
+                return PluginCommandResult(stdout: "local-validation", stderr: "", exitCode: 0)
+            }
+        }
         try await service.plugins.install(repository: PluginManager.officialRepositories[0])
-        let request = ActionRequest(requestID: UUID().uuidString, tool: "plugin_orca__submit_task",
-            arguments: ["projectPath": .string(project.path), "agent": "codex", "name": "asky-plugin-acceptance",
-                        "prompt": "This is a plugin acceptance test. Read README.md and reply exactly ASKY_ORCA_PLUGIN_OK. Do not modify files, commit, or start other agents."],
-            origin: .agent(sessionID: "live"), intent: .explicitRequest)
-        let result = await service.submit(request)
-        try JSONEncoder().encode(result).write(to: repository.appending(path: "build/plugin-live-result.json"))
-        #expect(result.status == .completed)
-        let handoff = try #require(result.output?["handoffID"]?.stringValue)
-        #expect(["input_accepted", "turn_started"].contains(result.output?["stage"]?.stringValue ?? ""))
-        let query = await service.submit(ActionRequest(tool: "plugin_orca__query_handoff", arguments: ["handoffID": .string(handoff)], origin: .agent(sessionID: "live"), intent: .explicitRequest))
-        try JSONEncoder().encode(query).write(to: repository.appending(path: "build/plugin-live-query.json"))
-        #expect(query.status == .completed)
-        let followup = await service.submit(ActionRequest(tool: "plugin_orca__send_message", arguments: ["handoffID": .string(handoff), "prompt": "Reply exactly ASKY_ORCA_FOLLOWUP_OK. Do not modify files."], origin: .agent(sessionID: "live"), intent: .explicitRequest))
-        try JSONEncoder().encode(followup).write(to: repository.appending(path: "build/plugin-live-followup.json"))
-        #expect(followup.status == .completed)
-        print("Live plugin acceptance state retained at \(root.path)")
+        let guide = await service.submit(ActionRequest(tool: "plugin_orca__cli_query",
+            arguments: ["arguments": ["skills", "get", "orca-cli"]],
+            origin: .agent(sessionID: "live-discovery"), intent: .explicitRequest))
+        #expect(guide.status == .completed)
+        #expect(guide.output?["stdout"]?.stringValue?.contains("repo list") == true)
+        let inventory = await service.submit(ActionRequest(tool: "plugin_orca__cli_query",
+            arguments: ["arguments": ["repo", "list"]],
+            origin: .agent(sessionID: "live-discovery"), intent: .explicitRequest))
+        #expect(inventory.status == .completed)
+        let repos = try #require(inventory.output?["result"]?["repos"]?.arrayValue)
+        #expect(repos.allSatisfy { $0["id"]?.stringValue != nil && $0["path"]?.stringValue != nil })
+        print("Live Orca discovery: \(repos.count) projects; AGUI found: \(repos.contains { $0["displayName"]?.stringValue == "AGUI project" })")
     }
 
 }

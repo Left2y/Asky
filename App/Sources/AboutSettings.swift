@@ -26,12 +26,7 @@ struct AboutSettings: View {
                     }
                 }
                 .padding(.vertical, 4)
-                HStack {
-                    Text(NSLocalizedString("在 GitHub 查看项目", comment: ""))
-                    Spacer(minLength: 12)
-                    Link(NSLocalizedString("前往", comment: ""), destination: ToolService.appRepositoryURL)
-                        .buttonStyle(.bordered)
-                }
+                Link(NSLocalizedString("在 GitHub 查看项目", comment: ""), destination: ToolService.appRepositoryURL)
             }
             Section(NSLocalizedString("软件更新", comment: "")) {
                 HStack {

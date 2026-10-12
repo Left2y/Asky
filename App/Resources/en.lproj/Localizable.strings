@@ -234,6 +234,8 @@
 "退出 Asky" = "Quit Asky";
 "选择…" = "Choose…";
 "选择文件夹…" = "Choose Folder…";
+"添加文件夹…" = "Add Folder…";
+"尚未添加搜索目录" = "No search folders added yet";
 "选择文件或图片" = "Choose files or images";
 "选择要加入文件搜索范围的文件夹。" = "Choose a folder to include in file searches.";
 "通用" = "General";

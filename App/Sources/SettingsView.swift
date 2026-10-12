@@ -203,23 +203,42 @@ private struct GeneralSettings: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Section(NSLocalizedString("文件搜索范围", comment: "")) {
-                ForEach(app.settings.fileScopes, id: \.self) { p in
-                    HStack { Text(p).lineLimit(1); Spacer(); Button(NSLocalizedString("移除", comment: "")) { app.settings.fileScopes.removeAll { $0 == p } } }
+            Section {
+                if app.settings.fileScopes.isEmpty {
+                    Text(NSLocalizedString("尚未添加搜索目录", comment: ""))
+                        .foregroundStyle(.secondary)
                 }
-                Button(NSLocalizedString("选择文件夹…", comment: ""), systemImage: "folder.badge.plus") {
-                    choosingScope = true
-                    Task { @MainActor in
-                        defer { choosingScope = false }
-                        guard let folder = await ToolService.chooseLauncherSearchFolder() else { return }
-                        let path = folder.path
-                        if !app.settings.fileScopes.contains(path) { app.settings.fileScopes.append(path) }
+                ForEach(app.settings.fileScopes, id: \.self) { p in
+                    HStack {
+                        Label(p, systemImage: "folder")
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(p)
+                        Spacer()
+                        Button(NSLocalizedString("移除", comment: "")) { app.settings.fileScopes.removeAll { $0 == p } }
                     }
                 }
-                .disabled(choosingScope)
                 TextField(NSLocalizedString("排除的目录名（逗号分隔）", comment: ""), text: Binding(
                     get: { app.settings.excludedDirectories.joined(separator: ", ") },
                     set: { app.settings.excludedDirectories = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
+            } header: {
+                HStack {
+                    Text(NSLocalizedString("文件搜索范围", comment: ""))
+                    Spacer()
+                    Button(NSLocalizedString("添加文件夹…", comment: ""), systemImage: "folder.badge.plus") {
+                        choosingScope = true
+                        Task { @MainActor in
+                            defer { choosingScope = false }
+                            guard let folder = await ToolService.chooseLauncherSearchFolder() else { return }
+                            let path = folder.path
+                            if !app.settings.fileScopes.contains(path) { app.settings.fileScopes.append(path) }
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .font(.body)
+                    .disabled(choosingScope)
+                }
             }
             Section(NSLocalizedString("剪贴板", comment: "")) {
                 Toggle(NSLocalizedString("记录剪贴板历史", comment: ""), isOn: $app.settings.clipboardEnabled)

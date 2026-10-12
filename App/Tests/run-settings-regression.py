@@ -45,4 +45,6 @@ for localization in (products / "Asky.app/Contents/Resources").glob("*.lproj"):
 with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "SettingsRegression", "CFBundleIdentifier": "app.asky.settings-regression",
                   "CFBundleName": "SettingsRegression", "CFBundleDevelopmentRegion": "zh-Hans", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+# Refresh the bundle signature after replacing its executable and resources.
+subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], check=True)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

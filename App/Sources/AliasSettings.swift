@@ -13,7 +13,7 @@ struct AliasSettings: View {
     @State private var editing: UUID?
 
     var body: some View {
-        Form {
+        SettingsForm {
             Section(NSLocalizedString("应用与快捷指令别名", comment: "")) {
                 if app.preferences.aliases.isEmpty { Text(NSLocalizedString("暂无别名", comment: "")).foregroundStyle(.secondary) }
                 ForEach(app.preferences.aliases) { item in
@@ -25,13 +25,13 @@ struct AliasSettings: View {
                             Text(item.kind == "app" ? NSLocalizedString("应用", comment: "") : NSLocalizedString("快捷指令", comment: "")).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button(NSLocalizedString("编辑", comment: "")) { editing = item.id; alias = item.alias; kind = item.kind; target = item.target }
-                        Button(NSLocalizedString("删除", comment: ""), role: .destructive) { app.preferences.aliases.removeAll { $0.id == item.id } }
+                        SettingsButton(NSLocalizedString("编辑", comment: "")) { editing = item.id; alias = item.alias; kind = item.kind; target = item.target }
+                        SettingsButton(NSLocalizedString("删除", comment: ""), role: .destructive) { app.preferences.aliases.removeAll { $0.id == item.id } }
                     }
                 }
             }
             Section(editing == nil ? NSLocalizedString("添加别名", comment: "") : NSLocalizedString("编辑别名", comment: "")) {
-                TextField(NSLocalizedString("别名", comment: ""), text: $alias)
+                SettingsTextField(NSLocalizedString("别名", comment: ""), text: $alias)
                 Picker(NSLocalizedString("类型", comment: ""), selection: $kind) {
                     Text(NSLocalizedString("应用", comment: "")).tag("app")
                     Text(NSLocalizedString("快捷指令", comment: "")).tag("shortcut")
@@ -40,7 +40,7 @@ struct AliasSettings: View {
                     LabeledContent(NSLocalizedString("应用", comment: "")) {
                         if !target.isEmpty { targetIcon(kind: kind, target: target) }
                         Text(target.isEmpty ? NSLocalizedString("尚未选择", comment: "") : URL(filePath: target).deletingPathExtension().lastPathComponent)
-                        Button(NSLocalizedString("选择…", comment: "")) {
+                        SettingsButton(NSLocalizedString("选择…", comment: "")) {
                             let panel = NSOpenPanel()
                             panel.allowedContentTypes = [.applicationBundle]
                             panel.directoryURL = URL(filePath: "/Applications")
@@ -58,17 +58,16 @@ struct AliasSettings: View {
                             }.tag(name)
                         }
                     }
-                    Button(NSLocalizedString("刷新快捷指令", comment: "")) { Task { shortcuts = await ToolService.listLauncherShortcuts() } }
+                    SettingsButton(NSLocalizedString("刷新快捷指令", comment: "")) { Task { shortcuts = await ToolService.listLauncherShortcuts() } }
                     if shortcuts.isEmpty { Text(NSLocalizedString("暂无快捷指令", comment: "")).foregroundStyle(.secondary) }
                 }
                 HStack {
-                    Button(NSLocalizedString("保存别名", comment: "")) { save() }.disabled(target.isEmpty)
-                    if editing != nil { Button(NSLocalizedString("取消", comment: "")) { reset() } }
+                    SettingsButton(NSLocalizedString("保存别名", comment: "")) { save() }.disabled(target.isEmpty)
+                    if editing != nil { SettingsButton(NSLocalizedString("取消", comment: "")) { reset() } }
                 }
                 if let message { Text(message).foregroundStyle(.secondary) }
             }
         }
-        .formStyle(.grouped)
          .task { shortcuts = await ToolService.listLauncherShortcuts() }
     }
 

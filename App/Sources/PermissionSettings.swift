@@ -51,7 +51,7 @@ struct PermissionSettings: View {
     private let refreshTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        Form {
+        SettingsForm {
             Section(NSLocalizedString("系统权限", comment: "")) {
                 ForEach(SystemPermission.allCases) { permission in
                     HStack(spacing: 12) {
@@ -68,7 +68,7 @@ struct PermissionSettings: View {
                         }
                         Spacer(minLength: 12)
                         if permission.supportsAppDrag {
-                            Button(NSLocalizedString(model.states[permission] == .authorized ? "重新授权" : "去授权", comment: "")) {
+                            SettingsButton(NSLocalizedString(model.states[permission] == .authorized ? "重新授权" : "去授权", comment: "")) {
                                 model.message = nil
                                 PermissionAuthorizationWindow.shared.show(permission, colorScheme: colorScheme)
                             }
@@ -79,7 +79,7 @@ struct PermissionSettings: View {
                                         Task { await model.request(permission) }
                                     }.disabled(model.requesting != nil)
                                 }
-                                Button(NSLocalizedString("打开系统设置", comment: "")) { openSettings(permission) }
+                                SettingsButton(NSLocalizedString("打开系统设置", comment: "")) { openSettings(permission) }
                             }.fixedSize()
                         }
                     }
@@ -100,7 +100,7 @@ struct PermissionSettings: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 12)
-                    Button(NSLocalizedString(requestingChrome ? "正在请求…" :
+                    SettingsButton(NSLocalizedString(requestingChrome ? "正在请求…" :
                         app.chromeBookmarkAccessState == .authorized ? "重新授权" : "去授权", comment: "")) {
                         requestingChrome = true
                         Task {
@@ -111,11 +111,10 @@ struct PermissionSettings: View {
                     }.disabled(requestingChrome || model.requesting != nil)
                 }
                 .padding(.vertical, 4)
-                Button(NSLocalizedString("刷新权限状态", comment: "")) { Task { await refresh() } }
+                SettingsButton(NSLocalizedString("刷新权限状态", comment: "")) { Task { await refresh() } }
                 if let message = model.message { Text(message).textStyle(.secondary).textSelection(.enabled) }
             }
         }
-        .formStyle(.grouped)
         .task { await refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await refresh() }

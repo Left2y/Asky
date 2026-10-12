@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Theme
 
 enum SettingsPage: String, CaseIterable, Identifiable {
     case general = "advanced", model, hotkey, aliases, keywords
@@ -54,31 +55,59 @@ enum SettingsPage: String, CaseIterable, Identifiable {
 /// The app and regression harness share the same AppKit window and sidebar chrome.
 @MainActor
 enum SettingsWindow {
-    static let initialSize = NSSize(width: 960, height: 680)
+    static let initialSize = NSSize(width: 900, height: 800)
     static let minimumSize = NSSize(width: 820, height: 560)
 
     static func make(app: AppModel) -> NSWindow {
-        let controller = SettingsSplitViewController(app: app)
+        let controller = SettingsContainerController(app: app)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: initialSize),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        if SurfaceCompatibility.useLegacyMaterial {
-            window.isOpaque = false
-            window.backgroundColor = .clear
-        }
+        window.isOpaque = false
+        window.backgroundColor = .clear
         window.contentViewController = controller
         window.contentMinSize = minimumSize
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         let toolbar = NSToolbar(identifier: "AskySettings")
-        toolbar.delegate = controller
+        toolbar.delegate = controller.panes
         toolbar.allowsUserCustomization = false
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
         window.setContentSize(initialSize)
-        controller.updateChrome()
+        controller.panes.updateChrome()
         return window
+    }
+}
+
+/// Own the backdrop outside NSSplitView: adding it to the split view would make
+/// AppKit treat the glass as an extra pane and apply independent pane materials.
+@MainActor
+private final class SettingsContainerController: NSViewController {
+    let panes: SettingsSplitViewController
+    init(app: AppModel) {
+        panes = SettingsSplitViewController(app: app)
+        super.init(nibName: nil, bundle: nil)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func loadView() {
+        view = NSView()
+        view.wantsLayer = true
+        view.layer?.cornerRadius = 32
+        view.layer?.masksToBounds = true
+        let backdrop = NSHostingView(rootView: SettingsBackdrop().ignoresSafeArea())
+        addChild(panes)
+        for child in [backdrop, panes.view] {
+            child.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(child)
+            NSLayoutConstraint.activate([
+                child.topAnchor.constraint(equalTo: view.topAnchor),
+                child.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                child.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                child.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ])
+        }
     }
 }
 
@@ -102,9 +131,9 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
         let sidebar = NSHostingController(rootView: SettingsSidebar(app: app) { [weak self] in
             self?.updateChrome()
         })
-        let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
+        let sidebarItem = NSSplitViewItem(viewController: sidebar)
         sidebarItem.minimumThickness = 220
-        sidebarItem.maximumThickness = 280
+        sidebarItem.maximumThickness = 220
         sidebarItem.canCollapse = false
         sidebarItem.canCollapseFromWindowResize = false
         sidebarItem.holdingPriority = .defaultHigh
@@ -114,11 +143,12 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
         let detail = SettingsDetailViewController(app: app)
         let detailItem = NSSplitViewItem(viewController: detail)
         detailItem.minimumThickness = 540
+        detailItem.titlebarSeparatorStyle = .line
         if #available(macOS 26, *) {
             detailItem.automaticallyAdjustsSafeAreaInsets = true
         }
         addSplitViewItem(detailItem)
-        heading.font = .systemFont(ofSize: 20, weight: .semibold)
+        heading.font = .systemFont(ofSize: 16, weight: .medium)
         heading.setContentCompressionResistancePriority(.required, for: .horizontal)
     }
 
@@ -134,7 +164,7 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, Self.separator, Self.title, .flexibleSpace]
+        [Self.separator, Self.title, .flexibleSpace]
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         toolbarDefaultItemIdentifiers(toolbar)
@@ -161,29 +191,13 @@ private final class SettingsDetailViewController: NSViewController {
     private let hosting: NSHostingController<AnyView>
 
     init(app: AppModel) {
-        if SurfaceCompatibility.useLegacyMaterial {
-            hosting = NSHostingController(rootView: AnyView(SettingsView(app: app).scrollContentBackground(.hidden)))
-        } else {
-            hosting = NSHostingController(rootView: AnyView(SettingsView(app: app)))
-        }
+        hosting = NSHostingController(rootView: AnyView(SettingsView(app: app)))
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func loadView() {
         view = NSView()
-        if SurfaceCompatibility.useLegacyMaterial {
-            // Cover the titlebar too while keeping scrolling content below its safe area.
-            let backdrop = NSHostingView(rootView: Color.clear.settingsVersionBackground().ignoresSafeArea())
-            backdrop.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(backdrop)
-            NSLayoutConstraint.activate([
-                backdrop.topAnchor.constraint(equalTo: view.topAnchor),
-                backdrop.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-                backdrop.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                backdrop.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            ])
-        }
         addChild(hosting)
         let content = hosting.view
         content.translatesAutoresizingMaskIntoConstraints = false
@@ -201,34 +215,47 @@ private final class SettingsDetailViewController: NSViewController {
 private struct SettingsSidebar: View {
     @Bindable var app: AppModel
     let updateChrome: () -> Void
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        List(selection: Binding<String?>(
-            get: { SettingsPage.resolve(app.settingsTab).rawValue },
-            set: { if let id = $0 { app.settingsTab = id } }
-        )) {
-            ForEach(SettingsPage.allCases) { page in
-                Label {
-                    Text(page.title)
-                } icon: {
-                    Image(systemName: page.symbol)
-                        .resizable()
-                        .scaledToFit()
-                        .fontWeight(.medium)
-                        .foregroundStyle(.white)
-                        .frame(width: 11, height: 11)
-                        .frame(width: 18, height: 18)
-                        .background(page.color, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                        .frame(width: 22, height: 22)
-                }
-                .padding(.vertical, 3)
-                .tag(page.rawValue)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                sidebarGroup("Settings", pages: [.general, .hotkey, .permissions])
+                sidebarGroup("Tools", pages: [.aliases, .keywords, .sources, .plugins])
+                sidebarGroup("Agent", pages: [.model, .mcp, .memory])
+                sidebarGroup("Others", pages: [.about, .author])
             }
+            .padding(.horizontal, 12).padding(.top, 0)
         }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
-        .settingsVersionBackground()
         .onChange(of: app.settingsTab) { _, _ in updateChrome() }
         .onChange(of: app.preferences.appearance) { _, _ in updateChrome() }
+    }
+
+    private func sidebarGroup(_ title: String, pages: [SettingsPage]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(NSLocalizedString(title, comment: ""))
+                .font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtlest)
+                .padding(.horizontal, 10).padding(.top, 9).padding(.bottom, 5)
+            ForEach(pages) { page in
+                Button { app.settingsTab = page.rawValue } label: {
+                    HStack(spacing: 8) {
+                        Image("Settings-" + page.rawValue)
+                            .renderingMode(.template).resizable().frame(width: 16, height: 16)
+                        Text(page.title).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .font(.system(size: 14))
+                    .foregroundStyle(app.settingsTab == page.rawValue ? ThemeColor.kText : ThemeColor.kTextSubtle)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .frame(minHeight: 32)
+                    .background(app.settingsTab == page.rawValue ? ThemeColor.kBackgroundSelected.color(for: scheme) : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(page.title)
+                .accessibilityAddTraits(app.settingsTab == page.rawValue ? .isSelected : [])
+            }
+        }
     }
 }

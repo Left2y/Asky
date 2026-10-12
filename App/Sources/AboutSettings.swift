@@ -11,7 +11,7 @@ struct AboutSettings: View {
     @State private var confirmingInstall = false
 
     var body: some View {
-        Form {
+        SettingsForm {
             Section {
                 HStack(spacing: 14) {
                     Image("AskyLogo").resizable().scaledToFit().frame(width: 56, height: 56).accessibilityHidden(true)
@@ -41,7 +41,6 @@ struct AboutSettings: View {
                 }
             }
         }
-        .formStyle(.grouped)
         .confirmationDialog(NSLocalizedString("安装新版本？", comment: ""), isPresented: $confirmingInstall) {
             if case .available(let release) = status {
                 Button(NSLocalizedString("安装并重新打开", comment: "")) { Task { await install(release) } }
@@ -70,11 +69,11 @@ struct AboutSettings: View {
     @ViewBuilder private var actionButton: some View {
         switch status {
         case .available:
-            Button(NSLocalizedString("安装更新", comment: "")) { confirmingInstall = true }.buttonStyle(.borderedProminent)
+            SettingsButton(NSLocalizedString("安装更新", comment: "")) { confirmingInstall = true }.buttonStyle(.borderedProminent)
         case .checking, .installing:
-            Button(NSLocalizedString("检查更新", comment: "")) {}.disabled(true)
+            SettingsButton(NSLocalizedString("检查更新", comment: "")) {}.disabled(true)
         default:
-            Button(NSLocalizedString("检查更新", comment: "")) { Task { await check() } }
+            SettingsButton(NSLocalizedString("检查更新", comment: "")) { Task { await check() } }
         }
     }
 

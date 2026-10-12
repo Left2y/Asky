@@ -7,7 +7,7 @@ struct CommandSettings: View {
     @State private var terminals: [LauncherTerminalApplication] = []
 
     var body: some View {
-        Form {
+        SettingsForm {
             Section(NSLocalizedString("内置指令", comment: "")) {
                 ForEach(app.keywords.commands) { command in
                     LabeledContent {
@@ -46,10 +46,9 @@ struct CommandSettings: View {
                 }
                 Text(NSLocalizedString("支持系统终端、iTerm2 与 Ghostty 1.3+，列表显示已安装的终端。", comment: ""))
                     .foregroundStyle(.secondary)
-                TextField(NSLocalizedString("工作目录", comment: ""), text: $app.settings.terminalWorkingDirectory)
+                SettingsTextField(NSLocalizedString("工作目录", comment: ""), text: $app.settings.terminalWorkingDirectory)
             }
         }
-        .formStyle(.grouped)
         .onAppear { terminals = ToolService.installedLauncherTerminals() }
     }
 

@@ -96,9 +96,9 @@ enum SettingsRegression {
                 try await assertPermissionRefreshRace()
                 if (CommandLine.arguments.contains("--plugins") || CommandLine.arguments.contains("--plugins-only")) { model.settingsTab = SettingsPage.plugins.rawValue }
                 let window = SettingsWindow.make(app: model)
-                guard let split = window.contentViewController as? NSSplitViewController,
+                guard let split = window.contentViewController?.children.first as? NSSplitViewController,
                       split.splitViewItems.count == 2,
-                      split.splitViewItems[0].behavior == .sidebar,
+                      split.splitViewItems[0].minimumThickness == 220,
                       window.styleMask.contains(.resizable),
                       window.contentMinSize == SettingsWindow.minimumSize else {
                     fatalError("missing native settings sidebar or resize constraints")

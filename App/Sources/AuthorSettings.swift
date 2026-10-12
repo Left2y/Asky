@@ -5,7 +5,7 @@ struct AuthorSettings: View {
     @State private var openingFailed = false
 
     var body: some View {
-        Form {
+        SettingsForm {
             Section(NSLocalizedString("关于作者", comment: "")) {
                 LabeledContent(NSLocalizedString("作者", comment: "")) {
                     Text(verbatim: "Niall Young").textSelection(.enabled)
@@ -29,7 +29,6 @@ struct AuthorSettings: View {
                 }
             }
         }
-        .formStyle(.grouped)
         .environment(\.openURL, OpenURLAction { url in
             openingFailed = !ToolService.openLauncherURL(url)
             return openingFailed ? .discarded : .handled

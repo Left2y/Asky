@@ -71,10 +71,10 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 - 使用 `Ctrl + Option + Command + V` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
 - 使用 `Ctrl + Option + Command + /` 直接打开 AI 并开启空白新对话（无需 Shift）；可在“设置 › 触发快捷键 › AI 对话”中录制自定义组合键或恢复默认；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
 - 启动器、AI 对话、剪贴板及玻璃浮层在 macOS 26+ 使用原生 Regular 液态玻璃；启动器与剪贴板绘制随明暗模式调整的外形阴影，并预留透明边距以避免裁切；其他浮窗保留系统窗口阴影；macOS 15 使用系统实时背景模糊、`background` 颜色变量和 1pt `border` 描边，设置侧栏与内容区同步适配。原生模糊半径由系统控制，不固定为 120px；在 macOS 辅助功能中开启“降低透明度”或“增强对比度”后，改用不透明背景和清晰边框。
-- 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。设置窗口采用原生侧边栏导航，右侧显示分组配置列表，并支持调整窗口大小。应用主题位于“通用 › 外观”。
+- 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。设置窗口按设置、工具、智能体和其他分组导航；各页统一使用 220pt 侧栏、14pt 正文和 12pt 圆角配置卡片，macOS 26+ 的窗口背景使用背景色叠加 Regular 玻璃，并支持调整窗口大小。应用主题位于“通用 › 外观”。
 - 在“设置 › 关于 Asky”查看当前版本并点击“检查更新”，应用会读取 GitHub `Niall-Young/Asky` 的最新 Release；GitHub API 限流（403/429）时自动改用公开 Release 网页，并在冷却期间避免重复请求 API。版本高于当前版本时可点击“安装更新”：下载 ZIP 并按 `.sha256` 校验、验证签名，完成 AI 辅助进程清理并退出 Asky 后，用新版本替换并删除旧版本，再自动重新打开。应用所在目录需可写；临时转移路径运行时需先移到“应用程序”。
 - 在“设置 › 关于作者”查看作者邮箱、GitHub 主页和 X；点击邮箱打开默认邮件应用，点击 GitHub 或 X 打开默认浏览器。
-- 应用语言位于“设置 › 通用 › 语言”，默认跟随 macOS 首选语言，也可选择简体中文或 English；更改在下次启动时生效。界面翻译使用原生 `.lproj` 资源，macOS 不会自动翻译应用自定义文字；AI 回复和用户内容不受此设置控制。
+- 应用语言位于“设置 › 通用 › 外观 › 应用语言”，默认跟随 macOS 首选语言，也可选择简体中文或 English；更改在下次启动时生效。界面翻译使用原生 `.lproj` 资源，macOS 不会自动翻译应用自定义文字；AI 回复和用户内容不受此设置控制。
 
 ### 配置与隐私
 
@@ -240,10 +240,10 @@ In a Debug build, run `open -n build/DerivedData/Build/Products/Debug/Asky.app -
 - Press `Ctrl + Option + Command + V` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
 - Press `Ctrl + Option + Command + /` to open AI with a blank new conversation (without Shift); customize the combination or restore its default in Settings › Hotkeys › AI Conversation; an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.
 - On macOS 26+, the launcher, AI conversations, clipboard and glass overlays use native Regular Liquid Glass. The launcher and clipboard render an appearance-aware shape-based outer shadow with transparent margins to prevent clipping; other floating windows retain system window shadows. On macOS 15, they use live system background blur, the `background` color token and a 1pt `border` outline; the settings sidebar and content area use the same fallback. The system controls the native blur radius rather than a fixed 120px. Enabling Reduce Transparency or Increase Contrast in macOS Accessibility switches them to opaque backgrounds with clear borders.
-- Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings uses native sidebar navigation with grouped configuration lists on the right and a resizable window. The app theme is under General › Appearance.
+- Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings groups navigation into Settings, Tools, Agent, and Others. Every page uses a 220pt sidebar, 14pt body text, and cards with 12pt corners; on macOS 26+, the resizable window combines a background color with Regular glass. The app theme is under General › Appearance.
 - Under Settings › About Asky, view the current version and click Check for Updates to read the latest GitHub release of `Niall-Young/Asky`. If the GitHub API is rate limited (403/429), it falls back to the public Release page and avoids further API requests during the cooldown. When it is newer than the running app, Install Update downloads the ZIP, verifies its `.sha256` checksum and code signature, stops the AI runtime and quits Asky, replaces and deletes the old version, then reopens it. The app folder must be writable; a translocated app must first be moved to Applications.
 - Under Settings › About the Author, find the author’s email, GitHub profile, and X profile. Click the email to open your default email app, or GitHub / X to open your default browser.
-- App language is under Settings › General › Language. It follows the preferred macOS language by default, with Simplified Chinese and English overrides; changes take effect on the next launch. Interface translations use native `.lproj` resources; macOS does not automatically translate custom app text. This setting does not control AI replies or user content.
+- App language is under Settings › General › Appearance › App language. It follows the preferred macOS language by default, with Simplified Chinese and English overrides; changes take effect on the next launch. Interface translations use native `.lproj` resources; macOS does not automatically translate custom app text. This setting does not control AI replies or user content.
 
 ### Configuration and Privacy
 

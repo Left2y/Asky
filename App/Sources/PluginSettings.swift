@@ -15,12 +15,12 @@ struct PluginSettings: View {
     private var manager: PluginManager { app.tools.plugins }
     private func label(_ key: String) -> String { NSLocalizedString(key, comment: "") }
     var body: some View {
-        Form {
+        SettingsForm {
             Section(label("安装插件")) {
                 HStack {
-                    TextField(label("GitHub 仓库链接"), text: $repository)
+                    SettingsTextField(label("GitHub 仓库链接"), text: $repository)
                         .accessibilityIdentifier("plugin-repository")
-                    Button(label("安装")) { requestInstall(repository) }.accessibilityLabel(label("安装")).disabled(busy || repository.isEmpty)
+                    SettingsButton(label("安装")) { requestInstall(repository) }.accessibilityLabel(label("安装")).disabled(busy || repository.isEmpty)
                 }
             }
             Section(label("官方插件")) {
@@ -36,7 +36,7 @@ struct PluginSettings: View {
                         if plugins.contains(where: { $0.repository == source }) {
                             Text(label("已安装")).foregroundStyle(.secondary)
                         } else {
-                            Button(label("安装")) { requestInstall(source) }.accessibilityLabel(label("安装")).disabled(busy)
+                            SettingsButton(label("安装")) { requestInstall(source) }.accessibilityLabel(label("安装")).disabled(busy)
                         }
                     }
                 }
@@ -65,10 +65,10 @@ struct PluginSettings: View {
                             Text(plugin.repository).font(.system(size: 12)).foregroundStyle(.secondary)
                                 .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
                             Spacer(minLength: 12)
-                            Button(label("配置")) { editing = plugin }.accessibilityLabel(label("配置"))
-                            Button(label("更新")) { perform("更新插件") { try await manager.install(repository: plugin.repository) } }.accessibilityLabel(label("更新"))
-                            Button(label("回退")) { perform("回退插件") { try await manager.rollback(plugin.id) } }.accessibilityLabel(label("回退")).disabled(plugin.previousCommit == nil)
-                            Button(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }.accessibilityLabel(label("卸载"))
+                            SettingsButton(label("配置")) { editing = plugin }.accessibilityLabel(label("配置"))
+                            SettingsButton(label("更新")) { perform("更新插件") { try await manager.install(repository: plugin.repository) } }.accessibilityLabel(label("更新"))
+                            SettingsButton(label("回退")) { perform("回退插件") { try await manager.rollback(plugin.id) } }.accessibilityLabel(label("回退")).disabled(plugin.previousCommit == nil)
+                            SettingsButton(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }.accessibilityLabel(label("卸载"))
                         }.font(.system(size: 12)).controlSize(.small).disabled(busy)
                     }.padding(.vertical, 4)
                 }
@@ -80,7 +80,6 @@ struct PluginSettings: View {
                 }
             }
         }
-        .formStyle(.grouped)
         .task { await reload() }
         .alert(label("安装可信插件"), isPresented: $confirmInstall) {
             Button(label("取消"), role: .cancel) {}
@@ -146,22 +145,22 @@ private struct PluginConfigurationEditor: View {
     var body: some View {
         VStack(alignment: .leading) {
             Text(plugin.manifest.name).font(.headline)
-            Form {
+            SettingsForm {
                 ForEach(plugin.manifest.configuration ?? []) { field in
                     if field.type == "boolean" {
                         Toggle(field.label, isOn: Binding(get: { values[field.key]?.boolValue ?? false }, set: { values[field.key] = .bool($0) }))
                     } else if field.type == "enum" {
                         Picker(field.label, selection: text(field.key)) { ForEach(field.options ?? [], id: \.self) { Text($0).tag($0) } }
                     } else {
-                        TextField(field.label, text: text(field.key))
+                        SettingsTextField(field.label, text: text(field.key))
                     }
                 }
             }.formStyle(.grouped)
             if !error.isEmpty { Text(error).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button(NSLocalizedString("取消", comment: "")) { dismiss() }.accessibilityLabel(NSLocalizedString("取消", comment: ""))
-                Button(NSLocalizedString("保存", comment: "")) {
+                SettingsButton(NSLocalizedString("取消", comment: "")) { dismiss() }.accessibilityLabel(NSLocalizedString("取消", comment: ""))
+                SettingsButton(NSLocalizedString("保存", comment: "")) {
                     Task {
                         do { try await manager.configure(plugin.id, values: values); saved(); dismiss() }
                         catch { self.error = error.localizedDescription }

@@ -32,7 +32,7 @@ struct PluginSettings: View {
                         VStack(alignment: .leading) {
                             Text(source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca")
                             Text(label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务"))
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.system(size: 12)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         if plugins.contains(where: { $0.repository == source }) {
@@ -52,7 +52,7 @@ struct PluginSettings: View {
                             VStack(alignment: .leading) {
                                 Text(plugin.manifest.name).font(.headline)
                                 Text("\(plugin.isOfficial ? label("官方") : label("自行安装")) · \(plugin.manifest.version) · \(plugin.commit.prefix(8))")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.system(size: 12)).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Toggle(label("启用"), isOn: Binding(get: { plugin.enabled }, set: { value in
@@ -64,21 +64,21 @@ struct PluginSettings: View {
                         }
                         if plugin.needsConfiguration { Text(label("需要配置")).foregroundStyle(.orange) }
                         HStack(spacing: 8) {
-                            Text(plugin.repository).font(.caption).foregroundStyle(.secondary)
+                            Text(plugin.repository).font(.system(size: 12)).foregroundStyle(.secondary)
                                 .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
                             Spacer(minLength: 12)
                             Button(label("配置")) { editing = plugin }.accessibilityLabel(label("配置"))
                             Button(label("更新")) { perform("更新插件") { try await manager.install(repository: plugin.repository) } }.accessibilityLabel(label("更新"))
                             Button(label("回退")) { perform("回退插件") { try await manager.rollback(plugin.id) } }.accessibilityLabel(label("回退")).disabled(plugin.previousCommit == nil)
                             Button(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }.accessibilityLabel(label("卸载"))
-                        }.controlSize(.small).disabled(busy)
+                        }.font(.system(size: 12)).controlSize(.small).disabled(busy)
                     }.padding(.vertical, 4)
                 }
             }
             if busy || !status.isEmpty {
                 Section {
                     if busy { ProgressView(label("正在处理插件…")) }
-                    Text(status).font(.caption).textSelection(.enabled)
+                    Text(status).font(.system(size: 12)).textSelection(.enabled)
                 }
             }
         }

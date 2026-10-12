@@ -43,7 +43,7 @@ Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例
 
 ### 快速开始
 
-[下载 Asky 0.0.12](https://github.com/Niall-Young/Asky/releases/tag/v0.0.12)：适用于 macOS 15+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
+[下载 Asky 0.0.13](https://github.com/Niall-Young/Asky/releases/tag/v0.0.13)：适用于 macOS 15+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此测试版使用 ad-hoc 签名，未经 Apple 公证，首次打开可能触发系统安全提示。
 
 源码开发版本的运行目标为 macOS 15+（旧系统实机验收待完成）；开发需要 Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
 
@@ -157,18 +157,18 @@ build/outside-click-regression
 
 ### 发布打包
 
-0.0.12 修复系统日历授权后空列表、AI 历史切换时顶部按钮位移，以及剪贴板跨应用拖拽与状态提示位置。保留更新退出重启修复及 GitHub API 限流时的公开 Release 网页回退。0.0.8 的旧退出流程仍可能卡住，首次升级请退出旧应用，再用 DMG 将新应用替换到“应用程序”；真实应用内升级仍需验证。
+0.0.13 修复浮窗阴影与透明画布黑框，恢复一秒剪贴板悬停预览，统一书签与链接搜索授权、隐藏未授权功能，并修复 Chrome 书签目录识别及搜索结果出现前的 AI 兜底闪烁。保留更新退出重启修复及 GitHub API 限流时的公开 Release 网页回退。0.0.8 的旧退出流程仍可能卡住，首次升级请退出旧应用，再用 DMG 将新应用替换到“应用程序”；真实应用内升级仍需验证。
 
-先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release012DerivedData`。在干净的 `build/release-runtime-0.0.12` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.12`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
+先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release013DerivedData`。在干净的 `build/release-runtime-0.0.13` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.13`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
 
 ```sh
-python3 scripts/package-release.py --version 0.0.12 --build 12 \
-  --derived-data build/Release012DerivedData \
-  --runtime build/release-runtime-0.0.12 \
-  --node-root build/release-node-0.0.12/node-v22.23.3-darwin-arm64
+python3 scripts/package-release.py --version 0.0.13 --build 13 \
+  --derived-data build/Release013DerivedData \
+  --runtime build/release-runtime-0.0.13 \
+  --node-root build/release-node-0.0.13/node-v22.23.3-darwin-arm64
 ```
 
-脚本生成 `build/releases/0.0.12/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
+脚本生成 `build/releases/0.0.13/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用 ad-hoc 签名，不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
 ### 开源协议
 
@@ -204,7 +204,7 @@ Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images pres
 
 ### Quick Start
 
-[Download Asky 0.0.12](https://github.com/Niall-Young/Asky/releases/tag/v0.0.12) for macOS 15+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
+[Download Asky 0.0.13](https://github.com/Niall-Young/Asky/releases/tag/v0.0.13) for macOS 15+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This test build is ad-hoc signed and has not been notarized by Apple, so first launch may trigger a system security prompt.
 
 Source builds target macOS 15+ (verification on an older OS is pending). Development requires Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
 
@@ -318,18 +318,18 @@ Record only checks actually executed in `docs/validation/`. Track automated chec
 
 ### Release Packaging
 
-Version 0.0.12 fixes empty calendar lists after authorization, header button movement when switching AI history, and clipboard dragging across apps and status message placement. It retains update quit/restart fixes and the public Release page fallback when the GitHub API is rate limited. The old quit flow in 0.0.8 can still hang; quit the old app and replace it in Applications using the DMG for this first upgrade. The real in-app upgrade remains to be verified.
+Version 0.0.13 fixes floating-window shadows and black frames around transparent canvases, restores clipboard hover previews after one second, unifies bookmark and link search authorization while hiding unauthorized features, and fixes Chrome bookmark folder resolution and AI fallback flicker before search results appear. It retains update quit/restart fixes and the public Release page fallback when the GitHub API is rate limited. The old quit flow in 0.0.8 can still hang; quit the old app and replace it in Applications using the DMG for this first upgrade. The real in-app upgrade remains to be verified.
 
-Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release012DerivedData`. In a clean `build/release-runtime-0.0.12` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.12`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
+Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release013DerivedData`. In a clean `build/release-runtime-0.0.13` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.13`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
 
 ```sh
-python3 scripts/package-release.py --version 0.0.12 --build 12 \
-  --derived-data build/Release012DerivedData \
-  --runtime build/release-runtime-0.0.12 \
-  --node-root build/release-node-0.0.12/node-v22.23.3-darwin-arm64
+python3 scripts/package-release.py --version 0.0.13 --build 13 \
+  --derived-data build/Release013DerivedData \
+  --runtime build/release-runtime-0.0.13 \
+  --node-root build/release-node-0.0.13/node-v22.23.3-darwin-arm64
 ```
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.12/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.13/`, verifies the signature, and checks the bundled runtime startup protocol. It uses ad-hoc signing and does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
 
 ### License
 

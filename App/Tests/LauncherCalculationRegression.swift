@@ -39,6 +39,8 @@ enum LauncherCalculationRegression {
         let model = LauncherModel(app: app, searchProviders: [])
         let controller = LauncherController(model: model)
         controller.show()
+        // Keep unrelated desktop focus changes from cancelling a query under test.
+        model.isPinned = true
         guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
             throw NSError(domain: "CalculatorRegression", code: 2)
         }
@@ -54,6 +56,22 @@ enum LauncherCalculationRegression {
             field.stringValue = value
             if let editor = field.currentEditor() as? NSTextView { editor.string = value }
             model.query = value
+        }
+        func waitForCurrency(_ value: String) async throws {
+            setQuery(value)
+            try require(model.isSearching, "currency must enter loading state")
+            try require(model.results.isEmpty, "currency loading must not publish an AI-only fallback")
+            var submittedAI = false
+            model.onAskAI = { _ in submittedAI = true }
+            model.submit(.executeSelection)
+            try require(!submittedAI, "Return during currency loading must not submit AI")
+            for _ in 0..<100 {
+                if !model.isSearching { break }
+                try require(!model.results.contains { $0.source == .askAI }, "AI must stay deferred throughout currency loading")
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            try require(!model.isSearching, "currency loading must finish")
+            try require(model.results.first?.source == .currency, "currency result must precede AI after loading: requested=\(value), actual=\(model.query), sources=\(model.results.map { $0.source })")
         }
         let currencyOnly = CommandLine.arguments.contains("--currency-only")
         if currencyOnly {
@@ -87,12 +105,7 @@ enum LauncherCalculationRegression {
         try require(model.calculationCompletion == nil, "incomplete expression clears ghost")
         try require(model.calculation == nil, "incomplete expression clears card")
         }
-        setQuery("1美元")
-        for _ in 0..<50 {
-            if !model.isSearching { break }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        try require(!model.isSearching, "currency loading must finish")
+        try await waitForCurrency("1美元")
         let rows = model.results.filter { $0.source == .currency }
         try require(rows.count == snapshot.perEUR.count - 1, "all other currencies remain below the card")
         try require(rows.first?.target.identifier == "CNY", "CNY first")
@@ -113,19 +126,11 @@ enum LauncherCalculationRegression {
         setQuery("Safari")
         try await Task.sleep(for: .milliseconds(400))
         try require(!model.results.contains { $0.source == .currency }, "cancelled FX cannot overwrite new query")
-        setQuery("100人民币")
-        for _ in 0..<50 {
-            if !model.isSearching { break }
-            try await Task.sleep(for: .milliseconds(50))
-        }
+        try await waitForCurrency("100人民币")
         try require(model.results.first?.target.identifier == "USD", "CNY converts outward")
-        setQuery("100 USD CNY")
-        for _ in 0..<50 {
-            if !model.isSearching { break }
-            try await Task.sleep(for: .milliseconds(50))
-        }
+        try await waitForCurrency("100 USD CNY")
         try require(model.results.filter { $0.source == .currency }.count == 1, "explicit pairs show only requested currency")
-        print("\(appearance): ghost, flags, CNY, reverse conversion, cancellation and explicit pair passed")
+        print("\(appearance): deferred currency AI fallback, loading Return, ghost, flags, CNY, reverse conversion, cancellation and explicit pair passed")
     }
 
     static func findField(_ view: NSView) -> CompletionTextField? {

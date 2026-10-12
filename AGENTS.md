@@ -8,3 +8,4 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。各目录
 - 只有实际运行过的检查才能记为通过。验证结果写入 `docs/validation/`。开发命令必须来自实际配置，并同步到 README。
 
 - Release 打包使用 README 中的 `scripts/package-release.py` 流程，同时生成首次安装用 DMG 与应用内更新用 ZIP；打包前提交源码并保持工作区干净。
+- GitHub Release 版本默认以上一个已发布版本为基准，仅将 `x.x.x` 的第三段（patch）加 1，前两段（major、minor）保持不变；只有用户明确指定时才可改动前两段或使用其他版本号。第三段按整数持续递增，不向前两段进位，例如 `0.0.9 → 0.0.10 → 0.0.11`。

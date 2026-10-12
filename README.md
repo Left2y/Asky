@@ -33,7 +33,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、�
 ### 核心能力
 
 - **聚焦搜索**：搜索应用、文件、Chrome 标签页与本地书签，读取应用自带的本地化名称（含系统应用的 `InfoPlist.loctable`），支持应用别名、网页关键词、计算和换算。
-- **剪贴板历史**：独立面板浏览文本、图片与文件，文件支持多选复制及原生拖出；文件历史保存原路径，原文件移动或删除后需重新复制，删除历史不会删除原文件。悬停 1 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
+- **剪贴板历史**：独立面板浏览文本、图片与文件，文件支持多选复制及原生拖出，拖出不改写系统剪贴板，复用历史保留原来源图标；文件历史保存原路径，原文件移动或删除后需重新复制，删除历史不会删除原文件。悬停 1 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
 - **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。每条任务最多自动调用 50 次工具。工具调用中显示加载动画，成功后显示对应来源图标，失败时显示带圈的叉；错误详情默认折叠，点击右侧箭头展开。
 - **联网搜索**：AI 内置 `web_search`，无需额外 Key，通过 Bing 网页搜索返回标题、来源链接和摘要；在“设置 › 数据来源 › 联网搜索”关闭。搜索词会发送至 Bing，摘要发送至配置的模型服务。网页限流、验证或结构变化会明确报错；摘要不代表已读取全文。
 - **系统工具**：通过 ToolService 统一处理系统读写与授权；集成日历、提醒事项、备忘录和通讯录，信息草稿交由系统 App 确认发送。
@@ -204,7 +204,7 @@ The project is under active development. The repository includes the native app,
 ### Features
 
 - **Focused search**: Find apps, files, Chrome tabs, and local bookmarks, using each app’s localized names (including system app `InfoPlist.loctable` resources), with app aliases, web keywords, calculations, and unit conversions.
-- **Clipboard history**: Browse text, images, and files in a dedicated panel. File selections support copying and native dragging using their original paths; moving or deleting originals requires copying them again, and deleting history never deletes originals. Full previews after hovering for 1 second, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
+- **Clipboard history**: Browse text, images, and files in a dedicated panel. File selections support copying and native dragging using their original paths. Dragging leaves the system clipboard unchanged, and reusing history preserves the original source icon; moving or deleting originals requires copying them again, and deleting history never deletes originals. Full previews after hovering for 1 second, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
 - **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle. Each task allows up to 50 automatic tool calls. Tool calls show a spinner while running, their source icon on success, and a circled cross on failure; error details start collapsed and can be expanded with the arrow on the right.
 - **Web search**: The AI includes `web_search` with no extra key, returning titles, source links, and snippets from Bing web search. Disable it under Settings › Sources › Web Search. Queries go to Bing and snippets to your configured model provider. Rate limits, verification challenges, and page structure changes produce explicit errors; snippets are not full-page reads.
 - **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending.

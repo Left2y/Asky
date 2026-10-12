@@ -47,8 +47,15 @@ enum ClipboardRegression {
                     monitor.stop()
                     let recorded = store.recent(limit: 1).first!
                     precondition(recorded.kind == .file && recorded.filePaths == fileURLs.map(\.path), "monitor must prioritize complete file selection")
+                    monitor.start()
                     precondition(ClipboardAccess.copy(recorded), "file selection must copy")
                     precondition(ClipboardAccess.snapshot().fileURLs == fileURLs, "copy must restore all URLs")
+                    try await Task.sleep(for: .milliseconds(1200))
+                    monitor.stop()
+                    let afterRestore = store.recent(limit: 1).first!
+                    precondition(afterRestore.id == recorded.id && afterRestore.createdAt == recorded.createdAt &&
+                        afterRestore.sourceApp == recorded.sourceApp && afterRestore.sourceBundleID == recorded.sourceBundleID,
+                        "restoring history must not overwrite source metadata or reorder the card")
                 }
                 let controller = ClipboardController(app: app)
                 let dragPreview = CommandLine.arguments.contains("--drag-preview")
@@ -103,6 +110,7 @@ enum ClipboardRegression {
                     } else {
                         end = destination.convertToScreen(NSRect(x: 40, y: 80, width: 1, height: 1)).origin
                     }
+                    let clipboardChangeBeforeDrag = ClipboardAccess.changeCount
                     mouse(.leftMouseDown, start)
                     try await Task.sleep(for: .milliseconds(150))
                     for step in 1...30 {
@@ -115,6 +123,8 @@ enum ClipboardRegression {
                     mouse(.leftMouseUp, end)
                     try await Task.sleep(for: .milliseconds(500))
                     if externalPoint == nil {
+                        precondition(ClipboardAccess.changeCount == clipboardChangeBeforeDrag,
+                            "dragging must leave the system clipboard unchanged")
                         if fileTest {
                             precondition(fileReceiver.urls == fileURLs, "native destination must receive every original URL")
                             for url in fileReceiver.urls {

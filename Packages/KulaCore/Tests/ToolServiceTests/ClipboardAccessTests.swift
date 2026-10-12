@@ -27,8 +27,12 @@ struct ClipboardAccessTests {
         #expect(ClipboardAccess.snapshot(from: pb).fileURLs == urls)
         #expect(pb.string(forType: .string) == nil)
         let writers = try #require(ClipboardAccess.dragItems(for: restored))
-        #expect(writers.compactMap { $0.string(forType: .fileURL).flatMap(URL.init(string:)) } == urls)
-        #expect(writers.allSatisfy { $0.string(forType: .string) == nil })
+        #expect(writers.allSatisfy { $0 is NSURL })
+        let dragPB = NSPasteboard.withUniqueName()
+        defer { dragPB.releaseGlobally() }
+        #expect(dragPB.writeObjects(writers))
+        #expect(ClipboardAccess.snapshot(from: dragPB).fileURLs == urls)
+        #expect(ClipboardAccess.snapshot(from: pb).restoredFromHistory)
         #expect(try store.delete(ids: [restored.id]).isEmpty)
         #expect(FileManager.default.fileExists(atPath: urls[0].path))
         #expect(FileManager.default.fileExists(atPath: urls[1].path))
@@ -56,8 +60,10 @@ struct ClipboardAccessTests {
         defer { pb.releaseGlobally() }
         #expect(ClipboardAccess.copy(item, to: pb))
         #expect(pb.string(forType: .string) == text)
+        #expect(ClipboardAccess.snapshot(from: pb).restoredFromHistory)
         pb.clearContents()
         pb.setString("file:///tmp/example.txt", forType: .string)
+        #expect(!ClipboardAccess.snapshot(from: pb).restoredFromHistory)
         #expect(ClipboardAccess.snapshot(from: pb).fileURLs.isEmpty)
         #expect(ClipboardAccess.dragItem(for: item)?.string(forType: .string) == text)
     }

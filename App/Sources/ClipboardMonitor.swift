@@ -37,7 +37,7 @@ final class ClipboardMonitor {
         let snapshot = ClipboardAccess.snapshot()
         lastChange = snapshot.changeCount
         let settings = app.settings
-        guard settings.clipboardEnabled, !snapshot.concealed else { return }
+        guard settings.clipboardEnabled, !snapshot.concealed, !snapshot.restoredFromHistory else { return }
         if let bid = snapshot.sourceBundleID, settings.clipboardExcludedApps.contains(bid) { return }
         let sourceApp = snapshot.sourceName
         let sourceBundleID = snapshot.sourceBundleID

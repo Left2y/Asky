@@ -13,6 +13,7 @@ public enum ClipboardAccess {
         public let sourceName: String?
         public let sourceBundleID: String?
         public let concealed: Bool
+        public let restoredFromHistory: Bool
     }
 
     public static var changeCount: Int { NSPasteboard.general.changeCount }
@@ -25,7 +26,8 @@ public enum ClipboardAccess {
         return Snapshot(changeCount: pb.changeCount, text: concealed ? nil : pb.string(forType: .string),
                         image: concealed ? nil : (pb.data(forType: .png) ?? pb.data(forType: .tiff)),
                         fileURLs: concealed ? [] : fileURLs(from: pb),
-                        sourceName: app?.localizedName, sourceBundleID: app?.bundleIdentifier, concealed: concealed)
+                        sourceName: app?.localizedName, sourceBundleID: app?.bundleIdentifier, concealed: concealed,
+                        restoredFromHistory: pb.string(forType: historyRestoreType) != nil)
     }
 
     private static func fileURLs(from pasteboard: NSPasteboard) -> [URL] {
@@ -83,21 +85,28 @@ public enum ClipboardAccess {
         return nil
     }
 
+    private static let historyRestoreType = NSPasteboard.PasteboardType("app.asky.clipboard-history-restore")
+
+    private static func markRestored(_ item: ClipboardItem, on pasteboard: NSPasteboard, success: Bool) -> Bool {
+        if success { pasteboard.setString(item.id, forType: historyRestoreType) }
+        return success
+    }
+
     /// Validate before clearing, so unavailable originals cannot erase the user's clipboard.
     @discardableResult
     public static func copy(_ item: ClipboardItem, to pasteboard: NSPasteboard = .general) -> Bool {
         if item.kind == .file {
             guard let urls = availableFiles(for: item) else { return false }
             pasteboard.clearContents()
-            return pasteboard.writeObjects(urls.map { $0 as NSURL })
+            return markRestored(item, on: pasteboard, success: pasteboard.writeObjects(urls.map { $0 as NSURL }))
         }
         if item.kind == .text, let text = item.text {
             pasteboard.clearContents()
-            return pasteboard.setString(text, forType: .string)
+            return markRestored(item, on: pasteboard, success: pasteboard.setString(text, forType: .string))
         }
         guard let path = item.filePath, let image = NSImage(contentsOfFile: path), let data = image.tiffRepresentation else { return false }
         pasteboard.clearContents()
-        return pasteboard.setData(data, forType: .tiff)
+        return markRestored(item, on: pasteboard, success: pasteboard.setData(data, forType: .tiff))
     }
 
     /// Sends ⌘V to the frontmost app. Requires Accessibility; prompts once when missing.
@@ -116,7 +125,8 @@ public enum ClipboardAccess {
     /// NSItemProvider promises and only accept plain text or a real file URL, so both are written up front.
     public static func dragItem(for item: ClipboardItem,
                                 exportDirectory: URL = FileManager.default.temporaryDirectory.appending(path: "AskyDrag")) -> NSPasteboardItem? {
-        if item.kind == .file { return dragItems(for: item)?.first }
+        // Files require NSURL writers; use dragItems to retain access grants and all selected files.
+        guard item.kind != .file else { return nil }
         let pbItem = NSPasteboardItem()
         if item.kind == .text, let text = item.text {
             return pbItem.setString(text, forType: .string) ? pbItem : nil
@@ -134,14 +144,12 @@ public enum ClipboardAccess {
     }
 
     /// One dragging item per file keeps multi-file selections intact at native destinations.
-    public static func dragItems(for item: ClipboardItem) -> [NSPasteboardItem]? {
+    public static func dragItems(for item: ClipboardItem) -> [any NSPasteboardWriting]? {
         guard item.kind == .file else { return dragItem(for: item).map { [$0] } }
         guard let urls = availableFiles(for: item) else { return nil }
-        return urls.map { url in
-            let writer = NSPasteboardItem()
-            writer.setString(url.absoluteString, forType: .fileURL)
-            return writer
-        }
+        // AppKit recognizes NSURL writers and attaches sandbox extensions for receiving apps.
+        // A hand-written public.file-url works in Finder but cannot grant a sandboxed target access.
+        return urls.map { $0 as NSURL }
     }
 
     private static func pngData(atPath path: String) -> Data? {

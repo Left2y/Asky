@@ -181,7 +181,6 @@ final class ClipboardController {
             status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
             return
         }
-        copy(item)
         let preview = ClipboardDragSource.snapshot(of: view)
         let dragging = pasteboardItems.enumerated().map { index, writer in
             let entry = NSDraggingItem(pasteboardWriter: writer)

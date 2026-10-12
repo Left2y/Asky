@@ -142,7 +142,11 @@ final class AppModel {
            pluginRuntime: PluginRuntimeConfiguration(nodePath: NodeRuntimeLauncher.findNode(bundleResources: Bundle.main.resourceURL),
                runnerPath: Self.runtimeEntry().map { URL(filePath: $0).deletingLastPathComponent().appending(path: "plugin-runner.js").path }),
            authorize: { source, origin in try await SystemPermissions.require(source, origin: origin) })
-        native = NativeTools(notesFolders: { reader.load().notesFolders })
+        native = NativeTools(notesFolders: { reader.load().notesFolders },
+                             messagesEnabled: {
+                                 let s = reader.load()
+                                 return s.advisorReadsMessages == true && s.enabledSources.contains(.messages)
+                             })
         gateway = MCPGateway(store: store, tools: tools)
         exchange = ExchangeRateService(cacheURL: store.root.appending(path: "ecb-rates.json"))
         terminal = TerminalRunner(spillDirectory: store.outputDirectory)

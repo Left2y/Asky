@@ -1,6 +1,6 @@
 import Foundation
 
-/// One recent Messages item (SMS or iMessage) the user allowed background AI to read.
+/// One recent Messages item (SMS or iMessage) the user allowed AI to read.
 public struct MessageSnapshot: Sendable, Hashable, Codable {
     /// Messages row ID; increases with every new message.
     public var id: String

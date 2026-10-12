@@ -150,8 +150,11 @@ public struct NativeTools: Sendable {
     public let contacts = ContactsBridge()
     public let chrome = ChromeBridge()
     public let notes: NotesBridge
+    private let messagesEnabled: @Sendable () -> Bool
 
-    public init(notesFolders: @escaping @Sendable () -> [NotesFolder]) {
+    public init(notesFolders: @escaping @Sendable () -> [NotesFolder],
+                messagesEnabled: @escaping @Sendable () -> Bool = { false }) {
+        self.messagesEnabled = messagesEnabled
         notes = NotesBridge(allowed: notesFolders)
     }
 
@@ -161,6 +164,7 @@ public struct NativeTools: Sendable {
             RemindersListTool(eventKit), RemindersCreateTool(eventKit),
             NotesListFoldersTool(notes), NotesSearchTool(notes), NotesReadTool(notes), NotesCreateTool(notes), NotesAppendTool(notes),
             ContactsSearchTool(contacts), MessagesDraftTool(contacts),
+            MessagesSearchTool(enabled: messagesEnabled),
             ChromeListTabsTool(chrome), ChromeActivateTabTool(chrome),
             ShortcutsListTool(), ShortcutsRunTool(), WebSearchTool(),
         ]

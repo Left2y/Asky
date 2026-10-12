@@ -104,12 +104,12 @@ const TOOLS = [
     source: "terminal", effect: "read", confirmation: "never", externallyExposable: false, agentExposable: false },
 ];
 
-async function handshake(p: Proc, mock: Mock) {
+async function handshake(p: Proc, mock: Mock, tools = TOOLS) {
   p.send({ type: "hello", protocol: 2 });
   const ready = await p.next((f) => f.type === "ready");
   assert.equal(ready.protocol, 2);
   assert.match(ready.runtime, /pi\/1\.1\.0/);
-  p.send({ type: "configure", baseURL: mock.url, model: "mock-model", apiKey: KEY, tools: TOOLS, maxToolRounds: 8 });
+  p.send({ type: "configure", baseURL: mock.url, model: "mock-model", apiKey: KEY, tools, maxToolRounds: 8 });
 }
 
 const request = (taskID: string, text: string) => ({ sessionID: "s1", taskID, text, attachments: [], context: [{ sourceID: "mem:1", text: "用户偏好早上开会" }] });
@@ -270,4 +270,27 @@ test("public web search round trip preserves sources and search policy", async (
     p.send({ type: "shutdown" });
     assert.equal(await p.exit, 0);
   } finally { p.child.kill(); await new Promise<void>((r) => mock.server.close(() => r())); }
+});
+
+
+test("Messages search reaches native host and result returns to model", async () => {
+  const mock = await startMock([() => toolCallReply("messages_search", { query: "观鹤" }), () => textReply("短信报名地点是杭州西溪")]);
+  const p = launch(mkdtempSync(join(tmpdir(), "asky-messages-")));
+  try {
+    await handshake(p, mock, [...TOOLS, {
+      name: "messages_search", summary: "查询最近30天短信", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+      source: "messages", effect: "read", confirmation: "never", externallyExposable: false, agentExposable: true,
+    }]);
+    p.send({ type: "prompt", request: request("sms", "帮我查短信里的观鹤报名地点") });
+    const call = await p.next((f) => f.type === "toolCall");
+    assert.equal(call.tool, "messages_search");
+    assert.deepEqual(call.arguments, { query: "观鹤" });
+    p.send({ type: "toolResult", callID: call.callID, result: { requestID: call.callID, status: "completed", output: { messages: [{ id: "1", sender: "尾号5678", date: "2026-10-12T10:00:00+08:00", text: "观鹤报名地点：杭州西溪" }], hasMore: false, scanLimitReached: false } } });
+    await p.next((f) => f.type === "taskState" && f.state === "completed");
+    assert.ok(JSON.stringify(mock.requests[1].body.messages).includes("杭州西溪"));
+    const system = mock.requests[0].body.messages.find((m: any) => m.role === "system").content;
+    assert.ok(system.includes("用户要求查短信时调用 messages_search"));
+    p.send({ type: "shutdown" });
+    assert.equal(await p.exit, 0);
+  } finally { p.child.kill("SIGKILL"); mock.server.close(); }
 });

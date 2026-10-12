@@ -110,13 +110,13 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
 
     private func smartSuggestions(events: [EventSnapshot], settings s: AppSettings, now: Date) async -> [ReminderPlan] {
         guard s.backgroundAI, let cfg = app.modelConfiguration else { return [] }
-        if s.advisorReadsMessages != true { app.store.setSetting(Self.triageKey, nil) }
+        if s.advisorReadsMessages != true || !s.enabledSources.contains(.messages) { app.store.setSetting(Self.triageKey, nil) }
         var triage = app.store.codableSetting(Self.triageKey, as: MessageTriageState.self) ?? MessageTriageState()
         let tasks = s.enabledSources.contains(.reminders) ? await openTasks() : []
         func input() -> AdvisorInput {
             AdvisorInput(events: events, tasks: tasks,
                          memories: s.enabledSources.contains(.memory) ? relevantMemories(events: events, tasks: tasks) : [],
-                         messages: s.advisorReadsMessages == true ? triage.notes : [],
+                         messages: s.advisorReadsMessages == true && s.enabledSources.contains(.messages) ? triage.notes : [],
                          recentSuggestions: ReminderStore(app.store).plans(status: [.delivered, .handled])
                             .filter { $0.reason == .insight }.suffix(10).map(\.title),
                          now: now)
@@ -133,7 +133,7 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         let complete: SmartAdvisor.Complete = { system, user in try await client.complete(system: system, user: user) }
 
         // Pass 1: only messages not read before, in small batches, condensed to open items.
-        if s.advisorReadsMessages == true {
+        if s.advisorReadsMessages == true && s.enabledSources.contains(.messages) {
             let messages = await recentMessages(now: now)
             let updated = await MessageTriage(complete: complete).update(triage, messages: messages, now: now)
             if updated != triage {

@@ -42,12 +42,12 @@ Launcher、Agent 与外部 MCP 共用 Swift ToolService。工具实现和权限�
 | 日历、提醒事项 | EventKit | 查询和 PRD 允许的写入；处理只读目标、冲突、重复事件、时区与撤权 |
 | 联系人 | Contacts | 姓名、已确认关系与联系方式；同名、多号码请求选择 |
 | Notes | Notes Apple Events 对象 | 只在授权账户与文件夹搜索、读、新建和追加；无锁定内容、附件编辑或删除 |
-| Messages | 草稿交接到 Messages | 验证收件人、Unicode 与预填；失败时复制正文并提示粘贴；最终人工发送 |
+| Messages | 本机信息数据库只读查询、草稿交接 | `messages_search` 按关键词及日期查询最近 30 天，需 AI 短信读取开关与完全磁盘访问；过滤验证码、遮盖长数字，不向外部 MCP 开放。草稿验证收件人，最终人工发送 |
 | 截图 | ScreenCaptureKit | 用户主动选择，单任务输入；取消、授权与临时清理 |
 | 路线 | MapKit | 必要地点与交通偏好；缺条件或有效 ETA 时不给精确出发时间 |
 | 通知 | UserNotifications | 无声交付、计划标识、去重、取消、时区与恢复校验 |
 
-既有静态脚本定义检查记录包含 Notes 的正文与文件夹、Chrome 的标签页与窗口，以及 Messages 的发送命令；Messages 的该定义没有完整消息历史读取对象。静态定义只表明接口入口，不代表运行操作已验证。尤其 Notes、Chrome 与 Messages 应核实授权账户、目标状态、系统版本和真实执行结果。Messages 首版不读取历史消息，不调用发送命令。
+既有静态脚本定义检查记录包含 Notes 的正文与文件夹、Chrome 的标签页与窗口，以及 Messages 的发送命令；Messages 的该定义没有完整消息历史读取对象。静态定义只表明接口入口，不代表运行操作已验证。尤其 Notes、Chrome 与 Messages 应核实授权账户、目标状态、系统版本和真实执行结果。聊天查询通过原生 ToolService 适配器只读访问本机 `chat.db`，不使用 Apple Events 读取历史，不调用发送命令。每次最多返回 50 条、扫描 10,000 条，结果标明查询范围及是否仍有候选；只能据实际成功结果回答，不能把权限失败解释成没有短信。原有后台短信授权开关沿用，同时允许聊天查询；无需开启后台 AI，关闭读取开关会立即拒绝新的查询。
 
 官方依据：[EventKit](https://developer.apple.com/documentation/eventkit)、[Contacts 授权](https://developer.apple.com/documentation/contacts/accessing-the-contact-store)、[Apple Events 用途声明](https://developer.apple.com/documentation/bundleresources/information-property-list/nsappleeventsusagedescription)、[ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit)、[MapKit](https://developer.apple.com/documentation/mapkit)、[本地通知](https://developer.apple.com/documentation/usernotifications/scheduling-a-notification-locally-from-your-app)。
 

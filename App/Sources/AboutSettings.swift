@@ -26,7 +26,12 @@ struct AboutSettings: View {
                     }
                 }
                 .padding(.vertical, 4)
-                Link(NSLocalizedString("在 GitHub 查看项目", comment: ""), destination: ToolService.appRepositoryURL)
+                HStack {
+                    Text(NSLocalizedString("在 GitHub 查看项目", comment: ""))
+                    Spacer(minLength: 12)
+                    Link(NSLocalizedString("前往", comment: ""), destination: ToolService.appRepositoryURL)
+                        .buttonStyle(.bordered)
+                }
             }
             Section(NSLocalizedString("软件更新", comment: "")) {
                 HStack {
@@ -34,9 +39,6 @@ struct AboutSettings: View {
                     Spacer(minLength: 12)
                     actionButton
                 }
-                Text(NSLocalizedString("从 GitHub Releases 获取最新版本。安装时会下载并校验新版本，退出 Asky 后替换当前应用并删除旧版本，然后自动重新打开。", comment: ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

@@ -106,17 +106,21 @@ public struct ConfirmationRequest: Sendable, Hashable, Codable, Identifiable {
     public var target: String
     public var changes: [String]
     public var note: String?
+    public var title: String?
+    public var details: String?
     public var argumentsDigest: String
     public var origin: CallerOrigin
 
     public init(id: String = UUID().uuidString, requestID: String, tool: String, target: String,
-                changes: [String], note: String? = nil, argumentsDigest: String, origin: CallerOrigin) {
+                changes: [String], note: String? = nil, argumentsDigest: String, origin: CallerOrigin, title: String? = nil, details: String? = nil) {
         self.id = id
         self.requestID = requestID
         self.tool = tool
         self.target = target
         self.changes = changes
         self.note = note
+        self.title = title
+        self.details = details
         self.argumentsDigest = argumentsDigest
         self.origin = origin
     }

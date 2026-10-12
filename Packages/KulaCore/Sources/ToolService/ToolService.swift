@@ -17,10 +17,14 @@ public struct ConfirmationPreview: Sendable, Hashable {
     public var target: String
     public var changes: [String]
     public var note: String?
-    public init(target: String, changes: [String], note: String? = nil) {
+    public var title: String?
+    public var details: String?
+    public init(target: String, changes: [String], note: String? = nil, title: String? = nil, details: String? = nil) {
         self.target = target
         self.changes = changes
         self.note = note
+        self.title = title
+        self.details = details
     }
 }
 
@@ -150,7 +154,8 @@ public actor ToolService {
         }
         let confirmation = ConfirmationRequest(requestID: request.requestID, tool: def.name, target: preview.target,
                                                changes: preview.changes, note: preview.note,
-                                               argumentsDigest: request.argumentsDigest, origin: request.origin)
+                                               argumentsDigest: request.argumentsDigest, origin: request.origin,
+                                               title: preview.title, details: preview.details)
 
         if request.intent == .aiSuggested {
             return ExecutionResult(requestID: request.requestID, status: .suggestion, confirmation: confirmation)

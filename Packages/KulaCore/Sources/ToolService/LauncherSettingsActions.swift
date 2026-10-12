@@ -46,7 +46,7 @@ extension ToolService {
             return try folder.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
                                            includingResourceValuesForKeys: nil, relativeTo: nil)
         } catch {
-            let alert = NSAlert()
+            let alert = AppDialog.make()
             alert.messageText = NSLocalizedString("无法读取所选文件夹中的 Chrome 书签", comment: "")
             alert.informativeText = NSLocalizedString("请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。", comment: "")
             alert.addButton(withTitle: NSLocalizedString("好", comment: ""))

@@ -81,11 +81,10 @@ struct PluginSettings: View {
             }
         }
         .task { await reload() }
-        .alert(label("安装可信插件"), isPresented: $confirmInstall) {
-            Button(label("取消"), role: .cancel) {}
-            Button(label("安装")) { perform("安装插件") { try await manager.install(repository: pendingRepository) } }
-        } message: {
-            Text(label("此仓库的插件将能够在本机执行代码。安装表示你信任该来源。") + "\n\n" + pendingRepository)
+        .appDialog(label("安装可信插件"), isPresented: $confirmInstall,
+                   message: label("此仓库的插件将能够在本机执行代码。安装表示你信任该来源。") + "\n\n" + pendingRepository,
+                   buttons: [label("安装"), label("取消")]) { response in
+            if response == 0 { perform("安装插件") { try await manager.install(repository: pendingRepository) } }
         }
         .sheet(item: $editing) { plugin in
             PluginConfigurationEditor(plugin: plugin, manager: manager) { Task { await reload() } }

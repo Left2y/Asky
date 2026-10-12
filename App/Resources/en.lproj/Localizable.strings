@@ -436,3 +436,47 @@
 "Others" = "Others";
 
 "短信读取" = "Message reading";
+
+"将通过「%@」插件执行操作。" = "This operation will run through the “%@” plugin.";
+"允许「%@」执行操作？" = "Allow “%@” to perform this operation?";
+"操作详情" = "Operation details";
+"执行这项操作？" = "Perform this operation?";
+"创建日程？" = "Create this event?";
+"修改日程？" = "Update this event?";
+"删除日程？" = "Delete this event?";
+"创建提醒事项？" = "Create this reminder?";
+"创建备忘录？" = "Create this note?";
+"追加备忘录内容？" = "Append to this note?";
+"准备信息草稿？" = "Prepare this message draft?";
+"运行快捷指令？" = "Run this shortcut?";
+"切换浏览器标签页？" = "Switch to this browser tab?";
+"保存这条记忆？" = "Save this memory?";
+"修改这条记忆？" = "Update this memory?";
+"删除这条记忆？" = "Delete this memory?";
+"标题" = "Title";
+"正文" = "Body";
+"路径" = "Path";
+
+"通过「%@」%@？" = "%2$@ via “%1$@”?";
+"将通过「%@」%@。" = "%2$@ via “%1$@”.";
+"知识库内容" = "knowledge base content";
+"文档" = "document";
+"日程" = "event";
+"任务" = "task";
+"消息" = "message";
+"文件" = "file";
+"电子表格" = "spreadsheet";
+"修改" = "Update ";
+"发送" = "Send ";
+"移动" = "Move ";
+
+"%@%@" = "%@ %@";
+
+"外部 MCP 客户端请求执行此操作。" = "An external MCP client requested this operation.";
+
+"文档内容" = "document content";
+"日历内容" = "calendar content";
+"任务内容" = "task content";
+"聊天内容" = "chat content";
+"云空间内容" = "Drive content";
+"电子表格内容" = "spreadsheet content";

@@ -407,10 +407,9 @@ private struct ChatRemoteImage: View {
         .background(ThemeColor.kBackgroundNeutral)
         .clipShape(.rect(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(ThemeColor.kBorder, lineWidth: 1))
-        .alert("图片下载失败", isPresented: Binding(
-            get: { downloadError != nil }, set: { if !$0 { downloadError = nil } })) {
-                Button("好", role: .cancel) { downloadError = nil }
-            } message: { Text(downloadError ?? "") }
+        .appDialog(NSLocalizedString("图片下载失败", comment: ""), isPresented: Binding(
+            get: { downloadError != nil }, set: { if !$0 { downloadError = nil } }),
+                   message: downloadError ?? "", buttons: [NSLocalizedString("好", comment: "")])
         .task(id: "\(url?.absoluteString ?? "")-\(failed)") {
             guard !failed else { return }
             image = nil

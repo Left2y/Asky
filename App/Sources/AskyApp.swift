@@ -44,16 +44,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             Task { @MainActor in
                 let previews: [(String, CallerOrigin)] = [
                     ("plugin_lark__execute", .agent(sessionID: "preview")),
-                    ("calendar_update", .agent(sessionID: "preview")),
-                    ("messages_send", .agent(sessionID: "preview")),
+                    ("calendar_update_event", .agent(sessionID: "preview")),
+                    ("messages_prepare_draft", .agent(sessionID: "preview")),
                     ("notes_append", .mcp(instanceID: "preview"))
                 ]
                 for (tool, origin) in previews {
                     let decision = await confirmations.present(ConfirmationRequest(
                         requestID: UUID().uuidString, tool: tool,
                         target: "样式预览：不会执行真实操作",
-                        changes: ["确认完整操作内容"], argumentsDigest: "preview", origin: origin))
+                        changes: tool == "plugin_lark__execute" ? ["标题：示例"] : ["内容：样式预览"],
+                        argumentsDigest: "preview", origin: origin,
+                        title: tool == "plugin_lark__execute" ? "通过飞书创建知识库内容？" : nil,
+                        details: tool == "plugin_lark__execute" ? #"{"argv":["wiki","spaces","node-create","--data","{\"title\":\"示例\"}"]}"# : nil))
                     print("confirmation-preview \(tool): \(decision.rawValue)")
+                }
+                for title in ["安装可信插件", "安装新版本？", "图片下载失败"] {
+                    let alert = AppDialog.make()
+                    alert.messageText = NSLocalizedString(title, comment: "")
+                    alert.informativeText = "样式预览：不会安装、更新或下载。"
+                    alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
+                    NSApp.activate()
+                    _ = alert.runModal()
                 }
                 NSApp.terminate(nil)
             }
@@ -62,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         #endif
         guard !AppInstallationPrompt.handleLaunchIfNeeded() else { return }
         do { model = try AppModel() } catch {
-            let alert = NSAlert()
+            let alert = AppDialog.make()
             alert.messageText = NSLocalizedString("Asky 无法打开本地数据", comment: "")
             alert.informativeText = "\(error)"
             alert.runModal()
@@ -117,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if CommandLine.arguments.contains("--test-notification") {
                 do { try await NotificationPreview.send() }
                 catch {
-                    let alert = NSAlert()
+                    let alert = AppDialog.make()
                     alert.messageText = "测试通知未发送"
                     alert.informativeText = error.localizedDescription
                     NSApp.activate()

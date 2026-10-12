@@ -42,13 +42,12 @@ struct AboutSettings: View {
                 }
             }
         }
-        .confirmationDialog(NSLocalizedString("安装新版本？", comment: ""), isPresented: $confirmingInstall) {
-            if case .available(let release) = status {
-                Button(NSLocalizedString("安装并重新打开", comment: "")) { Task { await install(release) } }
+        .appDialog(NSLocalizedString("安装新版本？", comment: ""), isPresented: $confirmingInstall,
+                   message: NSLocalizedString("Asky 将退出，用新版本替换并删除当前版本，然后重新打开。", comment: ""),
+                   buttons: [NSLocalizedString("安装并重新打开", comment: ""), NSLocalizedString("取消", comment: "")]) { response in
+            if response == 0, case .available(let release) = status {
+                Task { await install(release) }
             }
-            Button(NSLocalizedString("取消", comment: ""), role: .cancel) {}
-        } message: {
-            Text(NSLocalizedString("Asky 将退出，用新版本替换并删除当前版本，然后重新打开。", comment: ""))
         }
     }
 

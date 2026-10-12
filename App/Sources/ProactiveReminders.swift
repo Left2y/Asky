@@ -244,7 +244,7 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
             }
         default:
             try? scheduler.markDelivered(planID)
-            let alert = NSAlert()
+            let alert = AppDialog.make()
             alert.messageText = title
             alert.informativeText = evidence.isEmpty ? NSLocalizedString("无记录的依据。", comment: "") : evidence.map { "• \($0)" }.joined(separator: "\n")
             NSApp.activate()

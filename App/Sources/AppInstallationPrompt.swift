@@ -7,7 +7,7 @@ enum AppInstallationPrompt {
     static func handleLaunchIfNeeded() -> Bool {
         guard ToolService.appInstallationRequired else { return false }
         NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
+        let alert = AppDialog.make()
         alert.messageText = NSLocalizedString("安装 Asky", comment: "")
         if let installed = ToolService.existingInstalledApp {
             alert.informativeText = NSLocalizedString("应用程序中已有 Asky，请打开已安装的版本。", comment: "")
@@ -47,7 +47,7 @@ enum AppInstallationPrompt {
     }
 
     private static func showError(_ error: Error) {
-        let alert = NSAlert()
+        let alert = AppDialog.make()
         alert.alertStyle = .warning
         alert.messageText = NSLocalizedString("无法安装 Asky", comment: "")
         alert.informativeText = error.localizedDescription + "\n\n" + NSLocalizedString("请在 Finder 中将 Asky.app 拖入“应用程序”，然后从那里重新打开。", comment: "")

@@ -154,7 +154,7 @@ public actor PluginManager {
         for p in records where p.enabled && !p.needsConfiguration {
             if let t = p.manifest.tools.first(where: { "plugin_\(p.id)__\($0.name)" == name }) {
                 return PluginAdapter(definition: definition(t, plugin: p.id), executionTimeout: .seconds(t.timeoutSeconds ?? 20),
-                                     pluginID: p.id, toolName: t.name, manager: self)
+                                     pluginID: p.id, pluginName: p.manifest.name, toolName: t.name, manager: self)
             }
         }
         return nil
@@ -200,8 +200,12 @@ private struct PluginAdapter: ToolAdapter {
     let executionTimeout: Duration?
     var deduplicatesArguments: Bool { false }
     let pluginID: String
+    let pluginName: String
     let toolName: String
     let manager: PluginManager
+    func preview(_ arguments: JSONValue) async throws -> ConfirmationPreview {
+        PluginConfirmation.preview(pluginName: pluginName, arguments: arguments)
+    }
     func prepare(requestID: String) async throws { try await manager.acquire(pluginID, requestID: requestID) }
     func finish(requestID: String) async { await manager.release(pluginID, requestID: requestID) }
     func execute(_ arguments: JSONValue) async throws -> AdapterOutput {

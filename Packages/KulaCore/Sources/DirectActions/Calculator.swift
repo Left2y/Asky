@@ -6,7 +6,13 @@ public enum Calculator {
 
     /// Returns nil when the input is not an arithmetic expression (caller falls back to search).
     public static func evaluate(_ input: String) -> Double? {
-        let s = input.replacingOccurrences(of: "×", with: "*")
+        // Width folding handles Chinese input-method digits and punctuation.
+        // Smart punctuation and pasted formulas can use a dash or Unicode minus.
+        let s = input.folding(options: .widthInsensitive, locale: Locale(identifier: "en_US_POSIX"))
+            .replacingOccurrences(of: "−", with: "-")
+            .replacingOccurrences(of: "–", with: "-")
+            .replacingOccurrences(of: "—", with: "-")
+            .replacingOccurrences(of: "×", with: "*")
             .replacingOccurrences(of: "÷", with: "/")
             .replacingOccurrences(of: "，", with: ",")
             .replacingOccurrences(of: ",", with: "")

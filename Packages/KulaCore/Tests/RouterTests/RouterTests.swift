@@ -26,6 +26,17 @@ import DirectActions
         #expect(!router.includesSearch(router.route("1+2")))
     }
 
+    @Test(arguments: ["(12-1)*3", "(12–1)*3", "(12−1)×3", "（１２－１）＊３"])
+    func parenthesizedCalculationKeepsOriginalExpression(_ expression: String) throws {
+        let route = router.route(expression)
+        #expect(route == .calculation(expression: expression, value: 33))
+        #expect(!router.includesSearch(route))
+        let result = try #require(router.directResults(for: route).first)
+        #expect(result.source == .calculator)
+        #expect(result.subtitle == expression)
+        #expect(result.primaryAction == .copy("33"))
+    }
+
     @Test func conversionAndCurrency() {
         if case .conversion(let c) = router.route("10 km mi") {
             #expect(abs(c.value - 6.21371) < 0.001)

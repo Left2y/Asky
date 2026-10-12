@@ -94,6 +94,15 @@ enum LauncherCalculationRegression {
             try require(!field.subviews.contains { ($0 as? NSTextField)?.stringValue == "= 2" && !$0.isHidden }, "mid-text caret hides suffix")
             editor.setSelectedRange(NSRange(location: 3, length: 0))
         }
+        for expression in ["(12-1)*3", "(12–1)*3", "(12−1)×3", "（１２－１）＊３"] {
+            setQuery(expression)
+            try await Task.sleep(for: .milliseconds(250))
+            try require(model.calculation?.expression == expression, "original formula remains visible")
+            try require(model.calculation?.result == "33", "parenthesized formula: \(expression)")
+            try require(model.calculationCompletion == "= 33", "parenthesized completion")
+            try require(model.results.first?.primaryAction == .copy("33"), "parenthesized copy action")
+        }
+        try capture(panel, "calculator-parentheses-\(appearance)")
         let longExpression = Array(repeating: "123456789", count: 24).joined(separator: "+")
         setQuery(longExpression)
         try await Task.sleep(for: .milliseconds(250))

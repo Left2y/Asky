@@ -4,12 +4,16 @@ import Foundation
 
 @Suite struct CalculatorTests {
     @Test(arguments: [("2+3*4", 14.0), ("(2+3)*4", 20), ("2^10", 1024), ("10/4", 2.5), ("1,000*2", 2000),
-                      ("3×4", 12), ("-2+5", 3), ("2^3^2", 512), ("10 % 3", 1)])
+                      ("3×4", 12), ("-2+5", 3), ("2^3^2", 512), ("10 % 3", 1),
+                      ("(12-1)*3", 33), ("(12–1)*3", 33), ("(12−1)×3", 33),
+                      ("(12—1)*3", 33), ("（１２－１）＊３", 33),
+                      ("((12−1)×3+7)÷2", 20), ("（12－1）×（2＋3）", 55)])
     func evaluates(_ input: String, _ expected: Double) {
         #expect(Calculator.evaluate(input) == expected)
     }
 
-    @Test(arguments: ["hello", "1/0", "-5", "42", "2+", "system(\"ls\")", "1+2;rm"])
+    @Test(arguments: ["hello", "1/0", "-5", "42", "2+", "system(\"ls\")", "1+2;rm",
+                      "（12－1", "（12－1）÷0", "１２", "−５", "（12－1）×", "１＋２；rm"])
     func rejects(_ input: String) {
         #expect(Calculator.evaluate(input) == nil)
     }

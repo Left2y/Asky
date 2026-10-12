@@ -545,11 +545,8 @@ private struct Composer: View {
                     Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")
                         .font(.system(size: 14, weight: .medium)).frame(width: 32, height: 32)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(ThemeColor("iconInverted"))
-                .background(ThemeColor.kBackgroundPrimary, in: .circle)
+                .buttonStyle(ComposerSubmitButtonStyle())
                 .disabled(!model.isRunning && !model.canSend)
-                .opacity(!model.isRunning && !model.canSend ? 0.3 : 1)
                 .accessibilityLabel(model.isRunning ? NSLocalizedString("停止生成", comment: "") : NSLocalizedString("发送消息", comment: ""))
             }
             .padding(.horizontal, 12)
@@ -568,6 +565,17 @@ private struct Composer: View {
             urls.forEach { model.attach(fileURL: $0) }
             return !urls.isEmpty
         }
+    }
+}
+
+private struct ComposerSubmitButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(ThemeColor("iconInverted"))
+            // Fade only the fill so the arrow keeps its contrast when disabled.
+            .background(ThemeColor.kBackgroundPrimary.opacity(isEnabled ? 1 : 0.3), in: .circle)
     }
 }
 

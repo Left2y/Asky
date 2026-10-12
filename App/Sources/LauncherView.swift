@@ -308,6 +308,7 @@ struct LauncherView: View {
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(LauncherAccessoryButtonStyle(size: inputHeight))
+        .floatingSurfaceShadow(in: Circle())
         .overlay {
             // A single edge glint as each glass circle separates from the field.
             // Keep it out of the hit area and suppress it for reduced motion.

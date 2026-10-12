@@ -1,10 +1,8 @@
 import AppKit
-import SwiftUI
 import Contracts
-import Theme
 
 /// Native confirmation for every write that needs it, regardless of caller (Launcher, Pi, external MCP).
-/// Requests are shown one at a time in a floating panel; closing the panel counts as rejection.
+/// Requests are shown one at a time using the system alert layout.
 @MainActor @Observable
 final class ConfirmationCenter {
     struct Pending: Identifiable {
@@ -14,101 +12,69 @@ final class ConfirmationCenter {
     }
 
     private(set) var queue: [Pending] = []
-    private var panel: NSPanel?
+    private var alert: NSAlert?
 
     nonisolated init() {}
 
     func present(_ request: ConfirmationRequest) async -> ConfirmationDecision {
-        await withCheckedContinuation { c in
-            queue.append(Pending(request: request, continuation: c))
-            showPanel()
+        await withCheckedContinuation { continuation in
+            queue.append(Pending(request: request, continuation: continuation))
+            showNextAlert()
         }
-    }
-
-    func resolve(_ id: String, _ decision: ConfirmationDecision) {
-        guard let i = queue.firstIndex(where: { $0.id == id }) else { return }
-        queue.remove(at: i).continuation.resume(returning: decision)
-        if queue.isEmpty { panel?.orderOut(nil) }
     }
 
     func rejectAll() {
         let pending = queue
         queue.removeAll()
         pending.forEach { $0.continuation.resume(returning: .rejected) }
-        panel?.orderOut(nil)
+        if let alert, NSApp.modalWindow === alert.window { NSApp.abortModal() }
+        alert?.window.orderOut(nil)
     }
 
-    private func showPanel() {
-        if panel == nil {
-            let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 260),
-                            styleMask: [.titled, .closable, .fullSizeContentView, .utilityWindow],
-                            backing: .buffered, defer: true)
-            p.title = NSLocalizedString("确认操作", comment: "")
-            p.titlebarAppearsTransparent = true
-            p.level = .modalPanel
-            p.isReleasedWhenClosed = false
-            p.hidesOnDeactivate = false
-            p.contentView = NSHostingView(rootView: ConfirmationQueueView(center: self))
-            p.delegate = PanelCloseDelegate.shared
-            PanelCloseDelegate.shared.onClose = { [weak self] in self?.rejectAll() }
-            panel = p
-        }
-        panel?.center()
-        panel?.makeKeyAndOrderFront(nil)
-        NSApp.activate()
-    }
-}
-
-@MainActor
-private final class PanelCloseDelegate: NSObject, NSWindowDelegate {
-    static let shared = PanelCloseDelegate()
-    var onClose: (() -> Void)?
-    func windowWillClose(_ notification: Notification) { onClose?() }
-}
-
-struct ConfirmationQueueView: View {
-    let center: ConfirmationCenter
-
-    var body: some View {
-        if let p = center.queue.first {
-            ConfirmationCard(request: p.request, remaining: center.queue.count - 1) { decision in
-                center.resolve(p.id, decision)
-            }
-            .padding(20)
-            .frame(width: 420)
-        } else {
-            Color.clear.frame(width: 420, height: 1)
-        }
-    }
-}
-
-struct ConfirmationCard: View {
-    let request: ConfirmationRequest
-    let remaining: Int
-    let decide: (ConfirmationDecision) -> Void
-
-    private var originLabel: String {
+    private func showNextAlert() {
+        guard alert == nil, let pending = queue.first else { return }
+        let request = pending.request
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = NSLocalizedString("确认操作", comment: "")
+        let originLabel: String
         switch request.origin {
-        case .launcher: NSLocalizedString("启动器", comment: "")
-        case .agent: NSLocalizedString("AI 助手", comment: "")
-        case .mcp: NSLocalizedString("外部 MCP 客户端", comment: "")
+        case .launcher: originLabel = NSLocalizedString("启动器", comment: "")
+        case .agent: originLabel = NSLocalizedString("AI 助手", comment: "")
+        case .mcp: originLabel = NSLocalizedString("外部 MCP 客户端", comment: "")
         }
-    }
+        var details = [
+            String(format: NSLocalizedString("%@ 请求：%@", comment: ""), originLabel, request.tool),
+            request.target,
+            request.changes.map { "• \($0)" }.joined(separator: "\n")
+        ]
+        if let note = request.note { details.append(note) }
+        if queue.count > 1 {
+            details.append(String(format: NSLocalizedString("还有 %@ 项待确认", comment: ""), String(queue.count - 1)))
+        }
+        alert.informativeText = details.filter { !$0.isEmpty }.joined(separator: "\n\n")
+        alert.addButton(withTitle: NSLocalizedString("确认执行", comment: "")).keyEquivalent = "\r"
+        alert.addButton(withTitle: NSLocalizedString("不执行", comment: "")).keyEquivalent = "\u{1b}"
+        self.alert = alert
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(String(format: NSLocalizedString("%@ 请求：%@", comment: ""), originLabel, request.tool)).textStyle(.button)
-            Text(request.target).textStyle(.resultPrimary)
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(request.changes, id: \.self) { Text("• \($0)").textStyle(.secondary) }
+        // Schedule the modal loop after the continuation has been registered. AppKit owns
+        // focus, layout, appearance, and keyboard handling, just like a system permission alert.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard self.queue.contains(where: { $0.id == pending.id }) else {
+                self.alert = nil
+                self.showNextAlert()
+                return
             }
-            if let note = request.note { Text(note).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle) }
-            if remaining > 0 { Text(String(format: NSLocalizedString("还有 %@ 项待确认", comment: ""), String(remaining))).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest) }
-            HStack {
-                Spacer()
-                Button(NSLocalizedString("不执行", comment: ""), role: .cancel) { decide(.rejected) }.keyboardShortcut(.cancelAction)
-                Button(NSLocalizedString("确认执行", comment: "")) { decide(.approved) }.keyboardShortcut(.defaultAction).compatibleGlassButtonStyle(prominent: true)
+            NSApp.activate()
+            let response = alert.runModal()
+            alert.window.orderOut(nil)
+            self.alert = nil
+            if let index = self.queue.firstIndex(where: { $0.id == pending.id }) {
+                self.queue.remove(at: index).continuation.resume(
+                    returning: response == .alertFirstButtonReturn ? .approved : .rejected)
             }
+            self.showNextAlert()
         }
     }
 }

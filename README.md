@@ -85,6 +85,8 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 
 日历与提醒事项工具会在系统授权变化后刷新 EventKit 数据实例。若系统未返回任何日历或提醒列表，会先尝试刷新，再报告无法确认的数据读取异常，不据此断言账户未配置；搜索无匹配与读取失败分别处理。
 
+在设置 › 数据来源中点击「连接备忘录」，完成系统授权后自动列出账户与文件夹（包含子文件夹）。勾选允许访问的文件夹后自动保存；「刷新文件夹」重新加载列表，授权失败时可直接打开自动化权限设置。发现文件夹仅读取名称和标识，备忘录正文仍只在勾选范围内访问。
+
 ### 项目结构与文档
 
 | 路径 | 用途 |
@@ -246,6 +248,8 @@ See the [draft privacy policy (Chinese)](PRIVACY.md) for local storage, third-pa
 Before using AI, enter your provider's API endpoint, model name, and API key under Settings › Model Settings. Keys are stored in macOS Keychain; local data resides in `~/Library/Application Support/KulaHere/`.
 
 Manage system permissions under Settings › System Permissions. Tools request authorization as needed. Calendar, Reminders, Contacts, and Notifications update immediately from the request result; stale background checks cannot overwrite it. For Accessibility and Screen Recording, click Grant Access to open an independent native glass panel and the matching System Settings pane automatically. When access is missing, the panel clears this app’s old entry, then enables the drag card. Dragging the Asky.app card into System Settings adds and enables it without a system permission prompt. Screen recording may require restarting Asky; the panel offers a restart button. To grant access again, remove the old entry before dragging. The source card disappears when dragging starts, returns if the drag is cancelled or rejected, and stays hidden after an accepted drop. The panel keeps checking the running app’s access and closes when authorization is confirmed, also closing or hiding its permission pane; a different pane you have navigated to is preserved. A translocated app must first be moved to Applications and reopened. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
+
+Under Settings › Sources, click Connect Notes to authorize Apple Notes and automatically list accounts and folders, including nested folders. Select the folders Asky may access; selections are saved automatically. Refresh reloads the list, and authorization errors provide a link to Automation settings. Folder discovery reads names and identifiers only; note content remains limited to selected folders.
 
 Calendar and Reminders tools refresh their EventKit store after system authorization changes. If no calendars or reminder lists are returned, they attempt a refresh and then report an unconfirmed data-access issue rather than claiming the account is unconfigured; an empty search and a read failure remain distinct.
 

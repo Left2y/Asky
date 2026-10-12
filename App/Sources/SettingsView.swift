@@ -262,20 +262,37 @@ private struct GeneralSettings: View {
 
 private struct SourceSettings: View {
     @Bindable var app: AppModel
-    @State private var account = ""
-    @State private var folder = ""
+    @State private var availableFolders: [NotesFolder] = []
+    @State private var loadingFolders = false
+    @State private var foldersLoaded = false
+    @State private var folderError: String?
 
-    private var proposedFolder: NotesFolder {
-        NotesFolder(account: account.trimmingCharacters(in: .whitespacesAndNewlines),
-                    folder: folder.trimmingCharacters(in: .whitespacesAndNewlines))
+    private var displayedFolders: [NotesFolder] {
+        availableFolders + app.settings.notesFolders.filter { !availableFolders.contains($0) }
     }
 
-    private var hasFolderInput: Bool {
-        !proposedFolder.account.isEmpty && !proposedFolder.folder.isEmpty
-    }
-
-    private var isFolderAlreadyAuthorized: Bool {
-        app.settings.notesFolders.contains(proposedFolder)
+    private func connectNotes() async {
+        guard !loadingFolders else { return }
+        loadingFolders = true
+        folderError = nil
+        defer { loadingFolders = false }
+        app.settings.enabledSources.insert(.notes)
+        let result = await app.tools.submit(ActionRequest(tool: "notes_list_folders", arguments: .object([:]),
+                                                         origin: .launcher, intent: .explicitRequest))
+        guard result.status == .completed, let output = result.output else {
+            folderError = result.error?.message ?? NSLocalizedString("无法读取备忘录文件夹，请重试。", comment: "")
+            return
+        }
+        do {
+            availableFolders = try JSONDecoder().decode([NotesFolder].self, from: output.canonicalData())
+            foldersLoaded = true
+            // Refresh identifiers for existing selections without expanding their access scope.
+            app.settings.notesFolders = app.settings.notesFolders.map { saved in
+                availableFolders.first(where: { $0.matchesLocation(saved) }) ?? saved
+            }
+        } catch {
+            folderError = NSLocalizedString("无法读取备忘录文件夹，请重试。", comment: "")
+        }
     }
 
     static let labels: [(DataSourceID, String)] = [
@@ -300,28 +317,50 @@ private struct SourceSettings: View {
                 }
             }
             Section(NSLocalizedString("授权的备忘录文件夹", comment: "")) {
-                ForEach(app.settings.notesFolders, id: \.self) { f in
-                    HStack { Text("\(f.account) › \(f.folder)"); Spacer(); Button(NSLocalizedString("移除", comment: "")) { app.settings.notesFolders.removeAll { $0 == f } } }
-                }
                 HStack {
-                    TextField(NSLocalizedString("账户（如 iCloud）", comment: ""), text: $account)
-                    TextField(NSLocalizedString("文件夹", comment: ""), text: $folder)
-                    Button(NSLocalizedString("添加", comment: "")) {
-                        guard hasFolderInput, !isFolderAlreadyAuthorized else { return }
-                        app.settings.notesFolders.append(proposedFolder)
-                        account = ""; folder = ""
+                    Button(NSLocalizedString(foldersLoaded ? "刷新文件夹" : "连接备忘录", comment: "")) {
+                        Task { await connectNotes() }
                     }
-                    .disabled(!hasFolderInput || isFolderAlreadyAuthorized)
+                    .disabled(loadingFolders)
+                    if loadingFolders { ProgressView().controlSize(.small) }
                 }
-                Text(NSLocalizedString("请先填写备忘录中的账户名和已有文件夹名，再点击添加。此处只设置允许访问的范围，不会新建文件夹；系统权限将在使用备忘录时请求。", comment: ""))
+                Text(NSLocalizedString("连接后自动读取账户和文件夹。勾选允许 Asky 访问的文件夹，选择会自动保存；不会读取未勾选文件夹中的备忘录内容。", comment: ""))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if hasFolderInput && isFolderAlreadyAuthorized {
-                    Text(NSLocalizedString("此备忘录文件夹已添加。", comment: ""))
-                        .font(.caption)
+                ForEach(Array(Set(displayedFolders.map(\.account))).sorted(), id: \.self) { account in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(account).font(.headline)
+                        ForEach(displayedFolders.filter { $0.account == account }, id: \.self) { folder in
+                            Toggle(isOn: Binding(
+                                get: { app.settings.notesFolders.contains(folder) },
+                                set: { selected in
+                                    app.settings.notesFolders.removeAll { $0 == folder }
+                                    if selected { app.settings.notesFolders.append(folder) }
+                                })) {
+                                HStack {
+                                    Label(folder.folder, systemImage: "folder")
+                                    if foldersLoaded && !availableFolders.contains(folder) {
+                                        Text(NSLocalizedString("未找到，请取消选择或刷新", comment: "")).foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .toggleStyle(.checkbox)
+                        }
+                    }
+                }
+                if foldersLoaded && availableFolders.isEmpty {
+                    Text(NSLocalizedString("未找到文件夹，请先在 Apple 备忘录中添加账户或创建文件夹，再刷新。", comment: ""))
                         .foregroundStyle(.secondary)
                 }
+                if let folderError {
+                    Text(folderError).foregroundStyle(.red)
+                    Button(NSLocalizedString("打开自动化权限设置…", comment: "")) {
+                        do { try SystemPermissions.openSettings(.automation) }
+                        catch { self.folderError = error.localizedDescription }
+                    }
+                }
             }
+
             Section(NSLocalizedString("系统权限", comment: "")) {
                 Button(NSLocalizedString("管理系统权限…", comment: "")) { app.openSettings(permissions: true) }
             }

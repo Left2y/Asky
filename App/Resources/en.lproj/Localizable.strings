@@ -411,3 +411,12 @@
 "无法读取所选文件夹中的 Chrome 书签" = "Chrome bookmarks cannot be read from the selected folder";
 "请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。" = "Select the Chrome folder or its Default / Profile folder, then grant access again.";
 "开启后，模型会结合日程、待办和记忆，找出需要提前准备、彼此关联或临近截止却没安排时间的事，只在值得时提醒。内容会发送到你配置的模型服务。" = "When on, the model looks across your events, open tasks and memories for things that need preparation, are related, or are due without time set aside, and only notifies when it matters. This content is sent to your configured model service.";
+
+/* Notes folder connection */
+"连接备忘录" = "Connect Notes";
+"刷新文件夹" = "Refresh Folders";
+"连接后自动读取账户和文件夹。勾选允许 Asky 访问的文件夹，选择会自动保存；不会读取未勾选文件夹中的备忘录内容。" = "Connect to load accounts and folders. Select the folders Asky may access; selections are saved automatically. Note contents in unselected folders will not be read.";
+"未找到，请取消选择或刷新" = "Not found; deselect or refresh";
+"未找到文件夹，请先在 Apple 备忘录中添加账户或创建文件夹，再刷新。" = "No folders found. Add an account or create a folder in Apple Notes, then refresh.";
+"无法读取备忘录文件夹，请重试。" = "Unable to load Notes folders. Please try again.";
+"打开自动化权限设置…" = "Open Automation Settings…";

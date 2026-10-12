@@ -58,7 +58,7 @@ public struct NativeTools: Sendable {
         var all: [any ToolAdapter] = [
             CalendarListTool(eventKit), CalendarSearchTool(eventKit), CalendarCreateTool(eventKit), CalendarUpdateTool(eventKit), CalendarDeleteTool(eventKit),
             RemindersListTool(eventKit), RemindersCreateTool(eventKit),
-            NotesSearchTool(notes), NotesReadTool(notes), NotesCreateTool(notes), NotesAppendTool(notes),
+            NotesListFoldersTool(notes), NotesSearchTool(notes), NotesReadTool(notes), NotesCreateTool(notes), NotesAppendTool(notes),
             ContactsSearchTool(contacts), MessagesDraftTool(contacts),
             ChromeListTabsTool(chrome), ChromeActivateTabTool(chrome),
             ShortcutsListTool(), ShortcutsRunTool(),

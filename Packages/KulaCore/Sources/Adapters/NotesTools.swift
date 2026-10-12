@@ -6,12 +6,21 @@ import ToolService
 public struct NotesFolder: Sendable, Hashable, Codable {
     public var account: String
     public var folder: String
-    public init(account: String, folder: String) {
+    public var folderID: String?
+    public init(account: String, folder: String, folderID: String? = nil) {
         self.account = account
         self.folder = folder
+        self.folderID = folderID
     }
     var label: String { "\(account) › \(folder)" }
-    var scriptRef: String { "folder \(AppleScript.literal(folder)) of account \(AppleScript.literal(account))" }
+    var scriptRef: String {
+        if let folderID { return "folder id \(AppleScript.literal(folderID))" }
+        return "folder \(AppleScript.literal(folder)) of account \(AppleScript.literal(account))"
+    }
+    public func matchesLocation(_ other: Self) -> Bool {
+        if let folderID, let otherID = other.folderID { return folderID == otherID }
+        return account == other.account && folder == other.folder
+    }
 }
 
 /// Notes via Apple Events. No locked notes, attachment editing or deletion.
@@ -21,6 +30,39 @@ public struct NotesBridge: Sendable {
     public init(runner: AppleScriptRunner = .shared, allowed: @escaping @Sendable () -> [NotesFolder]) {
         self.runner = runner
         self.allowed = allowed
+    }
+
+    /// Configuration discovery reads folder metadata only, before any content scope is selected.
+    public func availableFolders() async throws -> [NotesFolder] {
+        let source = """
+        \(AppleScript.joinHandler)
+        on collectFolders(parentObject, accountName, parentPath)
+          set rows to {}
+          tell application "Notes"
+            repeat with f in folders of parentObject
+              set folderName to name of f as text
+              if parentPath is "" then
+                set folderPath to folderName
+              else
+                set folderPath to parentPath & " / " & folderName
+              end if
+              set end of rows to my kjoin({accountName, folderPath, id of f as text}, \(AppleScript.us))
+              set rows to rows & my collectFolders(f, accountName, folderPath)
+            end repeat
+          end tell
+          return rows
+        end collectFolders
+        tell application "Notes"
+          set rows to {}
+          repeat with a in accounts
+            set rows to rows & my collectFolders(a, name of a as text, "")
+          end repeat
+        end tell
+        return my kjoin(rows, \(AppleScript.rs))
+        """
+        return AppleScript.parseRecords(try await runner.run(source), fields: 3)
+            .map { NotesFolder(account: $0[0], folder: $0[1], folderID: $0[2]) }
+            .sorted { ($0.account, $0.folder) < ($1.account, $1.folder) }
     }
 
     func folders() throws -> [NotesFolder] {
@@ -219,5 +261,23 @@ public struct NotesAppendTool: ToolAdapter {
         // Notes may normalise whitespace; check the last line of the appended text.
         let probe = text.split(separator: "\n").last.map(String.init) ?? text
         return n.text.contains(probe) ? ["id": .string(id), "verified": true] : nil
+    }
+}
+
+/// Only the native settings UI may discover locations outside the content allowlist.
+public struct NotesListFoldersTool: ToolAdapter {
+    let notes: NotesBridge
+    public init(_ notes: NotesBridge) { self.notes = notes }
+    public var definition: ToolDefinition {
+        ToolDefinition(name: "notes_list_folders", summary: "列出备忘录账户和文件夹以配置访问范围",
+                       inputSchema: Args.schema([:], required: []), source: .notes, effect: .read,
+                       confirmation: .never, externallyExposable: false, agentExposable: false)
+    }
+    public func execute(_ arguments: JSONValue) async throws -> AdapterOutput {
+        let folders = try await notes.availableFolders()
+        return AdapterOutput(output: .array(folders.map {
+            .object(["account": .string($0.account), "folder": .string($0.folder),
+                     "folderID": .string($0.folderID ?? "")])
+        }))
     }
 }

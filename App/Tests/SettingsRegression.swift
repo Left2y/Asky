@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Adapters
 import DirectActions
 import LocalStore
 import Router
@@ -44,6 +45,15 @@ enum SettingsRegression {
                       SettingsPage.allCases.contains(.keywords),
                       SettingsPage.resolve("keywords") == .keywords else {
                     fatalError("legacy settings changed fixed presets or command settings are missing")
+                }
+                model.settings.notesFolders = [NotesFolder(account: "Fixture", folder: "Parent / Child")]
+                model.settings.notesFolders = [NotesFolder(account: "Fixture", folder: "Parent / Child", folderID: "fixture-id")]
+                guard try AppModel(root: root).settings.notesFolders.first?.folderID == "fixture-id" else {
+                    fatalError("Notes folder identifier migration was not persisted")
+                }
+                model.settings.notesFolders = []
+                guard try AppModel(root: root).settings.notesFolders.isEmpty else {
+                    fatalError("Notes folder deselection was not persisted")
                 }
                 var input = LauncherInputState()
                 input.edit("> pwd", keywords: model.keywords)

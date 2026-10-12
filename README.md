@@ -57,6 +57,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Ask
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
+开发版可用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-notification` 发送一条真实的 Asky 测试通知（5 秒后交付，带默认声音与“查看依据 / 已处理”操作，不创建日程或提醒计划）。在系统设置 › 通知 › Asky 开启声音，并选择“持续”提醒样式，可预览一直保留到操作的效果。日常智能建议仍默认无声；Release 构建不响应此参数。
+
 ### 使用方法
 
 - 未输入时，搜索框与右侧两个等高圆形玻璃按钮合计占用原来的 720 pt 宽度；开始输入后按钮收起，搜索框恢复全部宽度。默认不固定、搜索全部。Pin 保持窗口在切换应用时可见，Filter 可限定应用、文件、快捷方式（内置网页指令与别名）或系统快捷指令。选择“全部”恢复混合搜索；Escape 先关闭筛选菜单，再关闭窗口，固定状态也可关闭。筛选与固定状态在窗口关闭后重置。
@@ -223,6 +225,8 @@ xcodegen generate
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
+
+In a Debug build, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-notification` to deliver a real Asky test notification after 5 seconds, with the default sound and “View Evidence / Handled” actions. It creates no calendar items or reminder plans. Enable sound and select the persistent alert style under System Settings › Notifications › Asky to preview an alert that stays until acted on. Everyday smart suggestions remain silent; Release builds ignore this argument.
 
 ### Usage
 

@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import Resources
 import Carbon.HIToolbox
+import ToolService
 
 @main
 @MainActor
@@ -81,6 +82,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Task {
             await model.start()
             reminders.start()
+            #if DEBUG
+            if CommandLine.arguments.contains("--test-notification") {
+                do { try await NotificationPreview.send() }
+                catch {
+                    let alert = NSAlert()
+                    alert.messageText = "测试通知未发送"
+                    alert.informativeText = error.localizedDescription
+                    NSApp.activate()
+                    alert.runModal()
+                }
+            }
+            #endif
         }
     }
 

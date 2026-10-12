@@ -303,6 +303,7 @@
 "关于 Asky" = "About Asky";
 "版本 %@（%@）" = "Version %@ (%@)";
 "在 GitHub 查看项目" = "View Project on GitHub";
+"前往" = "Go";
 "软件更新" = "Software Update";
 "从 GitHub Releases 获取最新版本。安装时会下载并校验新版本，退出 Asky 后替换当前应用并删除旧版本，然后自动重新打开。" = "Fetches the latest version from GitHub Releases. Installing downloads and verifies the new version, replaces the current app and deletes the old version after Asky quits, then reopens automatically.";
 "安装新版本？" = "Install the new version?";
@@ -407,3 +408,4 @@
 
 "无法读取所选文件夹中的 Chrome 书签" = "Chrome bookmarks cannot be read from the selected folder";
 "请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。" = "Select the Chrome folder or its Default / Profile folder, then grant access again.";
+"开启后，模型会结合日程、待办和记忆，找出需要提前准备、彼此关联或临近截止却没安排时间的事，只在值得时提醒。内容会发送到你配置的模型服务。" = "When on, the model looks across your events, open tasks and memories for things that need preparation, are related, or are due without time set aside, and only notifies when it matters. This content is sent to your configured model service.";

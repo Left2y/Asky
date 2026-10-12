@@ -22,8 +22,6 @@ struct PluginSettings: View {
                         .accessibilityIdentifier("plugin-repository")
                     Button(label("安装")) { requestInstall(repository) }.accessibilityLabel(label("安装")).disabled(busy || repository.isEmpty)
                 }
-                Text(label("插件会在本机执行代码。请只安装你信任的仓库。"))
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Section(label("官方插件")) {
                 ForEach(PluginManager.officialRepositories, id: \.self) { source in

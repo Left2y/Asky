@@ -371,17 +371,11 @@ private struct SourceSettings: View {
             Section(NSLocalizedString("情境提醒", comment: "")) {
                 Toggle(NSLocalizedString("主动提醒（冲突、出行准备、重要日期）", comment: ""), isOn: $app.settings.proactiveReminders)
                 Toggle(NSLocalizedString("后台 AI 判断（默认关闭）", comment: ""), isOn: $app.settings.backgroundAI)
-                Text(NSLocalizedString("开启后，模型会结合日程、待办和记忆，找出需要提前准备、彼此关联或临近截止却没安排时间的事，只在值得时提醒。内容会发送到你配置的模型服务。", comment: ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             Section(NSLocalizedString("短信读取", comment: "")) {
                 Toggle(NSLocalizedString("让 AI 读取最近 30 天的短信与 iMessage", comment: ""), isOn: Binding(
                     get: { app.settings.advisorReadsMessages ?? false },
                     set: { app.settings.advisorReadsMessages = $0 }))
-                Text(NSLocalizedString("允许你在对话中按关键词查短信；开启后台 AI 判断后，也用于发现请求、承诺和取件、缴费、预约等事项。需要授予“完全磁盘访问”。验证码短信会被丢弃，长数字只保留后 4 位；查询结果与后台提炼内容会发送到你配置的模型服务。", comment: ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }

@@ -164,7 +164,13 @@
 "检查中" = "Checking";
 "检查中…" = "Checking…";
 "检查完成" = "Check complete";
-"检查已保存配置" = "Check Saved Configuration";
+"保存并检查" = "Save and Check";
+"重新检查" = "Check Again";
+"保存中…" = "Saving…";
+"模型能力" = "Model Capabilities";
+"尚未配置模型" = "No model configured";
+"当前配置已生效" = "Current configuration is active";
+"有未保存的更改" = "Unsaved changes";
 "模型名" = "Model name";
 "模型设置" = "Model Settings";
 "正在启动…" = "Starting…";

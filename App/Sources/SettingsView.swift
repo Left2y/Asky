@@ -17,8 +17,8 @@ struct SettingsView: View {
             switch SettingsPage.resolve(app.settingsTab) {
             case .model: SettingsForm {
                 ModelSettingsView(app: app)
-                MCPSettings(app: app)
                 MemorySettings(app: app)
+                MCPSettings(app: app)
             }
             case .hotkey: HotKeySettings(app: app)
             case .aliases: AliasSettings(app: app)

@@ -591,17 +591,19 @@ private struct ApprovalModePicker: View {
         .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
         .accessibilityLabel(NSLocalizedString("审批模式", comment: ""))
         .accessibilityValue(Self.title(mode))
-        .popover(isPresented: $showing, arrowEdge: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(ApprovalMode.allCases, id: \.self) { option in
-                    ApprovalModeRow(option: option, selected: option == mode) {
-                        model.approvalMode = option
-                        showing = false
-                    }
+        .modifier(ApprovalMenuPresentation(showing: $showing) { menu(mode) })
+    }
+
+    private func menu(_ mode: ApprovalMode) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(ApprovalMode.allCases, id: \.self) { option in
+                ApprovalModeRow(option: option, selected: option == mode) {
+                    model.approvalMode = option
+                    showing = false
                 }
             }
-            .padding(6).frame(width: 340)
         }
+        .padding(6).frame(width: 340)
     }
 
     static func icon(_ mode: ApprovalMode) -> String {
@@ -653,6 +655,78 @@ private struct ApprovalModeRow: View {
         .onHover { hovering = $0 }
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
+}
+
+/// NSPopover always draws Liquid Glass on macOS 26, so the legacy surface presents
+/// the menu inside the window with the same blur-and-border material as other surfaces.
+private struct ApprovalMenuPresentation<Menu: View>: ViewModifier {
+    @Binding var showing: Bool
+    @ViewBuilder let menu: () -> Menu
+    @State private var monitor: Any?
+    @State private var menuView = WeakViewBox()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if SurfaceCompatibility.useLegacyMaterial {
+            content
+                .overlay(alignment: .topTrailing) {
+                    if showing {
+                        menu()
+                            .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .background(ViewReader(box: menuView).allowsHitTesting(false))
+                            .fixedSize()
+                            .alignmentGuide(.top) { $0[.bottom] + 8 }
+                            // The send button and its spacing sit to the picker's right; let the menu cover them.
+                            .alignmentGuide(.trailing) { $0[.trailing] - 40 }
+                            .transition(reduceMotion ? .opacity
+                                        : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomTrailing)))
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: showing)
+                .onChange(of: showing) { _, shown in shown ? startMonitoring() : stopMonitoring() }
+                .onDisappear { showing = false; stopMonitoring() }
+        } else {
+            content.popover(isPresented: $showing, arrowEdge: .top, content: menu)
+        }
+    }
+
+    private func startMonitoring() {
+        stopMonitoring()
+        let box = menuView
+        let dismiss = $showing
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { event in
+            let isEscape = event.type == .keyDown && event.keyCode == 53
+            if event.type == .keyDown && !isEscape { return event }
+            let point = event.locationInWindow
+            let window = event.window
+            let consumed = MainActor.assumeIsolated {
+                if !isEscape, let view = box.view, window === view.window,
+                   view.bounds.contains(view.convert(point, from: nil)) {
+                    return false
+                }
+                // Like a transient popover, the dismissing click does nothing else.
+                dismiss.wrappedValue = false
+                return true
+            }
+            return consumed ? nil : event
+        }
+    }
+
+    private func stopMonitoring() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+}
+
+@MainActor private final class WeakViewBox {
+    weak var view: NSView?
+}
+
+private struct ViewReader: NSViewRepresentable {
+    let box: WeakViewBox
+    func makeNSView(context: Context) -> NSView { let view = NSView(); box.view = view; return view }
+    func updateNSView(_ view: NSView, context: Context) { box.view = view }
 }
 
 private struct ComposerSubmitButtonStyle: ButtonStyle {

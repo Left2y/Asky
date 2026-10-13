@@ -26,7 +26,9 @@ struct AliasSettings: View {
                         }
                         Spacer()
                         SettingsButton(NSLocalizedString("编辑", comment: "")) { editing = item.id; alias = item.alias; kind = item.kind; target = item.target }
-                        SettingsButton(NSLocalizedString("删除", comment: ""), role: .destructive) { app.preferences.aliases.removeAll { $0.id == item.id } }
+                        SettingsButton("", systemImage: "trash") { app.preferences.aliases.removeAll { $0.id == item.id } }
+                            .help(NSLocalizedString("删除", comment: ""))
+                            .accessibilityLabel(NSLocalizedString("删除", comment: "") + " " + item.alias)
                     }
                 }
             }

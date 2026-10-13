@@ -624,11 +624,14 @@ private struct MCPSettings: View {
                 Section(String(format: NSLocalizedString("新实例“%@”的配置（凭据只显示这一次）", comment: ""), issued.name)) {
                     Text(Self.configSnippet(credential: issued.credential))
                         .font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                    SettingsButton(NSLocalizedString("复制配置", comment: "")) {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(Self.configSnippet(credential: issued.credential), forType: .string)
+                    HStack(spacing: 12) {
+                        SettingsButton(NSLocalizedString("复制配置", comment: "")) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(Self.configSnippet(credential: issued.credential), forType: .string)
+                        }
+                        SettingsButton(NSLocalizedString("我已保存", comment: "")) { self.issued = nil }
+                        Spacer()
                     }
-                    SettingsButton(NSLocalizedString("我已保存", comment: "")) { self.issued = nil }
                 }
             }
             Section(NSLocalizedString("实例", comment: "")) {

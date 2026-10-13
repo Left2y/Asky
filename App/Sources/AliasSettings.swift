@@ -2,6 +2,7 @@ import SwiftUI
 import DirectActions
 import Contracts
 import ToolService
+import Theme
 
 struct AliasSettings: View {
     @Bindable var app: AppModel
@@ -38,10 +39,23 @@ struct AliasSettings: View {
                 Text(label("在输入框中输入别名并回车，即可直接打开对应的应用或运行快捷指令。"))
             }
         }
-        .sheet(item: $editor) { draft in
-            AliasEditor(app: app, draft: draft)
+        // An in-window dialog: the system sheet draws its own opaque chrome and ignores our surfaces.
+        .overlay {
+            if let draft = editor {
+                ZStack {
+                    Color.black.opacity(0.18).ignoresSafeArea()
+                        .contentShape(Rectangle()).onTapGesture {}
+                        .accessibilityHidden(true)
+                    AliasEditor(app: app, draft: draft) { editor = nil }
+                        .id(draft.id)
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
+                }
+            }
         }
+        .animation(.easeOut(duration: 0.15), value: editor?.id)
     }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private func aliasMenu(_ item: LauncherAlias) -> some View {
         Menu {
@@ -101,47 +115,70 @@ private struct AliasChip: View {
 private struct AliasEditor: View {
     @Bindable var app: AppModel
     @State var draft: AliasDraft
+    let close: () -> Void
     @State private var shortcuts: [String] = []
     @State private var loadingShortcuts = false
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(label(draft.isNew ? "添加别名" : "编辑别名"))
-                .font(.headline).padding(.horizontal, 20).padding(.top, 20)
-            SettingsForm {
-                Section {
-                    LabeledContent(label("类型")) {
-                        Picker(label("类型"), selection: $draft.kind) {
-                            Text(label("应用")).tag("app")
-                            Text(label("快捷指令")).tag("shortcut")
-                        }
-                        .pickerStyle(.segmented).labelsHidden().fixedSize()
-                    }
-                    .onChange(of: draft.kind) { _, _ in draft.target = "" }
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text(label(draft.isNew ? "添加别名" : "编辑别名")).font(.system(size: 16))
+                Spacer()
+                Button(action: close) {
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .medium))
+                        .frame(width: 28, height: 28).contentShape(.circle)
+                }
+                .buttonStyle(.plain).foregroundStyle(ThemeColor.kTextSubtle)
+                .accessibilityLabel(label("关闭"))
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                card {
+                    LabeledContent(label("类型")) { AliasKindPicker(selection: $draft.kind) }
+                        .onChange(of: draft.kind) { _, _ in draft.target = "" }
                     if draft.kind == "app" { appPicker } else { shortcutPicker }
-                }
-                Section {
                     SettingsTextField(label("别名"), text: $draft.alias, prompt: Text(verbatim: "fig"))
-                } footer: {
+                        .onSubmit(save)
+                }
+                Group {
                     if let error = validationError {
-                        Text(error).foregroundStyle(.red)
+                        Text(error).foregroundStyle(ThemeColor.kTextNegative)
                     } else {
-                        Text(label("不能包含空格，不区分大小写。"))
+                        Text(label("不能包含空格，不区分大小写。")).foregroundStyle(ThemeColor.kTextSubtlest)
                     }
                 }
+                .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
                 Spacer()
-                SettingsButton(label("取消")) { dismiss() }.keyboardShortcut(.cancelAction)
-                SettingsButton(label("保存")) { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!canSave)
+                SettingsButton(label("取消"), action: close)
+                SettingsButton(label("保存")) { save() }.disabled(!canSave)
             }
-            .padding([.horizontal, .bottom], 20)
         }
-        .frame(width: 480, height: 340)
+        .padding(20)
+        .frame(width: 480)
+        .font(.system(size: 14))
+        .foregroundStyle(ThemeColor.kText)
+        .labeledContentStyle(AliasRowStyle())
+        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(scheme == .dark ? 0.4 : 0.12), radius: 24, y: 8)
+        .onExitCommand(perform: close)
         .task { await refreshShortcuts() }
+    }
+
+    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        Group(subviews: content()) { rows in
+            VStack(spacing: 0) {
+                ForEach(rows) { row in
+                    if row.id != rows.first?.id {
+                        Rectangle().fill(SettingsPalette.separator(scheme)).frame(height: 1).padding(.horizontal, 16)
+                    }
+                    row.frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                }
+            }
+            .background(SettingsPalette.card(scheme), in: RoundedRectangle(cornerRadius: 12))
+        }
     }
 
     private var appPicker: some View {
@@ -227,6 +264,52 @@ private struct AliasEditor: View {
         } else {
             app.preferences.aliases.append(item)
         }
-        dismiss()
+        close()
+    }
+}
+
+private struct AliasRowStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 24) {
+            configuration.label
+            Spacer(minLength: 24)
+            configuration.content
+        }
+    }
+}
+
+/// Matches the settings input surface instead of the system accent-filled segmented control.
+private struct AliasKindPicker: View {
+    @Binding var selection: String
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        HStack(spacing: 2) {
+            option("app", label("应用"))
+            option("shortcut", label("快捷指令"))
+        }
+        .padding(2)
+        .background(scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme) : SettingsPalette.surface(scheme),
+                    in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8).strokeBorder(ThemeColor.kBorder.color(for: scheme), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label("类型"))
+    }
+
+    private func option(_ value: String, _ title: String) -> some View {
+        let selected = selection == value
+        return Button { selection = value } label: {
+            Text(title).font(.system(size: 13))
+                .foregroundStyle(selected ? ThemeColor.kText : ThemeColor.kTextSubtle)
+                .padding(.horizontal, 12).frame(height: 22)
+                .background(selected ? ThemeColor.kBackgroundSelected.color(for: scheme) : .clear,
+                            in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

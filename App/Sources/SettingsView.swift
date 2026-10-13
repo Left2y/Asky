@@ -368,9 +368,6 @@ private struct SourceSettings: View {
                 }
             }
 
-            Section(NSLocalizedString("系统权限", comment: "")) {
-                SettingsButton(NSLocalizedString("管理系统权限…", comment: "")) { app.openSettings(permissions: true) }
-            }
             Section(NSLocalizedString("情境提醒", comment: "")) {
                 Toggle(NSLocalizedString("主动提醒（冲突、出行准备、重要日期）", comment: ""), isOn: $app.settings.proactiveReminders)
                 Toggle(NSLocalizedString("后台 AI 判断（默认关闭）", comment: ""), isOn: $app.settings.backgroundAI)
@@ -404,7 +401,6 @@ private struct ModelSettingsView: View {
     @State private var capabilities: ModelCapabilities?
     @State private var checking = false
     @State private var saving = false
-    @State private var saved = false
     @State private var checked = false
     @State private var checkFailed = false
 
@@ -416,7 +412,6 @@ private struct ModelSettingsView: View {
                         draft.select(value)
                         key = ""
                         message = nil
-                        saved = false
                         checked = false
                     }), options: ModelProviderPreset.all.map { ($0.id, NSLocalizedString($0.name, comment: "")) } + [
                         ("custom", NSLocalizedString("完全自定义（OpenAI 兼容）", comment: ""))
@@ -436,37 +431,31 @@ private struct ModelSettingsView: View {
                     Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。", comment: ""))
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
-                SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key)
-                Text(NSLocalizedString(canReuseKey ? "Key 已保存；留空继续使用。" : "请输入此服务商的 API Key，密钥保存在 macOS 钥匙串中。", comment: ""))
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            .disabled(saving || checking)
-            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key)
+                    Text(NSLocalizedString(canReuseKey ? "Key 已保存；留空继续使用。" : "请输入此服务商的 API Key，密钥保存在 macOS 钥匙串中。", comment: ""))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
                 HStack {
-                    SettingsButton(NSLocalizedString("保存", comment: ""), isLoading: saving, isComplete: saved) {
-                        Task { await save() }
+                    Text(statusText).font(.system(size: 12)).foregroundStyle(.secondary)
+                    Spacer()
+                    SettingsButton(actionTitle, isLoading: saving || checking, isComplete: checked,
+                                   loadingTitle: NSLocalizedString(saving ? "保存中…" : "检查中…", comment: "")) {
+                        Task { await saveAndCheck() }
                     }
-                    .disabled(saving || saved || checking)
-                    .accessibilityLabel(saved ? NSLocalizedString("已保存", comment: "") : NSLocalizedString("保存", comment: ""))
-                    SettingsButton(NSLocalizedString("检查已保存配置", comment: ""), isLoading: checking, isComplete: checked,
-                                   loadingTitle: NSLocalizedString("检查中…", comment: "")) {
-                        Task { await check() }
-                    }
-                    .disabled(checking || checked || saving || !matchesSavedConfiguration)
-                    .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : checking ? NSLocalizedString("检查中", comment: "") : NSLocalizedString("检查已保存配置", comment: ""))
+                    .disabled(saving || checking || checked)
+                    .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : actionTitle)
                 }
                 if let message { Text(message).foregroundStyle(ThemeColor.kTextNegative) }
-                if matchesSavedConfiguration, let c = capabilities ?? app.modelConfiguration?.capabilities {
+            }
+            .disabled(saving || checking)
+            if matchesSavedConfiguration, let c = capabilities ?? app.modelConfiguration?.capabilities {
+                Section(NSLocalizedString("模型能力", comment: "")) {
                     LabeledContent(NSLocalizedString("文本", comment: ""), value: capabilityLabel(c.text))
                     LabeledContent(NSLocalizedString("工具调用", comment: ""), value: capabilityLabel(c.tools))
                     LabeledContent(NSLocalizedString("图像输入", comment: ""), value: capabilityLabel(c.image))
                 }
             }
-        }
-        .task(id: saved) {
-            guard saved else { return }
-            do { try await Task.sleep(for: .milliseconds(1500)); saved = false }
-            catch { }
         }
         .task(id: checked) {
             guard checked else { return }
@@ -488,6 +477,22 @@ private struct ModelSettingsView: View {
         return canReuseKey && draft.model == configuration.modelName && key.isEmpty
     }
 
+    private var actionTitle: String {
+        NSLocalizedString(matchesSavedConfiguration ? "重新检查" : "保存并检查", comment: "")
+    }
+
+    private var statusText: String {
+        if app.modelConfiguration == nil { return NSLocalizedString("尚未配置模型", comment: "") }
+        return NSLocalizedString(matchesSavedConfiguration ? "当前配置已生效" : "有未保存的更改", comment: "")
+    }
+
+    private func saveAndCheck() async {
+        if !matchesSavedConfiguration {
+            guard await save() else { return }
+        }
+        await check()
+    }
+
     private func capabilityLabel(_ value: CapabilityStatus) -> String {
         switch value {
         case .available: NSLocalizedString("可用", comment: "")
@@ -496,7 +501,8 @@ private struct ModelSettingsView: View {
         }
     }
 
-    private func save() async {
+    @discardableResult
+    private func save() async -> Bool {
         message = nil
         key = key.trimmingCharacters(in: .whitespacesAndNewlines)
         saving = true
@@ -506,16 +512,16 @@ private struct ModelSettingsView: View {
               url.scheme == "https" || (url.scheme == "http" && ["localhost", "127.0.0.1"].contains(host)),
               !draft.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             message = NSLocalizedString("请填写有效的 https 地址与模型名。", comment: "")
-            return
+            return false
         }
         do {
             if let agent = app.agent, await agent.state == .busy {
-                message = NSLocalizedString("请等待当前 AI 任务结束后保存模型设置。", comment: ""); return
+                message = NSLocalizedString("请等待当前 AI 任务结束后保存模型设置。", comment: ""); return false
             }
             let account = app.modelConfiguration?.credentialRef ?? ModelSettings.keyAccount
             guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (canReuseKey && app.keychain.contains(account: account)) else {
                 message = NSLocalizedString("请填写此服务商的 API Key；切换 API 地址后不能沿用原来的 Key。", comment: "")
-                return
+                return false
             }
             if !key.isEmpty {
                 key = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -528,9 +534,10 @@ private struct ModelSettingsView: View {
             await app.agent?.shutdown()
             capabilities = nil
             checkFailed = false
-            saved = true
+            return true
         } catch {
             message = String(format: NSLocalizedString("钥匙串写入失败：%@", comment: ""), String(describing: error))
+            return false
         }
     }
 

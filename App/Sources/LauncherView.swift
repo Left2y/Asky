@@ -41,6 +41,7 @@ final class LauncherPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onBlur: () -> Void = {}
     var onOpenSettings: () -> Void = {}
+    var onCopyPath: () -> Bool = { false }
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0,
@@ -63,6 +64,10 @@ final class LauncherPanel: NSPanel {
 
     override func sendEvent(_ event: NSEvent) {
         if SettingsShortcut.matches(event) { onOpenSettings(); return }
+        // Intercept before SwiftUI/field editor routing so ⌥⌘C never degrades to ⌘C.
+        if CompletionTextField.isCopyPath(event),
+           (firstResponder as? NSTextView)?.hasMarkedText() != true,
+           onCopyPath() { return }
         if event.type == .scrollWheel,
            routeScrollWheel(event, at: event.locationInWindow) { return }
         super.sendEvent(event)
@@ -121,6 +126,7 @@ final class LauncherController {
             guard !self.model.isPinned else { return }
             self.hide()
         }
+        panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
         model.onHide = { [weak self] in self?.hide() }
         model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
     }

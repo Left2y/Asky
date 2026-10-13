@@ -159,8 +159,9 @@ final class CompletionTextField: NSTextField {
 
     static func isCopyPath(_ event: NSEvent) -> Bool {
         event.type == .keyDown
-            && event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock) == [.command, .option]
-            && event.charactersIgnoringModifiers?.lowercased() == "c"
+            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == [.command, .option]
+            // Some input sources don't map charactersIgnoringModifiers to "c"; accept the C key code too.
+            && (event.charactersIgnoringModifiers?.lowercased() == "c" || event.keyCode == 8)
     }
 
     override func layout() {

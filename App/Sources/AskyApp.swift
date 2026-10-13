@@ -107,6 +107,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         model.onAgentHotKeyChange = { [weak self] code, modifiers in self?.registerAgentHotKey(code: code, modifiers: modifiers) ?? false }
         _ = registerAgentHotKey(code: model.preferences.agentHotKeyCode, modifiers: model.preferences.agentHotKeyModifiers)
         installStatusItem()
+        model.onMenuBarIconVisibilityChange = { [weak self] visible in
+            self?.statusItem?.isVisible = visible
+        }
         clipboard = ClipboardMonitor(app: model)
         clipboard.start()
         reminders = ProactiveReminders(app: model)
@@ -242,6 +245,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
+        item.isVisible = model.preferences.showMenuBarIcon
         statusItem = item
     }
 

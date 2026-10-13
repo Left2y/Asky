@@ -72,8 +72,12 @@ final class AppModel {
     @ObservationIgnored var onHotKeyChange: ((UInt32, UInt32) -> Bool)?
     @ObservationIgnored var onClipboardHotKeyChange: ((UInt32, UInt32) -> Bool)?
     @ObservationIgnored var onAgentHotKeyChange: ((UInt32, UInt32) -> Bool)?
+    @ObservationIgnored var onMenuBarIconVisibilityChange: ((Bool) -> Void)?
     var preferences: SettingsPreferences {
         didSet {
+            if preferences.showMenuBarIcon != oldValue.showMenuBarIcon {
+                onMenuBarIconVisibilityChange?(preferences.showMenuBarIcon)
+            }
             if preferences.language != oldValue.language {
                 ToolService.setApplicationLanguage(preferences.language)
             }

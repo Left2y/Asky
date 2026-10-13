@@ -53,6 +53,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
 快捷键可在设置中修改。Chrome 搜索与系统工具需要相应授权。
+“设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。
 
 ### 配置与隐私
 
@@ -130,6 +131,7 @@ Start with the [user guide (Chinese)](docs/user-guide.md).
 | Settings | Press `⌘,` while search or clipboard has focus |
 
 Shortcuts are configurable in Settings. Chrome search and system tools require the relevant permissions.
+The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden.
 
 ### Configuration and Privacy
 

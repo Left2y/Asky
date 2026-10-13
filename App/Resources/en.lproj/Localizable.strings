@@ -180,6 +180,7 @@
 "添加文件搜索范围" = "Add File Search Scope";
 "清空未固定的剪贴板历史" = "Clear Unpinned Clipboard History";
 "登录时启动" = "Launch at login";
+"显示菜单栏图标" = "Show menu bar icon";
 "监听中" = "Listening";
 "确认" = "Confirm";
 "确认执行" = "Confirm and Run";

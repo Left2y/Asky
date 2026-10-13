@@ -45,6 +45,8 @@ Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例
 
 ### 快速开始
 
+首次使用请阅读[使用教程](docs/user-guide.md)：从安装与快捷键开始，逐步学习搜索、剪贴板、AI 配置、系统授权与常见问题处理。
+
 [下载 Asky 0.0.19](https://github.com/Niall-Young/Asky/releases/tag/v0.0.19)：适用于 macOS 15+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此版本使用固定的 `Asky Local Signing` 自签名证书。
 
 源码开发版本的运行目标为 macOS 15+（旧系统实机验收待完成）；开发需要 Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
@@ -226,6 +228,8 @@ The project is under active development. The repository includes the native app,
 Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio, failed loads can be retried, and the bottom-right button saves originals to Downloads. Code blocks show language headers and copy buttons; tables keep their outer borders and horizontal separators, with neutral headers, 32 pt single-line rows, and horizontal scrolling for wide content. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
 
 ### Quick Start
+
+New to Asky? Read the [user guide (Chinese)](docs/user-guide.md) for installation, shortcuts, search, clipboard history, AI configuration, system permissions, and troubleshooting.
 
 [Download Asky 0.0.19](https://github.com/Niall-Young/Asky/releases/tag/v0.0.19) for macOS 15+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This release uses the persistent `Asky Local Signing` self-signed certificate.
 

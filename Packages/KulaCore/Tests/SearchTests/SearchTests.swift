@@ -69,6 +69,17 @@ final class BatchSink {
         #expect(r.map(\.title) == ["Kula Notes"])
     }
 
+    @Test func appsProviderSeesAppsInstalledAfterIndexing() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("Other.app"), withIntermediateDirectories: true)
+        let p = AppsProvider(roots: [root])
+        #expect(await p.search("cursor", limit: 5).isEmpty)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("Cursor.app"), withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: root.path)
+        #expect(await p.search("cursor", limit: 5).map(\.title) == ["Cursor"])
+    }
+
     @Test func appsProviderMatchesLocalizedAndEnglishNames() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

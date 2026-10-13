@@ -4,7 +4,8 @@ import Synchronization
 import LocalStore
 
 /// Installed applications from standard folders, ranked by fuzzy match + recent launches.
-/// The index is a small list of (name, path); it is rebuilt lazily and on demand.
+/// The index is a small list of (name, path); it is rebuilt lazily, on demand, and whenever
+/// an application folder changes (apps installed or removed while Asky is running).
 public final class AppsProvider: SearchProvider {
     public let source = SearchSource.app
     private let roots: [URL]
@@ -14,7 +15,7 @@ public final class AppsProvider: SearchProvider {
         let path: String
         let searchNames: Set<String>
     }
-    private let index = Mutex<[IndexedApp]?>(nil)
+    private let index = Mutex<(apps: [IndexedApp], stamps: [Date?])?>(nil)
     private let usage = Mutex<[String: Date]>([:])
 
     public init(roots: [URL] = AppsProvider.defaultRoots,
@@ -48,8 +49,13 @@ public final class AppsProvider: SearchProvider {
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
     }
 
+    private func rootStamps() -> [Date?] {
+        roots.map { (try? FileManager.default.attributesOfItem(atPath: $0.path))?[.modificationDate] as? Date }
+    }
+
     private func loadIndex() -> [IndexedApp] {
-        if let cached = index.withLock({ $0 }) { return cached }
+        let stamps = rootStamps()
+        if let cached = index.withLock({ $0 }), cached.stamps == stamps { return cached.apps }
         var out: [IndexedApp] = []
         var seen = Set<String>()
         let fm = FileManager.default
@@ -62,7 +68,7 @@ public final class AppsProvider: SearchProvider {
                 out.append(indexedApp(at: u))
             }
         }
-        index.withLock { $0 = out }
+        index.withLock { $0 = (out, stamps) }
         return out
     }
 

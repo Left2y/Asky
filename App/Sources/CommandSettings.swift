@@ -44,8 +44,6 @@ struct CommandSettings: View {
                             ToolService.launcherTerminalIcon(terminal).map { (terminal.rawValue, $0) }
                         }))
                 }
-                Text(NSLocalizedString("支持系统终端、iTerm2 与 Ghostty 1.3+，列表显示已安装的终端。", comment: ""))
-                    .foregroundStyle(.secondary)
                 SettingsTextField(NSLocalizedString("工作目录", comment: ""), text: $app.settings.terminalWorkingDirectory)
             }
         }

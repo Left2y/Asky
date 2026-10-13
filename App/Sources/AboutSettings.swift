@@ -30,6 +30,7 @@ struct AboutSettings: View {
                     }
                 }
                 .padding(.vertical, 4)
+                StarRepositoryRow()
             }
             Section(NSLocalizedString("软件更新", comment: "")) {
                 HStack {

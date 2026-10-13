@@ -59,6 +59,7 @@ struct PermissionSettings: View {
                             .font(.system(size: 16, weight: .medium)).foregroundStyle(.white)
                             .frame(width: 30, height: 30)
                             .background(iconColor(for: permission), in: RoundedRectangle(cornerRadius: 7))
+                            .drawingGroup() // 字形与底色一起栅格化，避免小数坐标下分别取整导致图标偏 1px
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString(permission.title, comment: ""))
@@ -90,6 +91,7 @@ struct PermissionSettings: View {
                         .font(.system(size: 16, weight: .medium)).foregroundStyle(.white)
                         .frame(width: 30, height: 30)
                         .background(Color.blue, in: RoundedRectangle(cornerRadius: 7))
+                        .drawingGroup()
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("Chrome 书签与链接搜索", comment: ""))

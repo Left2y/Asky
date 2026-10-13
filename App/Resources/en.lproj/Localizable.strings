@@ -541,3 +541,7 @@
 "主动提醒" = "Proactive Reminders";
 "AI 审批模式" = "AI Approval Mode";
 "无法更改登录时启动" = "Couldn't Change Launch at Login";
+"在输入框中输入别名并回车，即可直接打开对应的应用或运行快捷指令。" = "Type an alias in the input box and press Return to open the app or run the shortcut.";
+"不能包含空格，不区分大小写。" = "No spaces. Case-insensitive.";
+"选择应用…" = "Choose App…";
+"更换…" = "Change…";

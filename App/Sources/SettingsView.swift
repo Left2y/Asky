@@ -325,8 +325,6 @@ private struct SourceSettings: View {
                 Toggle(NSLocalizedString("允许 AI 搜索公开网页", comment: ""), isOn: Binding(
                     get: { app.settings.webSearchEnabled != false },
                     set: { app.settings.webSearchEnabled = $0 }))
-                Text(NSLocalizedString("搜索词发送至 Bing，结果摘要发送至配置的模型服务；无需额外 API Key。", comment: ""))
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Section(NSLocalizedString("授权的备忘录文件夹", comment: "")) {
                 HStack {

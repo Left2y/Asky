@@ -1,6 +1,8 @@
 from pathlib import Path
 import hashlib, json, plistlib, shutil, subprocess, tempfile
 
+from signing import DEFAULT_IDENTITY, check_identity, sign_bundle
+
 import argparse
 parser = argparse.ArgumentParser(description="Package a built Asky release as DMG and updater ZIP")
 parser.add_argument('--version', required=True)
@@ -8,7 +10,9 @@ parser.add_argument('--build', required=True)
 parser.add_argument('--derived-data', required=True, type=Path)
 parser.add_argument('--runtime', required=True, type=Path)
 parser.add_argument('--node-root', required=True, type=Path)
+parser.add_argument('--signing-identity', default=DEFAULT_IDENTITY)
 args = parser.parse_args()
+check_identity(args.signing_identity)
 repo = Path(__file__).resolve().parent.parent
 root = repo / 'build'
 commit = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True).strip()
@@ -35,20 +39,7 @@ info['KHReleaseCommit'] = commit
 info.pop('KHSourceRoot', None)
 with info_path.open('wb') as f:
     plistlib.dump(info, f)
-entitlements = root / 'node-release.entitlements'
-with entitlements.open('wb') as f:
-    plistlib.dump({
-        'com.apple.security.cs.allow-jit': True,
-        'com.apple.security.cs.allow-unsigned-executable-memory': True,
-        'com.apple.security.cs.disable-library-validation': True,
-    }, f)
-for module in (resources / 'AgentRuntime/node_modules').rglob('*.node'):
-    kind = subprocess.check_output(['file', '-b', str(module)], text=True)
-    if 'Mach-O' in kind:
-        subprocess.run(['codesign', '--force', '--sign', '-', str(module)], check=True)
-subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', '--entitlements', str(entitlements), str(node_dir / 'bin/node')], check=True)
-subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', '--entitlements', str(repo / 'App/Asky.entitlements'), str(app)], check=True)
-subprocess.run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', str(app)], check=True)
+sign_bundle(app, args.signing_identity)
 with tempfile.TemporaryDirectory(prefix='kulahere-release-smoke-') as data_dir:
     result = subprocess.run([str(node_dir / 'bin/node'), str(resources / 'AgentRuntime/dist/src/main.js'), '--data-dir', data_dir], input='{"type":"hello","protocol":2}\n{"type":"shutdown"}\n', text=True, capture_output=True, timeout=30, env={'HOME': data_dir, 'PATH': '/usr/bin:/bin', 'TMPDIR': data_dir})
     (root / f'release-{args.version}-bundled-runtime-smoke.log').write_text(result.stdout + result.stderr)

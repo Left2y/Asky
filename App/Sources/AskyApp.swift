@@ -268,7 +268,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         menu.addItem(.separator())
         add(menu, "设置…", #selector(openSettings), key: ",")
         menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        hideAutomaticImage(quit)
+    }
+
+    /// macOS 27 auto-attaches SF Symbols to items whose (English) titles it recognizes, e.g. "Settings…".
+    private func hideAutomaticImage(_ item: NSMenuItem) {
+        if #available(macOS 27.0, *) { item.preferredImageVisibility = .hidden }
     }
 
     @discardableResult
@@ -276,11 +282,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let item = menu.addItem(withTitle: NSLocalizedString(title, comment: ""), action: action, keyEquivalent: key)
         item.target = self
         if let on { item.state = on ? .on : .off }
+        hideAutomaticImage(item)
         return item
     }
 
     private func submenu(_ menu: NSMenu, _ title: String) -> NSMenu {
         let item = menu.addItem(withTitle: NSLocalizedString(title, comment: ""), action: nil, keyEquivalent: "")
+        hideAutomaticImage(item)
         let sub = NSMenu()
         item.submenu = sub
         return sub

@@ -334,9 +334,6 @@ private struct SourceSettings: View {
                     .disabled(loadingFolders)
                     if loadingFolders { ProgressView().controlSize(.small) }
                 }
-                Text(NSLocalizedString("连接后自动读取账户和文件夹。勾选允许 Asky 访问的文件夹，选择会自动保存；不会读取未勾选文件夹中的备忘录内容。", comment: ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 ForEach(Array(Set(displayedFolders.map(\.account))).sorted(), id: \.self) { account in
                     VStack(alignment: .leading, spacing: 10) {
                         Text(account).font(.headline)

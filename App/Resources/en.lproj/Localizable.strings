@@ -416,7 +416,6 @@
 /* Notes folder connection */
 "连接备忘录" = "Connect Notes";
 "刷新文件夹" = "Refresh Folders";
-"连接后自动读取账户和文件夹。勾选允许 Asky 访问的文件夹，选择会自动保存；不会读取未勾选文件夹中的备忘录内容。" = "Connect to load accounts and folders. Select the folders Asky may access; selections are saved automatically. Note contents in unselected folders will not be read.";
 "未找到，请取消选择或刷新" = "Not found; deselect or refresh";
 "未找到文件夹，请先在 Apple 备忘录中添加账户或创建文件夹，再刷新。" = "No folders found. Add an account or create a folder in Apple Notes, then refresh.";
 "无法读取备忘录文件夹，请重试。" = "Unable to load Notes folders. Please try again.";

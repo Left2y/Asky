@@ -100,6 +100,17 @@ import ToolService
         catch let e as ToolError { #expect(e.code == .sourceDisabled) }
     }
 
+    @Test func respectsChosenLookbackWindow() async throws {
+        let missing = MessagesHistoryReader(url: URL(filePath: "/tmp/nonexistent-\(UUID()).db"))
+        let tenDaysAgo = JSONValue.string(ISO8601DateFormatter().string(from: now.addingTimeInterval(-10 * 86400)))
+        let narrow = MessagesSearchTool(reader: missing, enabled: { true }, days: { 3 }, now: { now })
+        do { _ = try await narrow.execute(["query": "报名", "from": tenDaysAgo]); Issue.record("Should reject range beyond 3 days") }
+        catch let e as ToolError { #expect(e.code == .invalidArguments) }
+        let wide = MessagesSearchTool(reader: missing, enabled: { true }, days: { 30 }, now: { now })
+        do { _ = try await wide.execute(["query": "报名", "from": tenDaysAgo]); Issue.record("Should fail reading") }
+        catch let e as ToolError { #expect(e.code == .permissionDenied) }
+    }
+
     @Test func failsClearlyWhenDisabledUnreadableOrInvalid() async throws {
         let missing = MessagesHistoryReader(url: URL(filePath: "/tmp/nonexistent-\(UUID()).db"))
         let off = MessagesSearchTool(reader: missing, enabled: { false }, now: { now })

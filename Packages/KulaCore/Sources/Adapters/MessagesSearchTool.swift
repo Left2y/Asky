@@ -6,20 +6,24 @@ import ToolService
 public struct MessagesSearchTool: ToolAdapter {
     private let reader: MessagesHistoryReader
     private let enabled: @Sendable () -> Bool
+    /// The user-chosen look-back window in days, read on every call.
+    private let days: @Sendable () -> Int
     private let now: @Sendable () -> Date
     private let names: @Sendable () -> [String: String]
 
     public init(reader: MessagesHistoryReader = .init(), enabled: @escaping @Sendable () -> Bool,
+                days: @escaping @Sendable () -> Int = { 30 },
                 now: @escaping @Sendable () -> Date = { Date() },
                 names: @escaping @Sendable () -> [String: String] = { [:] }) {
         self.reader = reader
         self.enabled = enabled
+        self.days = days
         self.now = now
         self.names = names
     }
 
     public var definition: ToolDefinition {
-        ToolDefinition(name: "messages_search", summary: "按关键词查询最近 30 天的本机短信与 iMessage（需开启 AI 短信读取及完全磁盘访问；不发送消息）",
+        ToolDefinition(name: "messages_search", summary: "按关键词查询本机近期短信与 iMessage（范围由设置决定：最近 3、7 或 30 天；需开启 AI 短信读取及完全磁盘访问；不发送消息）",
                        inputSchema: Args.schema([
                         "query": ["type": "string", "description": "正文中的单个关键词或短语，如观鹤、报名；多个关键词分别查询"],
                         "from": Args.isoDateProp, "to": Args.isoDateProp,
@@ -30,15 +34,16 @@ public struct MessagesSearchTool: ToolAdapter {
 
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
         guard enabled() else {
-            throw ToolError(.sourceDisabled, "短信读取未开启。请在设置 › 数据来源开启「让 AI 读取最近 30 天的短信与 iMessage」。")
+            throw ToolError(.sourceDisabled, "短信读取未开启。请在设置 › 数据来源开启「让 AI 读取短信与 iMessage」。")
         }
         let query = try Args.requiredString(a, "query")
         guard query.count <= 100 else { throw ToolError(.invalidArguments, "短信关键词最多 100 字") }
-        let end = now(), earliest = end.addingTimeInterval(-30 * 86400)
+        let days = max(1, self.days())
+        let end = now(), earliest = end.addingTimeInterval(-Double(days) * 86400)
         let from = a["from"] == nil ? earliest : try Args.requiredDate(a, "from")
         let to = a["to"] == nil ? end : try Args.requiredDate(a, "to")
         guard from >= earliest, to <= end, from < to else {
-            throw ToolError(.invalidArguments, "短信查询范围必须位于最近 30 天内，from 早于 to（结束时间不包含在内）。")
+            throw ToolError(.invalidArguments, "短信查询范围必须位于最近 \(days) 天内（设置中可调整），from 早于 to（结束时间不包含在内）。")
         }
         var limit = 20
         if let value = a["limit"] {

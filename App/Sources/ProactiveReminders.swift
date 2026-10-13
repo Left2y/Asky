@@ -134,8 +134,11 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
 
         // Pass 1: only messages not read before, in small batches, condensed to open items.
         if s.advisorReadsMessages == true && s.enabledSources.contains(.messages) {
-            let messages = await recentMessages(now: now)
-            let updated = await MessageTriage(complete: complete).update(triage, messages: messages, now: now)
+            let days = s.messagesLookback
+            let messages = await recentMessages(days: days, now: now)
+            var triager = MessageTriage(complete: complete)
+            triager.window = Double(days) * 86400
+            let updated = await triager.update(triage, messages: messages, now: now)
             if updated != triage {
                 if updated.watermark != triage.watermark { lastAdvisorCall = now }
                 triage = updated
@@ -173,14 +176,14 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    /// Last 30 days of Messages, read-only and redacted. Silently empty without Full Disk Access.
-    private func recentMessages(now: Date) async -> [MessageSnapshot] {
+    /// Recent Messages within the chosen window, read-only and redacted. Silently empty without Full Disk Access.
+    private func recentMessages(days: Int, now: Date) async -> [MessageSnapshot] {
         let contacts = app.native.contacts
         return await Task.detached(priority: .utility) {
             let reader = MessagesHistoryReader()
             guard reader.isReadable else { return [] }
             let names = contacts.nameIndex()
-            return (try? reader.recent(since: now.addingTimeInterval(-30 * 86400), limit: 300) {
+            return (try? reader.recent(since: now.addingTimeInterval(-Double(days) * 86400), limit: 300) {
                 names[MessagesHistoryReader.normalize($0)]
             }) ?? []
         }.value

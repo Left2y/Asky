@@ -69,7 +69,7 @@ public struct SmartAdvisor: Sendable {
     }
 
     static let systemPrompt = """
-        你是用户的私人助理，负责判断哪些事情值得主动提醒。你会看到用户未来几天的日程、未完成的待办、已授权的记忆，以及（如果用户开启）从最近 30 天短信和 iMessage 中摘出的待处理事项。
+        你是用户的私人助理，负责判断哪些事情值得主动提醒。你会看到用户未来几天的日程、未完成的待办、已授权的记忆，以及（如果用户开启）从近期短信和 iMessage 中摘出的待处理事项。
 
         只提醒日历和提醒事项本身做不到的事，例如：
         - 需要提前准备的事项：会前材料、礼物、订票、预约、带证件或物品；
@@ -102,7 +102,7 @@ public struct SmartAdvisor: Sendable {
         lines += ["", "记忆："]
         lines += refs.memories.isEmpty ? ["（无）"] : refs.memories.map { alias, m in "\(alias) \(m.text)" }
         if !refs.messages.isEmpty {
-            lines += ["", "短信事项（从最近 30 天短信中摘出）："]
+            lines += ["", "短信事项（从近期短信中摘出）："]
             lines += refs.messages.map { alias, n in
                 "\(alias) \(f.string(from: n.date)) \(n.sender)：\(n.summary)" + (n.due.map { "（截止 \(f.string(from: $0))）" } ?? "")
             }

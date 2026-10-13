@@ -31,10 +31,17 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Lets background AI read recent SMS/iMessage; nil (settings saved before this option) means off.
     /// Optional so older settings still decode. Also needs Full Disk Access.
     var advisorReadsMessages: Bool?
+    /// How many recent days of messages AI may read (3, 7 or 30); nil means the 3-day default.
+    var messagesLookbackDays: Int?
     /// Global AI-conversation approval mode; nil (settings saved before this option) means auto review.
     var approvalMode: ApprovalMode?
 
     static let key = "app.settings"
+    static let messagesLookbackChoices = [3, 7, 30]
+
+    var messagesLookback: Int {
+        messagesLookbackDays.flatMap { Self.messagesLookbackChoices.contains($0) ? $0 : nil } ?? 3
+    }
 }
 
 /// Reads settings straight from SQLite so `@Sendable` policy closures need no main-actor hop.
@@ -77,6 +84,9 @@ final class AppModel {
         didSet {
             if preferences.showMenuBarIcon != oldValue.showMenuBarIcon {
                 onMenuBarIconVisibilityChange?(preferences.showMenuBarIcon)
+            }
+            if preferences.liquidGlass != oldValue.liquidGlass {
+                SurfaceCompatibility.state.liquidGlassEnabled = preferences.liquidGlass
             }
             if preferences.language != oldValue.language {
                 ToolService.setApplicationLanguage(preferences.language)
@@ -134,6 +144,7 @@ final class AppModel {
         settings = reader.load()
         let savedPreferences = store.codableSetting(SettingsPreferences.key, as: SettingsPreferences.self) ?? SettingsPreferences()
         preferences = savedPreferences
+        SurfaceCompatibility.state.liquidGlassEnabled = savedPreferences.liquidGlass
         launchLanguage = savedPreferences.language
 
         let confirmations = ConfirmationCenter()
@@ -154,7 +165,8 @@ final class AppModel {
                              messagesEnabled: {
                                  let s = reader.load()
                                  return s.advisorReadsMessages == true && s.enabledSources.contains(.messages)
-                             })
+                             },
+                             messagesDays: { reader.load().messagesLookback })
         gateway = MCPGateway(store: store, tools: tools)
         exchange = ExchangeRateService(cacheURL: store.root.appending(path: "ecb-rates.json"))
         terminal = TerminalRunner(spillDirectory: store.outputDirectory)

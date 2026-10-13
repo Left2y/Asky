@@ -431,7 +431,9 @@
 "允许 AI 搜索公开网页" = "Allow AI to search public webpages";
 
 "完全磁盘访问（读取信息）" = "Full Disk Access (read Messages)";
-"让 AI 读取最近 30 天的短信与 iMessage" = "Let AI read the last 30 days of SMS and iMessage";
+"让 AI 读取短信与 iMessage" = "Let AI read SMS and iMessage";
+"读取时间范围" = "Time range";
+"最近 %d 天" = "Last %d days";
 "Settings" = "Settings";
 "Tools" = "Tools";
 "Others" = "Others";

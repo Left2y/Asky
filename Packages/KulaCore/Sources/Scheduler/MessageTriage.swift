@@ -36,9 +36,10 @@ public struct MessageTriageState: Sendable, Codable, Equatable {
 /// and a message already read never costs another call.
 public struct MessageTriage: Sendable {
     public var batchCharacters = 2500
-    /// Bounds a first run over 30 days of history; the rest is read on the next pass.
+    /// Bounds a first run over up to 30 days of history; the rest is read on the next pass.
     public var maxBatchesPerRun = 6
     public var maxNotes = 30
+    /// Notes older than this are dropped; the App sets it from the chosen look-back window.
     public var window: TimeInterval = 30 * 24 * 3600
     public var calendar: Calendar
     let complete: SmartAdvisor.Complete

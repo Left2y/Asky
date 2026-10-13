@@ -225,6 +225,17 @@ private struct GeneralSettings: View {
                         ("dark", NSLocalizedString("深色", comment: ""))
                     ]).fixedSize()
                 }
+                if SurfaceCompatibility.supportsLiquidGlass {
+                    LabeledContent {
+                        Toggle("", isOn: $app.preferences.liquidGlass).labelsHidden()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(NSLocalizedString("液态玻璃", comment: ""))
+                            Text(NSLocalizedString("关闭后使用背景模糊与描边。", comment: ""))
+                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 LabeledContent {
                     SettingsChoice(selection: $app.preferences.language, options: [
                         (ApplicationLanguage.system, NSLocalizedString("跟随系统", comment: "")),
@@ -388,9 +399,19 @@ private struct SourceSettings: View {
                 Toggle(NSLocalizedString("后台 AI 判断（默认关闭）", comment: ""), isOn: $app.settings.backgroundAI)
             }
             Section(NSLocalizedString("短信读取", comment: "")) {
-                Toggle(NSLocalizedString("让 AI 读取最近 30 天的短信与 iMessage", comment: ""), isOn: Binding(
+                Toggle(NSLocalizedString("让 AI 读取短信与 iMessage", comment: ""), isOn: Binding(
                     get: { app.settings.advisorReadsMessages ?? false },
                     set: { app.settings.advisorReadsMessages = $0 }))
+                if app.settings.advisorReadsMessages == true {
+                    LabeledContent(NSLocalizedString("读取时间范围", comment: "")) {
+                        SettingsChoice(selection: Binding(
+                            get: { app.settings.messagesLookback },
+                            set: { app.settings.messagesLookbackDays = $0 }),
+                            options: AppSettings.messagesLookbackChoices.map {
+                                ($0, String(format: NSLocalizedString("最近 %d 天", comment: ""), $0))
+                            })
+                    }
+                }
             }
         }
     }

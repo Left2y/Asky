@@ -330,6 +330,14 @@
 "正在下载…" = "Downloading…";
 "正在校验…" = "Verifying…";
 "正在安装…" = "Installing…";
+"自动更新" = "Automatic Updates";
+"在后台下载并校验新版本，退出 Asky 时完成安装；长时间未使用且没有打开的窗口时会自动重启完成更新。" = "Downloads and verifies new versions in the background and installs them when Asky quits. If you're away and no Asky window is open, it restarts automatically to finish updating.";
+"新版本 %@ 已就绪，退出 Asky 时自动安装" = "Version %@ is ready and installs when Asky quits";
+"下载更新" = "Download Update";
+"立即重启" = "Restart Now";
+"立即重启以完成更新？" = "Restart now to finish updating?";
+"Asky 将退出，用新版本替换当前版本，然后重新打开。" = "Asky will quit, replace the current version with the new one, then reopen.";
+"重启并更新" = "Restart and Update";
 "无法连接 GitHub：%@" = "Couldn't reach GitHub: %@";
 "GitHub 上还没有可用的发布版本。" = "No release is available on GitHub yet.";
 "最新发布版本中没有适用于 macOS 的安装包。" = "The latest release has no macOS package.";

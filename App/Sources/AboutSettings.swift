@@ -3,12 +3,10 @@ import Theme
 import ToolService
 
 struct AboutSettings: View {
-    private enum Status: Equatable {
-        case idle, checking, upToDate, available(AppRelease), installing(String), failed(String)
-    }
-
-    @State private var status = Status.idle
+    @Bindable var app: AppModel
     @State private var confirmingInstall = false
+
+    private var updater: AppUpdater { app.updater }
 
     var body: some View {
         SettingsForm {
@@ -38,58 +36,58 @@ struct AboutSettings: View {
                     Spacer(minLength: 12)
                     actionButton
                 }
+                LabeledContent {
+                    Toggle("", isOn: $app.preferences.automaticUpdates).labelsHidden()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("自动更新", comment: ""))
+                        Text(NSLocalizedString("在后台下载并校验新版本，退出 Asky 时完成安装；长时间未使用且没有打开的窗口时会自动重启完成更新。", comment: ""))
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
         }
-        .appDialog(NSLocalizedString("安装新版本？", comment: ""), isPresented: $confirmingInstall,
-                   message: NSLocalizedString("Asky 将退出，用新版本替换并删除当前版本，然后重新打开。", comment: ""),
-                   buttons: [NSLocalizedString("安装并重新打开", comment: ""), NSLocalizedString("取消", comment: "")]) { response in
-            if response == 0, case .available(let release) = status {
-                Task { await install(release) }
-            }
+        .appDialog(NSLocalizedString("立即重启以完成更新？", comment: ""), isPresented: $confirmingInstall,
+                   message: NSLocalizedString("Asky 将退出，用新版本替换当前版本，然后重新打开。", comment: ""),
+                   buttons: [NSLocalizedString("重启并更新", comment: ""), NSLocalizedString("取消", comment: "")]) { response in
+            if response == 0 { updater.restartToInstall() }
         }
     }
 
     @ViewBuilder private var statusText: some View {
-        switch status {
+        switch updater.status {
         case .idle: Text(NSLocalizedString("尚未检查更新", comment: "")).foregroundStyle(.secondary)
         case .checking: HStack(spacing: 8) { ProgressView().controlSize(.small); Text(NSLocalizedString("检查中…", comment: "")) }
         case .upToDate: Text(NSLocalizedString("已是最新版本", comment: "")).foregroundStyle(.secondary)
-        case .available(let release):
-            VStack(alignment: .leading, spacing: 2) {
-                Text(String(format: NSLocalizedString("发现新版本 %@", comment: ""), release.version))
-                Link(NSLocalizedString("查看发布说明", comment: ""), destination: release.pageURL).font(.caption)
-            }
-        case .installing(let step): HStack(spacing: 8) { ProgressView().controlSize(.small); Text(step) }
+        case .available(let release): releaseText(release, NSLocalizedString("发现新版本 %@", comment: ""))
+        case .downloading(_, let step): HStack(spacing: 8) { ProgressView().controlSize(.small); Text(step) }
+        case .ready(let staged): releaseText(staged.release, NSLocalizedString("新版本 %@ 已就绪，退出 Asky 时自动安装", comment: ""))
+        case .installing: HStack(spacing: 8) { ProgressView().controlSize(.small); Text(NSLocalizedString("正在安装…", comment: "")) }
         case .failed(let message): Text(message).foregroundStyle(ThemeColor.kTextNegative).fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    @ViewBuilder private var actionButton: some View {
-        switch status {
-        case .available:
-            SettingsButton(NSLocalizedString("安装更新", comment: "")) { confirmingInstall = true }.buttonStyle(.borderedProminent)
-        case .checking, .installing:
-            SettingsButton(NSLocalizedString("检查更新", comment: "")) {}.disabled(true)
-        default:
-            SettingsButton(NSLocalizedString("检查更新", comment: "")) { Task { await check() } }
+    private func releaseText(_ release: AppRelease, _ format: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(String(format: format, release.version))
+            Link(NSLocalizedString("查看发布说明", comment: ""), destination: release.pageURL).font(.caption)
         }
     }
 
-    private func check() async {
-        status = .checking
-        do { status = try await ToolService.checkForAppUpdate().map(Status.available) ?? .upToDate }
-        catch { status = .failed(error.localizedDescription) }
-    }
-
-    private func install(_ release: AppRelease) async {
-        status = .installing(NSLocalizedString("正在准备…", comment: ""))
-        do {
-            try await ToolService.prepareAppUpdate(release) { step in
-                await MainActor.run { status = .installing(step) }
+    @ViewBuilder private var actionButton: some View {
+        switch updater.status {
+        case .available(let release):
+            SettingsButton(NSLocalizedString("下载更新", comment: "")) { Task { await updater.download(release) } }
+                .buttonStyle(.borderedProminent)
+        case .ready:
+            SettingsButton(NSLocalizedString("立即重启", comment: "")) { confirmingInstall = true }.buttonStyle(.borderedProminent)
+        case .checking, .downloading, .installing:
+            SettingsButton(NSLocalizedString("检查更新", comment: "")) {}.disabled(true)
+        default:
+            SettingsButton(NSLocalizedString("检查更新", comment: "")) {
+                Task { await updater.check(stage: app.preferences.automaticUpdates && AppUpdater.isSupported) }
             }
-            NSApp.terminate(nil)
-        } catch {
-            status = .failed(error.localizedDescription)
         }
     }
 }

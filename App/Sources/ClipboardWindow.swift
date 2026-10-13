@@ -88,6 +88,7 @@ final class ClipboardController {
         panel.frame.insetBy(dx: LauncherLayout.shadowPadding, dy: LauncherLayout.shadowPadding)
     }
 
+    var isVisible: Bool { panel.isVisible }
     func toggle() { panel.isVisible ? hide() : show() }
 
     func show() {

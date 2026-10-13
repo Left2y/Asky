@@ -73,6 +73,7 @@ final class AppModel {
     let confirmations: ConfirmationCenter
     let exchange: ExchangeRateService
     let terminal: TerminalRunner
+    let updater = AppUpdater()
     private(set) var agent: AgentHost?
     private(set) var agentUnavailableReason: String?
     private var mcpServer: MCPLinkServer?
@@ -94,6 +95,9 @@ final class AppModel {
             }
             if preferences.liquidGlass != oldValue.liquidGlass {
                 SurfaceCompatibility.state.liquidGlassEnabled = preferences.liquidGlass
+            }
+            if preferences.automaticUpdates != oldValue.automaticUpdates {
+                updater.setAutomatic(preferences.automaticUpdates)
             }
             if preferences.language != oldValue.language {
                 ToolService.setApplicationLanguage(preferences.language)
@@ -186,9 +190,12 @@ final class AppModel {
         refreshMCPServer()
         ClipboardMonitor.cleanup(ClipboardStore(store))
         _ = try? ActivityStore(store).purgeExpired()
+        updater.setAutomatic(preferences.automaticUpdates)
     }
 
     func shutdown() async {
+        updater.setAutomatic(false)
+        updater.installOnQuit()
         mcpServer?.stop()
         await agent?.shutdown()
     }

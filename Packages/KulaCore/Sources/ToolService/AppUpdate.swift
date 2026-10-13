@@ -11,6 +11,14 @@ public struct AppRelease: Sendable, Equatable {
     public let checksumURL: URL?
 }
 
+/// A verified release extracted beside the installed app, waiting for the swap helper.
+public struct StagedAppUpdate: Sendable, Equatable {
+    public let release: AppRelease
+    let installed: URL
+    let app: URL
+    let work: URL
+}
+
 public enum AppUpdateError: LocalizedError, Equatable {
     case network(String)
     case noRelease
@@ -156,16 +164,18 @@ enum AppUpdate {
         }
     }
 
-    /// Waits for the running app to exit, swaps bundles, removes the old one and relaunches.
-    /// On a failed move the old bundle is restored so the user is never left without an app.
+    /// Waits for the running app to exit, swaps bundles, removes the old one and relaunches unless
+    /// `$5` is 0. On a failed move the old bundle is restored so the user is never left without an app.
+    /// Hang-up and terminate are ignored so a logout cannot interrupt the two renames midway.
     static let swapScript = """
-    pid="$1"; old="$2"; new="$3"; work="$4"
+    trap '' HUP TERM
+    pid="$1"; old="$2"; new="$3"; work="$4"; relaunch="${5:-1}"
     while kill -0 "$pid" 2>/dev/null; do sleep 0.2; done
     backup="$work/previous.app"
     if mv "$old" "$backup"; then
       if mv "$new" "$old"; then rm -rf "$backup"; else mv "$backup" "$old"; fi
     fi
-    open "$old"
+    if [ "$relaunch" = 1 ]; then open "$old"; fi
     rm -rf "$work"
     """
 }
@@ -225,9 +235,8 @@ extension ToolService {
         return AppUpdate.isNewer(release.version, than: currentAppVersion) ? release : nil
     }
 
-    /// Downloads, verifies and stages the release, then starts a detached helper that replaces
-    /// the running bundle once the app quits. The caller must terminate the app afterwards.
-    public static func prepareAppUpdate(_ release: AppRelease, progress: @escaping @Sendable (String) async -> Void) async throws {
+    /// Downloads, verifies and extracts the release next to the installed app without touching it.
+    public static func stageAppUpdate(_ release: AppRelease, progress: @escaping @Sendable (String) async -> Void = { _ in }) async throws -> StagedAppUpdate {
         let installed = Bundle.main.bundleURL.standardizedFileURL
         guard !installed.path.contains("/AppTranslocation/") else { throw AppUpdateError.translocated }
         let parent = installed.deletingLastPathComponent()
@@ -265,17 +274,27 @@ extension ToolService {
                   bundle.bundleIdentifier == Bundle.main.bundleIdentifier else { throw AppUpdateError.invalidBundle }
             try AppUpdate.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
             try? fileManager.removeItem(at: archive)
-
-            let helper = Process()
-            helper.executableURL = URL(filePath: "/bin/sh")
-            helper.arguments = ["-c", AppUpdate.swapScript, "asky-update",
-                                String(ProcessInfo.processInfo.processIdentifier), installed.path, app.path, work.path]
-            helper.standardOutput = FileHandle.nullDevice
-            helper.standardError = FileHandle.nullDevice
-            try helper.run()
+            return StagedAppUpdate(release: release, installed: installed, app: app, work: work)
         } catch {
             try? fileManager.removeItem(at: work)
             throw error
         }
+    }
+
+    /// Starts the detached swap helper; it waits for this process to exit before replacing the bundle.
+    public static func installStagedAppUpdate(_ staged: StagedAppUpdate, relaunch: Bool) throws {
+        guard FileManager.default.fileExists(atPath: staged.app.path) else { throw AppUpdateError.invalidBundle }
+        let helper = Process()
+        helper.executableURL = URL(filePath: "/bin/sh")
+        helper.arguments = ["-c", AppUpdate.swapScript, "asky-update",
+                            String(ProcessInfo.processInfo.processIdentifier), staged.installed.path,
+                            staged.app.path, staged.work.path, relaunch ? "1" : "0"]
+        helper.standardOutput = FileHandle.nullDevice
+        helper.standardError = FileHandle.nullDevice
+        do { try helper.run() } catch { throw AppUpdateError.installFailed(error.localizedDescription) }
+    }
+
+    public static func discardStagedAppUpdate(_ staged: StagedAppUpdate) {
+        try? FileManager.default.removeItem(at: staged.work)
     }
 }

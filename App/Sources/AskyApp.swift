@@ -115,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         clipboard.start()
         reminders = ProactiveReminders(app: model)
         model.onSettingsChange = { [weak self] in self?.reminders.schedule() }
+        model.updater.isQuiet = { [weak self] in self?.isQuietForUpdate ?? false }
         pressure = MemoryPressureMonitor { [weak self] _ in
             Task { @MainActor in self?.launcher.hide() }
         }
@@ -141,6 +142,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             }
             #endif
         }
+    }
+
+    /// Silent relaunch only when nothing is open, running or waiting for the user.
+    private var isQuietForUpdate: Bool {
+        !launcher.isVisible && !clipboardWindow.isVisible && !agentWindow.isVisible && !agentWindow.model.isRunning
+            && settingsWindow?.isVisible != true && model.confirmations.queue.isEmpty
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

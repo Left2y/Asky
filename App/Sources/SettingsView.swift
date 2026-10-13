@@ -28,7 +28,7 @@ struct SettingsView: View {
             case .sources: SourceSettings(app: app)
             case .permissions: PermissionSettings(app: app)
             case .plugins: PluginSettings(app: app)
-            case .about: AboutSettings()
+            case .about: AboutSettings(app: app)
             case .author: AuthorSettings()
             }
         }

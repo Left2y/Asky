@@ -54,6 +54,8 @@ final class AgentWindowController {
         }
     }
 
+    var isVisible: Bool { window?.isVisible == true }
+
     func showNewConversation() {
         show()
         Task { await model.startNewConversation() }

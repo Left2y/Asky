@@ -7,6 +7,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var appearance = "system"
     var showMenuBarIcon = true
     var liquidGlass = true
+    var automaticUpdates = true
     var language = ApplicationLanguage.system
     var provider = "custom"
     var hotKeyCode: UInt32 = UInt32(kVK_Space)
@@ -35,6 +36,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         showMenuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? d.showMenuBarIcon
         liquidGlass = try c.decodeIfPresent(Bool.self, forKey: .liquidGlass) ?? d.liquidGlass
+        automaticUpdates = try c.decodeIfPresent(Bool.self, forKey: .automaticUpdates) ?? d.automaticUpdates
         let savedLanguage = try c.decodeIfPresent(String.self, forKey: .language)
         language = savedLanguage.flatMap(ApplicationLanguage.init(rawValue:)) ?? .system
         provider = try c.decodeIfPresent(String.self, forKey: .provider) ?? d.provider

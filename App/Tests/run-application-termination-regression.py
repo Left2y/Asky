@@ -66,3 +66,28 @@ with tempfile.TemporaryDirectory(prefix="asky-update-regression-") as directory:
                 process.kill()
                 process.communicate()
 print("Updater waited for exit, swapped bundles, cleaned staging and relaunched a native process")
+
+# Install-on-quit: swap after exit but leave the app closed.
+with tempfile.TemporaryDirectory(prefix="asky-update-regression-") as directory:
+    root = Path(directory)
+    installed = root / "Applications/Asky.app"
+    staged = root / "work/extracted/Asky.app"
+    installed.mkdir(parents=True)
+    staged.mkdir(parents=True)
+    (installed / "version").write_text("old")
+    (staged / "version").write_text("new")
+    fake_bin = root / "bin"
+    fake_bin.mkdir()
+    marker = root / "opened"
+    (fake_bin / "open").write_text(f'#!/bin/sh\ntouch "{marker}"\n')
+    (fake_bin / "open").chmod(0o755)
+    old = subprocess.Popen([str(BINARY)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    helper = subprocess.Popen(["/bin/sh", "-c", script, "asky-update", str(old.pid), str(installed), str(staged),
+                               str(root / "work"), "0"], env={**ENV, "PATH": f"{fake_bin}:/usr/bin:/bin"},
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    old.communicate(timeout=5)  # Reap like launchd would, so kill -0 stops seeing a zombie.
+    output, error = helper.communicate(timeout=5)
+    assert helper.returncode == 0, (output, error)
+    assert (installed / "version").read_text() == "new"
+    assert not (root / "work").exists() and not marker.exists()
+print("Install-on-quit swapped bundles without relaunching")

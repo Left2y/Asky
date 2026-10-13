@@ -459,10 +459,14 @@ final class LauncherModel {
         selection = min(max(selection + delta, 0), results.count - 1)
     }
 
-    /// Return executes the selection; ⌘Return explicitly submits to AI.
+    /// Return executes the selection; ⌘Return reveals a file/app selection in Finder, otherwise submits to AI.
     func submit(_ kind: SubmitKind) {
         switch kind {
         case .submitToAI:
+            if results.indices.contains(selection), results[selection].actions.contains(.revealInFinder) {
+                execute(results[selection], action: .revealInFinder)
+                return
+            }
             let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return }
             onAskAI(text)

@@ -18,9 +18,9 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var agentHotKeyLabel = Self.defaultAgentHotKey.label
     var aliases: [LauncherAlias] = []
     static let key = "app.preferences.v1"
-    static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_V), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘ V")
+    static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | shiftKey), label: "⌃⇧ C")
 
-    static let defaultAgentHotKey = (code: UInt32(kVK_ANSI_Slash), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘ /")
+    static let defaultAgentHotKey = (code: UInt32(kVK_ANSI_Slash), modifiers: UInt32(controlKey | shiftKey), label: "⌃⇧ /")
 
     init() {}
 

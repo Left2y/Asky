@@ -80,6 +80,49 @@ final class BatchSink {
         #expect(await p.search("cursor", limit: 5).map(\.title) == ["Cursor"])
     }
 
+    @Test func appsProviderScansVendorSubfoldersAndTheirChanges() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let vendor = root.appendingPathComponent("Adobe Suite")
+        try FileManager.default.createDirectory(at: vendor.appendingPathComponent("Photoshop.app"), withIntermediateDirectories: true)
+        let p = AppsProvider(roots: [root], extraApps: [])
+        #expect(await p.search("photoshop", limit: 5).map(\.title) == ["Photoshop"])
+        try FileManager.default.createDirectory(at: vendor.appendingPathComponent("Illustrator.app"), withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: vendor.path)
+        #expect(await p.search("illustrator", limit: 5).map(\.title) == ["Illustrator"])
+    }
+
+    @Test func appsProviderReparsesOnlyUpdatedBundles() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        func install(_ file: String, name: String, at date: Date) throws {
+            let contents = root.appendingPathComponent("\(file).app/Contents")
+            try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+            let plist = contents.appendingPathComponent("Info.plist")
+            try PropertyListSerialization.data(fromPropertyList: ["CFBundleName": name], format: .xml, options: 0).write(to: plist)
+            try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: plist.path)
+        }
+        let start = Date()
+        try install("Editor", name: "Old Editor", at: start)
+        let p = AppsProvider(roots: [root], extraApps: [])
+        #expect(await p.search("old editor", limit: 5).map(\.title) == ["Old Editor"])
+        try install("Editor", name: "New Editor", at: start.addingTimeInterval(10))
+        try install("Viewer", name: "Viewer", at: start)
+        try FileManager.default.setAttributes([.modificationDate: start.addingTimeInterval(10)], ofItemAtPath: root.path)
+        #expect(await p.search("new editor", limit: 5).map(\.title) == ["New Editor"])
+        #expect(await p.search("viewer", limit: 5).map(\.title) == ["Viewer"])
+    }
+
+    @Test func appsProviderIncludesExtraApps() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let finder = root.appendingPathComponent("CoreServices/Finder.app")
+        try FileManager.default.createDirectory(at: finder, withIntermediateDirectories: true)
+        let p = AppsProvider(roots: [], extraApps: [finder, root.appendingPathComponent("Missing.app")])
+        #expect(await p.search("finder", limit: 5).map(\.title) == ["Finder"])
+        #expect(await p.search("missing", limit: 5).isEmpty)
+    }
+
     @Test func appsProviderMatchesLocalizedAndEnglishNames() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

@@ -3,33 +3,54 @@ import Contracts
 import Synchronization
 import LocalStore
 
-/// Installed applications from standard folders, ranked by fuzzy match + recent launches.
-/// The index is a small list of (name, path); it is rebuilt lazily, on demand, and whenever
-/// an application folder changes (apps installed or removed while Asky is running).
+/// Installed applications from standard folders (plus one level of vendor subfolders such as
+/// "/Applications/Adobe …"), ranked by fuzzy match + recent launches. The index is rebuilt when
+/// any scanned folder changes; rebuilds reuse unchanged bundles, so an install costs one parse.
 public final class AppsProvider: SearchProvider {
     public let source = SearchSource.app
     private let roots: [URL]
+    private let extraApps: [URL]
     private let preferredLanguages: [String]
     private struct IndexedApp {
         let name: String
         let path: String
         let searchNames: Set<String>
+        let stamp: Date?
     }
-    private let index = Mutex<(apps: [IndexedApp], stamps: [Date?])?>(nil)
+    private struct Index {
+        var apps: [IndexedApp]
+        var stamps: [String: Date]
+    }
+    private let index = Mutex<Index?>(nil)
+    /// Serializes rebuilds so a background prewarm and a first search never parse twice.
+    private let buildLock = NSLock()
     private let usage = Mutex<[String: Date]>([:])
 
     public init(roots: [URL] = AppsProvider.defaultRoots,
+                extraApps: [URL] = AppsProvider.defaultExtraApps,
                 preferredLanguages: [String] = Locale.preferredLanguages) {
         self.roots = roots
+        self.extraApps = extraApps
         self.preferredLanguages = preferredLanguages
     }
 
     public static var defaultRoots: [URL] {
         ["/Applications", "/System/Applications", "/System/Applications/Utilities", "/Applications/Utilities",
-         NSHomeDirectory() + "/Applications"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+         "/System/Library/CoreServices/Applications", NSHomeDirectory() + "/Applications"]
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    /// Single launchable apps living in folders that are otherwise full of system internals.
+    public static var defaultExtraApps: [URL] {
+        [URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app", isDirectory: true)]
     }
 
     public func invalidate() { index.withLock { $0 = nil } }
+
+    /// Builds the index off the main thread so the first launcher query does not wait for it.
+    public func prewarm() {
+        Task.detached(priority: .utility) { [self] in _ = loadIndex() }
+    }
 
     public func recordLaunch(path: String, at date: Date = Date()) { usage.withLock { $0[path] = date } }
 
@@ -49,36 +70,74 @@ public final class AppsProvider: SearchProvider {
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
     }
 
-    private func rootStamps() -> [Date?] {
-        roots.map { (try? FileManager.default.attributesOfItem(atPath: $0.path))?[.modificationDate] as? Date }
+    private static func modificationDate(_ path: String) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+    }
+
+    // Safari's public .app symlink can carry Finder's hidden flag. Keep such
+    // launchable applications while excluding dot-prefixed internal entries.
+    private static func visibleEntries(of directory: URL) -> [URL] {
+        ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
+            .filter { !$0.lastPathComponent.hasPrefix(".") }
+    }
+
+    private static func isDirectory(_ url: URL) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    /// Modification dates of every scanned folder. Installing or removing an app changes the
+    /// date of the folder that contains it, so equal stamps mean an unchanged app list.
+    private func folderStamps(subfolders: [URL]) -> [String: Date] {
+        var stamps: [String: Date] = [:]
+        for folder in roots + subfolders { stamps[folder.path] = Self.modificationDate(folder.path) }
+        return stamps
+    }
+
+    private func subfolders() -> [URL] {
+        roots.flatMap { root in
+            Self.visibleEntries(of: root).filter { $0.pathExtension != "app" && Self.isDirectory($0) }
+        }
     }
 
     private func loadIndex() -> [IndexedApp] {
-        let stamps = rootStamps()
-        if let cached = index.withLock({ $0 }), cached.stamps == stamps { return cached.apps }
+        if let cached = index.withLock({ $0 }), cached.stamps == folderStamps(subfolders: subfolders()) {
+            return cached.apps
+        }
+        buildLock.lock()
+        defer { buildLock.unlock() }
+        let folders = subfolders()
+        let stamps = folderStamps(subfolders: folders)
+        let previous = index.withLock { $0 }
+        if let previous, previous.stamps == stamps { return previous.apps }
+        let reusable = Dictionary((previous?.apps ?? []).map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
+        var candidates = (roots + folders).flatMap { Self.visibleEntries(of: $0).filter { $0.pathExtension == "app" } }
+        candidates += extraApps.filter { FileManager.default.fileExists(atPath: $0.path) }
         var out: [IndexedApp] = []
         var seen = Set<String>()
-        let fm = FileManager.default
-        for root in roots {
-            // Safari's public .app symlink can carry Finder's hidden flag. Keep such
-            // launchable applications while excluding dot-prefixed internal entries.
-            guard let items = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { continue }
-            for u in items where u.pathExtension == "app" && !u.lastPathComponent.hasPrefix(".") {
-                guard seen.insert(u.path).inserted else { continue }
-                out.append(indexedApp(at: u))
+        for url in candidates where seen.insert(url.path).inserted {
+            // Updates replace Info.plist, so its date identifies the installed version.
+            let stamp = Self.modificationDate(url.appendingPathComponent("Contents/Info.plist").path)
+                ?? Self.modificationDate(url.path)
+            if let cached = reusable[url.path], cached.stamp == stamp {
+                out.append(cached)
+            } else {
+                out.append(indexedApp(at: url, stamp: stamp))
             }
         }
-        index.withLock { $0 = (out, stamps) }
+        index.withLock { $0 = Index(apps: out, stamps: stamps) }
         return out
     }
 
-    private func indexedApp(at url: URL) -> IndexedApp {
+    private func indexedApp(at url: URL, stamp: Date?) -> IndexedApp {
         let fileName = url.deletingPathExtension().lastPathComponent
-        let bundle = Bundle(url: url)
         let keys = ["CFBundleDisplayName", "CFBundleName"]
-        var localizedNames = keys.compactMap { bundle?.localizedInfoDictionary?[$0] as? String }
-            .filter { !$0.isEmpty }
-        let bundleNames = keys.compactMap { bundle?.infoDictionary?[$0] as? String }
+        // Read Info.plist directly: Bundle(url:) caches per path for the process lifetime,
+        // so an app updated in place would keep its old name.
+        let info = (try? Data(contentsOf: url.appendingPathComponent("Contents/Info.plist")))
+            .flatMap { try? PropertyListSerialization.propertyList(from: $0, format: nil) as? [String: Any] }
+        var localizedNames: [String] = []
+        let bundleNames = keys.compactMap { info?[$0] as? String }
             .filter { !$0.isEmpty }
         var names = Set([fileName] + localizedNames + bundleNames)
         // Index the app's own translations, even when macOS uses a different language.
@@ -127,7 +186,7 @@ public final class AppsProvider: SearchProvider {
             if !preferredNames.isEmpty { localizedNames = preferredNames }
         }
         return IndexedApp(name: localizedNames.first ?? bundleNames.first ?? fileName,
-                          path: url.path, searchNames: names)
+                          path: url.path, searchNames: names, stamp: stamp)
     }
 
     private static func languageFamily(_ identifier: String) -> String {

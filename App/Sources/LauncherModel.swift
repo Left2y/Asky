@@ -134,6 +134,7 @@ final class LauncherModel {
         self.chromeAccessOverride = chromeBookmarkAccessAllowed
         coordinator = SearchCoordinator(providers: [])
         rebuildProviders()
+        if searchProviders == nil { apps.prewarm() }
     }
 
     func rebuildProviders() {

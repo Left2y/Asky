@@ -4,7 +4,12 @@ import Theme
 
 enum SettingsPalette {
     static func card(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme) : surface(scheme)
+        // Cards sit on the tinted glass; a strong white fill overwhelms it in light mode.
+        scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme)
+            : ThemeColor.kBackground.color(for: scheme, opaque: true).opacity(0.18)
+    }
+    static func separator(_ scheme: ColorScheme) -> Color {
+        ThemeColor.kBorder.color(for: scheme).opacity(scheme == .light ? 0.5 : 1)
     }
     static func surface(_ scheme: ColorScheme, opaque: Bool = false) -> Color {
         ThemeColor.kBackground.color(for: scheme, opaque: true).opacity(opaque ? 1 : 0.7)
@@ -29,7 +34,7 @@ struct SettingsForm<Content: View>: View {
                         VStack(spacing: 0) {
                             ForEach(subviews: section.content) { row in
                                 if row.id != section.content.first?.id {
-                                    Rectangle().fill(ThemeColor.kBorder)
+                                    Rectangle().fill(SettingsPalette.separator(scheme))
                                         .frame(height: 1).padding(.horizontal, 16)
                                 }
                                 row

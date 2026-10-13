@@ -1,7 +1,7 @@
 import SwiftUI
 import ToolService
 
-/// Edits one stored exclusion at a time; drafts never change the saved settings.
+/// Adds exclusions through a picker and removes them individually.
 struct SettingsExclusionList: View {
     let title: String
     let selection: SettingsExclusionSelection
@@ -30,10 +30,6 @@ struct SettingsExclusionList: View {
                         .help(item)
                         .textSelection(.enabled)
                     Spacer(minLength: 12)
-                    SettingsButton(NSLocalizedString("编辑", comment: "")) {
-                        choose(replacing: index)
-                    }
-                    .accessibilityLabel(NSLocalizedString("编辑", comment: "") + " " + item)
                     SettingsButton(NSLocalizedString("删除", comment: ""), role: .destructive) {
                         items.remove(at: index)
                     }
@@ -44,20 +40,12 @@ struct SettingsExclusionList: View {
         .disabled(choosing)
     }
 
-    private func choose(replacing index: Int? = nil) {
+    private func choose() {
         choosing = true
-        // Remember the original item so a concurrent change cannot replace a different row.
-        let original = index.map { items[$0] }
         Task { @MainActor in
             defer { choosing = false }
-            guard let value = await ToolService.chooseSettingsExclusion(selection) else { return }
-            if let index, let original {
-                guard items.indices.contains(index), items[index] == original,
-                      !items.enumerated().contains(where: { $0.offset != index && $0.element == value }) else { return }
-                items[index] = value
-            } else if !items.contains(value) {
-                items.append(value)
-            }
+            guard let value = await ToolService.chooseSettingsExclusion(selection), !items.contains(value) else { return }
+            items.append(value)
         }
     }
 }

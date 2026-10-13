@@ -241,7 +241,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(withTitle: NSLocalizedString("剪贴板历史", comment: ""), action: #selector(openClipboard), keyEquivalent: "").target = self
         menu.addItem(withTitle: NSLocalizedString("AI 对话", comment: ""), action: #selector(openAgent), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("设置…", comment: ""), action: #selector(openSettings), keyEquivalent: ",").target = self
+        let settingsItem = menu.addItem(withTitle: NSLocalizedString("设置…", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        if #available(macOS 27.0, *) { settingsItem.preferredImageVisibility = .hidden }
         menu.addItem(.separator())
         menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu

@@ -519,3 +519,7 @@
 "确定" = "OK";
 
 "所选应用没有 Bundle ID，无法添加排除项。" = "The selected application has no bundle ID and cannot be excluded.";
+
+"在访达中显示" = "Reveal in Finder";
+"复制文件路径" = "Copy file path";
+"点击组合键即可修改。在访达中显示和复制文件路径仅在启动器选中文件或应用时生效。" = "Click a shortcut to change it. Reveal in Finder and Copy file path work when a file or app is selected in the launcher.";

@@ -43,6 +43,7 @@ final class LauncherPanel: NSPanel {
     var onOpenSettings: () -> Void = {}
     var onCopyPath: () -> Bool = { false }
     var onRevealInFinder: () -> Bool = { false }
+    var actionPreferences: () -> SettingsPreferences = { SettingsPreferences() }
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0,
@@ -66,10 +67,10 @@ final class LauncherPanel: NSPanel {
     override func sendEvent(_ event: NSEvent) {
         if SettingsShortcut.matches(event) { onOpenSettings(); return }
         // Intercept before SwiftUI/field editor routing so ⌥⌘C never degrades to ⌘C.
-        if CompletionTextField.isCopyPath(event),
+        if actionPreferences().copyPathHotKey.matches(event),
            (firstResponder as? NSTextView)?.hasMarkedText() != true,
            onCopyPath() { return }
-        if CompletionTextField.isRevealInFinder(event),
+        if actionPreferences().revealInFinderHotKey.matches(event),
            (firstResponder as? NSTextView)?.hasMarkedText() != true,
            onRevealInFinder() { return }
         if event.type == .scrollWheel,
@@ -130,6 +131,7 @@ final class LauncherController {
             guard !self.model.isPinned else { return }
             self.hide()
         }
+        panel.actionPreferences = { [weak model] in model?.actionPreferences ?? SettingsPreferences() }
         panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
         panel.onRevealInFinder = { [weak model] in model?.revealSelectionInFinder() ?? false }
         model.onHide = { [weak self] in self?.hide() }
@@ -400,7 +402,9 @@ struct LauncherView: View {
                     move: model.move,
                     submit: { model.submit($0 ? .submitToAI : .executeSelection) },
                     copyPath: model.copySelectedPath,
-                    revealInFinder: model.revealSelectionInFinder
+                    revealInFinder: model.revealSelectionInFinder,
+                    copyPathShortcut: model.actionPreferences.copyPathHotKey,
+                    revealInFinderShortcut: model.actionPreferences.revealInFinderHotKey
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)

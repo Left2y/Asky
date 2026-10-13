@@ -52,7 +52,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 | 网页与终端 | `go 关键词`、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
-快捷键可在设置中修改。Chrome 搜索与系统工具需要相应授权。
+在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。
 
 ### 配置与隐私
@@ -136,7 +136,7 @@ Start with the [user guide (Chinese)](docs/user-guide.md).
 | Web and terminal | `go keyword`, `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
-Shortcuts are configurable in Settings. Chrome search and system tools require the relevant permissions.
+Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden.
 
 ### Configuration and Privacy

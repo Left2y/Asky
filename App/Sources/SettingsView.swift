@@ -38,40 +38,72 @@ private struct HotKeySettings: View {
     @Bindable var app: AppModel
     var body: some View {
         SettingsForm {
-            Section(NSLocalizedString("触发快捷键", comment: "")) {
-                LabeledContent(NSLocalizedString("唤起启动器", comment: "")) {
-                    HotKeyRecorder(label: app.preferences.hotKeyLabel, apply: setLauncher).frame(width: 240, height: 34)
+            Section {
+                shortcutRow("唤起启动器", label: app.preferences.hotKeyLabel, status: app.hotKeyStatus,
+                            apply: setLauncher) { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
+                shortcutRow("打开剪贴板历史", label: app.preferences.clipboardHotKeyLabel, status: app.clipboardHotKeyStatus,
+                            apply: setClipboard) {
+                    let d = SettingsPreferences.defaultClipboardHotKey
+                    return setClipboard(d.code, d.modifiers, d.label)
                 }
-                if !app.hotKeyStatus.isEmpty, app.hotKeyStatus != NSLocalizedString("已注册", comment: "") {
-                    Text(app.hotKeyStatus).foregroundStyle(.secondary)
+                shortcutRow("打开 AI 对话", label: app.preferences.agentHotKeyLabel, status: app.agentHotKeyStatus,
+                            apply: setAgent) {
+                    let d = SettingsPreferences.defaultAgentHotKey
+                    return setAgent(d.code, d.modifiers, d.label)
                 }
-                SettingsButton(NSLocalizedString("恢复默认", comment: "")) { setLauncher(UInt32(kVK_Space), UInt32(optionKey), "⌥ Space") }
-            }
-            Section(NSLocalizedString("剪贴板", comment: "")) {
-                LabeledContent(NSLocalizedString("打开剪贴板历史", comment: "")) {
-                    HotKeyRecorder(label: app.preferences.clipboardHotKeyLabel, apply: setClipboard).frame(width: 240, height: 34)
+                shortcutRow("在访达中显示", label: app.preferences.revealInFinderHotKey.label,
+                            apply: { setLocal($0, $1, $2, keyPath: \.revealInFinderHotKey) }) {
+                    let d = LauncherActionShortcut.revealInFinder
+                    return setLocal(d.code, d.modifiers, d.label, keyPath: \.revealInFinderHotKey)
                 }
-                if !app.clipboardHotKeyStatus.isEmpty, app.clipboardHotKeyStatus != NSLocalizedString("已注册", comment: "") {
-                    Text(app.clipboardHotKeyStatus).foregroundStyle(.secondary)
+                shortcutRow("复制文件路径", label: app.preferences.copyPathHotKey.label,
+                            apply: { setLocal($0, $1, $2, keyPath: \.copyPathHotKey) }) {
+                    let d = LauncherActionShortcut.copyPath
+                    return setLocal(d.code, d.modifiers, d.label, keyPath: \.copyPathHotKey)
                 }
-                let d = SettingsPreferences.defaultClipboardHotKey
-                SettingsButton(NSLocalizedString("恢复默认", comment: "")) { setClipboard(d.code, d.modifiers, d.label) }
-            }
-            Section(NSLocalizedString("AI 对话", comment: "")) {
-                LabeledContent(NSLocalizedString("打开 AI 对话", comment: "")) {
-                    HotKeyRecorder(label: app.preferences.agentHotKeyLabel, apply: setAgent).frame(width: 240, height: 34)
-                }
-                if !app.agentHotKeyStatus.isEmpty, app.agentHotKeyStatus != NSLocalizedString("已注册", comment: "") {
-                    Text(app.agentHotKeyStatus).foregroundStyle(.secondary)
-                }
-                let d = SettingsPreferences.defaultAgentHotKey
-                SettingsButton(NSLocalizedString("恢复默认", comment: "")) { setAgent(d.code, d.modifiers, d.label) }
+            } footer: {
+                Text(NSLocalizedString("点击组合键即可修改。在访达中显示和复制文件路径仅在启动器选中文件或应用时生效。", comment: ""))
             }
         }.formStyle(.grouped)
     }
 
+    private func shortcutRow(_ title: String, label: String, status: String = "",
+                             apply: @escaping (UInt32, UInt32, String) -> Bool,
+                             reset: @escaping () -> Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString(title, comment: ""))
+                Spacer()
+                HotKeyRecorder(label: label, apply: apply).frame(width: 180, height: 30)
+                SettingsButton(NSLocalizedString("恢复默认", comment: "")) { _ = reset() }
+            }
+            if !status.isEmpty, status != NSLocalizedString("已注册", comment: "") {
+                Text(status).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func conflictsWithLocal(_ code: UInt32, _ modifiers: UInt32) -> Bool {
+        [app.preferences.revealInFinderHotKey, app.preferences.copyPathHotKey]
+            .contains { $0.code == code && $0.modifiers == modifiers }
+    }
+
+    @discardableResult private func setLocal(_ code: UInt32, _ modifiers: UInt32, _ label: String,
+                                             keyPath: WritableKeyPath<SettingsPreferences, LauncherActionShortcut>) -> Bool {
+        let p = app.preferences
+        let other = keyPath == \.copyPathHotKey ? p.revealInFinderHotKey : p.copyPathHotKey
+        let reserved: [(UInt32, UInt32)] = [
+            (p.hotKeyCode, p.hotKeyModifiers), (p.clipboardHotKeyCode, p.clipboardHotKeyModifiers),
+            (p.agentHotKeyCode, p.agentHotKeyModifiers), (other.code, other.modifiers),
+            (UInt32(kVK_ANSI_Comma), UInt32(cmdKey)), (UInt32(kVK_Return), UInt32(cmdKey))
+        ]
+        guard !reserved.contains(where: { $0.0 == code && $0.1 == modifiers }) else { return false }
+        app.preferences[keyPath: keyPath] = LauncherActionShortcut(code: code, modifiers: modifiers, label: label)
+        return true
+    }
+
     @discardableResult private func setAgent(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
-        guard app.onAgentHotKeyChange?(code, modifiers) == true else { return false }
+        guard !conflictsWithLocal(code, modifiers), app.onAgentHotKeyChange?(code, modifiers) == true else { return false }
         app.preferences.agentHotKeyCode = code
         app.preferences.agentHotKeyModifiers = modifiers
         app.preferences.agentHotKeyLabel = label
@@ -79,7 +111,7 @@ private struct HotKeySettings: View {
     }
 
     @discardableResult private func setLauncher(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
-        guard app.onHotKeyChange?(code, modifiers) == true else { return false }
+        guard !conflictsWithLocal(code, modifiers), app.onHotKeyChange?(code, modifiers) == true else { return false }
         app.preferences.hotKeyCode = code
         app.preferences.hotKeyModifiers = modifiers
         app.preferences.hotKeyLabel = label
@@ -87,7 +119,7 @@ private struct HotKeySettings: View {
     }
 
     @discardableResult private func setClipboard(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
-        guard app.onClipboardHotKeyChange?(code, modifiers) == true else { return false }
+        guard !conflictsWithLocal(code, modifiers), app.onClipboardHotKeyChange?(code, modifiers) == true else { return false }
         app.preferences.clipboardHotKeyCode = code
         app.preferences.clipboardHotKeyModifiers = modifiers
         app.preferences.clipboardHotKeyLabel = label

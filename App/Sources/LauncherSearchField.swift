@@ -19,6 +19,8 @@ struct LauncherSearchField: NSViewRepresentable {
     var copyPath: (() -> Bool)? = nil
     /// ⌘F; reveals the selected file/app in Finder.
     var revealInFinder: (() -> Bool)? = nil
+    var copyPathShortcut = LauncherActionShortcut.copyPath
+    var revealInFinderShortcut = LauncherActionShortcut.revealInFinder
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -58,6 +60,8 @@ struct LauncherSearchField: NSViewRepresentable {
                 field.completion = parent.completion
                 field.copyPath = parent.copyPath
                 field.revealInFinder = parent.revealInFinder
+                field.copyPathShortcut = parent.copyPathShortcut
+                field.revealInFinderShortcut = parent.revealInFinderShortcut
                 field.updateCompletion()
             }
             if let color = parent.placeholderColor {
@@ -123,6 +127,8 @@ final class CompletionTextField: NSTextField {
     var completion: String?
     var copyPath: (() -> Bool)?
     var revealInFinder: (() -> Bool)?
+    var copyPathShortcut = LauncherActionShortcut.copyPath
+    var revealInFinderShortcut = LauncherActionShortcut.revealInFinder
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -148,24 +154,11 @@ final class CompletionTextField: NSTextField {
 
     /// The window offers key equivalents to views before the main menu, so ⌥⌘C wins over ⌘C here.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if Self.isCopyPath(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
+        if copyPathShortcut.matches(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
            copyPath?() == true { return true }
-        if Self.isRevealInFinder(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
+        if revealInFinderShortcut.matches(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
            revealInFinder?() == true { return true }
         return super.performKeyEquivalent(with: event)
-    }
-
-    static func isRevealInFinder(_ event: NSEvent) -> Bool {
-        event.type == .keyDown
-            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command
-            && (event.charactersIgnoringModifiers?.lowercased() == "f" || event.keyCode == 3)
-    }
-
-    static func isCopyPath(_ event: NSEvent) -> Bool {
-        event.type == .keyDown
-            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == [.command, .option]
-            // Some input sources don't map charactersIgnoringModifiers to "c"; accept the C key code too.
-            && (event.charactersIgnoringModifiers?.lowercased() == "c" || event.keyCode == 8)
     }
 
     override func layout() {

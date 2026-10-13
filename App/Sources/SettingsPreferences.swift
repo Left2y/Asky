@@ -17,6 +17,8 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var agentHotKeyCode: UInt32 = Self.defaultAgentHotKey.code
     var agentHotKeyModifiers: UInt32 = Self.defaultAgentHotKey.modifiers
     var agentHotKeyLabel = Self.defaultAgentHotKey.label
+    var revealInFinderHotKey = LauncherActionShortcut.revealInFinder
+    var copyPathHotKey = LauncherActionShortcut.copyPath
     var aliases: [LauncherAlias] = []
     static let key = "app.preferences.v1"
     static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | shiftKey), label: "⌃⇧ C")
@@ -43,7 +45,28 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         agentHotKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .agentHotKeyCode) ?? d.agentHotKeyCode
         agentHotKeyModifiers = try c.decodeIfPresent(UInt32.self, forKey: .agentHotKeyModifiers) ?? d.agentHotKeyModifiers
         agentHotKeyLabel = try c.decodeIfPresent(String.self, forKey: .agentHotKeyLabel) ?? d.agentHotKeyLabel
+        revealInFinderHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .revealInFinderHotKey) ?? d.revealInFinderHotKey
+        copyPathHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .copyPathHotKey) ?? d.copyPathHotKey
         aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
+    }
+}
+
+/// Local launcher actions share the recorder's Carbon representation, without global registration.
+struct LauncherActionShortcut: Codable, Equatable, Sendable {
+    var code: UInt32
+    var modifiers: UInt32
+    var label: String
+
+    static let revealInFinder = Self(code: UInt32(kVK_ANSI_F), modifiers: UInt32(cmdKey), label: "⌘ F")
+    static let copyPath = Self(code: UInt32(kVK_ANSI_C), modifiers: UInt32(optionKey | cmdKey), label: "⌥⌘ C")
+
+    func matches(_ event: NSEvent) -> Bool {
+        var flags: NSEvent.ModifierFlags = []
+        for (carbon, flag) in [(cmdKey, NSEvent.ModifierFlags.command), (optionKey, .option), (controlKey, .control), (shiftKey, .shift)] {
+            if modifiers & UInt32(carbon) != 0 { flags.insert(flag) }
+        }
+        return event.type == .keyDown && UInt32(event.keyCode) == code
+            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == flags
     }
 }
 

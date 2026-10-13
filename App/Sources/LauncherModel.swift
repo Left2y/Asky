@@ -109,6 +109,7 @@ final class LauncherModel {
     private(set) var toast: String?
     private var toastTask: Task<Void, Never>?
 
+    var actionPreferences: SettingsPreferences { app.preferences }
     private let app: AppModel
     private let apps = AppsProvider()
     private let chrome = ChromeTabsProvider()

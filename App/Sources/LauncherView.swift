@@ -449,6 +449,16 @@ struct LauncherView: View {
         .nativeGlassBackground(in: shellShape)
         .floatingSurfaceShadow(in: shellShape)
         .contentShape(shellShape)
+        .overlay(alignment: .top) {
+            if let toast = model.toast {
+                ClipboardStatusToast(message: toast)
+                    .padding(.horizontal, 24)
+                    .visualEffect { content, geometry in
+                        content.offset(y: -geometry.size.height - 12)
+                    }
+                    .allowsHitTesting(false)
+            }
+        }
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
         }

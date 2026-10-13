@@ -105,6 +105,9 @@ final class LauncherModel {
     var selection = 0
     private(set) var terminal: TerminalSession?
     private(set) var status: String?
+    /// Transient feedback shown above the shell, like the clipboard panel's toast.
+    private(set) var toast: String?
+    private var toastTask: Task<Void, Never>?
 
     private let app: AppModel
     private let apps = AppsProvider()
@@ -220,6 +223,8 @@ final class LauncherModel {
         isSearching = false
         remainingSearchProviders = 0
         status = nil
+        toastTask?.cancel()
+        toast = nil
         if terminal?.exitCode != nil || terminal == nil { terminal = nil }
         shortcuts.invalidate()
         chrome.invalidate()
@@ -466,8 +471,18 @@ final class LauncherModel {
               results[selection].actions.contains(.revealInFinder) else { return false }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(results[selection].target.identifier, forType: .string)
-        status = NSLocalizedString("已拷贝路径", comment: "")
+        showToast(NSLocalizedString("已拷贝路径", comment: ""))
         return true
+    }
+
+    private func showToast(_ message: String) {
+        toastTask?.cancel()
+        toast = message
+        toastTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            self?.toast = nil
+        }
     }
 
     /// ⌘F reveals the selected file/app in Finder.

@@ -24,10 +24,14 @@ private func conversation(_ s: LocalStore, _ texts: [(String, String)]) throws -
         let s = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
         let cid = try conversation(s, [("user", "我常从浦东出发"), ("assistant", "好的")])
         let calls = Calls()
-        let extractor = MemoryExtractor(store: s) { _, user in
+        var extractor = MemoryExtractor(store: s) { _, user in
             await calls.add(user)
             return #"好的：{"memories":[{"content":"用户的常用机场是浦东","kind":"fact","subjects":["机场"]},{"content":" ","kind":"fact"}]}"#
         }
+        // A conversation that is still active is not extracted yet.
+        #expect(await extractor.run().isEmpty)
+        #expect(await calls.prompts.isEmpty && ExtractionQueue(s).count == 1)
+        extractor.minIdle = 0
         let saved = await extractor.run()
         #expect(saved.map(\.content) == ["用户的常用机场是浦东"])
         #expect(saved.first?.confirmed == false && saved.first?.sourceIDs == ["conversation:\(cid)"])
@@ -51,13 +55,16 @@ private func conversation(_ s: LocalStore, _ texts: [(String, String)]) throws -
         struct Boom: Error {}
         let s = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
         let cid = try conversation(s, [("user", "记一下我喜欢靠窗")])
-        _ = await MemoryExtractor(store: s) { _, _ in throw Boom() }.run()
+        var failing = MemoryExtractor(store: s) { _, _ in throw Boom() }
+        failing.minIdle = 0
+        _ = await failing.run()
         #expect(ExtractionQueue(s).count == 1)
 
-        let extractor = MemoryExtractor(store: s) { _, _ in
+        var extractor = MemoryExtractor(store: s) { _, _ in
             try MemoryStore(s).deleteSource("conversation:\(cid)")
             return #"{"memories":[{"content":"用户喜欢靠窗座位","kind":"preference"}]}"#
         }
+        extractor.minIdle = 0
         #expect(await extractor.run().isEmpty)
         #expect(MemoryStore(s).list(limit: 10).isEmpty)
     }
@@ -73,10 +80,12 @@ private func conversation(_ s: LocalStore, _ texts: [(String, String)]) throws -
         let cid = try conversation(s, [("user", "我上个月搬到杭州了，Orion 项目也结束了")])
         let calls = Calls()
         // list() orders pinned first, then newest: M1 生日, M2 Orion, M3 上海
-        let saved = await MemoryExtractor(store: s) { _, user in
+        var extractor = MemoryExtractor(store: s) { _, user in
             await calls.add(user)
             return #"{"memories":[],"updates":[{"id":"M3","content":"用户住在杭州"},{"id":"M9","content":"x"},{"id":"M3","content":"重复"}],"deletes":["M2","M1"]}"#
-        }.run()
+        }
+        extractor.minIdle = 0
+        let saved = await extractor.run()
         #expect(await calls.prompts.first?.contains("M3 用户住在上海") == true)
         #expect(saved.map(\.content) == ["用户住在杭州"])
         #expect(saved.first?.sourceIDs == [MemoryStore.assistantSourceID, "conversation:\(cid)"] && saved.first?.confirmed == true)

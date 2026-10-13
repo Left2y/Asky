@@ -265,10 +265,11 @@ public struct ExtractionQueue: Sendable {
         return true
     }
 
-    /// Takes up to `max` oldest entries, re-checking permissions at dequeue time.
-    public func takeBatch(max: Int) throws -> [String] {
+    /// Takes up to `max` oldest entries enqueued no later than `before`, re-checking permissions at dequeue time.
+    public func takeBatch(max: Int, enqueuedBefore before: Date = .distantFuture) throws -> [String] {
         try db.transaction {
-            let ids = try db.query("SELECT source_id FROM extraction_queue ORDER BY enqueued_at ASC LIMIT ?", [max])
+            let ids = try db.query("SELECT source_id FROM extraction_queue WHERE enqueued_at <= ? ORDER BY enqueued_at ASC LIMIT ?",
+                                   [before, max])
                 .compactMap { $0.string("source_id") }
             for id in ids { try db.run("DELETE FROM extraction_queue WHERE source_id = ?", [id]) }
             return ids.filter { !sources.isDeleted($0) && sources.permissions($0).contains(.extraction) }

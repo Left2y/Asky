@@ -69,7 +69,7 @@ final class ClipboardController {
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         }
         // The padded glass canvas must not acquire a rectangular system shadow.
-        panel.hasShadow = SurfaceCompatibility.useLegacyMaterial
+        panel.hasShadow = false
         panel.level = .normal
         panel.title = NSLocalizedString("剪贴板历史", comment: "")
         preview.title = NSLocalizedString("剪贴板完整预览", comment: "")
@@ -103,7 +103,7 @@ final class ClipboardController {
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         panel.level = .floating
-        panel.hasShadow = SurfaceCompatibility.useLegacyMaterial
+        panel.hasShadow = false
         panel.orderFrontRegardless()
         panel.makeKey()
         updateOutsideClickDismissal()

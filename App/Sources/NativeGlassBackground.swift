@@ -90,23 +90,21 @@ private struct DarkFloatingShadow<S: Shape>: ViewModifier {
 
     func body(content: Content) -> some View {
         content.background {
-            if !SurfaceCompatibility.useLegacyMaterial || scheme == .dark {
-                shape.fill(.black)
-                    .shadow(color: .black.opacity(scheme == .dark ? 0.6 : 0.18), radius: LauncherLayout.shadowRadius,
-                            x: 0, y: LauncherLayout.shadowOffsetY)
-                    .padding(LauncherLayout.shadowPadding)
-                    .mask {
-                        Rectangle().overlay {
-                            shape.fill(.black)
-                                .padding(LauncherLayout.shadowPadding)
-                                .blendMode(.destinationOut)
-                        }
-                        .compositingGroup()
+            shape.fill(.black)
+                .shadow(color: .black.opacity(scheme == .dark ? 0.6 : 0.18), radius: LauncherLayout.shadowRadius,
+                        x: 0, y: LauncherLayout.shadowOffsetY)
+                .padding(LauncherLayout.shadowPadding)
+                .mask {
+                    Rectangle().overlay {
+                        shape.fill(.black)
+                            .padding(LauncherLayout.shadowPadding)
+                            .blendMode(.destinationOut)
                     }
-                    .padding(-LauncherLayout.shadowPadding)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
+                    .compositingGroup()
+                }
+                .padding(-LauncherLayout.shadowPadding)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }

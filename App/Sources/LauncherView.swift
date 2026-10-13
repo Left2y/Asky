@@ -56,9 +56,9 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        // Keep AppKit from outlining the transparent glass envelope. Dark mode
-        // draws its own shape shadow outside the glass compositing layer.
-        hasShadow = SurfaceCompatibility.useLegacyMaterial
+        // Keep AppKit from outlining the transparent padded canvas. SwiftUI
+        // draws the shape shadow outside the surface instead.
+        hasShadow = false
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
         isReleasedWhenClosed = false
@@ -189,7 +189,7 @@ final class LauncherController {
             panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
                                               y: f.maxY - f.height * LauncherLayout.topInsetFraction + LauncherLayout.shadowPadding))
         }
-        panel.hasShadow = SurfaceCompatibility.useLegacyMaterial
+        panel.hasShadow = false
         panel.makeKeyAndOrderFront(nil)
         updateOutsideClickDismissal()
     }

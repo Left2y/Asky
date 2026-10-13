@@ -23,6 +23,53 @@ enum ClipboardRegression {
                 image.unlockFocus()
                 let path = root.appending(path: "fixture.tiff")
                 try image.tiffRepresentation!.write(to: path)
+                if CommandLine.arguments.contains("--chat-images") {
+                    let bitmap = NSBitmapImageRep(data: image.tiffRepresentation!)!
+                    let monitor = ClipboardMonitor(app: app)
+                    monitor.start()
+                    for fileOnly in [false, true] {
+                        let original = root.appending(path: "img_v3_02167_827d327e.jpg")
+                        try bitmap.representation(using: .jpeg, properties: [:])!.write(to: original)
+                        NSPasteboard.general.clearContents()
+                        if fileOnly {
+                            NSPasteboard.general.writeObjects([original as NSURL])
+                        } else {
+                            NSPasteboard.general.setData(image.tiffRepresentation!, forType: .tiff)
+                        }
+                        NSPasteboard.general.setString(original.lastPathComponent, forType: .string)
+                        let expectedCount = fileOnly ? 2 : 1
+                        for _ in 0..<50 {
+                            if store.recent(limit: 10).count == expectedCount { break }
+                            try await Task.sleep(for: .milliseconds(100))
+                        }
+                        let items = store.recent(limit: 10)
+                        precondition(items.count == expectedCount && items.allSatisfy { $0.kind == .image },
+                                     "chat image plus filename must record an image")
+                        let recorded = items.first!
+                        try FileManager.default.removeItem(at: original)
+                        precondition(recorded.thumbPath.flatMap(NSImage.init(contentsOfFile:)) != nil,
+                                     "chat image must have a usable thumbnail")
+                        precondition(ClipboardAccess.copy(recorded), "image must copy after source file removal")
+                        let restored = NSBitmapImageRep(data: ClipboardAccess.snapshot().image!)!
+                        precondition(restored.pixelsWide == bitmap.pixelsWide && restored.pixelsHigh == bitmap.pixelsHigh,
+                                     "copy must restore image pixels instead of filename")
+                        try await Task.sleep(for: .milliseconds(1200))
+                        precondition(store.recent(limit: 10).count == expectedCount, "restore must not add a text row")
+                    }
+                    monitor.stop()
+                    let controller = ClipboardController(app: app)
+                    controller.pinned = true
+                    controller.show()
+                    try await Task.sleep(for: .milliseconds(500))
+                    let view = application.windows.first { $0.title == "剪贴板历史" }!.contentView!
+                    view.layoutSubtreeIfNeeded()
+                    let capture = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+                    view.cacheDisplay(in: view.bounds, to: capture)
+                    try capture.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-chat-images.png"))
+                    print("Chat image monitoring, thumbnails, temporary-file survival and image copy passed")
+                    application.terminate(nil)
+                    return
+                }
                 let picture = ClipboardItem(kind: .image, filePath: path.path, byteSize: 1000, sourceApp: "Safari",
                                             contentHash: "picture", createdAt: Date().addingTimeInterval(3))
                 try store.insert(text)

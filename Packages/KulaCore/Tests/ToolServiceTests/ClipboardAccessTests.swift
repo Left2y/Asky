@@ -5,6 +5,48 @@ import LocalStore
 
 @Suite @MainActor
 struct ClipboardAccessTests {
+    @Test func chatImageFlavorsSurviveFilenameTextAndTemporaryFileRemoval() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 64, pixelsHigh: 36,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let png = try #require(bitmap.representation(using: .png, properties: [:]))
+        let jpeg = try #require(bitmap.representation(using: .jpeg, properties: [:]))
+        let pb = NSPasteboard.withUniqueName()
+        defer { pb.releaseGlobally() }
+        for (type, data) in [(NSPasteboard.PasteboardType.png, png), (.tiff, try #require(bitmap.tiffRepresentation)),
+                             (NSPasteboard.PasteboardType("public.jpeg"), jpeg)] {
+            pb.clearContents()
+            pb.setString("img_v3_02167_827d327e.jpg", forType: .string)
+            pb.setData(data, forType: type)
+            let snapshot = ClipboardAccess.snapshot(from: pb)
+            let image = try #require(snapshot.image)
+            #expect(NSBitmapImageRep(data: image)?.pixelsWide == 64)
+            #expect(snapshot.fileURLs.isEmpty)
+        }
+        let file = root.appending(path: "img_v3_02167.jpg")
+        try jpeg.write(to: file)
+        pb.clearContents()
+        pb.writeObjects([file as NSURL])
+        pb.setString(file.lastPathComponent, forType: .string)
+        let snapshot = ClipboardAccess.snapshot(from: pb)
+        #expect(snapshot.fileURLs.isEmpty)
+        try FileManager.default.removeItem(at: file)
+        let captured = try #require(snapshot.image)
+        #expect(NSBitmapImageRep(data: captured)?.pixelsHigh == 36)
+        // Multiple files must remain a file selection, even when a preview image is advertised.
+        pb.clearContents()
+        pb.writeObjects([file as NSURL, root.appending(path: "second.jpg") as NSURL])
+        pb.setData(png, forType: .png)
+        #expect(ClipboardAccess.snapshot(from: pb).fileURLs.count == 2)
+        #expect(ClipboardAccess.snapshot(from: pb).image == nil)
+        pb.setString("", forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        #expect(ClipboardAccess.snapshot(from: pb).image == nil)
+        #expect(ClipboardAccess.snapshot(from: pb).text == nil)
+    }
+
     @Test func fileSelectionRoundTripsWithoutDeletingOriginals() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

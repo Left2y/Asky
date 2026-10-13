@@ -51,7 +51,7 @@ final class ClipboardMonitor {
             try? store.insert(ClipboardItem(kind: .file, text: names, filePath: paths.first, filePaths: paths,
                                             byteSize: data.count, sourceApp: sourceApp, sourceBundleID: sourceBundleID,
                                             contentHash: "files:" + Self.hash(data)))
-        } else if let text = snapshot.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        } else if snapshot.image == nil, let text = snapshot.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let data = Data(text.utf8)
             try? store.insert(ClipboardItem(kind: .text, text: text, byteSize: data.count, sourceApp: sourceApp,
                                             sourceBundleID: sourceBundleID, contentHash: Self.hash(data)))

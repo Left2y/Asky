@@ -115,7 +115,8 @@ struct SettingsSecureField: View {
 
 private extension View {
     func settingsInputSurface(scheme: ColorScheme, focused: Bool) -> some View {
-        padding(.horizontal, 8).padding(.vertical, 6)
+        // Match the 24pt height of the native regular push buttons and pop-ups beside them.
+        padding(.horizontal, 8).frame(height: 24)
             .background(scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme)
                         : SettingsPalette.surface(scheme), in: RoundedRectangle(cornerRadius: 6))
             .overlay {

@@ -78,6 +78,9 @@ extension VerticalAlignment {
     static let settingsInput = VerticalAlignment(SettingsInput.self)
 }
 
+/// Single-line fields scroll to keep the caret visible when text overflows.
+private let SettingsInputWidth: CGFloat = 260
+
 struct SettingsTextField: View {
     let title: String
     @Binding var text: String
@@ -88,11 +91,13 @@ struct SettingsTextField: View {
         self.title = title; _text = text; self.prompt = prompt
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 24) {
             Text(title)
+            Spacer(minLength: 24)
             TextField(title, text: $text, prompt: prompt).labelsHidden()
                 .textFieldStyle(.plain).focused($focused)
                 .settingsInputSurface(scheme: scheme, focused: focused)
+                .frame(width: SettingsInputWidth)
         }
     }
 }
@@ -107,11 +112,13 @@ struct SettingsSecureField: View {
         self.title = title; _text = text; self.prompt = prompt
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 24) {
             Text(title)
+            Spacer(minLength: 24)
             SecureField(title, text: $text, prompt: prompt).labelsHidden()
                 .textFieldStyle(.plain).focused($focused)
                 .settingsInputSurface(scheme: scheme, focused: focused)
+                .frame(width: SettingsInputWidth)
         }
     }
 }

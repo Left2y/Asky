@@ -15,15 +15,17 @@ struct SettingsView: View {
     var body: some View {
         Group {
             switch SettingsPage.resolve(app.settingsTab) {
-            case .model: ModelSettingsView(app: app)
+            case .model: SettingsForm {
+                ModelSettingsView(app: app)
+                MCPSettings(app: app)
+                MemorySettings(app: app)
+            }
             case .hotkey: HotKeySettings(app: app)
             case .aliases: AliasSettings(app: app)
             case .keywords: CommandSettings(app: app)
             case .general: GeneralSettings(app: app)
             case .sources: SourceSettings(app: app)
             case .permissions: PermissionSettings(app: app)
-            case .memory: MemorySettings(app: app)
-            case .mcp: MCPSettings(app: app)
             case .plugins: PluginSettings(app: app)
             case .about: AboutSettings()
             case .author: AuthorSettings()
@@ -203,7 +205,6 @@ private struct GeneralSettings: View {
     @Bindable var app: AppModel
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
-    @State private var choosingScope = false
 
     var body: some View {
         SettingsForm {
@@ -242,41 +243,16 @@ private struct GeneralSettings: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Section {
-                if app.settings.fileScopes.isEmpty {
-                    Text(NSLocalizedString("尚未添加搜索目录", comment: ""))
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(app.settings.fileScopes, id: \.self) { p in
-                    HStack {
-                        Label(p, systemImage: "folder")
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .help(p)
-                        Spacer()
-                        SettingsButton(NSLocalizedString("移除", comment: "")) { app.settings.fileScopes.removeAll { $0 == p } }
-                    }
+            Section(NSLocalizedString("文件搜索范围", comment: "")) {
+                SettingsEditableList(title: NSLocalizedString("包含的文件夹", comment: ""),
+                                     emptyText: NSLocalizedString("尚未添加搜索目录", comment: ""),
+                                     systemImage: "folder",
+                                     items: $app.settings.fileScopes) {
+                    await ToolService.chooseLauncherSearchFolder()?.path
                 }
                 SettingsExclusionList(title: NSLocalizedString("排除的目录名", comment: ""),
                                       selection: .directory,
                                       items: $app.settings.excludedDirectories)
-            } header: {
-                HStack {
-                    Text(NSLocalizedString("文件搜索范围", comment: ""))
-                    Spacer()
-                    SettingsButton(NSLocalizedString("添加文件夹…", comment: ""), systemImage: "folder") {
-                        choosingScope = true
-                        Task { @MainActor in
-                            defer { choosingScope = false }
-                            guard let folder = await ToolService.chooseLauncherSearchFolder() else { return }
-                            let path = folder.path
-                            if !app.settings.fileScopes.contains(path) { app.settings.fileScopes.append(path) }
-                        }
-                    }
-                    .controlSize(.large)
-                    .font(.body)
-                    .disabled(choosingScope)
-                }
             }
             Section(NSLocalizedString("剪贴板", comment: "")) {
                 Toggle(NSLocalizedString("记录剪贴板历史", comment: ""), isOn: $app.settings.clipboardEnabled)
@@ -359,38 +335,45 @@ private struct SourceSettings: View {
                     set: { app.settings.webSearchEnabled = $0 }))
             }
             Section(NSLocalizedString("授权的备忘录文件夹", comment: "")) {
-                HStack {
-                    SettingsButton(NSLocalizedString(foldersLoaded ? "刷新文件夹" : "连接备忘录", comment: "")) {
-                        Task { await connectNotes() }
+                VStack(alignment: .leading, spacing: 12) {
+                    SettingsListHeader(title: NSLocalizedString("允许访问的文件夹", comment: "")) {
+                        if loadingFolders { ProgressView().controlSize(.small) }
+                        SettingsButton(NSLocalizedString(foldersLoaded ? "刷新" : "连接", comment: ""),
+                                       systemImage: foldersLoaded ? "arrow.clockwise" : "link") {
+                            Task { await connectNotes() }
+                        }
+                        .accessibilityLabel(NSLocalizedString(foldersLoaded ? "刷新文件夹" : "连接备忘录", comment: ""))
+                        .disabled(loadingFolders)
                     }
-                    .disabled(loadingFolders)
-                    if loadingFolders { ProgressView().controlSize(.small) }
-                }
-                ForEach(Array(Set(displayedFolders.map(\.account))).sorted(), id: \.self) { account in
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(account).font(.headline)
-                        ForEach(displayedFolders.filter { $0.account == account }, id: \.self) { folder in
-                            Toggle(isOn: Binding(
-                                get: { app.settings.notesFolders.contains(folder) },
-                                set: { selected in
-                                    app.settings.notesFolders.removeAll { $0 == folder }
-                                    if selected { app.settings.notesFolders.append(folder) }
-                                })) {
-                                HStack {
-                                    Label(folder.folder, systemImage: "folder")
-                                    if foldersLoaded && !availableFolders.contains(folder) {
-                                        Text(NSLocalizedString("未找到，请取消选择或刷新", comment: "")).foregroundStyle(.secondary)
+                    SettingsInsetBox {
+                        if displayedFolders.isEmpty {
+                            Text(NSLocalizedString(foldersLoaded ? "未找到文件夹，请先在 Apple 备忘录中添加账户或创建文件夹，再刷新。" : "连接备忘录后，选择允许 AI 访问的文件夹", comment: ""))
+                                .foregroundStyle(.secondary)
+                        }
+                        ForEach(Array(Set(displayedFolders.map(\.account))).sorted(), id: \.self) { account in
+                            Text(account).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                                .padding(.top, 4)
+                            ForEach(displayedFolders.filter { $0.account == account }, id: \.self) { folder in
+                                Toggle(isOn: Binding(
+                                    get: { app.settings.notesFolders.contains(folder) },
+                                    set: { selected in
+                                        app.settings.notesFolders.removeAll { $0 == folder }
+                                        if selected { app.settings.notesFolders.append(folder) }
+                                    })) {
+                                    HStack {
+                                        Label(folder.folder, systemImage: "folder")
+                                        if foldersLoaded && !availableFolders.contains(folder) {
+                                            Text(NSLocalizedString("未找到，请取消选择或刷新", comment: "")).foregroundStyle(.secondary)
+                                        }
                                     }
                                 }
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
                             }
-                            .toggleStyle(.checkbox)
                         }
                     }
                 }
-                if foldersLoaded && availableFolders.isEmpty {
-                    Text(NSLocalizedString("未找到文件夹，请先在 Apple 备忘录中添加账户或创建文件夹，再刷新。", comment: ""))
-                        .foregroundStyle(.secondary)
-                }
+                .padding(.vertical, 4)
                 if let folderError {
                     Text(folderError).foregroundStyle(.red)
                     SettingsButton(NSLocalizedString("打开自动化权限设置…", comment: "")) {
@@ -431,63 +414,62 @@ private struct ModelSettingsView: View {
     @State private var checkFailed = false
 
     var body: some View {
-        SettingsForm {
-            Section(NSLocalizedString("供应商与模型", comment: "")) {
-                LabeledContent(NSLocalizedString("供应商", comment: "")) {
-                    SettingsChoice(selection: Binding(get: { draft.provider }, set: { value in
-                        draft.select(value)
-                        key = ""
-                        message = nil
-                        checked = false
-                    }), options: ModelProviderPreset.all.map { ($0.id, NSLocalizedString($0.name, comment: "")) } + [
-                        ("custom", NSLocalizedString("完全自定义（OpenAI 兼容）", comment: ""))
-                    ])
-                }
-                if let preset = ModelProviderPreset.find(draft.provider) {
-                    LabeledContent(NSLocalizedString("模型", comment: "")) {
-                        SettingsChoice(selection: $draft.model, options: preset.models.map { ($0, $0) })
-                    }
-                    LabeledContent(NSLocalizedString("API 地址", comment: "")) {
-                        Text(preset.baseURL).font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(.secondary).textSelection(.enabled)
-                    }
-                } else {
-                    SettingsTextField(NSLocalizedString("API 地址", comment: ""), text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
-                    SettingsTextField(NSLocalizedString("模型名", comment: ""), text: $draft.model)
-                    Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。", comment: ""))
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
-                }
-                SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key,
-                                    prompt: Text(NSLocalizedString(canReuseKey ? "已保存，留空不变" : "输入 API Key", comment: "")))
-                HStack {
-                    Text(statusText).font(.system(size: 12)).foregroundStyle(.secondary)
-                    Spacer()
-                    SettingsButton(actionTitle, isLoading: saving || checking, isComplete: checked,
-                                   loadingTitle: NSLocalizedString(saving ? "保存中…" : "检查中…", comment: "")) {
-                        Task { await saveAndCheck() }
-                    }
-                    .disabled(saving || checking || checked)
-                    .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : actionTitle)
-                }
-                if let message { Text(message).foregroundStyle(ThemeColor.kTextNegative) }
+        Section(NSLocalizedString("供应商与模型", comment: "")) {
+            LabeledContent(NSLocalizedString("供应商", comment: "")) {
+                SettingsChoice(selection: Binding(get: { draft.provider }, set: { value in
+                    draft.select(value)
+                    key = ""
+                    message = nil
+                    checked = false
+                }), options: ModelProviderPreset.all.map { ($0.id, NSLocalizedString($0.name, comment: "")) } + [
+                    ("custom", NSLocalizedString("完全自定义（OpenAI 兼容）", comment: ""))
+                ])
             }
-            .disabled(saving || checking)
-            if matchesSavedConfiguration, let c = capabilities ?? app.modelConfiguration?.capabilities {
-                Section(NSLocalizedString("模型能力", comment: "")) {
-                    LabeledContent(NSLocalizedString("文本", comment: ""), value: capabilityLabel(c.text))
-                    LabeledContent(NSLocalizedString("工具调用", comment: ""), value: capabilityLabel(c.tools))
-                    LabeledContent(NSLocalizedString("图像输入", comment: ""), value: capabilityLabel(c.image))
-                }
+            // Lifecycle lives on a row: modifiers on this multi-section body would repeat per section.
+            .task(id: checked) {
+                guard checked else { return }
+                do { try await Task.sleep(for: .milliseconds(1500)); checked = false }
+                catch { }
             }
+            .onAppear {
+                draft = ModelConfigurationDraft(provider: app.preferences.provider,
+                    baseURL: app.modelConfiguration?.baseURL.absoluteString, model: app.modelConfiguration?.modelName)
+            }
+            if let preset = ModelProviderPreset.find(draft.provider) {
+                LabeledContent(NSLocalizedString("模型", comment: "")) {
+                    SettingsChoice(selection: $draft.model, options: preset.models.map { ($0, $0) })
+                }
+                LabeledContent(NSLocalizedString("API 地址", comment: "")) {
+                    Text(preset.baseURL).font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary).textSelection(.enabled)
+                }
+            } else {
+                SettingsTextField(NSLocalizedString("API 地址", comment: ""), text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
+                SettingsTextField(NSLocalizedString("模型名", comment: ""), text: $draft.model)
+                Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。", comment: ""))
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key,
+                                prompt: Text(NSLocalizedString(canReuseKey ? "已保存，留空不变" : "输入 API Key", comment: "")))
+            HStack {
+                Text(statusText).font(.system(size: 12)).foregroundStyle(.secondary)
+                Spacer()
+                SettingsButton(actionTitle, isLoading: saving || checking, isComplete: checked,
+                               loadingTitle: NSLocalizedString(saving ? "保存中…" : "检查中…", comment: "")) {
+                    Task { await saveAndCheck() }
+                }
+                .disabled(saving || checking || checked)
+                .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : actionTitle)
+            }
+            if let message { Text(message).foregroundStyle(ThemeColor.kTextNegative) }
         }
-        .task(id: checked) {
-            guard checked else { return }
-            do { try await Task.sleep(for: .milliseconds(1500)); checked = false }
-            catch { }
-        }
-        .onAppear {
-            draft = ModelConfigurationDraft(provider: app.preferences.provider,
-                baseURL: app.modelConfiguration?.baseURL.absoluteString, model: app.modelConfiguration?.modelName)
+        .disabled(saving || checking)
+        if matchesSavedConfiguration, let c = capabilities ?? app.modelConfiguration?.capabilities {
+            Section(NSLocalizedString("模型能力", comment: "")) {
+                LabeledContent(NSLocalizedString("文本", comment: ""), value: capabilityLabel(c.text))
+                LabeledContent(NSLocalizedString("工具调用", comment: ""), value: capabilityLabel(c.tools))
+                LabeledContent(NSLocalizedString("图像输入", comment: ""), value: capabilityLabel(c.image))
+            }
         }
     }
 
@@ -591,29 +573,27 @@ private struct MemorySettings: View {
     @Bindable var app: AppModel
 
     var body: some View {
-        SettingsForm {
-            Section {
-                Toggle(NSLocalizedString("开启记忆", comment: ""), isOn: Binding(
-                    get: { !app.settings.memoryExtractionPaused },
-                    set: { app.settings.memoryExtractionPaused = !$0 }
-                ))
-                Button {
-                    try? app.memory.ensureExists()
-                    NSWorkspace.shared.activateFileViewerSelecting([app.memory.indexURL])
+        Section(NSLocalizedString("记忆", comment: "")) {
+            Toggle(NSLocalizedString("开启记忆", comment: ""), isOn: Binding(
+                get: { !app.settings.memoryExtractionPaused },
+                set: { app.settings.memoryExtractionPaused = !$0 }
+            ))
+            Button {
+                try? app.memory.ensureExists()
+                NSWorkspace.shared.activateFileViewerSelecting([app.memory.indexURL])
+            } label: {
+                LabeledContent {
+                    Image(systemName: "arrow.up.forward.app").foregroundStyle(.secondary)
                 } label: {
-                    LabeledContent {
-                        Image(systemName: "arrow.up.forward.app").foregroundStyle(.secondary)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(NSLocalizedString("记忆文件", comment: ""))
-                            Text(NSLocalizedString("在访达中显示 MEMORY.md", comment: ""))
-                                .font(.system(size: 12)).foregroundStyle(.secondary)
-                        }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("记忆文件", comment: ""))
+                        Text(NSLocalizedString("在访达中显示 MEMORY.md", comment: ""))
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -631,68 +611,66 @@ private struct MCPSettings: View {
     static let exposable: [DataSourceID] = [.calendar, .reminders, .notes, .contacts, .chrome, .shortcuts, .messages]
 
     var body: some View {
-        SettingsForm {
-            Section {
-                LabeledContent(NSLocalizedString("本地连接", comment: ""), value: app.isMCPListening ? NSLocalizedString("监听中", comment: "") : NSLocalizedString("未监听（无已启用实例）", comment: ""))
-                if let e = app.mcpServerError { Text(e).foregroundStyle(ThemeColor.kTextNegative) }
-            }
-            if let issued {
-                Section(String(format: NSLocalizedString("新实例“%@”的配置（凭据只显示这一次）", comment: ""), issued.name)) {
-                    Text(Self.configSnippet(credential: issued.credential))
-                        .font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                    HStack(spacing: 12) {
-                        SettingsButton(NSLocalizedString("复制配置", comment: "")) {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(Self.configSnippet(credential: issued.credential), forType: .string)
-                        }
-                        SettingsButton(NSLocalizedString("我已保存", comment: "")) { self.issued = nil }
-                        Spacer()
+        Section(NSLocalizedString("外部 MCP", comment: "")) {
+            LabeledContent(NSLocalizedString("本地连接", comment: ""), value: app.isMCPListening ? NSLocalizedString("监听中", comment: "") : NSLocalizedString("未监听（无已启用实例）", comment: ""))
+                .onAppear(perform: reload)
+            if let e = app.mcpServerError { Text(e).foregroundStyle(ThemeColor.kTextNegative) }
+        }
+        if let issued {
+            Section(String(format: NSLocalizedString("新实例“%@”的配置（凭据只显示这一次）", comment: ""), issued.name)) {
+                Text(Self.configSnippet(credential: issued.credential))
+                    .font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                HStack(spacing: 12) {
+                    SettingsButton(NSLocalizedString("复制配置", comment: "")) {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(Self.configSnippet(credential: issued.credential), forType: .string)
                     }
+                    SettingsButton(NSLocalizedString("我已保存", comment: "")) { self.issued = nil }
+                    Spacer()
                 }
-            }
-            Section(NSLocalizedString("实例", comment: "")) {
-                ForEach($instances) { $inst in
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text(inst.name).textStyle(.button)
-                            Spacer()
-                            SettingsButton(NSLocalizedString("撤销", comment: ""), role: .destructive) {
-                                try? MCPInstanceStore(app.store).delete(inst.id)
-                                reload()
-                            }
-                        }
-                        Toggle(NSLocalizedString("启用", comment: ""), isOn: $inst.enabled).onChange(of: inst.enabled) { save(inst) }
-                        Toggle(NSLocalizedString("只读", comment: ""), isOn: $inst.readOnly).onChange(of: inst.readOnly) { save(inst) }
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), alignment: .leading)],
-                                  alignment: .leading, spacing: 12) {
-                            ForEach(Self.exposable, id: \.self) { s in
-                                SettingsCheckbox(title: s.rawValue, isOn: Binding(
-                                    get: { inst.sources.contains(s) },
-                                    set: { on in
-                                        if on { inst.sources.append(s) } else { inst.sources.removeAll { $0 == s } }
-                                        save(inst)
-                                    }))
-                                .fixedSize()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                }
-                HStack(alignment: .settingsInput) {
-                    SettingsTextField(NSLocalizedString("实例名称（如 Claude Desktop）", comment: ""), text: $newName)
-                    SettingsButton(NSLocalizedString("创建", comment: "")) {
-                        do {
-                            let (inst, cred) = try app.gateway.register(name: newName.isEmpty ? NSLocalizedString("MCP 客户端", comment: "") : newName)
-                            issued = (inst.name, cred)
-                            newName = ""
-                            reload()
-                        } catch { self.error = "\(error)" }
-                    }
-                }
-                if let error { Text(error).foregroundStyle(ThemeColor.kTextNegative) }
             }
         }
-        .onAppear(perform: reload)
+        Section(NSLocalizedString("MCP 实例", comment: "")) {
+            ForEach($instances) { $inst in
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text(inst.name).textStyle(.button)
+                        Spacer()
+                        SettingsButton(NSLocalizedString("撤销", comment: ""), role: .destructive) {
+                            try? MCPInstanceStore(app.store).delete(inst.id)
+                            reload()
+                        }
+                    }
+                    Toggle(NSLocalizedString("启用", comment: ""), isOn: $inst.enabled).onChange(of: inst.enabled) { save(inst) }
+                    Toggle(NSLocalizedString("只读", comment: ""), isOn: $inst.readOnly).onChange(of: inst.readOnly) { save(inst) }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), alignment: .leading)],
+                              alignment: .leading, spacing: 12) {
+                        ForEach(Self.exposable, id: \.self) { s in
+                            SettingsCheckbox(title: s.rawValue, isOn: Binding(
+                                get: { inst.sources.contains(s) },
+                                set: { on in
+                                    if on { inst.sources.append(s) } else { inst.sources.removeAll { $0 == s } }
+                                    save(inst)
+                                }))
+                            .fixedSize()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+            }
+            HStack(alignment: .settingsInput) {
+                SettingsTextField(NSLocalizedString("实例名称（如 Claude Desktop）", comment: ""), text: $newName)
+                SettingsButton(NSLocalizedString("创建", comment: "")) {
+                    do {
+                        let (inst, cred) = try app.gateway.register(name: newName.isEmpty ? NSLocalizedString("MCP 客户端", comment: "") : newName)
+                        issued = (inst.name, cred)
+                        newName = ""
+                        reload()
+                    } catch { self.error = "\(error)" }
+                }
+            }
+            if let error { Text(error).foregroundStyle(ThemeColor.kTextNegative) }
+        }
     }
 
     private func save(_ inst: MCPInstance) {

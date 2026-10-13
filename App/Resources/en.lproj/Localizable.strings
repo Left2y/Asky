@@ -524,3 +524,8 @@
 "在访达中显示" = "Reveal in Finder";
 "复制文件路径" = "Copy file path";
 "点击组合键即可修改。在访达中显示和复制文件路径仅在启动器选中文件或应用时生效。" = "Click a shortcut to change it. Reveal in Finder and Copy file path work when a file or app is selected in the launcher.";
+"包含的文件夹" = "Included Folders";
+"允许访问的文件夹" = "Allowed Folders";
+"刷新" = "Refresh";
+"连接" = "Connect";
+"连接备忘录后，选择允许 AI 访问的文件夹" = "Connect Notes, then choose folders AI may access";

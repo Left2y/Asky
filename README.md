@@ -24,34 +24,48 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 
 ### 项目简介
 
-Asky 使用 SwiftUI 与 AppKit 构建，提供菜单栏入口、聚焦搜索、剪贴板历史和 AI 对话。搜索与本地工具独立运行；AI 是按需启用的增强能力。
-
-应用、工程与 scheme 统一为 `Asky`，构建产物为 `Asky.app`，MCP 可执行文件为 `asky-mcp`。为兼容现有安装，沿用原有 bundle identifier、数据目录与钥匙串标识。新 MCP 配置使用 `ASKY_MCP_CREDENTIAL` / `ASKY_MCP_SOCKET`；旧环境变量及 App 内的 `kulahere-mcp` 命令路径继续可用。
-
-项目处于开发阶段，仓库包含原生 App、Swift 核心包、TypeScript Agent Runtime 和 MCP Bridge。系统权限、模型兼容性及完整交互流程仍需在实际环境中验收。
+Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪贴板可独立使用，AI 助手按需启动。项目仍在开发中，完整系统权限与交互验收见[验证记录](docs/validation/)。
 
 ### 核心能力
 
-- **聚焦搜索**：搜索应用、文件、Chrome 标签页与本地书签，读取应用自带的本地化名称（含系统应用的 `InfoPlist.loctable`），支持应用别名、网页关键词、计算和换算。
-- **剪贴板历史**：独立面板浏览文本、图片与文件，文件支持多选复制及原生拖出，拖出不改写系统剪贴板，复用历史保留原来源图标；文件历史保存原路径，原文件移动或删除后需重新复制，删除历史不会删除原文件。悬停 1 秒后显示完整预览，支持固定、删除和键盘选择；授予辅助功能权限后可直接粘贴。
-- **AI 对话**：支持 OpenAI 兼容接口、对话历史、图片与文件附件，以及原生 Markdown 排版。Agent 辅助进程按需启动，空闲后退出。每条任务最多自动调用 50 次工具。工具调用中显示加载动画，成功后显示对应来源图标，失败时显示带圈的叉；错误详情默认折叠，点击右侧箭头展开。
-- **联网搜索**：AI 内置 `web_search`，无需额外 Key，通过 Bing 网页搜索返回标题、来源链接和摘要；在“设置 › 数据来源 › 联网搜索”关闭。搜索词会发送至 Bing，摘要发送至配置的模型服务。网页限流、验证或结构变化会明确报错；摘要不代表已读取全文。
-- **系统工具**：通过 ToolService 统一处理系统读写与授权；集成日历、提醒事项、备忘录和通讯录，信息草稿交由系统 App 确认发送。开启“让 AI 读取最近 30 天的短信与 iMessage”并授予完全磁盘访问后，可在对话中按关键词与日期查询本机最近 30 天的短信；查询结果会发送到配置的模型服务，过滤验证码并遮盖长数字，不向外部 MCP 开放。
-- **情境提醒**：在“设置 › 数据来源”开启后，提示日程冲突与出行准备。再开启“后台 AI 判断”，模型会结合日程、未完成提醒事项与记忆，提示需要提前准备、彼此关联或临近截止却未安排时间的事；建议须引用输入中的依据，默认无声、每天最多 2 条。另可单独开启“让 AI 读取最近 30 天的短信与 iMessage”（默认关闭，需授予完全磁盘访问），用于发现短信中的请求、承诺和取件、缴费、预约等通知；新消息先分批（每批约 2,500 字、每条只发送一次）提炼成至多 30 条短事项，提醒判断只看这些事项而不看原文；验证码短信丢弃、长数字只保留后 4 位。相关内容会发送到配置的模型服务。对话查询无需开启后台 AI 判断。
-- **GitHub 插件**：在“设置 › 插件”按需安装官方或自行选择的公开 GitHub 仓库，支持配置、启停、更新、回退和卸载。官方 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca) 0.2 本地实现（尚未发布）通过 skill 与通用 CLI 工具指导 Agent 操作 Orca，按名称发现已打开项目，无需手填绝对路径。Orca 与 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 独立发布，不进入安装包；插件会执行可信本机代码，不提供沙箱。支持清单自定义图标，Orca 使用本机应用图标，缺省时显示内置占位图标。接口与安装依赖见[插件指南](docs/plugins.md)。
-- **MCP 扩展**：通过独立授权的 MCP Bridge 向外部客户端提供本地工具。
-
-Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例缩放，加载失败可重试，右下角按钮可将原图保存到 Downloads。代码块显示语言标题和复制按钮；表格保留外框、内部仅横线，Neutral 表头与 32 pt 单行高度，超宽内容可横向滚动。排版使用应用语义主题，随浅色／深色外观切换；图片下载上限 10 MiB，内存缓存上限 32 MiB，不读取 Markdown 中的本地文件图片。
+- **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
+- **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。
+- **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。
+- **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。
 
 ### 快速开始
 
-首次使用请阅读[使用教程](docs/user-guide.md)：从安装与快捷键开始，逐步学习搜索、剪贴板、AI 配置、系统授权与常见问题处理。
+[下载 Asky](https://github.com/Niall-Young/Asky/releases)（macOS 15+，Apple Silicon）。打开 DMG，将 `Asky.app` 拖入“应用程序”后启动；安装包已包含 Node.js 和 AgentRuntime。ZIP 用于应用内更新。
 
-[下载 Asky 0.0.20](https://github.com/Niall-Young/Asky/releases/tag/v0.0.20)：适用于 macOS 15+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此版本使用固定的 `Asky Local Signing` 自签名证书。
+首次使用见[使用教程](docs/user-guide.md)。
 
-源码开发版本的运行目标为 macOS 15+（旧系统实机验收待完成）；开发需要 Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
+### 使用方法
 
-在仓库根目录运行以下命令，构建开发版本：
+| 入口 | 用法 |
+| --- | --- |
+| 搜索 | 从菜单栏打开，输入关键词，方向键选择、回车打开 |
+| 剪贴板 | `Ctrl + Shift + C` |
+| AI 新对话 | `Ctrl + Shift + /` |
+| 网页与终端 | `go 关键词`、`yt 关键词`、`> pwd` |
+| 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
+
+快捷键可在设置中修改。Chrome 搜索与系统工具需要相应授权。
+
+### 配置与隐私
+
+在“设置 › 模型设置”填写 API 地址、模型名和 Key；Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。
+
+应用没有向作者上传用户数据的接口。AI 消息、附件和所需工具结果发送至你配置的模型服务；联网搜索词发送至 Bing。来源开关与系统权限在设置中管理。详见[隐私政策草案](PRIVACY.md)。
+
+### 项目结构与文档
+
+`App/` 是原生界面，`Packages/KulaCore/` 是核心能力与 ToolService，`AgentRuntime/` 是 TypeScript AI 宿主，`MCPBridge/` 是外部工具桥接。
+
+[文档索引](docs/README.md) · [产品需求](docs/PRD.md) · [架构](docs/framework.md) · [插件指南](docs/plugins.md)
+
+### 开发与验证
+
+需要 Xcode 26 / Swift 6.2+、Node.js 22+ 和 XcodeGen。从仓库根目录构建：
 
 ```sh
 python3 scripts/setup-local-signing.py
@@ -61,55 +75,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Ask
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
-开发版可用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-notification` 发送一条真实的 Asky 测试通知（5 秒后交付，带默认声音与“查看依据 / 已处理”操作，不创建日程或提醒计划）。在系统设置 › 通知 › Asky 开启声音，并选择“持续”提醒样式，可预览一直保留到操作的效果。日常智能建议仍默认无声；Release 构建不响应此参数。
-
-### 使用方法
-
-- 未输入时，搜索框与右侧两个等高圆形玻璃按钮合计占用原来的 720 pt 宽度；开始输入后按钮收起，搜索框恢复全部宽度。默认不固定、搜索全部。Pin 保持窗口在切换应用时可见，Filter 可限定应用、文件、快捷方式（内置网页指令与别名）或系统快捷指令。选择“全部”恢复混合搜索；Escape 先关闭筛选菜单，再关闭窗口，固定状态也可关闭。筛选与固定状态在窗口关闭后重置。
-- 从菜单栏打开搜索，输入应用名、文件名或网页关键词，使用方向键选择、回车打开。
-- `go`（Google 搜索）、`chat`（ChatGPT）、`yt`（YouTube）、`dy`（抖音）、`tb`（淘宝）、`jd`（京东）、`bl`（bilibili）、`gh`（GitHub）和 `>`（终端）是固定内置指令，无需配置，不能添加、修改或删除。可在“设置 › 指令”查看带对应品牌 Logo 的内置指令并配置终端；设置列表、搜索框与指令结果统一使用 24 × 24 pt、6 pt 圆角图标，周围留白透明、不添加底板或描边，`>` 显示当前所选终端的图标。旧的网页关键词配置不再参与启动器路由；输入 `go 内容`、`chat 问题` 或 `yt 搜索内容` 等即可使用。
-- 输入英文 `>` 后按空格进入终端模式，例如 `> pwd`；单独的 `>` 或 `>pwd` 保持普通搜索；回车打开所选终端，在配置的工作目录执行命令。在“设置 › 指令 › 终端 › 执行命令的终端”选择已安装的系统终端、iTerm2 或 Ghostty（1.3+），入口与结果显示对应应用图标。输入框为空时按退格退出终端模式；首次使用可能需要授予自动化权限。
-- 在“设置 › 系统权限 › Chrome 书签与链接搜索”查看访问状态，点击“去授权”并在系统选择器中选择 Chrome 文件夹或其 Default／Profile 个人资料文件夹；选择器默认定位到 Chrome，保存授权前会校验书签是否可读。未授权时，不显示链接和书签搜索入口或结果，`bm` 不进入书签模式；授权后重新打开启动器恢复这两项功能，输入 `bm 关键词` 搜索书签。仅读取本地和账号书签，不读取浏览历史。
-- 在“设置 › 通用 › 文件搜索范围”点击“选择文件夹…”，通过系统文件夹选择窗口添加搜索目录。
-- 支持四则运算、小数/负数、科学计数法、圆括号/方括号/花括号嵌套、乘方（`^`）、平方根（`√` 或 `sqrt(...)`）和省略乘号（`2(3+4)`）。例如 `【(12-12)+1】*12 = 12`；兼容中文全角符号及 `−`、`–`、`—` 减号。乘方先于负号，`-2^2 = -4`。末尾 `%` 表示除以 100（`100*20% = 20`），两数之间的 `%` 保持取余（`10%3 = 1`）；百分比按普通数值参与加减。输入 `1+1`，输入框末尾以浅色显示 `= 2`，下方卡片上下显示公式与结果：上方公式左对齐，下方结果右对齐，回车复制结果；长算式最多显示两行并从中间截断，悬停查看全文。输入 `1美元` 或 `100人民币`，下方横向展示输入币种与人民币的换算卡片（人民币输入默认换算为美元），其他币种保持列表显示在卡片下方。输入 `100 USD CNY` 可只查看指定币种。卡片显示旗帜、币种和金额，不提供选中、悬停或复制操作。汇率使用 ECB 日参考数据；启动时后台预取，已有缓存立即用于计算，过期缓存后台刷新；断网时使用已有缓存，无缓存则显示不可用。
-- 使用 `Ctrl + Shift + C` 打开剪贴板面板；可在“设置 › 触发快捷键”中修改快捷键。
-- 使用 `Ctrl + Shift + /` 直接打开 AI 并开启空白新对话；可在“设置 › 触发快捷键 › AI 对话”中录制自定义组合键或恢复默认；正在回复时先取消旧任务。也可从菜单栏打开“AI 对话”，或在搜索中选择 AI 条目后提交。
-- 启动器、AI 对话、剪贴板及玻璃浮层在 macOS 26+ 使用原生 Regular 液态玻璃；启动器与剪贴板绘制随明暗模式调整的外形阴影，并预留透明边距以避免裁切；其他浮窗保留系统窗口阴影；macOS 15 使用系统实时背景模糊、`background` 颜色变量和 1pt `border` 描边，设置侧栏与内容区同步适配。原生模糊半径由系统控制，不固定为 120px；在 macOS 辅助功能中开启“降低透明度”或“增强对比度”后，改用不透明背景和清晰边框。
-- 搜索框或剪贴板面板获得焦点时，按 `⌘,` 打开设置。设置窗口按设置、工具、智能体和其他分组导航；各页统一使用 220pt 侧栏、14pt 正文和 12pt 圆角配置卡片，macOS 26+ 的窗口背景使用背景色叠加 Regular 玻璃，并支持调整窗口大小。应用主题位于“通用 › 外观”。
-- 在“设置 › 关于 Asky”查看当前版本并点击“检查更新”，应用会读取 GitHub `Niall-Young/Asky` 的最新 Release；GitHub API 限流（403/429）时自动改用公开 Release 网页，并在冷却期间避免重复请求 API。版本高于当前版本时可点击“安装更新”：下载 ZIP 并按 `.sha256` 校验、验证签名，完成 AI 辅助进程清理并退出 Asky 后，用新版本替换并删除旧版本，再自动重新打开。应用所在目录需可写；临时转移路径运行时需先移到“应用程序”。
-- 在“设置 › 关于作者”查看作者邮箱、GitHub 主页和 X；点击邮箱打开默认邮件应用，点击 GitHub 或 X 打开默认浏览器。
-- 应用语言位于“设置 › 通用 › 外观 › 应用语言”，默认跟随 macOS 首选语言，也可选择简体中文或 English；更改在下次启动时生效。界面翻译使用原生 `.lproj` 资源，macOS 不会自动翻译应用自定义文字；AI 回复和用户内容不受此设置控制。
-
-### 配置与隐私
-
-**Asky 当前版本没有向项目作者上传用户数据的接口。剪贴板、对话、文件与系统资料不会通过应用上传到作者服务器；AI 请求直接发送到你配置的模型服务。** 作者可能收到你主动提交的 Issue、日志或截图，请先脱敏。
-
-详见[隐私政策草案](PRIVACY.md)，包括本机保存、第三方处理和当前删除限制。正式发布前需补全主体、联系方式及应用内告知；状态见[隐私发布核查记录](docs/validation/2026-10-11-privacy-policy.md)。
-
-使用 AI 前，在“设置 › 模型设置”中填写服务商的 API 地址、模型名和 API Key。Key 存储在 macOS 钥匙串中；本地数据位于 `~/Library/Application Support/KulaHere/`。
-
-系统权限在“设置 › 系统权限”中管理，相关工具按需请求授权。日历、提醒事项、通讯录与通知使用请求结果立即刷新状态，过期的后台检查不会覆盖新结果。辅助功能和屏幕录制点击“去授权”后打开独立的原生玻璃浮窗，并自动打开对应系统权限页。未授权时浮窗先清除本应用该项的旧条目（ad-hoc 签名下旧构建留下的条目显示已开启却不生效，且会让系统设置拒绝再次拖入），清除完成后才开放拖拽卡片；将浮窗中的 Asky.app 卡片拖入系统设置即可添加并开启，不触发系统权限弹窗。重新授权时先删除旧条目再拖入。屏幕录制开启后需重启才生效，浮窗随后提供“重新启动 Asky”。拖动开始时原位卡片隐藏，取消或未被接收时恢复，被接收后保持隐藏。浮窗持续检查当前应用进程的权限，确认授权后自动关闭，并关闭或收起本次权限页；若已切到其他系统设置页，则保留该页面。临时转移路径运行的应用需先移到“应用程序”并重新打开。AI 请求会将提交的消息、附件及所需工具结果发送到配置的模型服务。使用前请确认该服务的数据处理方式。
-
-日历与提醒事项工具会在系统授权变化后刷新 EventKit 数据实例。若系统未返回任何日历或提醒列表，会先尝试刷新，再报告无法确认的数据读取异常，不据此断言账户未配置；搜索无匹配与读取失败分别处理。
-
-在设置 › 数据来源中点击「连接备忘录」，完成系统授权后自动列出账户与文件夹（包含子文件夹）。勾选允许访问的文件夹后自动保存；「刷新文件夹」重新加载列表，授权失败时可直接打开自动化权限设置。发现文件夹仅读取名称和标识，备忘录正文仍只在勾选范围内访问。
-
-### 项目结构与文档
-
-| 路径 | 用途 |
-| --- | --- |
-| `App` | SwiftUI / AppKit 界面、应用资源和原生回归检查 |
-| `Packages/KulaCore` | 路由、存储、系统工具、记忆、调度及授权策略 |
-| `AgentRuntime` | TypeScript / Node.js Pi 宿主，通过 stdio JSONL 与 App 通信 |
-| `MCPBridge` | SwiftPM MCP 桥接程序 |
-| `project.yml` | XcodeGen 工程配置 |
-| `docs` | 产品、架构、设计与验证文档 |
-
-从[文档索引](docs/README.md)开始阅读。产品范围见 [V1 PRD](docs/PRD.md)，模块与进程边界见[架构大纲](docs/framework.md)。
-
-### 开发与验证
-
-以下命令均从仓库根目录运行。先构建 MCP Bridge，再运行核心包测试：
+常用检查（先构建 MCP Bridge，再测核心包）：
 
 ```sh
 (cd AgentRuntime && npm test)
@@ -117,87 +83,11 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
-完成快速开始中的 Debug 构建后，可运行原生回归检查。部分交互检查需要系统输入事件权限：
-
-```sh
-python3 App/Tests/run-launcher-window-regression.py
-python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
-python3 App/Tests/run-launcher-window-regression.py --accessories
-python3 App/Tests/run-launcher-window-regression.py --command-icons
-python3 App/Tests/run-launcher-terminal-regression.py
-python3 App/Tests/run-launcher-calculation-regression.py
-python3 App/Tests/run-launcher-window-regression.py --ai-routing
-python3 App/Tests/run-launcher-window-regression.py --system-app-names
-python3 App/Tests/run-launcher-window-regression.py --alias-routing
-python3 App/Tests/run-launcher-window-regression.py --bookmarks
-python3 App/Tests/run-clipboard-regression.py
-python3 App/Tests/run-clipboard-regression.py --hover-delay
-python3 App/Tests/run-clipboard-regression.py --hover-mouse
-python3 App/Tests/run-clipboard-regression.py --settings-shortcut
-python3 App/Tests/run-clipboard-regression.py --drag
-python3 App/Tests/run-clipboard-regression.py --files
-python3 App/Tests/run-clipboard-regression.py --drag-preview
-python3 App/Tests/run-settings-regression.py
-python3 App/Tests/run-settings-regression.py --permissions-only
-python3 App/Tests/run-settings-regression.py --preview-legacy-material
-python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
-python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
-python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
-python3 App/Tests/run-agent-reply-regression.py
-python3 App/Tests/run-application-termination-regression.py
-```
-
-Debug 主应用可用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-clipboard` 打开固定的正式剪贴板面板，用于跨应用拖放验收；可通过 `ASKY_CLIPBOARD_TEST_QUERY` 环境变量筛选测试卡片。该模式只记录拖拽类型、数量及接受结果，不记录内容或路径。验证前退出其他 Asky 实例，尤其是 `/Applications/Asky.app` 的旧版本，避免快捷键竞争及误测旧面板。
-
-使用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmations` 依次预览飞书插件、日历、信息和外部 MCP 的共用系统确认弹窗。每项确认或取消后进入下一项，随后预览插件安装、应用更新与错误提示，完成后退出；不启动 AI 或执行真实工具。
-
-应用内确认和提示共用带 Asky 图标的原生系统弹窗。操作确认默认展示自然语言动作与关键内容，工具名和完整参数放在可展开的“操作详情”中；系统权限窗口与文件选择器保持系统样式。
-
-AI 对话框发送按钮旁可切换全局审批模式，修改后对所有对话持续生效。默认“自动审批”：查询和明确要求的创建直接执行，修改、删除、发送等风险操作弹窗确认，AI 自行推断的写入只作为建议。“完全访问权限”下 AI 的所有工具调用直接执行、不再询问。该模式只影响 Asky 内的 AI 对话；启动器和外部 MCP 调用始终按原规则确认，数据来源开关和系统授权检查也照常生效。
-
-剪贴板 `--files` 检查文件监听、整组复制和真实鼠标文件拖放，并回读接收文件的内容；`--drag` 检查真实鼠标拖放与未固定面板关闭；`--drag-preview` 保留带测试卡片的未固定面板供人工拖放。设置 `ASKY_CLIPBOARD_DROP_POINT=x,y` 可将 `--drag` 目标改为屏幕坐标下的外部输入框，搭配 `ASKY_CLIPBOARD_DRAG_IMAGE=1` 拖第二张图片卡片；外部目标内容需另行回读确认。
-
-启动器 `--bottom-clearance` 专项检查列表滚动、键盘首尾导航与最后一项的底部留白，覆盖亮暗模式；不运行系统事件投递与异步搜索时序检查。
-
-并行构建时，启动器与设置回归脚本支持用 `ASKY_DERIVED_DATA` 指定独立的 DerivedData 目录，默认使用 `build/DerivedData`。启动器同时隔离回归产物；设置脚本兼容旧变量 `KULAHERE_DERIVED_DATA`。
-
-原生输入框与快捷键的独立检查：
-
-```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/LauncherSearchField.swift App/Sources/EditMenu.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
-build/launcher-input-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
-build/hotkey-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ConversationSearchField.swift App/Tests/ConversationSearchFieldRegression.swift -o build/conversation-search-regression
-build/conversation-search-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse-as-library -swift-version 6 App/Sources/OutsideClickDismissal.swift App/Tests/OutsideClickDismissalRegression.swift -o build/outside-click-regression
-build/outside-click-regression
-```
-
-检查结果按实际运行情况记录在 `docs/validation/`。自动化检查与真实系统权限、模型和界面验收分别记录。
-
-### 发布打包
-
-0.0.20 调整默认快捷键：剪贴板为 `⌃⇧ C`，AI 对话为 `⌃⇧ /`，已有自定义设置保持不变，并新增[用户教程](docs/user-guide.md)。沿用 0.0.19 的固定自签名证书，保持更新前后的签名身份连续；从旧 ad-hoc 版本切换时可能需要重新授权一次，各项权限在真实升级后的保留仍待验收。保留 0.0.18 新增的 AI 对话全局审批模式切换（自动审批/完全访问），统一应用弹窗样式并采用可读确认文案；完善计算器基础运算、多种括号、全角符号和特殊减号识别，预取汇率并即时使用缓存换算，统一操作确认与系统权限弹窗样式及应用图标；保留聊天短信与 iMessage 查询，读取授权与后台智能提醒分别控制，并随信息来源开关联动；保留免密钥联网搜索、对话记忆保存与纠正、备忘录文件夹选择，以及按需开启的后台智能提醒与短信事项提炼；统一设置页面样式，修复 AI 窗口顶部拖动、剪贴板文件识别与多文件拖出，并保持历史来源图标。保留此前的启动器与更新修复。0.0.8 的旧退出流程仍可能卡住，首次升级请退出旧应用，再用 DMG 将新应用替换到“应用程序”；真实应用内升级仍需验证。
-
-先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release020DerivedData`。在干净的 `build/release-runtime-0.0.20` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.20`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
-
-```sh
-python3 scripts/package-release.py --version 0.0.20 --build 20 \
-  --derived-data build/Release020DerivedData \
-  --runtime build/release-runtime-0.0.20 \
-  --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
-```
-
-开发与后续打包默认使用固定的 `Asky Local Signing` 自签名证书。首次运行 `python3 scripts/setup-local-signing.py`，证书有效期为 10 年，仅包含名称，不填写姓名或邮箱；私钥保存在登录钥匙串，临时私钥文件自动删除。系统可能要求确认钥匙串操作。重复运行保留原证书，不能每次更新重新创建；跨机器发布应安全迁移同一签名身份，私钥备份不得进入仓库或安装包。证书丢失、过期或换用另一身份时可能需要重新授权。签名身份连续性不等于各项系统权限已实机验收；从旧 ad-hoc 版本切换后可能需要重新授权一次。
-
-脚本生成 `build/releases/0.0.20/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
+原生回归、通知预览与 `scripts/package-release.py` 打包流程见[开发与发布指南](docs/development.md)。打包前提交源码并保持工作区干净；使用固定的 `Asky Local Signing` 证书，生成 DMG、更新 ZIP 与校验文件。检查结果写入 `docs/validation/`。
 
 ### 开源协议
 
-本项目采用 [MIT License](LICENSE)，允许使用、修改、分发和商用，也允许闭源衍生版本；分发本软件或其重要部分时，须保留版权声明与许可声明。软件按原样提供，不作担保。
-
-第三方依赖及其附带资源仍遵循各自的许可证；本项目的 MIT 许可不替代它们的授权条款。
+[MIT](LICENSE)。第三方依赖遵循各自的许可证。
 
 [English](#english) · [返回顶部](#asky)
 
@@ -208,34 +98,48 @@ python3 scripts/package-release.py --version 0.0.20 --build 20 \
 
 ### Overview
 
-Built with SwiftUI and AppKit, Asky provides a menu bar entry point, focused search, clipboard history, and AI conversations. Search and local tools operate independently; AI is an optional enhancement invoked on demand.
-
-The app, project, and scheme are named `Asky`; build products are `Asky.app` and `asky-mcp`. The original bundle identifier, data directory, and Keychain identifiers are preserved for existing installations. New MCP configurations use `ASKY_MCP_CREDENTIAL` / `ASKY_MCP_SOCKET`; legacy environment variables and the bundled `kulahere-mcp` command path remain supported.
-
-The project is under active development. The repository includes the native app, Swift core packages, a TypeScript Agent Runtime, and an MCP Bridge. System permissions, model compatibility, and complete interaction flows still require acceptance testing in real environments.
+Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipboard history work independently; the AI assistant starts on demand. The project is in development; see [validation records](docs/validation/) for system permission and interaction acceptance status.
 
 ### Features
 
-- **Focused search**: Find apps, files, Chrome tabs, and local bookmarks, using each app’s localized names (including system app `InfoPlist.loctable` resources), with app aliases, web keywords, calculations, and unit conversions.
-- **Clipboard history**: Browse text, images, and files in a dedicated panel. File selections support copying and native dragging using their original paths. Dragging leaves the system clipboard unchanged, and reusing history preserves the original source icon; moving or deleting originals requires copying them again, and deleting history never deletes originals. Full previews after hovering for 1 second, pinning, deletion, and keyboard selection. Direct paste requires Accessibility permission.
-- **AI conversations**: Use OpenAI-compatible APIs with conversation history, image and file attachments, and native Markdown rendering. The agent helper starts on demand and exits when idle. Each task allows up to 50 automatic tool calls. Tool calls show a spinner while running, their source icon on success, and a circled cross on failure; error details start collapsed and can be expanded with the arrow on the right.
-- **Web search**: The AI includes `web_search` with no extra key, returning titles, source links, and snippets from Bing web search. Disable it under Settings › Sources › Web Search. Queries go to Bing and snippets to your configured model provider. Rate limits, verification challenges, and page structure changes produce explicit errors; snippets are not full-page reads.
-- **System tools**: ToolService manages system reads, writes, and authorization. Integrations cover Calendar, Reminders, Notes, and Contacts; message drafts are handed to the system app for confirmation and sending. Enable “Let AI read the last 30 days of SMS and iMessage” and grant Full Disk Access to search locally synced messages by keyword and date in conversations. Results go to your configured model service, with verification codes filtered and long numbers masked; this tool is unavailable to external MCP clients.
-- **Context reminders**: Enable them under Settings › Sources for calendar conflicts and travel preparation. With Background AI enabled, the model also considers calendars, open reminders, and memories for preparation, related tasks, and unscheduled deadlines; suggestions cite their inputs, remain silent by default, and are limited to two per day. The separate “Let AI read the last 30 days of SMS and iMessage” switch is off by default and requires Full Disk Access. It also supports conversation searches without enabling Background AI. Background processing extracts requests, promises, pickups, bills, and appointments in batches of about 2,500 characters, sending each new message once and retaining at most 30 short items; reminder decisions use those items rather than raw messages. Verification-code messages are dropped and long numbers keep only their last four digits. Relevant content goes to your configured model service.
-- **GitHub plugins**: Install official or user-selected public GitHub repositories under Settings › Plugins, with configuration, enable/disable, updates, rollback, and uninstall. The local, unpublished version 0.2 of the official [Orca plugin](https://github.com/Niall-Young/asky-plugin-orca) guides the Agent through a skill and generic CLI tools, discovering opened projects by name without requiring a user-supplied absolute path. The Orca plugin and [Lark plugin](https://github.com/Niall-Young/asky-plugin-lark) ship separately and are not bundled. Plugins support custom manifest icons, use the local Orca app icon, and show a bundled placeholder when no artwork is available. Plugins run trusted local code without a sandbox; see the [plugin guide](docs/plugins.md) for the API and installation prerequisites.
-- **MCP extensions**: Expose local tools to external clients through a separately authorized MCP Bridge.
-
-Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images preserve their aspect ratio, failed loads can be retried, and the bottom-right button saves originals to Downloads. Code blocks show language headers and copy buttons; tables keep their outer borders and horizontal separators, with neutral headers, 32 pt single-line rows, and horizontal scrolling for wide content. Rendering follows the app’s semantic light/dark theme, with a 10 MiB image download limit and 32 MiB memory cache; local file images in Markdown are not read.
+- **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
+- **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop.
+- **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key.
+- **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP.
 
 ### Quick Start
 
-New to Asky? Read the [user guide (Chinese)](docs/user-guide.md) for installation, shortcuts, search, clipboard history, AI configuration, system permissions, and troubleshooting.
+[Download Asky](https://github.com/Niall-Young/Asky/releases) (macOS 15+, Apple Silicon). Open the DMG, drag `Asky.app` into Applications, then launch it. Node.js and AgentRuntime are bundled; ZIP packages are for in-app updates.
 
-[Download Asky 0.0.20](https://github.com/Niall-Young/Asky/releases/tag/v0.0.20) for macOS 15+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This release uses the persistent `Asky Local Signing` self-signed certificate.
+Start with the [user guide (Chinese)](docs/user-guide.md).
 
-Source builds target macOS 15+ (verification on an older OS is pending). Development requires Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
+### Usage
 
-Run these commands from the repository root to build the development app:
+| Entry | Usage |
+| --- | --- |
+| Search | Open from the menu bar, type a keyword, select with arrow keys, press Return |
+| Clipboard | `Ctrl + Shift + C` |
+| New AI chat | `Ctrl + Shift + /` |
+| Web and terminal | `go keyword`, `yt keyword`, `> pwd` |
+| Settings | Press `⌘,` while search or clipboard has focus |
+
+Shortcuts are configurable in Settings. Chrome search and system tools require the relevant permissions.
+
+### Configuration and Privacy
+
+Enter the API URL, model name, and key in Settings › Model Settings. Keys stay in the macOS keychain; local data lives in `~/Library/Application Support/KulaHere/`.
+
+The app has no interface for uploading user data to the author. AI messages, attachments, and required tool results go to your configured model provider; web search queries go to Bing. Manage data sources and system permissions in Settings. See the [draft privacy policy](PRIVACY.md).
+
+### Project Structure and Docs
+
+`App/` contains the native UI, `Packages/KulaCore/` the core capabilities and ToolService, `AgentRuntime/` the TypeScript AI host, and `MCPBridge/` the external tool bridge.
+
+[Docs index](docs/README.md) · [Product requirements](docs/PRD.md) · [Architecture](docs/framework.md) · [Plugin guide](docs/plugins.md)
+
+### Development and Verification
+
+Requires Xcode 26 / Swift 6.2+, Node.js 22+, and XcodeGen. Build from the repository root:
 
 ```sh
 python3 scripts/setup-local-signing.py
@@ -245,55 +149,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Ask
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
-In a Debug build, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-notification` to deliver a real Asky test notification after 5 seconds, with the default sound and “View Evidence / Handled” actions. It creates no calendar items or reminder plans. Enable sound and select the persistent alert style under System Settings › Notifications › Asky to preview an alert that stays until acted on. Everyday smart suggestions remain silent; Release builds ignore this argument.
-
-### Usage
-
-- View access under Settings › System Permissions › Chrome bookmarks and link search. Click “Grant Access” and select the Chrome folder or its Default / Profile folder in the system picker. The picker starts in Chrome and verifies bookmark access before saving the grant. Without access, link and bookmark search entries and results are hidden, and `bm` cannot enter bookmark mode. After authorization, reopen the launcher to enable both features; enter `bm query` to search bookmarks. Only local and account bookmarks are read, never browsing history.
-- With no input, the search field and two circular glass buttons share the original 720 pt width. Typing hides the buttons and returns the full width to search. Each invocation defaults to unpinned with all sources. Pin keeps the window visible when switching apps; Filter limits results to applications, files, Quick Links (built-in web commands and aliases), or system Shortcuts. All restores mixed search. Escape closes the filter menu first, then the window, including pinned windows. Closing the window resets both filter and pin state.
-- Open search from the menu bar, enter an app name, file name, or web keyword, select with the arrow keys, and press Return to open.
-- Calculations support arithmetic, decimals/negative numbers, scientific notation, nested round/square/curly brackets, powers (`^`), square roots (`√` or `sqrt(...)`), and implicit multiplication (`2(3+4)`). For example, `【(12-12)+1】*12 = 12`; full-width symbols and `−`, `–`, or `—` minus signs are accepted. Powers precede unary minus: `-2^2 = -4`. A trailing `%` divides by 100 (`100*20% = 20`); `%` between operands retains remainder semantics (`10%3 = 1`). Percentages participate in addition/subtraction as ordinary numeric values. Type `1+1` to see a faint `= 2` suffix and a stacked card with the expression aligned left above the right-aligned result; press Return to copy the result. Long expressions occupy up to two lines with middle truncation; hover to see the full expression. Type `1美元`, `1 USD`, or `100人民币` to see a horizontal pair of cards showing the input currency and Chinese yuan (yuan inputs default to US dollars), with all other currencies listed underneath. Use `100 USD CNY` for a specific pair. Cards show flags, currencies, and amounts, without selection, hover, or copy actions. Rates use ECB daily references, prefetched in the background at launch. Cached rates are used immediately while stale data refreshes in the background; offline use falls back to the cache or reports unavailable.
-- `go` (Google search), `chat` (ChatGPT), `yt` (YouTube), `dy` (Douyin), `tb` (Taobao), `jd` (JD), `bl` (bilibili), `gh` (GitHub), and `>` (terminal) are fixed built-in commands that require no setup and cannot be added, edited, or deleted. View built-in commands with their brand logos and configure the terminal under Settings › Commands. Settings, the search field, and command results share 24 × 24 pt icons with 6 pt corners, transparent surrounding space, and no added background or border; `>` shows the selected terminal’s icon. Legacy web keyword settings no longer affect launcher routing; type `go query`, `chat question`, or a site shortcut such as `yt query` to use them.
-- Type ASCII `>` followed by a space to enter terminal mode, for example `> pwd`; `>` alone or `>pwd` stays in ordinary search; Return opens the selected terminal and runs the command in the configured working directory. Choose an installed system Terminal, iTerm2, or Ghostty (1.3+) under Settings › Commands › Terminal › Terminal for Commands; the launcher and result show that app’s icon. Backspace on an empty field leaves terminal mode. First use may require Automation permission.
-- Under Settings › General › File Search Scope, click “Choose Folder…” to add a search directory using the system folder picker.
-- Press `Ctrl + Shift + C` to open clipboard history. Customize it under Settings › Trigger Shortcuts.
-- Press `Ctrl + Shift + /` to open AI with a blank new conversation; customize the combination or restore its default in Settings › Hotkeys › AI Conversation; an active reply is cancelled first. You can also open AI Conversation from the menu bar, or select and submit the AI entry in search.
-- On macOS 26+, the launcher, AI conversations, clipboard and glass overlays use native Regular Liquid Glass. The launcher and clipboard render an appearance-aware shape-based outer shadow with transparent margins to prevent clipping; other floating windows retain system window shadows. On macOS 15, they use live system background blur, the `background` color token and a 1pt `border` outline; the settings sidebar and content area use the same fallback. The system controls the native blur radius rather than a fixed 120px. Enabling Reduce Transparency or Increase Contrast in macOS Accessibility switches them to opaque backgrounds with clear borders.
-- Press `⌘,` to open Settings while the search field or clipboard panel has focus. Settings groups navigation into Settings, Tools, Agent, and Others. Every page uses a 220pt sidebar, 14pt body text, and cards with 12pt corners; on macOS 26+, the resizable window combines a background color with Regular glass. The app theme is under General › Appearance.
-- Under Settings › About Asky, view the current version and click Check for Updates to read the latest GitHub release of `Niall-Young/Asky`. If the GitHub API is rate limited (403/429), it falls back to the public Release page and avoids further API requests during the cooldown. When it is newer than the running app, Install Update downloads the ZIP, verifies its `.sha256` checksum and code signature, stops the AI runtime and quits Asky, replaces and deletes the old version, then reopens it. The app folder must be writable; a translocated app must first be moved to Applications.
-- Under Settings › About the Author, find the author’s email, GitHub profile, and X profile. Click the email to open your default email app, or GitHub / X to open your default browser.
-- App language is under Settings › General › Appearance › App language. It follows the preferred macOS language by default, with Simplified Chinese and English overrides; changes take effect on the next launch. Interface translations use native `.lproj` resources; macOS does not automatically translate custom app text. This setting does not control AI replies or user content.
-
-### Configuration and Privacy
-
-**The current version of Asky has no endpoint that uploads user data to the project author. Clipboard contents, conversations, files, and system data are not uploaded by the app to an author-operated server; AI requests go directly to your configured model service.** The author may receive issues, logs, or screenshots you submit voluntarily; redact them first.
-
-See the [draft privacy policy (Chinese)](PRIVACY.md) for local storage, third-party processing, and current deletion limits. Publisher details, privacy contact information, and in-app notices must be completed before release; see the [privacy release review (Chinese)](docs/validation/2026-10-11-privacy-policy.md).
-
-Before using AI, enter your provider's API endpoint, model name, and API key under Settings › Model Settings. Keys are stored in macOS Keychain; local data resides in `~/Library/Application Support/KulaHere/`.
-
-Manage system permissions under Settings › System Permissions. Tools request authorization as needed. Calendar, Reminders, Contacts, and Notifications update immediately from the request result; stale background checks cannot overwrite it. For Accessibility and Screen Recording, click Grant Access to open an independent native glass panel and the matching System Settings pane automatically. When access is missing, the panel clears this app’s old entry, then enables the drag card. Dragging the Asky.app card into System Settings adds and enables it without a system permission prompt. Screen recording may require restarting Asky; the panel offers a restart button. To grant access again, remove the old entry before dragging. The source card disappears when dragging starts, returns if the drag is cancelled or rejected, and stays hidden after an accepted drop. The panel keeps checking the running app’s access and closes when authorization is confirmed, also closing or hiding its permission pane; a different pane you have navigated to is preserved. A translocated app must first be moved to Applications and reopened. AI requests send submitted messages, attachments, and required tool results to the configured model service. Review that service's data handling before use.
-
-Under Settings › Sources, click Connect Notes to authorize Apple Notes and automatically list accounts and folders, including nested folders. Select the folders Asky may access; selections are saved automatically. Refresh reloads the list, and authorization errors provide a link to Automation settings. Folder discovery reads names and identifiers only; note content remains limited to selected folders.
-
-Calendar and Reminders tools refresh their EventKit store after system authorization changes. If no calendars or reminder lists are returned, they attempt a refresh and then report an unconfirmed data-access issue rather than claiming the account is unconfigured; an empty search and a read failure remain distinct.
-
-### Project Structure and Documentation
-
-| Path | Purpose |
-| --- | --- |
-| `App` | SwiftUI / AppKit interface, app assets, and native regression checks |
-| `Packages/KulaCore` | Routing, storage, system tools, memory, scheduling, and authorization policies |
-| `AgentRuntime` | TypeScript / Node.js Pi host communicating with the app over stdio JSONL |
-| `MCPBridge` | SwiftPM MCP bridge executable |
-| `project.yml` | XcodeGen project configuration |
-| `docs` | Product, architecture, design, and validation documents |
-
-Start with the [documentation index](docs/README.md). See the [V1 PRD](docs/PRD.md) for product scope and the [architecture outline](docs/framework.md) for module and process boundaries.
-
-### Development and Verification
-
-Run these commands from the repository root. Build the MCP Bridge before running core package tests:
+Common checks (build MCP Bridge before testing the core package):
 
 ```sh
 (cd AgentRuntime && npm test)
@@ -301,84 +157,10 @@ Run these commands from the repository root. Build the MCP Bridge before running
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
-After the Debug build in Quick Start, run native regression checks. Some interaction checks require system input event permissions:
-
-```sh
-python3 App/Tests/run-launcher-window-regression.py
-python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
-python3 App/Tests/run-launcher-window-regression.py --accessories
-python3 App/Tests/run-launcher-window-regression.py --command-icons
-python3 App/Tests/run-launcher-terminal-regression.py
-python3 App/Tests/run-launcher-calculation-regression.py
-python3 App/Tests/run-launcher-window-regression.py --ai-routing
-python3 App/Tests/run-launcher-window-regression.py --system-app-names
-python3 App/Tests/run-launcher-window-regression.py --alias-routing
-python3 App/Tests/run-launcher-window-regression.py --bookmarks
-python3 App/Tests/run-clipboard-regression.py
-python3 App/Tests/run-clipboard-regression.py --hover-delay
-python3 App/Tests/run-clipboard-regression.py --hover-mouse
-python3 App/Tests/run-clipboard-regression.py --settings-shortcut
-python3 App/Tests/run-clipboard-regression.py --drag
-python3 App/Tests/run-clipboard-regression.py --files
-python3 App/Tests/run-clipboard-regression.py --drag-preview
-python3 App/Tests/run-settings-regression.py
-python3 App/Tests/run-settings-regression.py --permissions-only
-python3 App/Tests/run-settings-regression.py --preview-legacy-material
-python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
-python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
-python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
-python3 App/Tests/run-agent-reply-regression.py
-python3 App/Tests/run-application-termination-regression.py
-```
-
-In the Debug app, `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-clipboard` opens the pinned production clipboard panel for cross-app drag acceptance testing. Set `ASKY_CLIPBOARD_TEST_QUERY` to filter test cards. This mode logs only the dragged kind, item count, and acceptance result, with no contents or paths. Quit other Asky instances first, especially older copies of `/Applications/Asky.app`, to avoid hotkey conflicts and testing the wrong panel.
-
-Use `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmations` to preview the shared system confirmation dialog for the Lark plugin, Calendar, Messages, and external MCP in sequence. Approving or cancelling advances to the next preview, followed by plugin installation, app update, and error alerts. The app exits after the last one. This mode does not start AI or execute real tools.
-
-App-owned confirmations and alerts share native system dialogs with the Asky icon. Operation confirmations show readable actions and key content, with tool names and full arguments in expandable operation details. System permission dialogs and file pickers keep their system presentation.
-
-Clipboard `--files` checks file monitoring, multi-file copying, real mouse dragging, and received file contents; `--drag` checks a real mouse drop and unpinned panel dismissal; `--drag-preview` keeps an unpinned panel with test cards open for manual drops. Set `ASKY_CLIPBOARD_DROP_POINT=x,y` to target an external input at screen coordinates, and add `ASKY_CLIPBOARD_DRAG_IMAGE=1` to drag the second image card. Read back external destination contents separately to confirm the result.
-
-Launcher `--bottom-clearance` checks list scrolling, keyboard navigation at both ends, and the final row's bottom clearance in light and dark modes. It skips system event delivery and asynchronous search timing checks.
-
-For concurrent builds, the launcher and settings regression scripts accept `ASKY_DERIVED_DATA` to select an isolated DerivedData directory, defaulting to `build/DerivedData`. Launcher regression artifacts are isolated as well; the settings script also supports the legacy `KULAHERE_DERIVED_DATA` variable.
-
-Standalone checks for native input fields and hotkeys:
-
-```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/LauncherSearchField.swift App/Sources/EditMenu.swift App/Tests/LauncherSearchFieldRegression.swift -o build/launcher-input-regression
-build/launcher-input-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/HotKey.swift App/Tests/HotKeyRegression.swift -o build/hotkey-regression
-build/hotkey-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ConversationSearchField.swift App/Tests/ConversationSearchFieldRegression.swift -o build/conversation-search-regression
-build/conversation-search-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse-as-library -swift-version 6 App/Sources/OutsideClickDismissal.swift App/Tests/OutsideClickDismissalRegression.swift -o build/outside-click-regression
-build/outside-click-regression
-```
-
-Record only checks actually executed in `docs/validation/`. Track automated checks separately from acceptance testing of real system permissions, models, and interfaces.
-
-### Release Packaging
-
-Version 0.0.20 changes the default shortcuts to `⌃⇧ C` for Clipboard and `⌃⇧ /` for AI chat, preserves existing custom settings, and adds a [user guide (Chinese)](docs/user-guide.md). It retains the persistent self-signed certificate introduced in 0.0.19 so updates retain the same signing identity. Switching from an old ad-hoc build may require authorization once; permission retention across a real upgrade remains unverified. It retains the features added in 0.0.18: a global AI chat approval mode switch (automatic approval/full access), unifies app dialog styling, and uses readable confirmation text. It improves calculator operations, bracket grouping, full-width symbols and alternate minus signs, prefetches exchange rates with immediate cached conversion, and unifies confirmation and permission panels with app icons. It retains SMS and iMessage search in chat, with reading authorization controlled independently from background suggestions and linked to the Messages data-source toggle. It retains web search without an extra API key, conversation memory saving and correction, Notes folder selection, and optional background suggestions with SMS action extraction. It unifies Settings styles, fixes dragging from the top of the AI window and clipboard file recognition and multi-file dragging, and preserves original clipboard source icons. Earlier launcher and updater fixes remain included. The old quit flow in 0.0.8 can still hang; quit the old app and replace it in Applications using the DMG for this first upgrade. The real in-app upgrade remains to be verified.
-
-Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release020DerivedData`. In a clean `build/release-runtime-0.0.20` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.20`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
-
-```sh
-python3 scripts/package-release.py --version 0.0.20 --build 20 \
-  --derived-data build/Release020DerivedData \
-  --runtime build/release-runtime-0.0.20 \
-  --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
-```
-
-Development and future packages default to the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once. The certificate lasts 10 years and contains only its name, with no personal name or email. The private key stays in the login keychain; temporary private-key files are removed automatically. macOS may ask you to confirm keychain operations. Re-running preserves the certificate; do not recreate it for each update. To publish from another machine, securely migrate the same signing identity and keep private-key backups out of the repository and installers. Losing, expiring, or replacing the identity may require authorization again. Stable signing identity does not establish live acceptance of every system permission; switching from an old ad-hoc build may require authorization once.
-
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.20/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+See the [development and release guide](docs/development.md) for native regressions, notification previews, and the `scripts/package-release.py` workflow. Commit source changes and keep the working tree clean before packaging. Use the persistent `Asky Local Signing` certificate to produce a DMG, updater ZIP, and checksums. Record checks in `docs/validation/`.
 
 ### License
 
-This project is licensed under the [MIT License](LICENSE), which permits use, modification, distribution, and commercial use, including closed-source derivatives. Copies or substantial portions of the software must retain the copyright and permission notices. The software is provided as is, without warranty.
-
-Third-party dependencies and their bundled resources remain subject to their respective licenses; this project's MIT license does not replace those terms.
+[MIT](LICENSE). Third-party dependencies retain their own licenses.
 
 [中文](#中文) · [Back to top](#asky)

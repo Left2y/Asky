@@ -47,7 +47,7 @@ Markdown 回复支持 HTTP／HTTPS 图片、表格和代码块；图片按比例
 
 首次使用请阅读[使用教程](docs/user-guide.md)：从安装与快捷键开始，逐步学习搜索、剪贴板、AI 配置、系统授权与常见问题处理。
 
-[下载 Asky 0.0.19](https://github.com/Niall-Young/Asky/releases/tag/v0.0.19)：适用于 macOS 15+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此版本使用固定的 `Asky Local Signing` 自签名证书。
+[下载 Asky 0.0.20](https://github.com/Niall-Young/Asky/releases/tag/v0.0.20)：适用于 macOS 15+、Apple Silicon。打开 DMG，将 `Asky.app` 拖入旁边的“应用程序”入口，再从“应用程序”启动；包内已包含 Node.js 与 AgentRuntime。若从 DMG 或下载目录直接启动，应用会先提示“安装并重新打开”；已有安装时提供打开已安装版本，不覆盖旧应用。ZIP 保留供应用内更新使用。此版本使用固定的 `Asky Local Signing` 自签名证书。
 
 源码开发版本的运行目标为 macOS 15+（旧系统实机验收待完成）；开发需要 Xcode 26（Swift 6.2 或更新版本）、Node.js 22 或更新版本，以及 XcodeGen。
 
@@ -178,20 +178,20 @@ build/outside-click-regression
 
 ### 发布打包
 
-0.0.19 将开发与发布包改为固定自签名证书，保持更新前后的签名身份连续；从旧 ad-hoc 版本切换时可能需要重新授权一次，各项权限在真实升级后的保留仍待验收。保留 0.0.18 新增的 AI 对话全局审批模式切换（自动审批/完全访问），统一应用弹窗样式并采用可读确认文案；完善计算器基础运算、多种括号、全角符号和特殊减号识别，预取汇率并即时使用缓存换算，统一操作确认与系统权限弹窗样式及应用图标；保留聊天短信与 iMessage 查询，读取授权与后台智能提醒分别控制，并随信息来源开关联动；保留免密钥联网搜索、对话记忆保存与纠正、备忘录文件夹选择，以及按需开启的后台智能提醒与短信事项提炼；统一设置页面样式，修复 AI 窗口顶部拖动、剪贴板文件识别与多文件拖出，并保持历史来源图标。保留此前的启动器与更新修复。0.0.8 的旧退出流程仍可能卡住，首次升级请退出旧应用，再用 DMG 将新应用替换到“应用程序”；真实应用内升级仍需验证。
+0.0.20 调整默认快捷键：剪贴板为 `⌃⇧ C`，AI 对话为 `⌃⇧ /`，已有自定义设置保持不变，并新增[用户教程](docs/user-guide.md)。沿用 0.0.19 的固定自签名证书，保持更新前后的签名身份连续；从旧 ad-hoc 版本切换时可能需要重新授权一次，各项权限在真实升级后的保留仍待验收。保留 0.0.18 新增的 AI 对话全局审批模式切换（自动审批/完全访问），统一应用弹窗样式并采用可读确认文案；完善计算器基础运算、多种括号、全角符号和特殊减号识别，预取汇率并即时使用缓存换算，统一操作确认与系统权限弹窗样式及应用图标；保留聊天短信与 iMessage 查询，读取授权与后台智能提醒分别控制，并随信息来源开关联动；保留免密钥联网搜索、对话记忆保存与纠正、备忘录文件夹选择，以及按需开启的后台智能提醒与短信事项提炼；统一设置页面样式，修复 AI 窗口顶部拖动、剪贴板文件识别与多文件拖出，并保持历史来源图标。保留此前的启动器与更新修复。0.0.8 的旧退出流程仍可能卡住，首次升级请退出旧应用，再用 DMG 将新应用替换到“应用程序”；真实应用内升级仍需验证。
 
-先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release019DerivedData`。在干净的 `build/release-runtime-0.0.19` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.19`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
+先运行上面的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release020DerivedData`。在干净的 `build/release-runtime-0.0.20` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.20`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
 
 ```sh
-python3 scripts/package-release.py --version 0.0.19 --build 19 \
-  --derived-data build/Release019DerivedData \
-  --runtime build/release-runtime-0.0.19 \
+python3 scripts/package-release.py --version 0.0.20 --build 20 \
+  --derived-data build/Release020DerivedData \
+  --runtime build/release-runtime-0.0.20 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
 开发与后续打包默认使用固定的 `Asky Local Signing` 自签名证书。首次运行 `python3 scripts/setup-local-signing.py`，证书有效期为 10 年，仅包含名称，不填写姓名或邮箱；私钥保存在登录钥匙串，临时私钥文件自动删除。系统可能要求确认钥匙串操作。重复运行保留原证书，不能每次更新重新创建；跨机器发布应安全迁移同一签名身份，私钥备份不得进入仓库或安装包。证书丢失、过期或换用另一身份时可能需要重新授权。签名身份连续性不等于各项系统权限已实机验收；从旧 ad-hoc 版本切换后可能需要重新授权一次。
 
-脚本生成 `build/releases/0.0.19/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
+脚本生成 `build/releases/0.0.20/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
 ### 开源协议
 
@@ -231,7 +231,7 @@ Markdown replies support HTTP/HTTPS images, tables, and code blocks. Images pres
 
 New to Asky? Read the [user guide (Chinese)](docs/user-guide.md) for installation, shortcuts, search, clipboard history, AI configuration, system permissions, and troubleshooting.
 
-[Download Asky 0.0.19](https://github.com/Niall-Young/Asky/releases/tag/v0.0.19) for macOS 15+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This release uses the persistent `Asky Local Signing` self-signed certificate.
+[Download Asky 0.0.20](https://github.com/Niall-Young/Asky/releases/tag/v0.0.20) for macOS 15+ on Apple Silicon. Open the DMG, drag `Asky.app` onto the Applications shortcut, then launch it from Applications. Node.js and AgentRuntime are included. Launching from the DMG or Downloads first offers Install and Reopen; when an installation already exists, it offers to open that version without overwriting it. The ZIP remains available for in-app updates. This release uses the persistent `Asky Local Signing` self-signed certificate.
 
 Source builds target macOS 15+ (verification on an older OS is pending). Development requires Xcode 26 (Swift 6.2 or later), Node.js 22 or later, and XcodeGen.
 
@@ -360,20 +360,20 @@ Record only checks actually executed in `docs/validation/`. Track automated chec
 
 ### Release Packaging
 
-Version 0.0.19 switches development and release packages to a persistent self-signed certificate so updates retain the same signing identity. Switching from an old ad-hoc build may require authorization once; permission retention across a real upgrade remains unverified. It retains the features added in 0.0.18: a global AI chat approval mode switch (automatic approval/full access), unifies app dialog styling, and uses readable confirmation text. It improves calculator operations, bracket grouping, full-width symbols and alternate minus signs, prefetches exchange rates with immediate cached conversion, and unifies confirmation and permission panels with app icons. It retains SMS and iMessage search in chat, with reading authorization controlled independently from background suggestions and linked to the Messages data-source toggle. It retains web search without an extra API key, conversation memory saving and correction, Notes folder selection, and optional background suggestions with SMS action extraction. It unifies Settings styles, fixes dragging from the top of the AI window and clipboard file recognition and multi-file dragging, and preserves original clipboard source icons. Earlier launcher and updater fixes remain included. The old quit flow in 0.0.8 can still hang; quit the old app and replace it in Applications using the DMG for this first upgrade. The real in-app upgrade remains to be verified.
+Version 0.0.20 changes the default shortcuts to `⌃⇧ C` for Clipboard and `⌃⇧ /` for AI chat, preserves existing custom settings, and adds a [user guide (Chinese)](docs/user-guide.md). It retains the persistent self-signed certificate introduced in 0.0.19 so updates retain the same signing identity. Switching from an old ad-hoc build may require authorization once; permission retention across a real upgrade remains unverified. It retains the features added in 0.0.18: a global AI chat approval mode switch (automatic approval/full access), unifies app dialog styling, and uses readable confirmation text. It improves calculator operations, bracket grouping, full-width symbols and alternate minus signs, prefetches exchange rates with immediate cached conversion, and unifies confirmation and permission panels with app icons. It retains SMS and iMessage search in chat, with reading authorization controlled independently from background suggestions and linked to the Messages data-source toggle. It retains web search without an extra API key, conversation memory saving and correction, Notes folder selection, and optional background suggestions with SMS action extraction. It unifies Settings styles, fixes dragging from the top of the AI window and clipboard file recognition and multi-file dragging, and preserves original clipboard source icons. Earlier launcher and updater fixes remain included. The old quit flow in 0.0.8 can still hang; quit the old app and replace it in Applications using the DMG for this first upgrade. The real in-app upgrade remains to be verified.
 
-Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release019DerivedData`. In a clean `build/release-runtime-0.0.19` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.19`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
+Run the tests above and build with the `Release` configuration of `xcodebuild` into `build/Release020DerivedData`. In a clean `build/release-runtime-0.0.20` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.20`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
 
 ```sh
-python3 scripts/package-release.py --version 0.0.19 --build 19 \
-  --derived-data build/Release019DerivedData \
-  --runtime build/release-runtime-0.0.19 \
+python3 scripts/package-release.py --version 0.0.20 --build 20 \
+  --derived-data build/Release020DerivedData \
+  --runtime build/release-runtime-0.0.20 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
 Development and future packages default to the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once. The certificate lasts 10 years and contains only its name, with no personal name or email. The private key stays in the login keychain; temporary private-key files are removed automatically. macOS may ask you to confirm keychain operations. Re-running preserves the certificate; do not recreate it for each update. To publish from another machine, securely migrate the same signing identity and keep private-key backups out of the repository and installers. Losing, expiring, or replacing the identity may require authorization again. Stable signing identity does not establish live acceptance of every system permission; switching from an old ad-hoc build may require authorization once.
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.19/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.20/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
 
 ### License
 

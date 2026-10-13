@@ -416,7 +416,6 @@
 
 "无法读取所选文件夹中的 Chrome 书签" = "Chrome bookmarks cannot be read from the selected folder";
 "请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。" = "Select the Chrome folder or its Default / Profile folder, then grant access again.";
-"开启后，模型会结合日程、待办和记忆，找出需要提前准备、彼此关联或临近截止却没安排时间的事，只在值得时提醒。内容会发送到你配置的模型服务。" = "When on, the model looks across your events, open tasks and memories for things that need preparation, are related, or are due without time set aside, and only notifies when it matters. This content is sent to your configured model service.";
 
 /* Notes folder connection */
 "连接备忘录" = "Connect Notes";
@@ -432,7 +431,6 @@
 
 "完全磁盘访问（读取信息）" = "Full Disk Access (read Messages)";
 "让 AI 读取最近 30 天的短信与 iMessage" = "Let AI read the last 30 days of SMS and iMessage";
-"允许你在对话中按关键词查短信；开启后台 AI 判断后，也用于发现请求、承诺和取件、缴费、预约等事项。需要授予“完全磁盘访问”。验证码短信会被丢弃，长数字只保留后 4 位；查询结果与后台提炼内容会发送到你配置的模型服务。" = "Allows keyword searches in conversations. With background AI enabled, also spots requests, promises, pickups, bills and appointments. Requires Full Disk Access. Verification-code messages are dropped and long numbers keep only their last 4 digits; search results and background excerpts are sent to your configured model service.";
 "Settings" = "Settings";
 "Tools" = "Tools";
 "Agent" = "Agent";

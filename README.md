@@ -79,6 +79,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Ask
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
+Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID 的本地签名在 Hardened Runtime 下加载独立 Debug 动态库失败。普通运行与调试可用，但 App target 的 SwiftUI Previews 不可用；更改配置后重新执行 `xcodegen generate` 和上述构建命令。
+
 常用检查（先构建 MCP Bridge，再测核心包）：
 
 ```sh
@@ -158,6 +160,8 @@ xcodegen generate
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
+
+Debug builds disable `ENABLE_DEBUG_DYLIB` in `project.yml` because the local signing identity has no Team ID and Hardened Runtime rejects the separate debug library. Normal running and debugging remain available, but SwiftUI Previews for the app target are unavailable. After changing the configuration, rerun `xcodegen generate` and the build command above.
 
 Common checks (build MCP Bridge before testing the core package):
 

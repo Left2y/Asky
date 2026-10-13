@@ -55,6 +55,11 @@ targets:
         CODE_SIGN_IDENTITY: "Asky Local Signing"
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_STRICT_CONCURRENCY: complete
+      configs:
+        Debug:
+          # The local signing certificate has no Team ID; hardened library validation
+          # rejects Xcode's separate debug dylib even when both signatures are valid.
+          ENABLE_DEBUG_DYLIB: NO
     postBuildScripts:
       - name: Preserve legacy MCP command path
         script: |

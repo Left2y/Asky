@@ -25,9 +25,9 @@ struct PluginSettings: View {
             }
             Section(label("官方插件")) {
                 ForEach(PluginManager.officialRepositories, id: \.self) { source in
-                    HStack {
+                    HStack(spacing: 12) {
                         pluginIcon(repository: source)
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca")
                             Text(label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务"))
                                 .font(.system(size: 12)).foregroundStyle(.secondary)
@@ -38,39 +38,27 @@ struct PluginSettings: View {
                         } else {
                             SettingsButton(label("安装")) { requestInstall(source) }.accessibilityLabel(label("安装")).disabled(busy)
                         }
-                    }
+                    }.padding(.vertical, 6)
                 }
             }
             Section(label("已安装插件")) {
                 if plugins.isEmpty { Text(label("尚未安装插件")).foregroundStyle(.secondary) }
                 ForEach(plugins) { plugin in
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 10) {
-                            pluginIcon(repository: plugin.repository)
-                            VStack(alignment: .leading) {
-                                Text(plugin.manifest.name).font(.headline)
-                                Text("\(plugin.isOfficial ? label("官方") : label("自行安装")) · \(plugin.manifest.version) · \(plugin.commit.prefix(8))")
-                                    .font(.system(size: 12)).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Toggle(label("启用"), isOn: Binding(get: { plugin.enabled }, set: { value in
-                                Task { await manager.setEnabled(plugin.id, value); await reload() }
-                            }))
-                            .labelsHidden().toggleStyle(.switch).fixedSize()
-                            .accessibilityLabel(label("启用"))
-                            .help(label("启用")).disabled(busy)
+                    HStack(spacing: 12) {
+                        pluginIcon(repository: plugin.repository)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(plugin.manifest.name)
+                            pluginSubtitle(plugin)
                         }
-                        if plugin.needsConfiguration { Text(label("需要配置")).foregroundStyle(.orange) }
-                        HStack(spacing: 8) {
-                            Text(plugin.repository).font(.system(size: 12)).foregroundStyle(.secondary)
-                                .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
-                            Spacer(minLength: 12)
-                            SettingsButton(label("配置")) { editing = plugin }.accessibilityLabel(label("配置"))
-                            SettingsButton(label("更新")) { perform("更新插件") { try await manager.install(repository: plugin.repository) } }.accessibilityLabel(label("更新"))
-                            SettingsButton(label("回退")) { perform("回退插件") { try await manager.rollback(plugin.id) } }.accessibilityLabel(label("回退")).disabled(plugin.previousCommit == nil)
-                            SettingsButton(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }.accessibilityLabel(label("卸载"))
-                        }.font(.system(size: 12)).controlSize(.small).disabled(busy)
-                    }.padding(.vertical, 4)
+                        Spacer(minLength: 12)
+                        Toggle(label("启用"), isOn: Binding(get: { plugin.enabled }, set: { value in
+                            Task { await manager.setEnabled(plugin.id, value); await reload() }
+                        }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small).fixedSize()
+                        .accessibilityLabel(label("启用"))
+                        .help(label("启用")).disabled(busy)
+                        pluginMenu(plugin)
+                    }.padding(.vertical, 6)
                 }
             }
             if busy || !status.isEmpty {
@@ -93,6 +81,34 @@ struct PluginSettings: View {
     private func requestInstall(_ url: String) {
         do { pendingRepository = try PluginManager.repositoryURL(url); confirmInstall = true }
         catch { status = error.localizedDescription }
+    }
+    private func pluginSubtitle(_ plugin: InstalledPlugin) -> some View {
+        HStack(spacing: 6) {
+            Text(plugin.isOfficial ? "v\(plugin.manifest.version)" : "\(label("自行安装")) · v\(plugin.manifest.version)")
+                .foregroundStyle(.secondary)
+            if plugin.needsConfiguration { Text(label("需要配置")).foregroundStyle(.orange) }
+        }
+        .font(.system(size: 12))
+        .help(plugin.isOfficial ? "" : plugin.repository)
+    }
+    private func pluginMenu(_ plugin: InstalledPlugin) -> some View {
+        Menu {
+            if !(plugin.manifest.configuration ?? []).isEmpty {
+                Button(label("配置")) { editing = plugin }
+            }
+            Button(label("更新")) { perform("更新插件") { try await manager.install(repository: plugin.repository) } }
+            Button(label("回退")) { perform("回退插件") { try await manager.rollback(plugin.id) } }
+                .disabled(plugin.previousCommit == nil)
+            if let url = URL(string: plugin.repository) {
+                Button(label("在 GitHub 查看项目")) { NSWorkspace.shared.open(url) }
+            }
+            Divider()
+            Button(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }
+        } label: {
+            Image(systemName: "ellipsis.circle").font(.system(size: 15)).foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .accessibilityLabel(label("更多操作")).help(label("更多操作")).disabled(busy)
     }
     private func pluginIcon(repository: String) -> some View {
         Group {

@@ -365,6 +365,7 @@
 "配置" = "Configure";
 "更新" = "Update";
 "回退" = "Roll Back";
+"更多操作" = "More Actions";
 "卸载" = "Uninstall";
 "正在处理插件…" = "Processing plugin…";
 "安装可信插件" = "Install Trusted Plugin";

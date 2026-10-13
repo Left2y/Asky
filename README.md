@@ -26,6 +26,8 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 
 Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪贴板可独立使用，AI 助手按需启动。项目仍在开发中，完整系统权限与交互验收见[验证记录](docs/validation/)。
 
+应用图标与设置中的品牌图使用黑色石墨质感，轮廓源文件见 [Mark.svg](App/Branding/Mark.svg)；菜单栏使用同轮廓的单色模板图。
+
 ### 核心能力
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
@@ -99,6 +101,8 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ### Overview
 
 Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipboard history work independently; the AI assistant starts on demand. The project is in development; see [validation records](docs/validation/) for system permission and interaction acceptance status.
+
+The app icon and branding in Settings use a black graphite finish based on [Mark.svg](App/Branding/Mark.svg). The menu bar uses the same silhouette as a monochrome template.
 
 ### Features
 

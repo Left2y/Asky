@@ -387,7 +387,8 @@ struct LauncherView: View {
                     completion: model.calculationCompletion,
                     backspaceOnEmpty: model.backspaceOnEmptyInput,
                     move: model.move,
-                    submit: { model.submit($0 ? .submitToAI : .executeSelection) }
+                    submit: { model.submit($0 ? .submitToAI : .executeSelection) },
+                    copyPath: model.copySelectedPath
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)

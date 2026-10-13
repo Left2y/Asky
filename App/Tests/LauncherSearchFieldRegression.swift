@@ -105,6 +105,23 @@ enum LauncherSearchFieldRegression {
         guard let item, let action = item.action else { fatalError("⌘V must be a menu key equivalent") }
         precondition(editor.tryToPerform(action, with: item), "field editor must handle the paste action")
         precondition(editor.string == "Safari粘贴内容", "⌘V must paste into the search field")
+
+        // ⌥⌘C copies the selected path before the ⌘C menu item; it falls through when there's no path.
+        func key(_ flags: NSEvent.ModifierFlags) -> NSEvent {
+            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                             windowNumber: window.windowNumber, context: nil, characters: "c",
+                             charactersIgnoringModifiers: "c", isARepeat: false, keyCode: 8)!
+        }
+        let completionField = CompletionTextField()
+        var copies = 0
+        completionField.copyPath = { copies += 1; return true }
+        precondition(completionField.performKeyEquivalent(with: key([.command, .option])) && copies == 1,
+                     "⌥⌘C must copy the selected path")
+        precondition(!completionField.performKeyEquivalent(with: key(.command)) && copies == 1,
+                     "plain ⌘C must stay with the field editor")
+        completionField.copyPath = { false }
+        precondition(!completionField.performKeyEquivalent(with: key([.command, .option])),
+                     "⌥⌘C without a path must fall through")
         print("LauncherSearchField native regression checks passed")
         window.close()
     }

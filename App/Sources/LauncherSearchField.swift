@@ -15,6 +15,8 @@ struct LauncherSearchField: NSViewRepresentable {
     /// When set, ←/→ switch items instead of moving the caret.
     var moveHorizontal: ((Int) -> Void)? = nil
     var submit: (Bool) -> Void
+    /// ⌥⌘C; return false to let the shortcut fall through.
+    var copyPath: (() -> Bool)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -52,6 +54,7 @@ struct LauncherSearchField: NSViewRepresentable {
             if field.textColor != parent.textColor { field.textColor = parent.textColor }
             if let field = field as? CompletionTextField {
                 field.completion = parent.completion
+                field.copyPath = parent.copyPath
                 field.updateCompletion()
             }
             if let color = parent.placeholderColor {
@@ -115,6 +118,7 @@ struct LauncherSearchField: NSViewRepresentable {
 final class CompletionTextField: NSTextField {
     private let suffix = CompletionLabel(labelWithString: "")
     var completion: String?
+    var copyPath: (() -> Bool)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -136,6 +140,19 @@ final class CompletionTextField: NSTextField {
     @objc private func selectionChanged(_ notification: Notification) {
         guard let editor = currentEditor(), notification.object as? NSTextView === editor else { return }
         updateCompletion()
+    }
+
+    /// The window offers key equivalents to views before the main menu, so ⌥⌘C wins over ⌘C here.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if Self.isCopyPath(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
+           copyPath?() == true { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    static func isCopyPath(_ event: NSEvent) -> Bool {
+        event.type == .keyDown
+            && event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock) == [.command, .option]
+            && event.charactersIgnoringModifiers?.lowercased() == "c"
     }
 
     override func layout() {

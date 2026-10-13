@@ -460,6 +460,16 @@ final class LauncherModel {
         selection = min(max(selection + delta, 0), results.count - 1)
     }
 
+    /// ⌥⌘C copies the selected file/app path, like Finder's "Copy as Pathname".
+    func copySelectedPath() -> Bool {
+        guard currencyConversion == nil, results.indices.contains(selection),
+              results[selection].actions.contains(.revealInFinder) else { return false }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(results[selection].target.identifier, forType: .string)
+        status = NSLocalizedString("已拷贝路径", comment: "")
+        return true
+    }
+
     /// Return executes the selection; ⌘Return reveals a file/app selection in Finder, otherwise submits to AI.
     func submit(_ kind: SubmitKind) {
         switch kind {

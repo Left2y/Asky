@@ -657,8 +657,8 @@ private struct ApprovalModeRow: View {
     }
 }
 
-/// NSPopover always draws Liquid Glass on macOS 26, so the legacy surface presents
-/// the menu inside the window with the same blur-and-border material as other surfaces.
+/// An in-window menu instead of NSPopover, whose chrome is always system Liquid Glass on macOS 26
+/// and so ignores the Liquid Glass setting.
 private struct ApprovalMenuPresentation<Menu: View>: ViewModifier {
     @Binding var showing: Bool
     @ViewBuilder let menu: () -> Menu
@@ -666,29 +666,23 @@ private struct ApprovalMenuPresentation<Menu: View>: ViewModifier {
     @State private var menuView = WeakViewBox()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if SurfaceCompatibility.useLegacyMaterial {
-            content
-                .overlay(alignment: .topTrailing) {
-                    if showing {
-                        menu()
-                            .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .background(ViewReader(box: menuView).allowsHitTesting(false))
-                            .fixedSize()
-                            .alignmentGuide(.top) { $0[.bottom] + 8 }
-                            // The send button and its spacing sit to the picker's right; let the menu cover them.
-                            .alignmentGuide(.trailing) { $0[.trailing] - 40 }
-                            .transition(reduceMotion ? .opacity
-                                        : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomTrailing)))
-                    }
+        content
+            .overlay(alignment: .bottomTrailing) {
+                if showing {
+                    menu()
+                        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(ViewReader(box: menuView).allowsHitTesting(false))
+                        .fixedSize()
+                        // Sit 8 pt above the 32 pt picker, extending over the send button and its spacing.
+                        .offset(x: 40, y: -40)
+                        .transition(reduceMotion ? .opacity
+                                    : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomTrailing)))
                 }
-                .animation(.easeOut(duration: 0.15), value: showing)
-                .onChange(of: showing) { _, shown in shown ? startMonitoring() : stopMonitoring() }
-                .onDisappear { showing = false; stopMonitoring() }
-        } else {
-            content.popover(isPresented: $showing, arrowEdge: .top, content: menu)
-        }
+            }
+            .animation(.easeOut(duration: 0.15), value: showing)
+            .onChange(of: showing) { _, shown in shown ? startMonitoring() : stopMonitoring() }
+            .onDisappear { showing = false; stopMonitoring() }
     }
 
     private func startMonitoring() {

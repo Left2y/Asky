@@ -580,21 +580,22 @@ private struct MemorySettings: View {
                     get: { !app.settings.memoryExtractionPaused },
                     set: { app.settings.memoryExtractionPaused = !$0 }
                 ))
-            }
-            Section {
-                Text(NSLocalizedString("Asky 会在对话结束一段时间后自动整理记忆，无需确认。MEMORY.md 是索引，每次对话都会读取；较长的主题写在同目录的主题文件里，需要时再读。", comment: ""))
-                    .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
-                Text(app.memory.indexURL.path).textStyle(.secondary).textSelection(.enabled)
-                HStack {
-                    SettingsButton(NSLocalizedString("查看 MEMORY.md", comment: "")) {
-                        try? app.memory.ensureExists()
-                        NSWorkspace.shared.open(app.memory.indexURL)
+                Button {
+                    try? app.memory.ensureExists()
+                    NSWorkspace.shared.activateFileViewerSelecting([app.memory.indexURL])
+                } label: {
+                    LabeledContent {
+                        Image(systemName: "arrow.up.forward.app").foregroundStyle(.secondary)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(NSLocalizedString("记忆文件", comment: ""))
+                            Text(NSLocalizedString("在访达中显示 MEMORY.md", comment: ""))
+                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                        }
                     }
-                    SettingsButton(NSLocalizedString("打开记忆文件夹", comment: "")) {
-                        try? app.memory.ensureExists()
-                        NSWorkspace.shared.activateFileViewerSelecting([app.memory.indexURL])
-                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         }
     }

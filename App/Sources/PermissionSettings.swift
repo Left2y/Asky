@@ -95,10 +95,9 @@ struct PermissionSettings: View {
                         Text(NSLocalizedString("Chrome 书签与链接搜索", comment: ""))
                         Text(NSLocalizedString(app.chromeBookmarkAccessState?.rawValue ?? "正在检查…", comment: ""))
                             .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
-                        Text(NSLocalizedString("授权 Chrome 文件夹后启用书签和链接搜索；不读取浏览历史。", comment: ""))
-                            .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .help(NSLocalizedString("授权 Chrome 文件夹后启用书签和链接搜索；不读取浏览历史。", comment: ""))
                     Spacer(minLength: 12)
                     SettingsButton(NSLocalizedString(requestingChrome ? "正在请求…" :
                         app.chromeBookmarkAccessState == .authorized ? "重新授权" : "去授权", comment: "")) {

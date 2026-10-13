@@ -24,6 +24,19 @@ import DirectActions
         #expect(state.command?.keyword == "chat")
     }
 
+    @Test func customTerminalKeywordReplacesDefault() {
+        var state = LauncherInputState()
+        state.terminalKeyword = "sh"
+        state.edit("> pwd", keywords: keywords)
+        #expect(!state.terminal)
+        state.replaceRawQuery("SH pwd", keywords: keywords)
+        #expect(state.terminal && state.text == "pwd")
+        #expect(state.rawQuery == "sh pwd")
+        #expect(IntentRouter(terminalKeyword: "sh").route(state.rawQuery) == .terminal(command: "pwd"))
+        #expect(!LauncherInputState.isValidTerminalKeyword("bm"))
+        #expect(!LauncherInputState.isValidTerminalKeyword("a b"))
+    }
+
     @Test func pastedTerminalCommandAndReplacementResetScope() {
         var state = LauncherInputState()
         state.replaceRawQuery("  >pwd", keywords: keywords)

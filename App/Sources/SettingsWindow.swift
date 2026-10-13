@@ -3,7 +3,7 @@ import SwiftUI
 import Theme
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general = "advanced", model, hotkey, aliases, keywords
+    case general = "advanced", model, hotkey, aliases, keywords, terminal
     case sources, permissions, plugins, about, author
 
     var id: String { rawValue }
@@ -14,6 +14,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .hotkey: NSLocalizedString("触发快捷键", comment: "")
         case .aliases: NSLocalizedString("别名与快捷指令", comment: "")
         case .keywords: NSLocalizedString("指令", comment: "")
+        case .terminal: NSLocalizedString("终端", comment: "")
         case .sources: NSLocalizedString("数据来源", comment: "")
         case .permissions: NSLocalizedString("系统权限", comment: "")
         case .plugins: NSLocalizedString("插件", comment: "")
@@ -27,7 +28,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .model: "sparkles"
         case .hotkey: "keyboard"
         case .aliases: "command"
-        case .keywords: "terminal"
+        case .keywords: "command.square"
+        case .terminal: "terminal"
         case .sources: "square.stack.3d.up"
         case .permissions: "hand.raised.fill"
         case .plugins: "puzzlepiece.extension"
@@ -39,7 +41,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         switch self {
         case .general, .hotkey, .about, .author: .gray
         case .model: .purple
-        case .aliases, .keywords: .orange
+        case .aliases, .keywords, .terminal: .orange
         case .sources: .blue
         case .permissions: .green
         case .plugins: .teal
@@ -217,7 +219,7 @@ private struct SettingsSidebar: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 sidebarGroup("Settings", pages: [.general, .hotkey, .permissions, .model])
-                sidebarGroup("Tools", pages: [.aliases, .keywords, .sources, .plugins])
+                sidebarGroup("Tools", pages: [.aliases, .keywords, .terminal, .sources, .plugins])
                 sidebarGroup("Others", pages: [.about, .author])
             }
             .padding(.horizontal, 12).padding(.top, 0)

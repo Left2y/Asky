@@ -4,24 +4,27 @@ import DirectActions
 public struct LauncherInputState: Equatable {
     /// Built-in scope keyword: `bm ` searches Chrome bookmarks only.
     public static let bookmarkKeyword = "bm"
+    /// Default token that enters terminal mode; users may customise it.
+    public static let defaultTerminalKeyword = ">"
 
     public private(set) var text = ""
     public private(set) var command: KeywordCommand?
     public private(set) var bookmarks = false
     public private(set) var terminal = false
+    public var terminalKeyword = Self.defaultTerminalKeyword
 
     public init() {}
 
     public var hasScope: Bool { command != nil || bookmarks || terminal }
 
     public var rawQuery: String {
-        if terminal { return "> " + text }
+        if terminal { return terminalKeyword + " " + text }
         if bookmarks { return Self.bookmarkKeyword + " " + text }
         return command.map { $0.keyword + " " + text } ?? text
     }
 
     public mutating func edit(_ value: String, keywords: KeywordRegistry, bookmarksEnabled: Bool = true) {
-        if !hasScope, let query = Self.matchTerminal(value) {
+        if !hasScope, let query = Self.matchTerminal(value, keyword: terminalKeyword) {
             terminal = true
             text = query
         } else if bookmarksEnabled, !hasScope, let query = Self.matchBookmarks(value) {
@@ -62,10 +65,18 @@ public struct LauncherInputState: Equatable {
     }
 
     /// Like keyword commands, the terminal token is committed only by a following space.
-    static func matchTerminal(_ input: String) -> String? {
+    static func matchTerminal(_ input: String, keyword: String = defaultTerminalKeyword) -> String? {
+        let keyword = isValidTerminalKeyword(keyword) ? keyword : defaultTerminalKeyword
         let trimmed = input.drop(while: { $0.isWhitespace })
-        guard trimmed.first == ">", trimmed.dropFirst().first?.isWhitespace == true else { return nil }
-        return String(trimmed.dropFirst().drop(while: { $0.isWhitespace }))
+        guard let space = trimmed.firstIndex(where: { $0.isWhitespace }),
+              trimmed[..<space].caseInsensitiveCompare(keyword) == .orderedSame else { return nil }
+        return String(trimmed[space...].drop(while: { $0.isWhitespace }))
+    }
+
+    /// A terminal keyword is a single non-empty token that does not collide with the bookmark scope.
+    public static func isValidTerminalKeyword(_ keyword: String) -> Bool {
+        !keyword.isEmpty && !keyword.contains(where: \.isWhitespace)
+            && keyword.caseInsensitiveCompare(bookmarkKeyword) != .orderedSame
     }
 
     private static func matchBookmarks(_ input: String) -> String? {

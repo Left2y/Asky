@@ -23,6 +23,7 @@ struct SettingsView: View {
             case .hotkey: HotKeySettings(app: app)
             case .aliases: AliasSettings(app: app)
             case .keywords: CommandSettings(app: app)
+            case .terminal: TerminalSettings(app: app)
             case .general: GeneralSettings(app: app)
             case .sources: SourceSettings(app: app)
             case .permissions: PermissionSettings(app: app)

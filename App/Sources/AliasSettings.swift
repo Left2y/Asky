@@ -88,8 +88,10 @@ struct AliasSettings: View {
     private func reset() { editing = nil; alias = ""; target = ""; message = nil }
     private func save() {
         let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, !name.contains(where: \.isWhitespace), name != ">", name.lowercased() != "bm" else {
-            message = NSLocalizedString("别名不能为空、包含空格，或使用保留命令 bm、>。", comment: ""); return
+        let terminalKeyword = app.settings.terminalCommandKeyword
+        guard !name.isEmpty, !name.contains(where: \.isWhitespace),
+              name.caseInsensitiveCompare(terminalKeyword) != .orderedSame, name.lowercased() != "bm" else {
+            message = String(format: NSLocalizedString("别名不能为空、包含空格，或使用保留命令 bm、%@。", comment: ""), terminalKeyword); return
         }
         guard !app.preferences.aliases.contains(where: { $0.id != editing && $0.alias.caseInsensitiveCompare(name) == .orderedSame }),
               !app.keywords.commands.contains(where: { $0.keyword.caseInsensitiveCompare(name) == .orderedSame }) else {

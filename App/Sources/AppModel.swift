@@ -23,6 +23,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Optional so settings written before terminal selection still decode without resetting.
     var terminalApplicationID: String?
     var terminalWorkingDirectory: String = FileManager.default.homeDirectoryForCurrentUser.path
+    /// Token that enters terminal mode; nil (settings saved before this option) means `>`.
+    var terminalKeyword: String?
     var memoryExtractionPaused = false
     var backgroundAI = false
     /// Older settings enable public web search without resetting other source choices.
@@ -41,6 +43,11 @@ struct AppSettings: Codable, Equatable, Sendable {
 
     var messagesLookback: Int {
         messagesLookbackDays.flatMap { Self.messagesLookbackChoices.contains($0) ? $0 : nil } ?? 3
+    }
+
+    var terminalCommandKeyword: String {
+        terminalKeyword.flatMap { LauncherInputState.isValidTerminalKeyword($0) ? $0 : nil }
+            ?? LauncherInputState.defaultTerminalKeyword
     }
 }
 

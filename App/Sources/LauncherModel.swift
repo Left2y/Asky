@@ -90,7 +90,16 @@ final class LauncherModel {
         update()
     }
 
-    private var inputState = LauncherInputState()
+    private var storedInputState = LauncherInputState()
+    /// Always parse with the current terminal keyword from settings.
+    private var inputState: LauncherInputState {
+        get {
+            var state = storedInputState
+            state.terminalKeyword = app.settings.terminalCommandKeyword
+            return state
+        }
+        set { storedInputState = newValue }
+    }
     var query: String {
         get { filter == .all ? inputState.rawQuery : filterText }
         set {
@@ -232,7 +241,9 @@ final class LauncherModel {
         if !query.isEmpty { query = "" }
     }
 
-    private var router: IntentRouter { IntentRouter(keywords: app.keywords) }
+    private var router: IntentRouter {
+        IntentRouter(keywords: app.keywords, terminalKeyword: app.settings.terminalCommandKeyword)
+    }
 
     var commandInput: (command: KeywordCommand, text: String)? {
         inputState.command.map { (command: $0, text: inputState.text) }

@@ -24,14 +24,19 @@ public enum SubmitKind: Sendable, Equatable {
 
 public struct IntentRouter: Sendable {
     public var keywords: KeywordRegistry
+    public var terminalKeyword: String
 
-    public init(keywords: KeywordRegistry = KeywordRegistry()) { self.keywords = keywords }
+    public init(keywords: KeywordRegistry = KeywordRegistry(),
+                terminalKeyword: String = LauncherInputState.defaultTerminalKeyword) {
+        self.keywords = keywords
+        self.terminalKeyword = terminalKeyword
+    }
 
     /// Priority: explicit terminal → calculation → unit / currency → keyword → conversation → search.
     public func route(_ raw: String) -> Route {
         let input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if input.isEmpty { return .empty }
-        if let command = LauncherInputState.matchTerminal(raw) {
+        if let command = LauncherInputState.matchTerminal(raw, keyword: terminalKeyword) {
             let cmd = command.trimmingCharacters(in: .whitespacesAndNewlines)
             return cmd.isEmpty ? .search(query: input) : .terminal(command: cmd)
         }

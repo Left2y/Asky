@@ -40,7 +40,7 @@
 "删除" = "Delete";
 "删除对话" = "Delete Conversation";
 "别名" = "Alias";
-"别名不能为空、包含空格，或使用保留命令 bm、>。" = "Aliases can't be empty, contain spaces, or use the reserved commands bm or >.";
+"别名不能为空、包含空格，或使用保留命令 bm、%@。" = "Aliases can't be empty, contain spaces, or use the reserved commands bm or %@.";
 "别名与快捷指令" = "Aliases and Shortcuts";
 "别名匹配" = "Alias match";
 "刷新快捷指令" = "Refresh Shortcuts";
@@ -532,3 +532,9 @@
 "刷新" = "Refresh";
 "连接" = "Connect";
 "连接备忘录后，选择允许 AI 访问的文件夹" = "Connect Notes, then choose folders AI may access";
+"终端指令" = "Terminal Command";
+"触发指令" = "Trigger";
+"执行命令的终端" = "Terminal for commands";
+"输入 %@ 后按空格，再输入要执行的命令。" = "Type %@, press Space, then enter the command to run.";
+"指令不能为空、包含空格或使用 bm，当前仍使用 %@。" = "The trigger can't be empty, contain spaces, or be bm; %@ is used for now.";
+"该指令与已有指令或别名重名，输入时将优先进入终端。" = "This trigger matches an existing command or alias; the terminal takes priority.";

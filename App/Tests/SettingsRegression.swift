@@ -5,6 +5,7 @@ import DirectActions
 import LocalStore
 import Router
 import ToolService
+import Contracts
 
 @main @MainActor
 enum SettingsRegression {
@@ -14,6 +15,11 @@ enum SettingsRegression {
         application.setActivationPolicy(preview ? .regular : .accessory)
         Task { @MainActor in
             do {
+                try await assertModelCheckFailures()
+                if CommandLine.arguments.contains("--model-check-only") {
+                    print("Model capability HTTP diagnostics regression passed")
+                    exit(0)
+                }
                 let root = FileManager.default.temporaryDirectory.appending(path: "Asky-settings-\(UUID())")
                 let legacyStore = try LocalStore(root: root)
                 if CommandLine.arguments.contains("--plugin-icons") {
@@ -202,6 +208,47 @@ enum SettingsRegression {
             } catch { fputs("Settings regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func assertModelCheckFailures() async throws {
+        let base = URL(string: "https://api.minimax.cn/v1")!
+        let secret = "fixture-secret-never-display"
+        for (code, body, expected) in [
+            (402, "{\"type\":\"insufficient_balance_error\",\"message\":\"insufficient balance (1008)\"}", "1008"),
+            (401, "{\"error\":{\"message\":\"invalid key fixture-secret-never-display\"}}", "[redacted]"),
+            (403, "{\"error\":{\"message\":\"permission denied\"}}", "permission denied"),
+            (400, "{\"error\":{\"message\":\"unknown model\"}}", "unknown model"),
+            (503, "<html>fixture-secret-never-display</html>", "HTTP 503"),
+        ] {
+            let report = await ModelCapabilityCheck.run(baseURL: base, model: "MiniMax-M3", apiKey: secret) { req in
+                guard req.url?.absoluteString == "https://api.minimax.cn/v1/chat/completions",
+                      req.value(forHTTPHeaderField: "Authorization") == "Bearer \(secret)" else {
+                    fatalError("capability probe changed endpoint or authentication")
+                }
+                return (Data(body.utf8), HTTPURLResponse(url: req.url!, statusCode: code, httpVersion: nil, headerFields: nil)!)
+            }
+            guard report.capabilities.text == .unknown, report.capabilities.tools == .unknown,
+                  report.capabilities.image == .unknown, report.failures.count == 3,
+                  report.failures.allSatisfy({ $0.contains("HTTP \(code)") && $0.contains(expected) && !$0.contains(secret) }) else {
+                fatalError("HTTP \(code) was hidden, leaked a credential, or marked a capability unsupported")
+            }
+        }
+        let timedOut = await ModelCapabilityCheck.run(baseURL: base, model: "MiniMax-M3", apiKey: secret) { _ in
+            throw URLError(.timedOut)
+        }
+        guard timedOut.capabilities.text == .unknown, timedOut.failures.count == 3 else {
+            fatalError("network error was mistaken for unsupported model capabilities")
+        }
+        let mixed = await ModelCapabilityCheck.run(baseURL: base, model: "MiniMax-M3", apiKey: secret) { req in
+            let json = try JSONSerialization.jsonObject(with: req.httpBody!) as! [String: Any]
+            let code = json["tools"] == nil ? 200 : 400
+            return (Data("{\"error\":{\"message\":\"tools rejected\"}}".utf8),
+                    HTTPURLResponse(url: req.url!, statusCode: code, httpVersion: nil, headerFields: nil)!)
+        }
+        guard mixed.capabilities.text == .available, mixed.capabilities.image == .available,
+              mixed.capabilities.tools == .unknown, mixed.failures.count == 1 else {
+            fatalError("one rejected probe changed the other capability results")
+        }
     }
 
     private static func assertNativeCardDrag(parent: NSWindow) async throws {

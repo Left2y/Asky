@@ -487,3 +487,35 @@
 "完全访问权限" = "Full access";
 "仅对检测到的风险操作请求批准" = "Asks for approval only on detected risky actions";
 "AI 执行任何操作都不再询问，包括删除、发送和修改" = "AI runs every action without asking, including deleting, sending and editing";
+
+
+"完全自定义（OpenAI 兼容）" = "Fully custom (OpenAI compatible)";
+
+"模型" = "Model";
+
+
+"GLM（智谱）" = "GLM (Zhipu)";
+
+"Qwen（通义千问 · 北京）" = "Qwen (Alibaba Cloud · Beijing)";
+
+
+
+"填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。" = "Enter an OpenAI-compatible base URL without /chat/completions and the exact model ID from your provider.";
+
+"Key 已保存；留空继续使用。" = "A key is saved. Leave blank to keep using it.";
+
+"请输入此服务商的 API Key，密钥保存在 macOS 钥匙串中。" = "Enter this provider’s API key. It is stored in the macOS keychain.";
+
+"请填写此服务商的 API Key；切换 API 地址后不能沿用原来的 Key。" = "Enter this provider’s API key. The previous key cannot be reused after changing the API URL.";
+
+// Individual exclusion list editor
+"排除的目录名" = "Excluded directory names";
+"目录名" = "Directory name";
+"排除的应用 Bundle ID" = "Excluded app bundle IDs";
+"暂无排除项" = "No exclusions";
+"编辑排除项" = "Edit exclusion";
+"添加排除项" = "Add exclusion";
+"此排除项已存在" = "This exclusion already exists";
+"确定" = "OK";
+
+"所选应用没有 Bundle ID，无法添加排除项。" = "The selected application has no bundle ID and cannot be excluded.";

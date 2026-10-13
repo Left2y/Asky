@@ -31,7 +31,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 ### 核心能力
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
-- **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。
+- **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。文件搜索排除目录和剪贴板排除应用在设置中逐项添加、编辑和删除；添加或编辑时使用系统选择面板，目录自动取目录名，应用自动取 Bundle ID。
 - **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。
 - **个人记忆**：`MEMORY.md` 索引与按需读取的主题文件，支持明确保存、纠正、忘记及自动提炼与整理。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。
@@ -57,7 +57,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 ### 配置与隐私
 
-在“设置 › 模型设置”填写 API 地址、模型名和 Key；Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。
+在“设置 › 模型设置”选择 DeepSeek、MiniMax、GLM、Kimi、Qwen 或 OpenAI，预设自动填写 API 地址并提供模型选项，只需输入 API Key。选择“完全自定义”可手动填写 OpenAI 兼容地址和模型名。切换 API 地址后需填写对应的新 Key。Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。先保存再检查配置；检查失败时显示 HTTP 状态与服务商原因。余额不足、认证失败或网络错误不代表模型不支持对应能力。
 
 应用没有向作者上传用户数据的接口。AI 消息、附件和所需工具结果发送至你配置的模型服务；联网搜索词发送至 Bing。记忆保存在本机 Markdown 文件中；启用后，索引、按需读取的主题和自动提炼、整理所需内容也会发送至模型服务。来源开关与系统权限在设置中管理。详见[隐私政策草案](PRIVACY.md)。
 
@@ -89,6 +89,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
+服务商预设回归：先执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`，再运行 `build/model-provider-regression`。
+
 聊天图片剪贴板回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images`（先完成 Debug 构建）。
 
 原生回归、通知预览与 `scripts/package-release.py` 打包流程见[开发与发布指南](docs/development.md)。打包前提交源码并保持工作区干净；使用固定的 `Asky Local Signing` 证书，生成 DMG、更新 ZIP 与校验文件。检查结果写入 `docs/validation/`。
@@ -113,7 +115,7 @@ The app icon and branding in Settings use a black graphite finish based on [Mark
 ### Features
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
-- **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop.
+- **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop. Settings provide individual add, edit, and delete controls for excluded search directories and clipboard apps. Adding or editing opens a system picker; folder names and app bundle IDs are extracted automatically.
 - **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key.
 - **Personal memory**: a `MEMORY.md` index and topic files read on demand, with explicit saves, corrections, forgetting, automatic extraction, and consolidation.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP.
@@ -139,7 +141,7 @@ The “Show menu bar icon” switch in Settings › General › Startup takes ef
 
 ### Configuration and Privacy
 
-Enter the API URL, model name, and key in Settings › Model Settings. Keys stay in the macOS keychain; local data lives in `~/Library/Application Support/KulaHere/`.
+Choose DeepSeek, MiniMax, GLM, Kimi, Qwen, or OpenAI in Settings › Model Settings. Presets fill in the API URL and offer model choices; only your API key is required. Choose Fully custom to enter an OpenAI-compatible URL and model ID manually. Changing the API URL requires the corresponding new key. Keys stay in the macOS keychain; local data lives in `~/Library/Application Support/KulaHere/`. Save before checking the configuration. Failed checks show the HTTP status and provider reason; balance, authentication, and network errors do not establish that a model lacks a capability.
 
 The app has no interface for uploading user data to the author. AI messages, attachments, and required tool results go to your configured model provider; web search queries go to Bing. Memory is stored in local Markdown files; when enabled, the index, requested topics, and content needed for extraction and consolidation also go to the model provider. Manage data sources and system permissions in Settings. See the [draft privacy policy](PRIVACY.md).
 
@@ -170,6 +172,8 @@ Common checks (build MCP Bridge before testing the core package):
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
+
+Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
 
 Chat-image clipboard regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images` (build Debug first).
 

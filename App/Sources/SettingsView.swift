@@ -225,9 +225,9 @@ private struct GeneralSettings: View {
                         SettingsButton(NSLocalizedString("移除", comment: "")) { app.settings.fileScopes.removeAll { $0 == p } }
                     }
                 }
-                SettingsTextField(NSLocalizedString("排除的目录名（逗号分隔）", comment: ""), text: Binding(
-                    get: { app.settings.excludedDirectories.joined(separator: ", ") },
-                    set: { app.settings.excludedDirectories = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
+                SettingsExclusionList(title: NSLocalizedString("排除的目录名", comment: ""),
+                                      selection: .directory,
+                                      items: $app.settings.excludedDirectories)
             } header: {
                 HStack {
                     Text(NSLocalizedString("文件搜索范围", comment: ""))
@@ -248,9 +248,9 @@ private struct GeneralSettings: View {
             }
             Section(NSLocalizedString("剪贴板", comment: "")) {
                 Toggle(NSLocalizedString("记录剪贴板历史", comment: ""), isOn: $app.settings.clipboardEnabled)
-                SettingsTextField(NSLocalizedString("排除的应用 Bundle ID（逗号分隔）", comment: ""), text: Binding(
-                    get: { app.settings.clipboardExcludedApps.joined(separator: ", ") },
-                    set: { app.settings.clipboardExcludedApps = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }))
+                SettingsExclusionList(title: NSLocalizedString("排除的应用 Bundle ID", comment: ""),
+                                      selection: .application,
+                                      items: $app.settings.clipboardExcludedApps)
                 SettingsButton(NSLocalizedString("清空未固定的剪贴板历史", comment: ""), role: .destructive) {
                     let store = ClipboardStore(app.store)
                     let ids = store.recent(limit: 100_000).filter { !$0.pinned }.map(\.id)
@@ -403,9 +403,7 @@ private struct SourceSettings: View {
 
 private struct ModelSettingsView: View {
     let app: AppModel
-    @State private var provider = "custom"
-    @State private var baseURL = ""
-    @State private var model = ""
+    @State private var draft = ModelConfigurationDraft(provider: "custom", baseURL: nil, model: nil)
     @State private var key = ""
     @State private var message: String?
     @State private var capabilities: ModelCapabilities?
@@ -413,25 +411,41 @@ private struct ModelSettingsView: View {
     @State private var saving = false
     @State private var saved = false
     @State private var checked = false
+    @State private var checkFailed = false
 
     var body: some View {
         SettingsForm {
             Section(NSLocalizedString("供应商与模型", comment: "")) {
                 LabeledContent(NSLocalizedString("供应商", comment: "")) {
-                    SettingsChoice(selection: Binding(get: { provider }, set: { value in
-                        provider = value
-                        if value == "openai" { baseURL = "https://api.openai.com/v1"; model = "" }
-                        if value == "deepseek" { baseURL = "https://api.deepseek.com"; model = "" }
-                    }), options: [
-                        ("custom", NSLocalizedString("自定义（OpenAI 兼容）", comment: "")),
-                        ("openai", "OpenAI"), ("deepseek", "DeepSeek")
+                    SettingsChoice(selection: Binding(get: { draft.provider }, set: { value in
+                        draft.select(value)
+                        key = ""
+                        message = nil
+                        saved = false
+                        checked = false
+                    }), options: ModelProviderPreset.all.map { ($0.id, NSLocalizedString($0.name, comment: "")) } + [
+                        ("custom", NSLocalizedString("完全自定义（OpenAI 兼容）", comment: ""))
                     ])
                 }
-
-                SettingsTextField(NSLocalizedString("API 地址", comment: ""), text: $baseURL, prompt: Text("https://api.example.com/v1"))
-                SettingsTextField(NSLocalizedString("模型名", comment: ""), text: $model)
-                SettingsSecureField(NSLocalizedString("API Key（留空保留已保存的 Key）", comment: ""), text: $key)
+                if let preset = ModelProviderPreset.find(draft.provider) {
+                    LabeledContent(NSLocalizedString("模型", comment: "")) {
+                        SettingsChoice(selection: $draft.model, options: preset.models.map { ($0, $0) })
+                    }
+                    LabeledContent(NSLocalizedString("API 地址", comment: "")) {
+                        Text(preset.baseURL).font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                } else {
+                    SettingsTextField(NSLocalizedString("API 地址", comment: ""), text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
+                    SettingsTextField(NSLocalizedString("模型名", comment: ""), text: $draft.model)
+                    Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。", comment: ""))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key)
+                Text(NSLocalizedString(canReuseKey ? "Key 已保存；留空继续使用。" : "请输入此服务商的 API Key，密钥保存在 macOS 钥匙串中。", comment: ""))
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
             }
+            .disabled(saving || checking)
             Section {
                 HStack {
                     SettingsButton(NSLocalizedString("保存", comment: ""), isLoading: saving, isComplete: saved) {
@@ -443,11 +457,11 @@ private struct ModelSettingsView: View {
                                    loadingTitle: NSLocalizedString("检查中…", comment: "")) {
                         Task { await check() }
                     }
-                    .disabled(checking || checked || saving || app.modelConfiguration == nil)
+                    .disabled(checking || checked || saving || !matchesSavedConfiguration)
                     .accessibilityLabel(checked ? NSLocalizedString("检查完成", comment: "") : checking ? NSLocalizedString("检查中", comment: "") : NSLocalizedString("检查已保存配置", comment: ""))
                 }
                 if let message { Text(message).foregroundStyle(ThemeColor.kTextNegative) }
-                if let c = capabilities ?? app.modelConfiguration?.capabilities {
+                if matchesSavedConfiguration, let c = capabilities ?? app.modelConfiguration?.capabilities {
                     LabeledContent(NSLocalizedString("文本", comment: ""), value: capabilityLabel(c.text))
                     LabeledContent(NSLocalizedString("工具调用", comment: ""), value: capabilityLabel(c.tools))
                     LabeledContent(NSLocalizedString("图像输入", comment: ""), value: capabilityLabel(c.image))
@@ -465,30 +479,37 @@ private struct ModelSettingsView: View {
             catch { }
         }
         .onAppear {
-            provider = app.preferences.provider
-            if let c = app.modelConfiguration {
-                baseURL = c.baseURL.absoluteString
-                model = c.modelName
-            }
+            draft = ModelConfigurationDraft(provider: app.preferences.provider,
+                baseURL: app.modelConfiguration?.baseURL.absoluteString, model: app.modelConfiguration?.modelName)
         }
+    }
+
+    private var canReuseKey: Bool {
+        draft.canReuseCredential(savedBaseURL: app.modelConfiguration?.baseURL.absoluteString)
+    }
+
+    private var matchesSavedConfiguration: Bool {
+        guard let configuration = app.modelConfiguration else { return false }
+        return canReuseKey && draft.model == configuration.modelName && key.isEmpty
     }
 
     private func capabilityLabel(_ value: CapabilityStatus) -> String {
         switch value {
         case .available: NSLocalizedString("可用", comment: "")
         case .unavailable: NSLocalizedString("不可用", comment: "")
-        case .unknown: NSLocalizedString("未检查", comment: "")
+        case .unknown: checkFailed ? NSLocalizedString("检查失败", comment: "") : NSLocalizedString("未检查", comment: "")
         }
     }
 
     private func save() async {
         message = nil
+        key = key.trimmingCharacters(in: .whitespacesAndNewlines)
         saving = true
         defer { saving = false }
-        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+        guard let url = URL(string: draft.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
               let host = url.host, !host.isEmpty, url.user == nil, url.password == nil,
               url.scheme == "https" || (url.scheme == "http" && ["localhost", "127.0.0.1"].contains(host)),
-              !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+              !draft.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             message = NSLocalizedString("请填写有效的 https 地址与模型名。", comment: "")
             return
         }
@@ -497,19 +518,21 @@ private struct ModelSettingsView: View {
                 message = NSLocalizedString("请等待当前 AI 任务结束后保存模型设置。", comment: ""); return
             }
             let account = app.modelConfiguration?.credentialRef ?? ModelSettings.keyAccount
-            guard !key.isEmpty || app.keychain.contains(account: account) else {
-                message = NSLocalizedString("请填写 API Key；留空只会保留已保存的 Key。", comment: "")
+            guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (canReuseKey && app.keychain.contains(account: account)) else {
+                message = NSLocalizedString("请填写此服务商的 API Key；切换 API 地址后不能沿用原来的 Key。", comment: "")
                 return
             }
             if !key.isEmpty {
+                key = key.trimmingCharacters(in: .whitespacesAndNewlines)
                 try app.keychain.set(key, account: account)
                 await app.credentialSession.remember(key, account: account)
             }
-            app.preferences.provider = provider
-            app.modelConfiguration = ModelConfiguration(baseURL: url, modelName: model.trimmingCharacters(in: .whitespacesAndNewlines), credentialRef: account)
+            app.preferences.provider = draft.provider
+            app.modelConfiguration = ModelConfiguration(baseURL: url, modelName: draft.model.trimmingCharacters(in: .whitespacesAndNewlines), credentialRef: account)
             key = ""
             await app.agent?.shutdown()
             capabilities = nil
+            checkFailed = false
             saved = true
         } catch {
             message = String(format: NSLocalizedString("钥匙串写入失败：%@", comment: ""), String(describing: error))
@@ -525,48 +548,16 @@ private struct ModelSettingsView: View {
             guard let key = try await app.readModelCredential(account: cfg.credentialRef) else {
                 message = NSLocalizedString("请先保存 API Key。", comment: ""); return
             }
-            let caps = await ModelCapabilityCheck.run(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
-            cfg.capabilities = caps
+            let report = await ModelCapabilityCheck.run(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
+            cfg.capabilities = report.capabilities
             app.modelConfiguration = cfg
-            capabilities = caps
+            capabilities = report.capabilities
+            checkFailed = !report.failures.isEmpty
+            message = report.failures.isEmpty ? nil : report.failures.joined(separator: "\n")
             checked = true
         } catch { message = error.localizedDescription }
     }
 
-}
-
-/// Three minimal chat-completions probes. A failing probe marks only that capability unavailable.
-enum ModelCapabilityCheck {
-    static func run(baseURL: URL, model: String, apiKey: String) async -> ModelCapabilities {
-        let text = await probe(baseURL, apiKey, ["model": model, "max_tokens": 4,
-                                                 "messages": [["role": "user", "content": "ping"]]])
-        let tools = await probe(baseURL, apiKey, [
-            "model": model, "max_tokens": 16,
-            "messages": [["role": "user", "content": "call noop"]],
-            "tools": [["type": "function", "function": ["name": "noop", "description": "no-op",
-                                                         "parameters": ["type": "object", "properties": [String: String]()]]]],
-        ])
-        let png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-        let image = await probe(baseURL, apiKey, [
-            "model": model, "max_tokens": 4,
-            "messages": [["role": "user", "content": [
-                ["type": "text", "text": "color?"],
-                ["type": "image_url", "image_url": ["url": "data:image/png;base64,\(png)"]],
-            ]]],
-        ])
-        return ModelCapabilities(text: text ? .available : .unavailable, image: image ? .available : .unavailable,
-                                 tools: tools ? .available : .unavailable, checkedAt: Date())
-    }
-
-    private static func probe(_ base: URL, _ key: String, _ body: [String: Any]) async -> Bool {
-        var req = URLRequest(url: base.appending(path: "chat/completions"), timeoutInterval: 30)
-        req.httpMethod = "POST"
-        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        guard let (_, resp) = try? await URLSession.shared.data(for: req) else { return false }
-        return (resp as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
-    }
 }
 
 // MARK: Memory

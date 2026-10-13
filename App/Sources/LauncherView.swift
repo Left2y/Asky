@@ -189,6 +189,7 @@ final class LauncherController {
             panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
                                               y: f.maxY - f.height * LauncherLayout.topInsetFraction + LauncherLayout.shadowPadding))
         }
+        panel.hasShadow = SurfaceCompatibility.useLegacyMaterial
         panel.makeKeyAndOrderFront(nil)
         updateOutsideClickDismissal()
     }

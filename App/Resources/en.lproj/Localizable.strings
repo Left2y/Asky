@@ -105,6 +105,8 @@
 "应用" = "Application";
 "应用与快捷指令别名" = "Application and Shortcut Aliases";
 "应用主题" = "App theme";
+"液态玻璃" = "Liquid Glass";
+"关闭后使用背景模糊与描边。" = "When off, surfaces use a background blur with a border.";
 "应用已移动或无法打开，请更新别名。" = "The app moved or couldn't be opened. Update the alias.";
 "应用语言" = "App language";
 "建议" = "Suggestion";

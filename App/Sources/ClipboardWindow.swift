@@ -103,6 +103,7 @@ final class ClipboardController {
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         panel.level = .floating
+        panel.hasShadow = SurfaceCompatibility.useLegacyMaterial
         panel.orderFrontRegardless()
         panel.makeKey()
         updateOutsideClickDismissal()

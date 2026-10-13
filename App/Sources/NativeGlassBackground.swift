@@ -3,13 +3,24 @@ import SwiftUI
 import Theme
 
 /// Debug previews exercise the pre-26 appearance without changing the host OS.
+@MainActor
 enum SurfaceCompatibility {
-    static var useLegacyMaterial: Bool {
+    @MainActor @Observable final class State {
+        var liquidGlassEnabled = true
+    }
+    static let state = State()
+
+    static var supportsLiquidGlass: Bool {
         #if DEBUG
-        if CommandLine.arguments.contains("--preview-legacy-material") { return true }
+        if CommandLine.arguments.contains("--preview-legacy-material") { return false }
         #endif
-        if #available(macOS 26, *) { return false }
-        return true
+        if #available(macOS 26, *) { return true }
+        return false
+    }
+
+    /// Pre-26 systems, or Liquid Glass turned off in settings, use blur plus a border.
+    static var useLegacyMaterial: Bool {
+        !supportsLiquidGlass || !state.liquidGlassEnabled
     }
 }
 

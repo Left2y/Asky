@@ -70,6 +70,14 @@ private struct SettingsLabelStyle: LabeledContentStyle {
     }
 }
 
+extension VerticalAlignment {
+    /// Centers trailing controls on a labeled input's field rather than on the label + field stack.
+    private enum SettingsInput: AlignmentID {
+        static func defaultValue(in d: ViewDimensions) -> CGFloat { d[VerticalAlignment.center] }
+    }
+    static let settingsInput = VerticalAlignment(SettingsInput.self)
+}
+
 struct SettingsTextField: View {
     let title: String
     @Binding var text: String
@@ -116,6 +124,7 @@ private extension View {
                                   lineWidth: focused ? 2 : 1)
                     .allowsHitTesting(false)
             }
+            .alignmentGuide(.settingsInput) { $0[VerticalAlignment.center] }
     }
 }
 

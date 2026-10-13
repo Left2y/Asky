@@ -653,7 +653,7 @@ private struct MCPSettings: View {
                         }
                     }
                 }
-                HStack {
+                HStack(alignment: .settingsInput) {
                     SettingsTextField(NSLocalizedString("实例名称（如 Claude Desktop）", comment: ""), text: $newName)
                     SettingsButton(NSLocalizedString("创建", comment: "")) {
                         do {

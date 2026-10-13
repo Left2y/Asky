@@ -17,7 +17,7 @@ struct PluginSettings: View {
     var body: some View {
         SettingsForm {
             Section(label("安装插件")) {
-                HStack {
+                HStack(alignment: .settingsInput) {
                     SettingsTextField(label("GitHub 仓库链接"), text: $repository)
                         .accessibilityIdentifier("plugin-repository")
                     SettingsButton(label("安装")) { requestInstall(repository) }.accessibilityLabel(label("安装")).disabled(busy || repository.isEmpty)

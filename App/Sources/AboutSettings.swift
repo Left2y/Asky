@@ -24,15 +24,12 @@ struct AboutSettings: View {
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
-                }
-                .padding(.vertical, 4)
-                HStack {
-                    Text(NSLocalizedString("在 GitHub 查看项目", comment: ""))
                     Spacer(minLength: 12)
-                    SettingsButton(NSLocalizedString("前往", comment: "")) {
+                    SettingsButton(NSLocalizedString("在 GitHub 查看项目", comment: "")) {
                         _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
                     }
                 }
+                .padding(.vertical, 4)
             }
             Section(NSLocalizedString("软件更新", comment: "")) {
                 HStack {

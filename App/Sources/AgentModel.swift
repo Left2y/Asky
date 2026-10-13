@@ -128,6 +128,7 @@ final class AgentModel {
         streaming = ""
         state = nil
         newConversationRevision += 1
+        extractMemories()
     }
 
     func loadOlder() {
@@ -292,7 +293,8 @@ final class AgentModel {
 
     private var extracting = false
 
-    /// Processes a small batch of the extraction queue right after an explicit AI use.
+    /// Like Codex's startup pass: extracts conversations that went idle, then consolidates the folder when due.
+    /// Runs right after an explicit AI use and when a new conversation starts.
     private func extractMemories() {
         guard !extracting, !app.settings.memoryExtractionPaused, app.settings.enabledSources.contains(.memory),
               let cfg = app.modelConfiguration else { return }
@@ -303,7 +305,9 @@ final class AgentModel {
             guard let key = await Task.detached(operation: { try? keychain.read(account: account, allowInteraction: false) }).value,
                   !key.isEmpty else { return }
             let client = ChatCompletionClient(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
-            await MemoryExtractor(store: store, memory: memory) { try await client.complete(system: $0, user: $1) }.run()
+            let complete: MemoryExtractor.Complete = { try await client.complete(system: $0, user: $1) }
+            await MemoryExtractor(store: store, memory: memory, complete: complete).run()
+            await MemoryConsolidator(store: store, memory: memory, complete: complete).run()
         }
     }
 

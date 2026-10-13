@@ -1,10 +1,10 @@
 import Foundation
 import LocalStore
 
-/// Long-term memory is a folder of user-editable Markdown files, laid out like Codex's memory summary:
+/// Long-term memory is a folder of Markdown files maintained by Asky, laid out like Codex's memory summary:
 /// `MEMORY.md` is a short index (who the user is, preferences, and one line per topic file) given to every
-/// conversation; topic files hold details and are read on demand. Asky only changes files by appending a line or
-/// replacing / removing exact text, so the user's own edits are never rewritten.
+/// conversation; topic files hold details and are read on demand. Extraction and the memory tools change files by
+/// appending a line or replacing / removing exact text; `MemoryConsolidator` periodically rewrites the whole folder.
 public struct MemoryFolder: Sendable {
     public static let directoryName = "Memory"
     public static let indexName = "MEMORY.md"
@@ -26,7 +26,7 @@ public struct MemoryFolder: Sendable {
     public static let template = """
         # Asky 记忆
 
-        这是记忆索引，Asky 每次对话都会读取，你可以直接编辑。只写以后对话仍然有用的长期信息，保持简短；
+        这是记忆索引，由 Asky 自动维护，每次对话都会读取。只记以后对话仍然有用的长期信息，保持简短；
         某个主题的细节放在同目录的主题文件里，并在「\(topicsSection)」下用一行说明它记了什么。
 
         \((sections + [topicsSection]).map { "## \($0)\n" }.joined(separator: "\n"))
@@ -137,6 +137,20 @@ public struct MemoryFolder: Sendable {
             try update(name) { text in
                 text.removeSubrange(text.lineRange(for: try Self.uniqueRange(of: old, in: text)))
                 return true
+            }
+        }
+    }
+
+    /// Writes a complete new version of the folder: the given files replace their old content and topic files not
+    /// given are deleted. Used by consolidation.
+    public func replaceAll(_ files: [String: String]) throws {
+        try Self.lock.withLock {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            for name in topicFiles() where files[name] == nil {
+                try FileManager.default.removeItem(at: root.appendingPathComponent(name))
+            }
+            for (name, text) in files {
+                try text.write(to: root.appendingPathComponent(try Self.fileName(name)), atomically: true, encoding: .utf8)
             }
         }
     }

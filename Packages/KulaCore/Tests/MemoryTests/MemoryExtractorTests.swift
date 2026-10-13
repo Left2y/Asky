@@ -35,7 +35,7 @@ private func conversation(_ s: LocalStore, _ texts: [(String, String)]) throws -
         extractor.minIdle = 0
         #expect(await extractor.run() == ["用户希望默认用中文回复"])
         #expect(m.read().contains("## 偏好\n- 用户希望默认用中文回复"))
-        #expect(ExtractionQueue(s).count == 0)
+        #expect(ExtractionQueue(s).count == 0 && s.setting(MemoryConsolidator.dirtyKey) == "1")
 
         // Re-queue without new messages: no model call.
         try ExtractionQueue(s).enqueue("conversation:\(cid)")

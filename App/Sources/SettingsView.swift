@@ -582,11 +582,11 @@ private struct MemorySettings: View {
                 ))
             }
             Section {
-                Text(NSLocalizedString("记忆保存在 Markdown 文件里：MEMORY.md 是索引，每次对话都会读取；较长的主题写在同目录的主题文件里，需要时再读。可以直接编辑。", comment: ""))
+                Text(NSLocalizedString("Asky 会在对话结束一段时间后自动整理记忆，无需确认。MEMORY.md 是索引，每次对话都会读取；较长的主题写在同目录的主题文件里，需要时再读。", comment: ""))
                     .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
                 Text(app.memory.indexURL.path).textStyle(.secondary).textSelection(.enabled)
                 HStack {
-                    SettingsButton(NSLocalizedString("编辑 MEMORY.md", comment: "")) {
+                    SettingsButton(NSLocalizedString("查看 MEMORY.md", comment: "")) {
                         try? app.memory.ensureExists()
                         NSWorkspace.shared.open(app.memory.indexURL)
                     }

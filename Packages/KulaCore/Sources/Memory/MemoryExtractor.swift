@@ -59,14 +59,16 @@ public struct MemoryExtractor: Sendable {
         guard !sources.isDeleted(sourceID), sources.permissions(sourceID).contains(.extraction) else { return [] }
         let result = Self.parse(reply)
         var out: [String] = []
+        var removed = false
         for r in result.replace.prefix(maxPerSource) where (try? memory.replace(r.old, with: r.new, file: r.file)) != nil {
             out.append(r.new)
         }
-        for r in result.remove.prefix(maxPerSource) { try? memory.remove(r.old, file: r.file) }
+        for r in result.remove.prefix(maxPerSource) where (try? memory.remove(r.old, file: r.file)) != nil { removed = true }
         for a in result.add.prefix(maxPerSource)
         where (try? memory.add(a.content, section: a.section, file: a.file, description: a.description)) == true {
             out.append(a.content)
         }
+        if !out.isEmpty || removed { MemoryConsolidator.markDirty(store) }
         store.setSetting(Self.cursorKey(sourceID), String(last))
         return out
     }
@@ -97,7 +99,7 @@ public struct MemoryExtractor: Sendable {
         措辞要与证据强度一致：用户说「这次先给我看方案」只能说明这次的要求，不能写成「用户偏好先看方案」；
         只有用户说了「以后」「一直」「默认」或在对话中反复要求，才写成偏好。
 
-        记忆由一个索引 MEMORY.md 和若干主题文件组成（用户可以直接编辑，以其内容为准）：
+        记忆由一个索引 MEMORY.md 和若干主题文件组成：
         - MEMORY.md 每次对话都会全文读取，只放最重要的简短信息：section「关于我」放稳定事实，「偏好」放偏好与做事方式；
         - 某个主题有较多细节（如某个长期项目、家人、健康习惯、旅行偏好）时，写进主题文件：file 用小写英文短名如 projects.md、family.md，
           新文件需给 description，一句话说明它记什么，会自动登记到索引的「主题文件」下；已有主题优先写进已有文件。

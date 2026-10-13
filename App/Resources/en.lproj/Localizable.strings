@@ -538,3 +538,6 @@
 "输入 %@ 后按空格，再输入要执行的命令。" = "Type %@, press Space, then enter the command to run.";
 "指令不能为空、包含空格或使用 bm，当前仍使用 %@。" = "The trigger can't be empty, contain spaces, or be bm; %@ is used for now.";
 "该指令与已有指令或别名重名，输入时将优先进入终端。" = "This trigger matches an existing command or alias; the terminal takes priority.";
+"主动提醒" = "Proactive Reminders";
+"AI 审批模式" = "AI Approval Mode";
+"无法更改登录时启动" = "Couldn't Change Launch at Login";

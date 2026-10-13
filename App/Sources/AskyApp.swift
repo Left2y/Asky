@@ -4,6 +4,7 @@ import Resources
 import Carbon.HIToolbox
 import ToolService
 import Contracts
+import ServiceManagement
 
 @main
 @MainActor
@@ -19,7 +20,7 @@ enum AskyMain {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     private var model: AppModel!
     private var launcher: LauncherController!
     private var launcherModel: LauncherModel!
@@ -237,18 +238,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         item.button?.image = icon
         item.button?.setAccessibilityLabel("Asky")
         let menu = NSMenu()
-        menu.addItem(withTitle: NSLocalizedString("打开启动器", comment: ""), action: #selector(openLauncher), keyEquivalent: "").target = self
-        menu.addItem(withTitle: NSLocalizedString("剪贴板历史", comment: ""), action: #selector(openClipboard), keyEquivalent: "").target = self
-        menu.addItem(withTitle: NSLocalizedString("AI 对话", comment: ""), action: #selector(openAgent), keyEquivalent: "").target = self
-        menu.addItem(.separator())
-        let settingsItem = menu.addItem(withTitle: NSLocalizedString("设置…", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
-        settingsItem.target = self
-        if #available(macOS 27.0, *) { settingsItem.preferredImageVisibility = .hidden }
-        menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.delegate = self
         item.menu = menu
         item.isVisible = model.preferences.showMenuBarIcon
         statusItem = item
+    }
+
+    /// Rebuilt on every open so check marks always mirror the current settings.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === statusItem?.menu else { return }
+        menu.removeAllItems()
+        add(menu, "打开启动器", #selector(openLauncher))
+        add(menu, "剪贴板历史", #selector(openClipboard))
+        add(menu, "AI 对话", #selector(openAgent))
+        menu.addItem(.separator())
+        add(menu, "记录剪贴板历史", #selector(toggleClipboardRecording), on: model.settings.clipboardEnabled)
+        add(menu, "允许 AI 搜索公开网页", #selector(toggleWebSearch), on: model.settings.webSearchEnabled != false)
+        add(menu, "主动提醒", #selector(toggleProactiveReminders), on: model.settings.proactiveReminders)
+        let approval = submenu(menu, "AI 审批模式")
+        let mode = model.settings.approvalMode ?? .autoReview
+        for (option, title) in [(ApprovalMode.autoReview, "自动审批"), (.fullAccess, "完全访问")] {
+            add(approval, title, #selector(selectApprovalMode(_:)), on: mode == option).representedObject = option.rawValue
+        }
+        let appearance = submenu(menu, "外观")
+        for (value, title) in [("system", "跟随系统"), ("light", "浅色"), ("dark", "深色")] {
+            add(appearance, title, #selector(selectAppearance(_:)), on: model.preferences.appearance == value).representedObject = value
+        }
+        add(menu, "登录时启动", #selector(toggleLaunchAtLogin), on: SMAppService.mainApp.status == .enabled)
+        menu.addItem(.separator())
+        add(menu, "设置…", #selector(openSettings), key: ",")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: NSLocalizedString("退出 Asky", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+    }
+
+    @discardableResult
+    private func add(_ menu: NSMenu, _ title: String, _ action: Selector, key: String = "", on: Bool? = nil) -> NSMenuItem {
+        let item = menu.addItem(withTitle: NSLocalizedString(title, comment: ""), action: action, keyEquivalent: key)
+        item.target = self
+        if let on { item.state = on ? .on : .off }
+        return item
+    }
+
+    private func submenu(_ menu: NSMenu, _ title: String) -> NSMenu {
+        let item = menu.addItem(withTitle: NSLocalizedString(title, comment: ""), action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        item.submenu = sub
+        return sub
+    }
+
+    @objc private func toggleClipboardRecording() { model.settings.clipboardEnabled.toggle() }
+    @objc private func toggleWebSearch() { model.settings.webSearchEnabled = model.settings.webSearchEnabled == false }
+    @objc private func toggleProactiveReminders() { model.settings.proactiveReminders.toggle() }
+    @objc private func selectApprovalMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let mode = ApprovalMode(rawValue: raw) else { return }
+        model.settings.approvalMode = mode
+    }
+    @objc private func selectAppearance(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String else { return }
+        model.preferences.appearance = value
+    }
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+            else { try SMAppService.mainApp.register() }
+        } catch {
+            let alert = AppDialog.make()
+            alert.messageText = NSLocalizedString("无法更改登录时启动", comment: "")
+            alert.informativeText = error.localizedDescription
+            NSApp.activate()
+            alert.runModal()
+        }
     }
 
     @objc private func openLauncher() { clipboardWindow.hide(); launcher.show() }

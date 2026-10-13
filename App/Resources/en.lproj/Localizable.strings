@@ -331,8 +331,8 @@
 "正在校验…" = "Verifying…";
 "正在安装…" = "Installing…";
 "自动更新" = "Automatic Updates";
-"在后台下载并校验新版本，退出 Asky 时完成安装；长时间未使用且没有打开的窗口时会自动重启完成更新。" = "Downloads and verifies new versions in the background and installs them when Asky quits. If you're away and no Asky window is open, it restarts automatically to finish updating.";
-"新版本 %@ 已就绪，退出 Asky 时自动安装" = "Version %@ is ready and installs when Asky quits";
+"在后台下载并校验新版本，在你不使用 Asky 时静默重启完成更新，旧版本会被删除。" = "Downloads and verifies new versions in the background, then silently restarts to finish updating while you're not using Asky. The old version is removed.";
+"新版本 %@ 已就绪，将在你不使用 Asky 时自动完成更新" = "Version %@ is ready and installs automatically while you're not using Asky";
 "下载更新" = "Download Update";
 "立即重启" = "Restart Now";
 "立即重启以完成更新？" = "Restart now to finish updating?";

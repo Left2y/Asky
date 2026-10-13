@@ -41,7 +41,7 @@ struct AboutSettings: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("自动更新", comment: ""))
-                        Text(NSLocalizedString("在后台下载并校验新版本，退出 Asky 时完成安装；长时间未使用且没有打开的窗口时会自动重启完成更新。", comment: ""))
+                        Text(NSLocalizedString("在后台下载并校验新版本，在你不使用 Asky 时静默重启完成更新，旧版本会被删除。", comment: ""))
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -62,7 +62,7 @@ struct AboutSettings: View {
         case .upToDate: Text(NSLocalizedString("已是最新版本", comment: "")).foregroundStyle(.secondary)
         case .available(let release): releaseText(release, NSLocalizedString("发现新版本 %@", comment: ""))
         case .downloading(_, let step): HStack(spacing: 8) { ProgressView().controlSize(.small); Text(step) }
-        case .ready(let staged): releaseText(staged.release, NSLocalizedString("新版本 %@ 已就绪，退出 Asky 时自动安装", comment: ""))
+        case .ready(let staged): releaseText(staged.release, NSLocalizedString("新版本 %@ 已就绪，将在你不使用 Asky 时自动完成更新", comment: ""))
         case .installing: HStack(spacing: 8) { ProgressView().controlSize(.small); Text(NSLocalizedString("正在安装…", comment: "")) }
         case .failed(let message): Text(message).foregroundStyle(ThemeColor.kTextNegative).fixedSize(horizontal: false, vertical: true)
         }

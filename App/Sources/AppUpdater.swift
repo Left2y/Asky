@@ -4,7 +4,8 @@ import ToolService
 
 /// Shared update state for the About page and silent background updates.
 /// With automatic updates on, new releases are downloaded and verified in the background, then
-/// swapped in when Asky quits, or relaunched in place while the user is away and no window is open.
+/// installed by a silent relaunch once Asky is not in use, or by the swap helper when the user quits.
+/// Nothing is announced; the About page shows a staged release for users who look.
 @MainActor @Observable
 final class AppUpdater {
     enum Status: Equatable {
@@ -20,12 +21,17 @@ final class AppUpdater {
     /// Set by the app delegate: true only when restarting cannot interrupt anything the user sees.
     @ObservationIgnored var isQuiet: () -> Bool = { false }
     @ObservationIgnored private var loop: Task<Void, Never>?
+    @ObservationIgnored private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    @ObservationIgnored private var lastUsed = Date()
+    @ObservationIgnored private var screenSaverRunning = false
 
     static let launchDelay: Duration = .seconds(120)
     static let checkInterval: TimeInterval = 6 * 3600
     static let idlePoll: Duration = .seconds(60)
-    /// No keyboard or pointer input for this long before a silent relaunch.
-    static let requiredIdle: TimeInterval = 10 * 60
+    /// Asky itself has not been opened for this long…
+    static let unusedFor: TimeInterval = 30 * 60
+    /// …and the Mac saw no input for this long, so a hotkey press is not about to land mid-restart.
+    static let inputIdleFor: TimeInterval = 2 * 60
 
     /// Source builds run from DerivedData and must never replace themselves.
     static var isSupported: Bool {
@@ -42,7 +48,10 @@ final class AppUpdater {
     func setAutomatic(_ enabled: Bool) {
         loop?.cancel()
         loop = nil
+        observers.forEach { $0.0.removeObserver($0.1) }
+        observers = []
         guard enabled, Self.isSupported else { return }
+        observe()
         loop = Task { [weak self] in
             try? await Task.sleep(for: Self.launchDelay)
             var lastCheck = Date.distantPast
@@ -51,13 +60,38 @@ final class AppUpdater {
                     lastCheck = Date()
                     await self.check(stage: true, silent: true)
                 }
-                if case .ready = self.status, self.isQuiet(), Self.systemIdleSeconds >= Self.requiredIdle {
-                    self.restartToInstall()
-                    return
-                }
+                self.restartIfUnused()
                 try? await Task.sleep(for: Self.idlePoll)
             }
         }
+    }
+
+    /// Any Asky window taking focus counts as use; lock, screen saver and wake re-evaluate at once.
+    private func observe() {
+        let local = NotificationCenter.default
+        let distributed = DistributedNotificationCenter.default()
+        let workspace = NSWorkspace.shared.notificationCenter
+        let add = { (center: NotificationCenter, name: Notification.Name, handler: @escaping @MainActor (AppUpdater) -> Void) in
+            let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { if let self { handler(self) } }
+            }
+            self.observers.append((center, token))
+        }
+        add(local, NSWindow.didBecomeKeyNotification) { $0.lastUsed = Date() }
+        add(distributed, .init("com.apple.screensaver.didstart")) { $0.screenSaverRunning = true; $0.restartIfUnused() }
+        add(distributed, .init("com.apple.screensaver.didstop")) { $0.screenSaverRunning = false }
+        add(distributed, .init("com.apple.screenIsLocked")) { $0.restartIfUnused() }
+        add(workspace, NSWorkspace.didWakeNotification) { $0.restartIfUnused() }
+    }
+
+    /// Relaunch only when nothing in Asky is open or working, and the user is either away
+    /// (screen locked or saver running) or has not opened Asky for a while and is not typing.
+    private func restartIfUnused() {
+        guard case .ready = status else { return }
+        guard isQuiet() else { lastUsed = Date(); return }
+        let away = screenSaverRunning || Self.screenIsLocked
+        let unused = Date().timeIntervalSince(lastUsed) >= Self.unusedFor && Self.systemIdleSeconds >= Self.inputIdleFor
+        if away || unused { restartToInstall() }
     }
 
     /// `stage` downloads right away; `silent` keeps transient failures out of the UI.
@@ -97,7 +131,7 @@ final class AppUpdater {
         }
     }
 
-    /// Swap now and reopen Asky.
+    /// Swap now and reopen Asky in the background without taking focus.
     func restartToInstall() {
         guard case .ready(let staged) = status else { return }
         do {
@@ -117,6 +151,10 @@ final class AppUpdater {
         if (try? ToolService.installStagedAppUpdate(staged, relaunch: false)) == nil {
             ToolService.discardStagedAppUpdate(staged)
         }
+    }
+
+    static var screenIsLocked: Bool {
+        (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionScreenIsLocked"] as? Bool == true
     }
 
     static var systemIdleSeconds: TimeInterval {

@@ -117,6 +117,25 @@ private struct Fixture {
         #expect(f.read.runs.withLock { $0 } == 1)
     }
 
+    @Test func requestsMarkServerBusyButIdleConnectionsDoNot() async throws {
+        let f = try await Fixture.make()
+        try f.server.start()
+        defer { f.server.stop() }
+        let path = f.path
+        let registered = try f.gateway.register(name: "Client")
+        var inst = registered.0
+        let cred = registered.credential
+        inst.enabled = true
+        try MCPInstanceStore(f.store).update(inst)
+        #expect(!f.server.isBusy(within: 60))
+        let client = try await blocking { Result { try MCPLinkClient(socketPath: path, credential: cred) } }.get()
+        #expect(f.server.isBusy(within: 60))
+        // An open but quiet connection does not hold back an update restart.
+        #expect(!f.server.isBusy(within: 0))
+        _ = try await blocking { Result { try client.listTools() } }.get()
+        #expect(f.server.isBusy(within: 60) && !f.server.isBusy(within: 0))
+    }
+
     @Test func stoppingServerMakesBridgeUnavailable() async throws {
         let f = try await Fixture.make()
         try f.server.start()

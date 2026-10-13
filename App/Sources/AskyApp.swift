@@ -116,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         reminders = ProactiveReminders(app: model)
         model.onSettingsChange = { [weak self] in self?.reminders.schedule() }
         model.updater.isQuiet = { [weak self] in self?.isQuietForUpdate ?? false }
+        ToolService.removeStaleAppUpdates()
         pressure = MemoryPressureMonitor { [weak self] _ in
             Task { @MainActor in self?.launcher.hide() }
         }
@@ -148,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var isQuietForUpdate: Bool {
         !launcher.isVisible && !clipboardWindow.isVisible && !agentWindow.isVisible && !agentWindow.model.isRunning
             && settingsWindow?.isVisible != true && model.confirmations.queue.isEmpty
+            && !model.terminal.isRunning && !model.isMCPBusy
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

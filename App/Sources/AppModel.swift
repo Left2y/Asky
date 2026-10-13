@@ -275,6 +275,8 @@ final class AppModel {
     }
 
     var isMCPListening: Bool { mcpServer != nil }
+    /// External MCP clients are mid-request, or were within the last two minutes.
+    var isMCPBusy: Bool { mcpServer?.isBusy(within: 120) == true }
 
     static var bridgeExecutablePath: String {
         Bundle.main.bundleURL.appending(path: "Contents/MacOS/asky-mcp").path

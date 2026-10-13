@@ -76,6 +76,7 @@ public final class MCPLinkServer: Sendable {
     private let gateway: MCPGateway
     private let state = Mutex<(listenFD: Int32, source: DispatchSourceRead?, connections: Int)>((-1, nil, 0))
     private let queue = DispatchQueue(label: "asky.mcp.link")
+    private let activity = Mutex<(inFlight: Int, last: Date)>((0, .distantPast))
 
     public init(socketPath: String = MCPLink.defaultSocketPath(), gateway: MCPGateway) {
         path = socketPath
@@ -133,13 +134,24 @@ public final class MCPLinkServer: Sendable {
         }
     }
 
+    /// True while a bridge request is being handled or one finished within `window`.
+    /// Open but idle connections do not count: bridges reconnect after the app restarts.
+    public func isBusy(within window: TimeInterval) -> Bool {
+        activity.withLock { $0.inFlight > 0 || Date().timeIntervalSince($0.last) < window }
+    }
+
     static func peerIsCurrentUser(_ fd: Int32) -> Bool {
         var uid: uid_t = 0, gid: gid_t = 0
         return getpeereid(fd, &uid, &gid) == 0 && uid == getuid()
     }
 
     private func serve(_ fd: Int32) {
-        let conn = Connection(fd: fd, gateway: gateway) { [weak self] in
+        let conn = Connection(fd: fd, gateway: gateway, onActivity: { [weak self] began in
+            self?.activity.withLock {
+                $0.inFlight += began ? 1 : -1
+                $0.last = Date()
+            }
+        }) { [weak self] in
             self?.state.withLock { $0.connections -= 1 }
         }
         conn.start()
@@ -150,12 +162,15 @@ public final class MCPLinkServer: Sendable {
 private final class Connection: @unchecked Sendable {
     let fd: Int32
     let gateway: MCPGateway
+    let onActivity: @Sendable (Bool) -> Void
     let onClose: @Sendable () -> Void
     private var credential: String?
 
-    init(fd: Int32, gateway: MCPGateway, onClose: @escaping @Sendable () -> Void) {
+    init(fd: Int32, gateway: MCPGateway, onActivity: @escaping @Sendable (Bool) -> Void,
+         onClose: @escaping @Sendable () -> Void) {
         self.fd = fd
         self.gateway = gateway
+        self.onActivity = onActivity
         self.onClose = onClose
     }
 
@@ -179,7 +194,10 @@ private final class Connection: @unchecked Sendable {
         }
         Task {
             for await frame in frames {
-                guard await handle(frame) else { break }
+                onActivity(true)
+                let keep = await handle(frame)
+                onActivity(false)
+                guard keep else { break }
             }
             close(fd)
             onClose()

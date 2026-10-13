@@ -140,6 +140,12 @@ enum AppUpdate {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
+    /// One known directory, so leftovers from an interrupted update can be found and removed.
+    static func stagingRoot() throws -> URL {
+        try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appending(path: Bundle.main.bundleIdentifier ?? "app.kulahere.KulaHere").appending(path: "Updates")
+    }
+
     static func request(_ url: URL) -> URLRequest {
         var request = URLRequest(url: url, timeoutInterval: 30)
         if url.host == "api.github.com" {
@@ -164,7 +170,7 @@ enum AppUpdate {
         }
     }
 
-    /// Waits for the running app to exit, swaps bundles, removes the old one and relaunches unless
+    /// Waits for the running app to exit, swaps bundles, deletes the old one and relaunches unless
     /// `$5` is 0. On a failed move the old bundle is restored so the user is never left without an app.
     /// Hang-up and terminate are ignored so a logout cannot interrupt the two renames midway.
     static let swapScript = """
@@ -175,7 +181,7 @@ enum AppUpdate {
     if mv "$old" "$backup"; then
       if mv "$new" "$old"; then rm -rf "$backup"; else mv "$backup" "$old"; fi
     fi
-    if [ "$relaunch" = 1 ]; then open "$old"; fi
+    if [ "$relaunch" = 1 ]; then open -g "$old"; fi
     rm -rf "$work"
     """
 }
@@ -244,8 +250,8 @@ extension ToolService {
         guard fileManager.isWritableFile(atPath: parent.path), fileManager.isWritableFile(atPath: installed.path) else {
             throw AppUpdateError.notWritable(parent.path)
         }
-        // Same volume as the installed app, so the final swap is an atomic rename.
-        let work = try fileManager.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: installed, create: true)
+        let work = try AppUpdate.stagingRoot().appending(path: UUID().uuidString)
+        try fileManager.createDirectory(at: work, withIntermediateDirectories: true)
         do {
             await progress(NSLocalizedString("正在下载…", comment: ""))
             let archive = work.appending(path: release.archiveURL.lastPathComponent)
@@ -292,6 +298,13 @@ extension ToolService {
         helper.standardOutput = FileHandle.nullDevice
         helper.standardError = FileHandle.nullDevice
         do { try helper.run() } catch { throw AppUpdateError.installFailed(error.localizedDescription) }
+    }
+
+    /// Removes downloads and old bundles left behind by an interrupted update. Call once at launch,
+    /// before anything is staged; a finished swap helper has already deleted its own directory.
+    public static func removeStaleAppUpdates() {
+        guard let root = try? AppUpdate.stagingRoot() else { return }
+        try? FileManager.default.removeItem(at: root)
     }
 
     public static func discardStagedAppUpdate(_ staged: StagedAppUpdate) {

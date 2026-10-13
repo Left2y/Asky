@@ -91,6 +91,8 @@ public final class TerminalRunner: Sendable {
         }
     }
 
+    public var isRunning: Bool { process.withLock { $0?.isRunning == true } }
+
     /// Terminates the running command (SIGTERM, then SIGKILL after 2 s).
     public func stop() {
         guard let p = process.withLock({ $0 }), p.isRunning else { return }

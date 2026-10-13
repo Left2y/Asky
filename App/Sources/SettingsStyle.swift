@@ -183,15 +183,17 @@ struct SettingsButton: View {
     var isLoading: Bool
     var isComplete: Bool
     var loadingTitle: String?
+    var isBordered: Bool
     init(_ title: String, role: ButtonRole? = nil, systemImage: String? = nil,
          isLoading: Bool = false, isComplete: Bool = false, loadingTitle: String? = nil,
-         action: @escaping () -> Void) {
+         isBordered: Bool = true, action: @escaping () -> Void) {
         self.title = title; self.role = role; self.systemImage = systemImage; self.action = action
         self.isLoading = isLoading; self.isComplete = isComplete; self.loadingTitle = loadingTitle
+        self.isBordered = isBordered
     }
     var body: some View {
         SettingsPushButton(title: title, role: role, systemImage: systemImage,
-                           hidesTitle: isLoading || isComplete, action: action)
+                           hidesTitle: isLoading || isComplete, isBordered: isBordered, action: action)
             .fixedSize()
             .overlay {
                 if isComplete { Image(systemName: "checkmark").accessibilityHidden(true) }
@@ -208,6 +210,7 @@ private struct SettingsPushButton: NSViewRepresentable {
     let role: ButtonRole?
     let systemImage: String?
     let hidesTitle: Bool
+    let isBordered: Bool
     let action: () -> Void
     @Environment(\.isEnabled) private var enabled
     @Environment(\.controlSize) private var controlSize
@@ -230,6 +233,7 @@ private struct SettingsPushButton: NSViewRepresentable {
         button.image = systemImage.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
         button.imagePosition = systemImage == nil ? .noImage : title.isEmpty ? .imageOnly : .imageLeading
         button.contentTintColor = role == .destructive ? .systemRed : nil
+        button.isBordered = isBordered
         button.isEnabled = enabled
         context.coordinator.action = action
     }

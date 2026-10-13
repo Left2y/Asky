@@ -43,7 +43,7 @@ struct SettingsEditableList: View {
                         .help(item)
                         .textSelection(.enabled)
                         Spacer(minLength: 12)
-                        SettingsButton("", systemImage: "trash") {
+                        SettingsButton("", systemImage: "trash", isBordered: false) {
                             items.remove(at: index)
                         }
                         .help(NSLocalizedString("删除", comment: ""))

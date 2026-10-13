@@ -425,11 +425,8 @@ private struct ModelSettingsView: View {
                     Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。", comment: ""))
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key)
-                    Text(NSLocalizedString(canReuseKey ? "Key 已保存；留空继续使用。" : "请输入此服务商的 API Key，密钥保存在 macOS 钥匙串中。", comment: ""))
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
-                }
+                SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key,
+                                    prompt: Text(NSLocalizedString(canReuseKey ? "已保存，留空不变" : "输入 API Key", comment: "")))
                 HStack {
                     Text(statusText).font(.system(size: 12)).foregroundStyle(.secondary)
                     Spacer()

@@ -102,11 +102,14 @@ struct SettingsSecureField: View {
     @Binding var text: String
     @Environment(\.colorScheme) private var scheme
     @FocusState private var focused: Bool
-    init(_ title: String, text: Binding<String>) { self.title = title; _text = text }
+    var prompt: Text? = nil
+    init(_ title: String, text: Binding<String>, prompt: Text? = nil) {
+        self.title = title; _text = text; self.prompt = prompt
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-            SecureField(title, text: $text).labelsHidden()
+            SecureField(title, text: $text, prompt: prompt).labelsHidden()
                 .textFieldStyle(.plain).focused($focused)
                 .settingsInputSurface(scheme: scheme, focused: focused)
         }

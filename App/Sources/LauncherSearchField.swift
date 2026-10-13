@@ -150,11 +150,15 @@ final class CompletionTextField: NSTextField {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if Self.isCopyPath(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
            copyPath?() == true { return true }
-        if event.type == .keyDown, event.charactersIgnoringModifiers?.lowercased() == "f",
-           event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock) == .command,
-           (currentEditor() as? NSTextView)?.hasMarkedText() != true,
+        if Self.isRevealInFinder(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
            revealInFinder?() == true { return true }
         return super.performKeyEquivalent(with: event)
+    }
+
+    static func isRevealInFinder(_ event: NSEvent) -> Bool {
+        event.type == .keyDown
+            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command
+            && (event.charactersIgnoringModifiers?.lowercased() == "f" || event.keyCode == 3)
     }
 
     static func isCopyPath(_ event: NSEvent) -> Bool {

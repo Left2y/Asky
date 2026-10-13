@@ -316,10 +316,10 @@ final class LauncherModel {
             let aliasQuery = text.trimmingCharacters(in: .whitespacesAndNewlines)
             direct += app.preferences.aliases.compactMap { item in
                 guard item.alias.caseInsensitiveCompare(aliasQuery) == .orderedSame else { return nil }
-                let action: ResultAction = item.kind == "shortcut" ? .runShortcut(name: item.target) : .open
+                let actions: [ResultAction] = item.kind == "shortcut" ? [.runShortcut(name: item.target)] : [.open, .revealInFinder]
                 return SearchResult(source: .keyword, target: TargetRef(kind: "launcher-alias", identifier: item.target),
                                     title: item.alias, subtitle: item.kind == "app" ? URL(filePath: item.target).deletingPathExtension().lastPathComponent : item.target,
-                                    actions: [action], score: 100)
+                                    actions: actions, score: 100)
             }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             if filter == .all, bookmarkCoordinator != nil, !trimmed.isEmpty {

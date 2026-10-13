@@ -41,7 +41,7 @@ struct ChatItem: Identifiable, Hashable {
         case let n where n.hasPrefix("chrome_"): return "globe"
         case let n where n.hasPrefix("shortcuts_"): return "square.stack.3d.up"
         case "web_search": return "globe"
-        case "memory_search", "memory_save", "memory_correct", "memory_forget": return "brain"
+        case "memory_read", "memory_save", "memory_correct", "memory_forget": return "brain"
         default: return "gearshape"
         }
     }
@@ -190,8 +190,8 @@ final class AgentModel {
         draft = ""
 
         var context: [ContextSnippet] = []
-        if app.settings.enabledSources.contains(.memory) {
-            context = ContextAssembler(memories: app.memories).snippets(for: text)
+        if app.settings.enabledSources.contains(.memory), let index = app.memory.context() {
+            context = [ContextSnippet(sourceID: "memory/\(MemoryFolder.indexName)", text: index)]
         }
         let request = AgentRequest(sessionID: cid, text: text, attachments: attachments, context: context)
         attachments = []
@@ -297,13 +297,13 @@ final class AgentModel {
         guard !extracting, !app.settings.memoryExtractionPaused, app.settings.enabledSources.contains(.memory),
               let cfg = app.modelConfiguration else { return }
         extracting = true
-        let store = app.store, keychain = app.keychain, account = cfg.credentialRef
+        let store = app.store, memory = app.memory, keychain = app.keychain, account = cfg.credentialRef
         Task {
             defer { extracting = false }
             guard let key = await Task.detached(operation: { try? keychain.read(account: account, allowInteraction: false) }).value,
                   !key.isEmpty else { return }
             let client = ChatCompletionClient(baseURL: cfg.baseURL, model: cfg.modelName, apiKey: key)
-            await MemoryExtractor(store: store) { try await client.complete(system: $0, user: $1) }.run()
+            await MemoryExtractor(store: store, memory: memory) { try await client.complete(system: $0, user: $1) }.run()
         }
     }
 

@@ -59,7 +59,7 @@ import Contracts
     }
 
     @Test func calendarDiscoveryIsRegisteredAndReadOnly() throws {
-        let tools = NativeTools(notesFolders: { [] }).adapters(memories: nil)
+        let tools = NativeTools(notesFolders: { [] }).adapters(memory: nil)
         let tool = try #require(tools.first { $0.definition.name == "calendar_list_calendars" })
         #expect(tool.definition.effect == .read)
         #expect(tool.definition.source == .calendar)

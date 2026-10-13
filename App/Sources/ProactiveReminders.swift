@@ -115,7 +115,7 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         let tasks = s.enabledSources.contains(.reminders) ? await openTasks() : []
         func input() -> AdvisorInput {
             AdvisorInput(events: events, tasks: tasks,
-                         memories: s.enabledSources.contains(.memory) ? relevantMemories(events: events, tasks: tasks) : [],
+                         memories: s.enabledSources.contains(.memory) ? memoryIndex() : [],
                          messages: s.advisorReadsMessages == true && s.enabledSources.contains(.messages) ? triage.notes : [],
                          recentSuggestions: ReminderStore(app.store).plans(status: [.delivered, .handled])
                             .filter { $0.reason == .insight }.suffix(10).map(\.title),
@@ -186,17 +186,9 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         }.value
     }
 
-    /// Memories that mention upcoming items, plus the most recent ones; only those allowed for AI use.
-    private func relevantMemories(events: [EventSnapshot], tasks: [TaskSnapshot]) -> [ContextSnippet] {
-        let assembler = ContextAssembler(memories: app.memories, maxSnippets: 3, maxCharacters: 1200)
-        var out: [ContextSnippet] = []
-        for title in (events.map(\.title) + tasks.map(\.title)).prefix(40) {
-            for m in assembler.snippets(for: title) where !out.contains(where: { $0.sourceID == m.sourceID }) { out.append(m) }
-        }
-        for m in app.memories.list(limit: 10) where m.permissions.contains(.aiUse) && !out.contains(where: { $0.sourceID == "memory:\(m.id)" }) {
-            out.append(ContextSnippet(sourceID: "memory:\(m.id)", text: m.content))
-        }
-        return Array(out.prefix(20))
+    /// The memory index (MEMORY.md); topic files are left out of background suggestions.
+    private func memoryIndex() -> [ContextSnippet] {
+        app.memory.context().map { [ContextSnippet(sourceID: "memory/\(MemoryFolder.indexName)", text: $0)] } ?? []
     }
 
     private func deliver(_ plan: ReminderPlan) async {

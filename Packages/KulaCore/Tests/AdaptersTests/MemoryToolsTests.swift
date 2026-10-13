@@ -7,11 +7,10 @@ import Memory
 @testable import Adapters
 
 @Suite struct MemoryToolsTests {
-    private func service(_ s: LocalStore, approve: Bool) async -> ToolService {
+    private func service(_ s: LocalStore, _ m: MemoryFolder, approve: Bool) async -> ToolService {
         let svc = ToolService(store: s, policy: { PolicySnapshot(enabledSources: [.memory]) },
                               presenter: { _ in approve ? .approved : .rejected })
-        let m = MemoryStore(s)
-        for a in [MemorySearchTool(m), MemorySaveTool(m), MemoryCorrectTool(m), MemoryForgetTool(m)] as [any ToolAdapter] {
+        for a in [MemoryReadTool(m), MemorySaveTool(m), MemoryCorrectTool(m), MemoryForgetTool(m)] as [any ToolAdapter] {
             await svc.register(a)
         }
         return svc
@@ -21,38 +20,47 @@ import Memory
         await svc.submit(ActionRequest(tool: tool, arguments: args, origin: .agent(sessionID: "c"), intent: intent))
     }
 
+    private func folder() -> MemoryFolder {
+        MemoryFolder(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    }
+
     @Test func explicitSaveRunsDirectlyAndInferredSaveIsOnlySuggested() async throws {
         let s = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
-        let svc = await service(s, approve: false)
-        let inferred = await call(svc, "memory_save", ["content": "用户可能喜欢咖啡", "kind": "preference"], intent: .aiSuggested)
-        #expect(inferred.status == .suggestion)
-        #expect(MemoryStore(s).list(limit: 10).isEmpty)
+        let m = folder()
+        let svc = await service(s, m, approve: false)
+        let inferred = await call(svc, "memory_save", ["content": "用户可能喜欢咖啡", "section": "偏好"], intent: .aiSuggested)
+        #expect(inferred.status == .suggestion && m.context() == nil)
 
-        let r = await call(svc, "memory_save", ["content": "用户的常用机场是浦东", "kind": "fact", "subjects": ["机场"]])
-        #expect(r.status == .completed)
-        let saved = try #require(MemoryStore(s).list(limit: 10).first)
-        #expect(saved.confirmed && saved.subjects == ["机场"] && r.output?["id"]?.stringValue == "memory:\(saved.id)")
+        let r = await call(svc, "memory_save", ["content": "用户的常用机场是浦东", "section": "关于我"])
+        #expect(r.status == .completed && m.read().contains("## 关于我\n- 用户的常用机场是浦东"))
 
-        let bad = await call(svc, "memory_save", ["content": "x", "kind": "secret"])
+        let topic = await call(svc, "memory_save", ["content": "用户常去成都出差", "file": "travel", "description": "出行习惯"])
+        #expect(topic.status == .completed && m.read("travel.md").contains("- 用户常去成都出差"))
+        #expect(m.read().contains("[travel.md](travel.md) — 出行习惯"))
+
+        let read = await call(svc, "memory_read", ["file": "travel.md"])
+        #expect(read.status == .completed && read.output?["text"]?.stringValue?.contains("成都") == true)
+        let missing = await call(svc, "memory_read", ["file": "nope.md"])
+        #expect(missing.error?.code == .targetNotFound)
+        let bad = await call(svc, "memory_save", ["content": "x", "file": "../x"])
         #expect(bad.error?.code == .invalidArguments)
     }
 
     @Test func explicitCorrectAndForgetRunWithoutConfirmation() async throws {
         let s = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
-        let old = try MemoryStore(s).saveStated("用户的常用机场是虹桥", kind: .fact)
-        let svc = await service(s, approve: false)   // presenter would reject any prompt
+        let m = folder()
+        try m.add("用户的常用机场是虹桥", section: "关于我")
+        let svc = await service(s, m, approve: false)   // presenter would reject any prompt
 
-        let inferred = await call(svc, "memory_forget", ["id": .string("memory:\(old.id)")], intent: .aiSuggested)
-        #expect(inferred.status == .suggestion && MemoryStore(s).get(old.id)?.status == .active)
+        let inferred = await call(svc, "memory_forget", ["old": "常用机场是虹桥"], intent: .aiSuggested)
+        #expect(inferred.status == .suggestion && m.read().contains("虹桥"))
 
-        let fixed = await call(svc, "memory_correct", ["id": .string("memory:\(old.id)"), "content": "用户的常用机场是浦东"])
-        #expect(fixed.status == .completed)
-        #expect(MemoryStore(s).get(old.id)?.status == .superseded)
-        let newID = try #require(fixed.output?["id"]?.stringValue)
+        let fixed = await call(svc, "memory_correct", ["old": "用户的常用机场是虹桥", "content": "用户的常用机场是浦东"])
+        #expect(fixed.status == .completed && m.read().contains("- 用户的常用机场是浦东") && !m.read().contains("虹桥"))
 
-        let missing = await call(svc, "memory_forget", ["id": .string("memory:\(old.id)")])
+        let missing = await call(svc, "memory_forget", ["old": "虹桥"])
         #expect(missing.error?.code == .targetNotFound)
-        let gone = await call(svc, "memory_forget", ["id": .string(newID)])
-        #expect(gone.status == .completed && MemoryStore(s).search("浦东").isEmpty)
+        let gone = await call(svc, "memory_forget", ["file": "MEMORY.md", "old": "常用机场是浦东"])
+        #expect(gone.status == .completed && m.context() == nil)
     }
 }

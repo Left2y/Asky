@@ -4,118 +4,141 @@ import Contracts
 import ToolService
 import Memory
 
-/// personal-context: only authorised (`.aiUse`) memory snippets, never the raw store. Not exposed to MCP.
-public struct MemorySearchTool: ToolAdapter {
-    let assembler: ContextAssembler
-    public init(_ memories: MemoryStore) { assembler = ContextAssembler(memories: memories) }
+private func memoryError(_ e: Error) -> Error {
+    switch e as? MemoryFolder.EditError {
+    case .notFound?: ToolError(.targetNotFound, "该记忆文件里没有这段文字，请按文件中的原文填写")
+    case .ambiguous?: ToolError(.ambiguousTarget, "这段文字在记忆文件里出现了多次，请多带一些上下文")
+    case .empty?: ToolError(.invalidArguments, "内容不能为空")
+    case .invalidFileName?: ToolError(.invalidArguments, "文件名只能是 MEMORY.md 或小写英文短名，如 projects.md")
+    case nil: e
+    }
+}
+
+private let fileProp: JSONValue = ["type": "string", "description": "记忆文件名；省略或 MEMORY.md 表示索引，主题文件如 projects.md"]
+
+/// Reads one topic file listed in the memory index. The index itself is already in every conversation's context.
+public struct MemoryReadTool: ToolAdapter {
+    let memory: MemoryFolder
+    public init(_ memory: MemoryFolder) { self.memory = memory }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "memory_search", summary: "检索用户已授权 AI 使用的个人记忆片段（推测会标注）",
-                       inputSchema: Args.schema(["query": Args.stringProp], required: ["query"]),
+        ToolDefinition(name: "memory_read", summary: "读取记忆索引中列出的主题文件全文",
+                       inputSchema: Args.schema(["file": fileProp], required: ["file"]),
                        source: .memory, effect: .read, confirmation: .never, externallyExposable: false)
     }
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
-        let s = assembler.snippets(for: try Args.requiredString(a, "query"))
-        return AdapterOutput(output: .array(s.map { ["source": .string($0.sourceID), "text": .string($0.text)] }))
+        let name: String
+        do { name = try MemoryFolder.fileName(a["file"]?.stringValue) } catch { throw memoryError(error) }
+        let text = memory.read(name)
+        guard !text.isEmpty else {
+            throw ToolError(.targetNotFound, "没有这个记忆文件；现有主题文件：" + memory.topicFiles().joined(separator: "、"))
+        }
+        return AdapterOutput(output: ["file": .string(name), "text": .string(String(text.prefix(MemoryFolder.maxTopicCharacters)))])
     }
 }
 
-private func memoryID(_ a: JSONValue) throws -> String {
-    let raw = try Args.requiredString(a, "id")
-    return raw.hasPrefix("memory:") ? String(raw.dropFirst(7)) : raw
-}
-
-private func activeMemory(_ memories: MemoryStore, _ a: JSONValue) throws -> MemoryRecord {
-    guard let m = memories.get(try memoryID(a)), m.status == .active else {
-        throw ToolError(.targetNotFound, "找不到这条记忆，请先用 memory_search 查到它的 id")
-    }
-    return m
-}
-
-/// Saves something the user explicitly asked Asky to remember. Inferred saves only become suggestions.
+/// Appends something the user explicitly asked Asky to remember. Inferred saves only become suggestions.
 public struct MemorySaveTool: ToolAdapter {
-    static let kinds: [String: MemoryKind] = ["fact": .fact, "preference": .preference, "episode": .episode]
-    let memories: MemoryStore
-    public init(_ memories: MemoryStore) { self.memories = memories }
+    let memory: MemoryFolder
+    public init(_ memory: MemoryFolder) { self.memory = memory }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "memory_save", summary: "保存用户明确要求记住的信息为长期记忆",
+        ToolDefinition(name: "memory_save", summary: "把用户明确要求记住的信息追加到记忆索引或主题文件",
                        inputSchema: Args.schema([
                         "content": ["type": "string", "description": "一句完整、可独立理解的陈述，例如「用户的常用机场是浦东」"],
-                        "kind": ["type": "string", "enum": ["fact", "preference", "episode"],
-                                 "description": "fact 事实；preference 偏好；episode 近期项目、讨论或决定"],
-                        "subjects": ["type": "array", "items": ["type": "string"], "description": "相关的人、项目或主题"],
-                       ], required: ["content", "kind"]),
+                        "file": fileProp,
+                        "section": ["type": "string", "enum": .array(MemoryFolder.sections.map(JSONValue.string)),
+                                    "description": "写入 MEMORY.md 时的分组：关于我（稳定事实）或偏好"],
+                        "description": ["type": "string", "description": "新建主题文件时，一句话说明它记什么，会登记到索引"],
+                       ], required: ["content"]),
                        source: .memory, effect: .write, writeKind: .create, confirmation: .createDirectOtherwiseConfirm,
                        externallyExposable: false)
     }
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
-        ConfirmationPreview(target: "长期记忆", changes: ["保存：" + String(try Args.requiredString(a, "content").prefix(300))])
+        let name: String
+        do { name = try MemoryFolder.fileName(a["file"]?.stringValue) } catch { throw memoryError(error) }
+        return ConfirmationPreview(target: "记忆 \(name)", changes: ["添加：" + String(try Args.requiredString(a, "content").prefix(300))])
     }
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
         let content = try Args.requiredString(a, "content")
         guard content.count <= 500 else { throw ToolError(.invalidArguments, "记忆内容过长，请精简为一句话") }
-        guard let kind = Self.kinds[a["kind"]?.stringValue ?? ""] else { throw ToolError(.invalidArguments, "kind 无效") }
-        let subjects = (a["subjects"]?.arrayValue ?? []).compactMap(\.stringValue).prefix(8)
-        let m = try memories.saveStated(content, kind: kind, subjects: Array(subjects))
-        return AdapterOutput(output: ["id": .string("memory:\(m.id)")], targets: [TargetRef(kind: "memory", identifier: m.id)])
+        let name: String
+        do {
+            name = try MemoryFolder.fileName(a["file"]?.stringValue)
+            try memory.add(content, section: a["section"]?.stringValue, file: name, description: a["description"]?.stringValue)
+        } catch { throw memoryError(error) }
+        return AdapterOutput(output: ["saved": true, "file": .string(name)], targets: [TargetRef(kind: "memory", identifier: name)])
     }
     public func readback(_ a: JSONValue, output: AdapterOutput?) async -> JSONValue? {
-        guard let id = output?.targets.first?.identifier, memories.get(id)?.status == .active else { return nil }
-        return ["id": .string("memory:\(id)"), "saved": true]
+        guard let name = output?.targets.first?.identifier, let content = a["content"]?.stringValue,
+              memory.read(name).contains(MemoryFolder.oneLine(content)) else { return nil }
+        return ["saved": true]
     }
 }
 
-/// User correction of an existing memory; the old record stays traceable but inactive.
-/// Memory edits are reversible from settings, so an explicit user request runs without an extra prompt.
+/// Replaces text in a memory file after a user correction.
+/// The files are user-editable, so an explicit user request runs without an extra prompt.
 public struct MemoryCorrectTool: ToolAdapter {
-    let memories: MemoryStore
-    public init(_ memories: MemoryStore) { self.memories = memories }
+    let memory: MemoryFolder
+    public init(_ memory: MemoryFolder) { self.memory = memory }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "memory_correct", summary: "按用户的纠正更新一条已有记忆",
-                       inputSchema: Args.schema(["id": ["type": "string", "description": "memory_search 返回的 source，如 memory:xxx"],
-                                                 "content": Args.stringProp], required: ["id", "content"]),
+        ToolDefinition(name: "memory_correct", summary: "按用户的纠正修改记忆文件中的一段文字",
+                       inputSchema: Args.schema(["file": fileProp,
+                                                 "old": ["type": "string", "description": "该文件中原样出现的旧文字"],
+                                                 "content": ["type": "string", "description": "替换后的完整陈述"]],
+                                                required: ["old", "content"]),
                        source: .memory, effect: .write, writeKind: .modify, confirmation: .explicitDirectOtherwiseConfirm,
                        externallyExposable: false)
     }
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
-        let m = try activeMemory(memories, a)
-        return ConfirmationPreview(target: "记忆「\(m.content.prefix(80))」",
+        let old = try Args.requiredString(a, "old")
+        do { _ = try MemoryFolder.uniqueRange(of: old, in: memory.read(try MemoryFolder.fileName(a["file"]?.stringValue))) }
+        catch { throw memoryError(error) }
+        return ConfirmationPreview(target: "记忆「\(old.prefix(80))」",
                                    changes: ["改为：" + String(try Args.requiredString(a, "content").prefix(300))])
     }
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
-        let old = try activeMemory(memories, a)
-        guard let m = try memories.correct(old.id, newContent: try Args.requiredString(a, "content")) else {
-            throw ToolError(.targetNotFound, "找不到这条记忆")
-        }
-        return AdapterOutput(output: ["id": .string("memory:\(m.id)")], targets: [TargetRef(kind: "memory", identifier: m.id)])
+        let name: String
+        do {
+            name = try MemoryFolder.fileName(a["file"]?.stringValue)
+            try memory.replace(try Args.requiredString(a, "old"), with: try Args.requiredString(a, "content"), file: name)
+        } catch { throw memoryError(error) }
+        return AdapterOutput(output: ["corrected": true], targets: [TargetRef(kind: "memory", identifier: name)])
     }
     public func readback(_ a: JSONValue, output: AdapterOutput?) async -> JSONValue? {
-        guard let id = output?.targets.first?.identifier, memories.get(id)?.status == .active else { return nil }
-        return ["id": .string("memory:\(id)"), "corrected": true]
+        guard let name = output?.targets.first?.identifier, let content = a["content"]?.stringValue,
+              memory.read(name).contains(MemoryFolder.oneLine(content)) else { return nil }
+        return ["corrected": true]
     }
 }
 
-/// Deletes a memory the user asked Asky to forget.
+/// Removes the line the user asked Asky to forget from a memory file.
 public struct MemoryForgetTool: ToolAdapter {
-    let memories: MemoryStore
-    public init(_ memories: MemoryStore) { self.memories = memories }
+    let memory: MemoryFolder
+    public init(_ memory: MemoryFolder) { self.memory = memory }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "memory_forget", summary: "删除用户要求忘记的一条记忆",
-                       inputSchema: Args.schema(["id": ["type": "string", "description": "memory_search 返回的 source，如 memory:xxx"]],
-                                                required: ["id"]),
+        ToolDefinition(name: "memory_forget", summary: "从记忆文件删除用户要求忘记的那一行",
+                       inputSchema: Args.schema(["file": fileProp,
+                                                 "old": ["type": "string", "description": "该文件中原样出现的文字"]],
+                                                required: ["old"]),
                        source: .memory, effect: .write, writeKind: .delete, confirmation: .explicitDirectOtherwiseConfirm,
                        externallyExposable: false)
     }
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
-        let m = try activeMemory(memories, a)
-        return ConfirmationPreview(target: "记忆「\(m.content.prefix(80))」", changes: ["删除这条记忆"])
+        let old = try Args.requiredString(a, "old")
+        do { _ = try MemoryFolder.uniqueRange(of: old, in: memory.read(try MemoryFolder.fileName(a["file"]?.stringValue))) }
+        catch { throw memoryError(error) }
+        return ConfirmationPreview(target: "记忆「\(old.prefix(80))」", changes: ["删除这一行"])
     }
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
-        let m = try activeMemory(memories, a)
-        try memories.delete(m.id)
-        return AdapterOutput(output: ["deleted": true], targets: [TargetRef(kind: "memory", identifier: m.id)])
+        let name: String
+        do {
+            name = try MemoryFolder.fileName(a["file"]?.stringValue)
+            try memory.remove(try Args.requiredString(a, "old"), file: name)
+        } catch { throw memoryError(error) }
+        return AdapterOutput(output: ["deleted": true], targets: [TargetRef(kind: "memory", identifier: name)])
     }
     public func readback(_ a: JSONValue, output: AdapterOutput?) async -> JSONValue? {
-        guard let id = try? memoryID(a), memories.get(id) == nil else { return nil }
+        guard let name = output?.targets.first?.identifier, let old = a["old"]?.stringValue,
+              !memory.read(name).contains(old.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
         return ["deleted": true]
     }
 }
@@ -158,7 +181,7 @@ public struct NativeTools: Sendable {
         notes = NotesBridge(allowed: notesFolders)
     }
 
-    public func adapters(memories: MemoryStore?) -> [any ToolAdapter] {
+    public func adapters(memory: MemoryFolder?) -> [any ToolAdapter] {
         var all: [any ToolAdapter] = [
             CalendarListTool(eventKit), CalendarSearchTool(eventKit), CalendarCreateTool(eventKit), CalendarUpdateTool(eventKit), CalendarDeleteTool(eventKit),
             RemindersListTool(eventKit), RemindersCreateTool(eventKit),
@@ -168,13 +191,13 @@ public struct NativeTools: Sendable {
             ChromeListTabsTool(chrome), ChromeActivateTabTool(chrome),
             ShortcutsListTool(), ShortcutsRunTool(), WebSearchTool(),
         ]
-        if let memories {
-            all += [MemorySearchTool(memories), MemorySaveTool(memories), MemoryCorrectTool(memories), MemoryForgetTool(memories)] as [any ToolAdapter]
+        if let memory {
+            all += [MemoryReadTool(memory), MemorySaveTool(memory), MemoryCorrectTool(memory), MemoryForgetTool(memory)] as [any ToolAdapter]
         }
         return all
     }
 
-    public func register(into service: ToolService, memories: MemoryStore?) async {
-        for a in adapters(memories: memories) { await service.register(a) }
+    public func register(into service: ToolService, memory: MemoryFolder?) async {
+        for a in adapters(memory: memory) { await service.register(a) }
     }
 }

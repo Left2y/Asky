@@ -572,9 +572,6 @@ enum ModelCapabilityCheck {
 
 private struct MemorySettings: View {
     @Bindable var app: AppModel
-    @State private var records: [MemoryRecord] = []
-    @State private var editing: String?
-    @State private var draft = ""
 
     var body: some View {
         SettingsForm {
@@ -584,35 +581,23 @@ private struct MemorySettings: View {
                     set: { app.settings.memoryExtractionPaused = !$0 }
                 ))
             }
-            Section(String(format: NSLocalizedString("记忆（%@）", comment: ""), String(records.count))) {
-                if records.isEmpty { Text(NSLocalizedString("暂无记忆", comment: "")).textStyle(.secondary) }
-                ForEach(records) { m in
-                    VStack(alignment: .leading, spacing: 4) {
-                        if editing == m.id {
-                            SettingsTextField(NSLocalizedString("内容", comment: ""), text: $draft)
-                            HStack {
-                                SettingsButton(NSLocalizedString("保存为纠正", comment: "")) { _ = try? app.memories.correct(m.id, newContent: draft); editing = nil; reload() }
-                                SettingsButton(NSLocalizedString("取消", comment: "")) { editing = nil }
-                            }
-                        } else {
-                            Text(m.content)
-                            Text("\(m.kind.rawValue)\(m.confirmed ? NSLocalizedString(" · 已确认", comment: "") : "")\(m.pinned ? NSLocalizedString(" · 已固定", comment: "") : "") · \(NSLocalizedString("来源", comment: "")): \(m.sourceIDs.joined(separator: ", "))")
-                                .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
-                            HStack {
-                                SettingsButton(NSLocalizedString("编辑", comment: "")) { editing = m.id; draft = m.content }
-                                SettingsButton(m.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定", comment: "")) { try? app.memories.setPinned(m.id, !m.pinned); reload() }
-                                if !m.confirmed { SettingsButton(NSLocalizedString("确认", comment: "")) { try? app.memories.confirm(m.id); reload() } }
-                                SettingsButton(NSLocalizedString("删除", comment: ""), role: .destructive) { try? app.memories.delete(m.id); reload() }
-                            }
-                        }
+            Section {
+                Text(NSLocalizedString("记忆保存在 Markdown 文件里：MEMORY.md 是索引，每次对话都会读取；较长的主题写在同目录的主题文件里，需要时再读。可以直接编辑。", comment: ""))
+                    .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                Text(app.memory.indexURL.path).textStyle(.secondary).textSelection(.enabled)
+                HStack {
+                    SettingsButton(NSLocalizedString("编辑 MEMORY.md", comment: "")) {
+                        try? app.memory.ensureExists()
+                        NSWorkspace.shared.open(app.memory.indexURL)
+                    }
+                    SettingsButton(NSLocalizedString("打开记忆文件夹", comment: "")) {
+                        try? app.memory.ensureExists()
+                        NSWorkspace.shared.activateFileViewerSelecting([app.memory.indexURL])
                     }
                 }
             }
         }
-        .onAppear(perform: reload)
     }
-
-    private func reload() { records = app.memories.list(limit: 200) }
 }
 
 // MARK: External MCP

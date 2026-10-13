@@ -98,13 +98,13 @@ function launch(dataDir: string): Proc {
 const TOOLS = [
   { name: "calendar_create", summary: "新建日程", inputSchema: { type: "object", properties: { title: { type: "string" } }, required: ["title"], additionalProperties: false },
     source: "calendar", effect: "write", writeKind: "create", confirmation: "createDirectOtherwiseConfirm", externallyExposable: true, agentExposable: true },
-  { name: "memory_search", summary: "检索记忆", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+  { name: "memory_read", summary: "读取记忆主题文件", inputSchema: { type: "object", properties: { file: { type: "string" } }, required: ["file"], additionalProperties: false },
     source: "memory", effect: "read", confirmation: "never", externallyExposable: false, agentExposable: true },
   { name: "hidden_tool", summary: "不应暴露", inputSchema: { type: "object", properties: {}, additionalProperties: false },
     source: "terminal", effect: "read", confirmation: "never", externallyExposable: false, agentExposable: false },
 ];
 
-async function handshake(p: Proc, mock: Mock, tools = TOOLS) {
+async function handshake(p: Proc, mock: Mock, tools: readonly object[] = TOOLS) {
   p.send({ type: "hello", protocol: 2 });
   const ready = await p.next((f) => f.type === "ready");
   assert.equal(ready.protocol, 2);
@@ -135,7 +135,7 @@ test("tool round trip, whitelist, intent mapping and in-memory credential", asyn
 
     // Only whitelisted tools reach the model: no read/bash/edit/write, no codemode/tool_search, no hidden tools.
     const names = (mock.requests[0].body.tools ?? []).map((t: any) => t.function.name).sort();
-    assert.deepEqual(names, ["ask_user", "calendar_create", "memory_search"]);
+    assert.deepEqual(names, ["ask_user", "calendar_create", "memory_read"]);
     // Credential: injected key used; environment key ignored.
     assert.ok(mock.requests.every((r) => r.auth === `Bearer ${KEY}`));
     // The formatting policy reaches the model through the real runtime.
@@ -188,7 +188,7 @@ test("ai-suggested writes are flagged and clarification ends the turn", async ()
 });
 
 test("cancel while a tool is pending reports cancelled; stdin EOF exits", async () => {
-  const mock = await startMock([() => toolCallReply("memory_search", { query: "x" }), () => textReply("不应到达")]);
+  const mock = await startMock([() => toolCallReply("memory_read", { file: "projects.md" }), () => textReply("不应到达")]);
   const dataDir = mkdtempSync(join(tmpdir(), "kula-rt-"));
   const p = launch(dataDir);
   try {

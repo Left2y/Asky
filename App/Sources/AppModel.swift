@@ -53,7 +53,7 @@ final class AppModel {
     let store: LocalStore
     let tools: ToolService
     let native: NativeTools
-    let memories: MemoryStore
+    let memory: MemoryFolder
     let gateway: MCPGateway
     let keychain = Keychain()
     let confirmations: ConfirmationCenter
@@ -134,7 +134,8 @@ final class AppModel {
 
         let confirmations = ConfirmationCenter()
         self.confirmations = confirmations
-        memories = MemoryStore(store)
+        memory = MemoryFolder(store)
+        memory.migrateLegacy(store)
         let instances = MCPInstanceStore(store)
         tools = ToolService(store: store, policy: {
             let s = reader.load()
@@ -157,7 +158,7 @@ final class AppModel {
 
     func start() async {
         Task { [exchange] in await ToolService.prefetchLauncherCurrency(service: exchange) }
-        await native.register(into: tools, memories: memories)
+        await native.register(into: tools, memory: memory)
         agent = makeAgentHost()
         refreshMCPServer()
         ClipboardMonitor.cleanup(ClipboardStore(store))

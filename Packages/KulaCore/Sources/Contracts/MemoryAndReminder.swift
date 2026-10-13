@@ -11,62 +11,6 @@ public struct SourcePermissions: OptionSet, Sendable, Hashable, Codable {
     public static let none: SourcePermissions = []
 }
 
-public enum MemoryKind: String, Sendable, Codable {
-    /// User-stated fact.
-    case fact
-    /// Explicitly stated preference.
-    case preference
-    /// App-inferred; always correctable.
-    case inference
-    /// Episodic: recent project / discussion / decision.
-    case episode
-}
-
-public enum MemoryStatus: String, Sendable, Codable {
-    case active, superseded
-}
-
-public struct MemoryRecord: Sendable, Hashable, Codable, Identifiable {
-    public var id: String
-    public var content: String
-    public var kind: MemoryKind
-    public var status: MemoryStatus
-    public var sourceIDs: [String]
-    public var subjects: [String]
-    public var project: String?
-    public var confirmed: Bool
-    public var pinned: Bool
-    public var supersedes: String?
-    public var supersededBy: String?
-    /// Effective permissions: intersection of all contributing sources.
-    public var permissions: SourcePermissions
-    public var sourceDeleted: Bool
-    public var createdAt: Date
-    public var updatedAt: Date
-
-    public init(id: String = UUID().uuidString, content: String, kind: MemoryKind, status: MemoryStatus = .active,
-                sourceIDs: [String], subjects: [String] = [], project: String? = nil, confirmed: Bool = false,
-                pinned: Bool = false, supersedes: String? = nil, supersededBy: String? = nil,
-                permissions: SourcePermissions, sourceDeleted: Bool = false,
-                createdAt: Date = Date(), updatedAt: Date = Date()) {
-        self.id = id
-        self.content = content
-        self.kind = kind
-        self.status = status
-        self.sourceIDs = sourceIDs
-        self.subjects = subjects
-        self.project = project
-        self.confirmed = confirmed
-        self.pinned = pinned
-        self.supersedes = supersedes
-        self.supersededBy = supersededBy
-        self.permissions = permissions
-        self.sourceDeleted = sourceDeleted
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-}
-
 public enum ReminderReason: String, Sendable, Codable, CaseIterable {
     case conflict, travel, importantDate
     /// Model-judged suggestion that connects events, tasks and memories; only produced when background AI is on.

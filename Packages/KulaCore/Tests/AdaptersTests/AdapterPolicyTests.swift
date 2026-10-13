@@ -36,7 +36,7 @@ import Contracts
     }
 
     @Test func registryFollowsExposurePolicy() {
-        let tools = NativeTools(notesFolders: { [] }).adapters(memories: nil).map(\.definition)
+        let tools = NativeTools(notesFolders: { [] }).adapters(memory: nil).map(\.definition)
         #expect(Set(tools.map(\.name)).count == tools.count)
         for t in tools {
             if t.effect == .write { #expect(t.writeKind != nil && t.confirmation != .never, "\(t.name)") }

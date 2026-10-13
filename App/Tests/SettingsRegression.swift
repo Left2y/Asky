@@ -163,7 +163,7 @@ enum SettingsRegression {
                         guard window.title == "\(page.title) — Asky 设置" else {
                             fatalError("settings title did not follow selection: \(tab)")
                         }
-                        if page == .mcp {
+                        if page == .model {
                             assertMCPCheckboxLayout(in: split.splitViewItems[1].viewController.view)
                         }
                         guard let view = window.contentView,

@@ -4,21 +4,19 @@ import Theme
 
 enum SettingsPage: String, CaseIterable, Identifiable {
     case general = "advanced", model, hotkey, aliases, keywords
-    case sources, permissions, memory, mcp, plugins, about, author
+    case sources, permissions, plugins, about, author
 
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: NSLocalizedString("通用", comment: "")
-        case .model: NSLocalizedString("模型设置", comment: "")
+        case .model: NSLocalizedString("智能配置", comment: "")
         case .hotkey: NSLocalizedString("触发快捷键", comment: "")
         case .aliases: NSLocalizedString("别名与快捷指令", comment: "")
         case .keywords: NSLocalizedString("指令", comment: "")
         case .sources: NSLocalizedString("数据来源", comment: "")
         case .permissions: NSLocalizedString("系统权限", comment: "")
-        case .memory: NSLocalizedString("记忆", comment: "")
         case .plugins: NSLocalizedString("插件", comment: "")
-        case .mcp: NSLocalizedString("外部 MCP", comment: "")
         case .about: NSLocalizedString("关于 Asky", comment: "")
         case .author: NSLocalizedString("关于作者", comment: "")
         }
@@ -32,9 +30,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .keywords: "terminal"
         case .sources: "square.stack.3d.up"
         case .permissions: "hand.raised.fill"
-        case .memory: "brain"
         case .plugins: "puzzlepiece.extension"
-        case .mcp: "point.3.connected.trianglepath.dotted"
         case .about: "info.circle"
         case .author: "person.crop.circle"
         }
@@ -42,11 +38,11 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .general, .hotkey, .about, .author: .gray
-        case .model, .memory: .purple
+        case .model: .purple
         case .aliases, .keywords: .orange
         case .sources: .blue
         case .permissions: .green
-        case .mcp, .plugins: .teal
+        case .plugins: .teal
         }
     }
     static func resolve(_ id: String) -> Self { Self(rawValue: id) ?? .general }
@@ -220,9 +216,8 @@ private struct SettingsSidebar: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup("Settings", pages: [.general, .hotkey, .permissions])
+                sidebarGroup("Settings", pages: [.general, .hotkey, .permissions, .model])
                 sidebarGroup("Tools", pages: [.aliases, .keywords, .sources, .plugins])
-                sidebarGroup("Agent", pages: [.model, .mcp, .memory])
                 sidebarGroup("Others", pages: [.about, .author])
             }
             .padding(.horizontal, 12).padding(.top, 0)

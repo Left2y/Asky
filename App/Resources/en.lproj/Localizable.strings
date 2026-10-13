@@ -81,7 +81,7 @@
 "外部 MCP" = "External MCP";
 "外部 MCP 客户端" = "External MCP client";
 "失败" = "Failed";
-"实例" = "Instances";
+"MCP 实例" = "MCP instances";
 "实例名称（如 Claude Desktop）" = "Instance name (e.g. Claude Desktop)";
 "尚未请求" = "Not requested";
 "尚未选择" = "No selection";
@@ -172,7 +172,7 @@
 "当前配置已生效" = "Current configuration is active";
 "有未保存的更改" = "Unsaved changes";
 "模型名" = "Model name";
-"模型设置" = "Model Settings";
+"智能配置" = "AI Settings";
 "正在启动…" = "Starting…";
 "正在检查…" = "Checking…";
 "正在请求…" = "Requesting…";
@@ -434,7 +434,6 @@
 "让 AI 读取最近 30 天的短信与 iMessage" = "Let AI read the last 30 days of SMS and iMessage";
 "Settings" = "Settings";
 "Tools" = "Tools";
-"Agent" = "Agent";
 "Others" = "Others";
 
 "短信读取" = "Message reading";

@@ -37,7 +37,7 @@ final class Link: @unchecked Sendable {
 
 let env = ProcessInfo.processInfo.environment
 guard let credential = (env["ASKY_MCP_CREDENTIAL"] ?? env["KULAHERE_MCP_CREDENTIAL"]), !credential.isEmpty else {
-    FileHandle.standardError.write(Data("asky-mcp: ASKY_MCP_CREDENTIAL is not set. Create an instance in Asky › 设置 › 外部 MCP.\n".utf8))
+    FileHandle.standardError.write(Data("asky-mcp: ASKY_MCP_CREDENTIAL is not set. Create an instance in Asky › 设置 › 智能配置.\n".utf8))
     exit(64)
 }
 signal(SIGPIPE, SIG_IGN)

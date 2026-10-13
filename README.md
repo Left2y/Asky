@@ -57,7 +57,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 ### 配置与隐私
 
-在“设置 › 模型设置”选择 DeepSeek、MiniMax、GLM、Kimi、Qwen 或 OpenAI，预设自动填写 API 地址并提供模型选项，只需输入 API Key。选择“完全自定义”可手动填写 OpenAI 兼容地址和模型名。切换 API 地址后需填写对应的新 Key。Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。先保存再检查配置；检查失败时显示 HTTP 状态与服务商原因。余额不足、认证失败或网络错误不代表模型不支持对应能力。
+在“设置 › 智能配置”选择 DeepSeek、MiniMax、GLM、Kimi、Qwen 或 OpenAI，预设自动填写 API 地址并提供模型选项，只需输入 API Key。选择“完全自定义”可手动填写 OpenAI 兼容地址和模型名。切换 API 地址后需填写对应的新 Key。Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。先保存再检查配置；检查失败时显示 HTTP 状态与服务商原因。余额不足、认证失败或网络错误不代表模型不支持对应能力。
 
 应用没有向作者上传用户数据的接口。AI 消息、附件和所需工具结果发送至你配置的模型服务；联网搜索词发送至 Bing。记忆保存在本机 Markdown 文件中；启用后，索引、按需读取的主题和自动提炼、整理所需内容也会发送至模型服务。来源开关与系统权限在设置中管理。详见[隐私政策草案](PRIVACY.md)。
 

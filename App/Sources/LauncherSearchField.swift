@@ -17,6 +17,8 @@ struct LauncherSearchField: NSViewRepresentable {
     var submit: (Bool) -> Void
     /// ⌥⌘C; return false to let the shortcut fall through.
     var copyPath: (() -> Bool)? = nil
+    /// ⌥⌘Return; reveals the selected file/app in Finder.
+    var revealInFinder: (() -> Bool)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -55,6 +57,7 @@ struct LauncherSearchField: NSViewRepresentable {
             if let field = field as? CompletionTextField {
                 field.completion = parent.completion
                 field.copyPath = parent.copyPath
+                field.revealInFinder = parent.revealInFinder
                 field.updateCompletion()
             }
             if let color = parent.placeholderColor {
@@ -119,6 +122,7 @@ final class CompletionTextField: NSTextField {
     private let suffix = CompletionLabel(labelWithString: "")
     var completion: String?
     var copyPath: (() -> Bool)?
+    var revealInFinder: (() -> Bool)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -146,6 +150,13 @@ final class CompletionTextField: NSTextField {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if Self.isCopyPath(event), (currentEditor() as? NSTextView)?.hasMarkedText() != true,
            copyPath?() == true { return true }
+        // Always consume ⌥⌘Return so it never falls through to ⌘Return's AI submission.
+        if event.type == .keyDown, [36, 76].contains(event.keyCode),
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock) == [.command, .option],
+           (currentEditor() as? NSTextView)?.hasMarkedText() != true {
+            _ = revealInFinder?()
+            return true
+        }
         return super.performKeyEquivalent(with: event)
     }
 

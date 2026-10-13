@@ -470,14 +470,18 @@ final class LauncherModel {
         return true
     }
 
-    /// Return executes the selection; ⌘Return reveals a file/app selection in Finder, otherwise submits to AI.
+    /// ⌥⌘Return reveals the selected file/app in Finder.
+    func revealSelectionInFinder() -> Bool {
+        guard currencyConversion == nil, results.indices.contains(selection),
+              results[selection].actions.contains(.revealInFinder) else { return false }
+        execute(results[selection], action: .revealInFinder)
+        return true
+    }
+
+    /// Return executes the selection; ⌘Return explicitly submits to AI.
     func submit(_ kind: SubmitKind) {
         switch kind {
         case .submitToAI:
-            if results.indices.contains(selection), results[selection].actions.contains(.revealInFinder) {
-                execute(results[selection], action: .revealInFinder)
-                return
-            }
             let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return }
             onAskAI(text)

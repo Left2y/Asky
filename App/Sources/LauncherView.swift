@@ -388,7 +388,8 @@ struct LauncherView: View {
                     backspaceOnEmpty: model.backspaceOnEmptyInput,
                     move: model.move,
                     submit: { model.submit($0 ? .submitToAI : .executeSelection) },
-                    copyPath: model.copySelectedPath
+                    copyPath: model.copySelectedPath,
+                    revealInFinder: model.revealSelectionInFinder
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)

@@ -231,7 +231,7 @@ private struct SettingsPushButton: NSViewRepresentable {
         ])
         button.controlSize = controlSize == .large || controlSize == .extraLarge ? .large : .regular
         button.image = systemImage.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
-            .flatMap { isBordered ? $0 : $0.withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) }
+            .flatMap { title.isEmpty ? $0.withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) : $0 }
         button.imagePosition = systemImage == nil ? .noImage : title.isEmpty ? .imageOnly : .imageLeading
         button.contentTintColor = role == .destructive ? .systemRed : nil
         button.isBordered = isBordered

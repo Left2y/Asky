@@ -24,121 +24,185 @@ struct ReminderBannerItem: Identifiable {
     var lifetime: TimeInterval? = 8
 }
 
-/// Floating cards in the top-right corner, stacked downward, never taking focus from the frontmost app.
+/// One floating stack in the top-right corner that never takes focus from the frontmost app.
+/// New cards slide in from the right with 8 pt gaps; after a few seconds the stack folds so only the
+/// first card stays readable and the rest peek out underneath, to be handled one at a time.
 @MainActor
 final class ReminderBannerCenter {
     static let shared = ReminderBannerCenter()
 
-    private static let width: CGFloat = 360
-    private static let margin: CGFloat = 12
-    private static let gap: CGFloat = 10
-    /// Transparent canvas around the card so the panel does not clip its shadow.
+    static let width: CGFloat = 360
+    static let gap: CGFloat = 8
+    /// How much each folded card shows under the one in front of it.
+    static let peek: CGFloat = 8
+    static let maxPeeking = 2
+    /// Transparent canvas around the stack so the panel does not clip card shadows.
     static let shadowInset: CGFloat = 24
-    private static let maxVisible = 3
+    private static let margin: CGFloat = 12
+    private static let foldDelay: TimeInterval = 4
+    private static let maxCards = 5
 
-    @MainActor private final class Entry {
-        let item: ReminderBannerItem
-        let panel: NSPanel
-        let motion = ReminderBannerMotion()
-        var timer: Timer?
-        var remaining: TimeInterval?
-        var deadline: Date?
-        init(item: ReminderBannerItem, panel: NSPanel) {
-            self.item = item
-            self.panel = panel
-            remaining = item.lifetime
-        }
-    }
+    static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    static var slide: Animation { reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.4) }
+    static var reflow: Animation { reduceMotion ? .easeOut(duration: 0.15) : .spring(duration: 0.45, bounce: 0.12) }
 
-    private var entries: [Entry] = []
+    let stack = ReminderBannerStack()
+    private var panel: ReminderBannerPanel?
+    private var screenTop: CGFloat = 0
+    private var screenRight: CGFloat = 0
     private var waiting: [ReminderBannerItem] = []
+    private var timers: [UUID: Timer] = [:]
+    private var remaining: [UUID: TimeInterval] = [:]
+    private var deadlines: [UUID: Date] = [:]
+    private var foldTimer: Timer?
+    private var shrinkWork: DispatchWorkItem?
 
     func show(_ item: ReminderBannerItem) {
-        guard entries.count < Self.maxVisible else { waiting.append(item); return }
-        let panel = ReminderBannerPanel()
-        let entry = Entry(item: item, panel: panel)
-        let view = ReminderBannerView(item: item, motion: entry.motion,
-                                      onDismiss: { [weak self] in self?.dismiss(item.id) },
-                                      onHover: { [weak self] hovering in self?.setPaused(hovering, id: item.id) })
-        let host = NSHostingView(rootView: view)
-        let size = NSSize(width: Self.width + Self.shadowInset * 2,
-                          height: host.fittingSize.height)
-        // Measured once; the panel frame is then owned by the stack layout, not the hosting view.
-        host.sizingOptions = []
-        entries.append(entry)
-
-        guard let screen = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame
-        else { return }
-        // Final size and place before the content attaches, so the first layout is already the resting one and
-        // the only thing that animates is the horizontal slide inside the window (clipped at the screen edge).
-        panel.setFrame(NSRect(origin: origin(for: entries.count - 1, size: size, in: screen), size: size), display: false)
-        host.frame = NSRect(origin: .zero, size: size)
-        panel.contentView = host
-        host.layoutSubtreeIfNeeded()
+        guard stack.cards.filter({ !$0.leaving }).count < Self.maxCards else { waiting.append(item); return }
+        let panel = preparePanel()
+        remaining[item.id] = item.lifetime
+        stack.cards.append(.init(item: item))
         panel.orderFrontRegardless()
-        DispatchQueue.main.async { entry.motion.present() }
         NSAccessibility.post(element: panel, notification: .announcementRequested,
                              userInfo: [.announcement: "\(item.title)，\(item.body)", .priority: NSAccessibilityPriorityLevel.high.rawValue])
-        startTimer(entry)
+        // The slide starts once the card has reported its height (see measured), so it never animates layout.
     }
 
     func dismiss(_ id: UUID) {
-        guard let index = entries.firstIndex(where: { $0.item.id == id }) else { return }
-        let entry = entries.remove(at: index)
-        entry.timer?.invalidate()
-        entry.motion.dismiss()
-        let panel = entry.panel
-        DispatchQueue.main.asyncAfter(deadline: .now() + (Self.reduceMotion ? 0 : 0.3)) { panel.orderOut(nil) }
-        relayout()
-        if !waiting.isEmpty { show(waiting.removeFirst()) }
+        guard let index = stack.cards.firstIndex(where: { $0.id == id && !$0.leaving }) else { return }
+        stopTimer(id)
+        remaining[id] = nil
+        stack.cards[index].frozenY = stack.y(of: id)
+        stack.cards[index].leaving = true
+        stack.cards[index].settled = false
+        withAnimation(Self.reduceMotion ? .easeOut(duration: 0.15) : .easeIn(duration: 0.25)) { stack.cards[index].presented = false }
+        // The rest close the gap (or the next folded card comes forward) while this one slides out.
+        withAnimation(Self.reflow) { stack.layoutVersion += 1 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (Self.reduceMotion ? 0.15 : 0.3)) { [weak self] in
+            guard let self else { return }
+            stack.cards.removeAll { $0.id == id }
+            if !waiting.isEmpty { show(waiting.removeFirst()) }
+            if stack.cards.isEmpty { panel?.orderOut(nil); stack.expanded = true }
+            afterChange()
+        }
+        afterChange()
     }
 
     func dismissAll() {
         waiting.removeAll()
-        entries.map(\.item.id).forEach(dismiss)
+        stack.cards.map(\.id).forEach(dismiss)
     }
 
-    static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// Called by the card view once SwiftUI knows its natural height.
+    func measured(_ id: UUID, height: CGFloat) {
+        guard let index = stack.cards.firstIndex(where: { $0.id == id }), stack.cards[index].height != height else { return }
+        let first = stack.cards[index].height == 0
+        stack.cards[index].height = height
+        afterChange()
+        guard first else { return }
+        // A newcomer unfolds the stack so it is seen, then everything folds again after a pause.
+        if !stack.expanded { withAnimation(Self.reflow) { stack.expanded = true } }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let i = stack.cards.firstIndex(where: { $0.id == id }) else { return }
+            withAnimation(Self.slide) { self.stack.cards[i].presented = true } completion: { [weak self] in
+                guard let self, let i = stack.cards.firstIndex(where: { $0.id == id }) else { return }
+                withAnimation(.easeOut(duration: 0.15)) { self.stack.cards[i].settled = true }
+            }
+            scheduleFold()
+            afterChange()
+        }
+    }
 
-    private func relayout() {
-        guard let screen = (entries.first?.panel.screen ?? NSScreen.main)?.visibleFrame else { return }
-        for (index, entry) in entries.enumerated() {
-            let size = entry.panel.frame.size
-            let frame = NSRect(origin: origin(for: index, size: size, in: screen), size: size)
-            guard frame != entry.panel.frame else { continue }
-            // NSWindow animates `frame` (setFrame:display:), not setFrameOrigin.
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = Self.reduceMotion ? 0 : 0.25
-                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
-                entry.panel.animator().setFrame(frame, display: true)
+    func setHovering(_ hovering: Bool) {
+        stack.hovering = hovering
+        if hovering { foldTimer?.invalidate() } else { scheduleFold() }
+        refreshTimers()
+    }
+
+    func expand() {
+        guard !stack.expanded else { return }
+        withAnimation(Self.reflow) { stack.expanded = true }
+        scheduleFold()
+        afterChange()
+    }
+
+    // MARK: Folding, timers, window size
+
+    private func scheduleFold() {
+        foldTimer?.invalidate()
+        guard stack.expanded, !stack.hovering else { return }
+        foldTimer = Timer.scheduledTimer(withTimeInterval: Self.foldDelay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.stack.hovering, self.stack.cards.filter({ !$0.leaving }).count > 1 else { return }
+                withAnimation(Self.reflow) { self.stack.expanded = false }
+                self.afterChange()
             }
         }
     }
 
-    private func origin(for index: Int, size: NSSize, in screen: NSRect) -> NSPoint {
-        var top = screen.maxY - Self.margin + Self.shadowInset
-        for entry in entries.prefix(index) { top -= entry.panel.frame.height - Self.shadowInset * 2 + Self.gap }
-        return NSPoint(x: screen.maxX - Self.margin - size.width + Self.shadowInset, y: top - size.height)
+    private func afterChange() {
+        refreshTimers()
+        resizePanel()
     }
 
-    private func setPaused(_ paused: Bool, id: UUID) {
-        guard let entry = entries.first(where: { $0.item.id == id }) else { return }
-        if paused {
-            entry.timer?.invalidate()
-            entry.timer = nil
-            if let deadline = entry.deadline { entry.remaining = max(1.5, deadline.timeIntervalSinceNow) }
-        } else {
-            startTimer(entry)
+    /// Auto-dismiss only counts down while a card is actually readable and the pointer is elsewhere.
+    private func refreshTimers() {
+        let active = stack.active
+        for card in stack.cards {
+            let readable = card.presented && !card.leaving && (stack.expanded || active.first?.id == card.id)
+            if readable && !stack.hovering { startTimer(card.id) } else { stopTimer(card.id) }
         }
     }
 
-    private func startTimer(_ entry: Entry) {
-        guard let remaining = entry.remaining else { return }
-        entry.deadline = Date().addingTimeInterval(remaining)
-        let id = entry.item.id
-        entry.timer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+    private func startTimer(_ id: UUID) {
+        guard timers[id] == nil, let left = remaining[id] else { return }
+        deadlines[id] = Date().addingTimeInterval(left)
+        timers[id] = Timer.scheduledTimer(withTimeInterval: left, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.dismiss(id) }
         }
+    }
+
+    private func stopTimer(_ id: UUID) {
+        guard let timer = timers.removeValue(forKey: id) else { return }
+        timer.invalidate()
+        if let deadline = deadlines.removeValue(forKey: id) { remaining[id] = max(1.5, deadline.timeIntervalSinceNow) }
+    }
+
+    private func preparePanel() -> ReminderBannerPanel {
+        if let panel, panel.isVisible { return panel }
+        let screen = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame ?? .zero
+        screenTop = screen.maxY - Self.margin + Self.shadowInset
+        screenRight = screen.maxX - Self.margin + Self.shadowInset
+        let panel = self.panel ?? {
+            let p = ReminderBannerPanel()
+            let host = NSHostingView(rootView: ReminderBannerStackView(stack: stack, center: self))
+            host.sizingOptions = []
+            p.contentView = host
+            self.panel = p
+            return p
+        }()
+        setPanelHeight(Self.shadowInset * 2, panel)
+        return panel
+    }
+
+    /// The window is top-anchored and only as tall as the stack, so the desktop under it stays clickable.
+    /// It grows at once and shrinks after the reflow, so cards never get clipped mid-animation.
+    private func resizePanel() {
+        guard let panel else { return }
+        let target = stack.contentHeight + Self.shadowInset * 2
+        shrinkWork?.cancel()
+        if target >= panel.frame.height {
+            setPanelHeight(target, panel)
+        } else {
+            let work = DispatchWorkItem { [weak self] in self?.setPanelHeight(target, panel) }
+            shrinkWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+        }
+    }
+
+    private func setPanelHeight(_ height: CGFloat, _ panel: NSPanel) {
+        let width = Self.width + Self.shadowInset * 2
+        panel.setFrame(NSRect(x: screenRight - width, y: screenTop - height, width: width, height: height), display: true)
     }
 
     #if DEBUG
@@ -168,23 +232,93 @@ final class ReminderBannerCenter {
     #endif
 }
 
-/// Drives the slide; the window itself never moves for enter / exit.
+/// Cards in display order: the first one is on top when unfolded and in front when folded.
 @MainActor @Observable
-final class ReminderBannerMotion {
-    private(set) var presented = false
-    /// The outer shadow is a separate layer; it fades in after the slide so it never trails the glass.
-    private(set) var settled = false
-
-    func present() {
-        let reduce = ReminderBannerCenter.reduceMotion
-        withAnimation(reduce ? .easeOut(duration: 0.15) : .smooth(duration: 0.4)) { presented = true } completion: {
-            withAnimation(.easeOut(duration: 0.15)) { self.settled = true }
-        }
+final class ReminderBannerStack {
+    struct Card: Identifiable {
+        let item: ReminderBannerItem
+        var height: CGFloat = 0
+        var presented = false
+        /// The outer shadow appears after the slide so it never trails the glass.
+        var settled = false
+        var leaving = false
+        var frozenY: CGFloat = 0
+        var id: UUID { item.id }
     }
 
-    func dismiss() {
-        settled = false
-        withAnimation(ReminderBannerCenter.reduceMotion ? .easeOut(duration: 0.15) : .easeIn(duration: 0.25)) { presented = false }
+    var cards: [Card] = []
+    var expanded = true
+    var hovering = false
+    /// Bumped inside withAnimation so a dismissal reflows the remaining cards in the same transaction.
+    var layoutVersion = 0
+
+    var active: [Card] { cards.filter { !$0.leaving && $0.height > 0 } }
+
+    /// Position among the cards that still take part in the layout.
+    func rank(of id: UUID) -> Int? { active.firstIndex { $0.id == id } }
+
+    func y(of id: UUID) -> CGFloat {
+        if let card = cards.first(where: { $0.id == id }), card.leaving { return card.frozenY }
+        guard let rank = rank(of: id) else { return 0 }
+        if expanded {
+            return active.prefix(rank).reduce(0) { $0 + $1.height + ReminderBannerCenter.gap }
+        }
+        return CGFloat(min(rank, ReminderBannerCenter.maxPeeking)) * ReminderBannerCenter.peek
+    }
+
+    var contentHeight: CGFloat {
+        let cards = active
+        guard let front = cards.first else { return 0 }
+        if expanded { return cards.reduce(0) { $0 + $1.height } + CGFloat(cards.count - 1) * ReminderBannerCenter.gap }
+        return front.height + CGFloat(min(cards.count - 1, ReminderBannerCenter.maxPeeking)) * ReminderBannerCenter.peek
+    }
+}
+
+private struct ReminderBannerStackView: View {
+    let stack: ReminderBannerStack
+    let center: ReminderBannerCenter
+
+    var body: some View {
+        let _ = stack.layoutVersion
+        let front = stack.active.first
+        ZStack(alignment: .top) {
+            ForEach(stack.cards) { card in
+                let rank = stack.rank(of: card.id)
+                let behind = !stack.expanded && (rank ?? 0) > 0
+                let depth = CGFloat(min(rank ?? 0, ReminderBannerCenter.maxPeeking))
+                ReminderBannerCard(item: card.item, settled: card.settled, contentVisible: !behind,
+                                   // Folded cards take the front card's size so only an even sliver shows below it.
+                                   foldedHeight: behind ? front?.height : nil,
+                                   onDismiss: { center.dismiss(card.id) },
+                                   onHeight: { center.measured(card.id, height: $0) })
+                    .overlay {
+                        // A folded card is just a sliver: clicking it unfolds the stack instead of hitting hidden buttons.
+                        if behind {
+                            Color.clear.contentShape(Rectangle())
+                                .onTapGesture { center.expand() }
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .scaleEffect(behind ? 1 - depth * 0.05 : 1, anchor: .bottom)
+                    .offset(x: card.presented || ReminderBannerCenter.reduceMotion ? 0
+                            : ReminderBannerCenter.width + ReminderBannerCenter.shadowInset * 2,
+                            y: stack.y(of: card.id))
+                    .opacity(visible(card, rank: rank) ? 1 : 0)
+                    .zIndex(card.leaving ? 1000 : -Double(rank ?? 0))
+                    .allowsHitTesting(!card.leaving)
+                    .accessibilityHidden(behind)
+            }
+        }
+        .frame(width: ReminderBannerCenter.width)
+        .onHover { center.setHovering($0) }
+        .padding(ReminderBannerCenter.shadowInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private func visible(_ card: ReminderBannerStack.Card, rank: Int?) -> Bool {
+        if ReminderBannerCenter.reduceMotion && !card.presented { return false }
+        if card.leaving || stack.expanded { return true }
+        return (rank ?? 0) <= ReminderBannerCenter.maxPeeking
     }
 }
 
@@ -206,11 +340,13 @@ private final class ReminderBannerPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-private struct ReminderBannerView: View {
+private struct ReminderBannerCard: View {
     let item: ReminderBannerItem
-    let motion: ReminderBannerMotion
+    let settled: Bool
+    let contentVisible: Bool
+    let foldedHeight: CGFloat?
     let onDismiss: () -> Void
-    let onHover: (Bool) -> Void
+    let onHeight: (CGFloat) -> Void
     @State private var hovering = false
     @State private var showingReasons = false
     private let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -287,23 +423,28 @@ private struct ReminderBannerView: View {
             }
         }
         .padding(16)
-        .frame(width: 360, alignment: .leading)
+        .frame(width: ReminderBannerCenter.width, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeight($0) }
+        .opacity(contentVisible ? 1 : 0)
+        .frame(height: foldedHeight, alignment: .top)
+        .clipped()
         .nativeGlassBackground(in: shape)
         .background {
             // Shadow only outside the card, so it never darkens the translucent glass.
             shape.fill(.black)
-                .shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 6)
+                .shadow(color: .black.opacity(contentVisible ? 0.28 : 0.12), radius: contentVisible ? 14 : 6, x: 0, y: contentVisible ? 6 : 2)
                 .mask {
                     Rectangle().padding(-ReminderBannerCenter.shadowInset)
                         .overlay { shape.fill(.black).blendMode(.destinationOut) }
                         .compositingGroup()
                 }
-                .opacity(motion.settled ? 1 : 0)
+                .opacity(settled ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
         .overlay(alignment: .topTrailing) {
-            if hovering {
+            if hovering && contentVisible {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .bold))
@@ -318,16 +459,8 @@ private struct ReminderBannerView: View {
                 .transition(.opacity)
             }
         }
-        .onHover { inside in
-            withAnimation(.easeOut(duration: 0.15)) { hovering = inside }
-            onHover(inside)
-        }
+        .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
         .accessibilityElement(children: .contain)
-        .padding(ReminderBannerCenter.shadowInset)
-        // Off-window start: the panel and the screen edge clip the card while it slides in from the right.
-        // Only x changes; the animation is applied by ReminderBannerMotion so no layout change rides along.
-        .offset(x: motion.presented || ReminderBannerCenter.reduceMotion ? 0 : 360 + ReminderBannerCenter.shadowInset * 2)
-        .opacity(motion.presented || !ReminderBannerCenter.reduceMotion ? 1 : 0)
     }
 }
 

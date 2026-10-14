@@ -131,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             await model.start()
             reminders.start()
             #if DEBUG
+            if CommandLine.arguments.contains("--test-banner") { ReminderBannerCenter.shared.showPreview() }
             if CommandLine.arguments.contains("--test-notification") {
                 do { try await NotificationPreview.send() }
                 catch {
@@ -274,6 +275,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             add(appearance, title, #selector(selectAppearance(_:)), on: model.preferences.appearance == value).representedObject = value
         }
         add(menu, "登录时启动", #selector(toggleLaunchAtLogin), on: SMAppService.mainApp.status == .enabled)
+        #if DEBUG
+        add(menu, "预览提醒卡片", #selector(previewReminderBanner))
+        #endif
         menu.addItem(.separator())
         add(menu, "设置…", #selector(openSettings), key: ",")
         menu.addItem(.separator())
@@ -306,6 +310,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func toggleClipboardRecording() { model.settings.clipboardEnabled.toggle() }
     @objc private func toggleWebSearch() { model.settings.webSearchEnabled = model.settings.webSearchEnabled == false }
     @objc private func toggleProactiveReminders() { model.settings.proactiveReminders.toggle() }
+    #if DEBUG
+    @objc private func previewReminderBanner() { ReminderBannerCenter.shared.showPreview() }
+    #endif
     @objc private func selectApprovalMode(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let mode = ApprovalMode(rawValue: raw) else { return }
         model.settings.approvalMode = mode

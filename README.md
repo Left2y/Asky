@@ -40,6 +40,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 [下载 Asky](https://github.com/Niall-Young/Asky/releases)（macOS 15+，Apple Silicon）。打开 DMG，将 `Asky.app` 拖入“应用程序”后启动；安装包已包含 Node.js 和 AgentRuntime。ZIP 用于应用内更新。
 
+安装到“应用程序”后，自动更新默认开启：后台下载并校验新版本，在你不使用 Asky 时完成更新；可在“设置 › 关于 Asky › 软件更新”关闭。
+
 首次使用见[使用教程](docs/user-guide.md)。
 
 ### 使用方法
@@ -123,6 +125,8 @@ The app icon and branding in Settings use a black graphite finish based on [Mark
 ### Quick Start
 
 [Download Asky](https://github.com/Niall-Young/Asky/releases) (macOS 15+, Apple Silicon). Open the DMG, drag `Asky.app` into Applications, then launch it. Node.js and AgentRuntime are bundled; ZIP packages are for in-app updates.
+
+When installed in Applications, automatic updates are enabled by default. Asky downloads and verifies new versions in the background, then installs them when you are not using the app. Disable this in Settings › About Asky › Software Update.
 
 Start with the [user guide (Chinese)](docs/user-guide.md).
 

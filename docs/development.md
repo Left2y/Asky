@@ -77,20 +77,20 @@ build/outside-click-regression
 
 ### 发布打包
 
-版本变更与发布结果见 [0.0.23 发布记录](validation/2026-10-13-release-0.0.23.md)。以下路径为该版本的打包示例；发布新版本时替换版本号、构建号及目录。
+版本变更与发布结果见 [0.1.0 发布记录](validation/2026-10-14-release-0.1.0.md)。以下路径为该版本的打包示例；发布新版本时替换版本号、构建号及目录。
 
-先运行本指南中的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release023DerivedData`。在干净的 `build/release-runtime-0.0.23` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.0.23`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
+先运行本指南中的测试，使用 `xcodebuild` 的 `Release` 配置构建到 `build/Release010DerivedData`。在干净的 `build/release-runtime-0.1.0` 目录中仅放入 AgentRuntime 的 `dist`、`package.json`、`package-lock.json`，再运行 `npm ci --omit=dev --prefix build/release-runtime-0.1.0`。从 Node.js 官方获取并按官方 SHA-256 清单核验 arm64 运行时，解压至下面的目录。提交源码后，在干净工作区运行：
 
 ```sh
-python3 scripts/package-release.py --version 0.0.23 --build 23 \
-  --derived-data build/Release023DerivedData \
-  --runtime build/release-runtime-0.0.23 \
+python3 scripts/package-release.py --version 0.1.0 --build 24 \
+  --derived-data build/Release010DerivedData \
+  --runtime build/release-runtime-0.1.0 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
 开发与后续打包默认使用固定的 `Asky Local Signing` 自签名证书。首次运行 `python3 scripts/setup-local-signing.py`，证书有效期为 10 年，仅包含名称，不填写姓名或邮箱；私钥保存在登录钥匙串，临时私钥文件自动删除。系统可能要求确认钥匙串操作。重复运行保留原证书，不能每次更新重新创建；跨机器发布应安全迁移同一签名身份，私钥备份不得进入仓库或安装包。证书丢失、过期或换用另一身份时可能需要重新授权。签名身份连续性不等于各项系统权限已实机验收；从旧 ad-hoc 版本切换后可能需要重新授权一次。
 
-脚本生成 `build/releases/0.0.23/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
+脚本生成 `build/releases/0.1.0/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
 ### 通知预览
 
@@ -173,20 +173,20 @@ Record only checks actually executed in `docs/validation/`. Track automated chec
 
 ### Release Packaging
 
-See the [0.0.23 release record](validation/2026-10-13-release-0.0.23.md) for changes and results. The paths below are examples for that version; replace the version, build number, and directories for a new release.
+See the [0.1.0 release record](validation/2026-10-14-release-0.1.0.md) for changes and results. The paths below are examples for that version; replace the version, build number, and directories for a new release.
 
-Run the tests in this guide and build with the `Release` configuration of `xcodebuild` into `build/Release023DerivedData`. In a clean `build/release-runtime-0.0.23` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.0.23`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
+Run the tests in this guide and build with the `Release` configuration of `xcodebuild` into `build/Release010DerivedData`. In a clean `build/release-runtime-0.1.0` directory, include only AgentRuntime's `dist`, `package.json`, and `package-lock.json`, then run `npm ci --omit=dev --prefix build/release-runtime-0.1.0`. Obtain the arm64 runtime from Node.js, verify it against the official SHA-256 manifest, and extract it into the directory below. Commit the source changes, then run from a clean working tree:
 
 ```sh
-python3 scripts/package-release.py --version 0.0.23 --build 23 \
-  --derived-data build/Release023DerivedData \
-  --runtime build/release-runtime-0.0.23 \
+python3 scripts/package-release.py --version 0.1.0 --build 24 \
+  --derived-data build/Release010DerivedData \
+  --runtime build/release-runtime-0.1.0 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
 Development and future packages default to the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once. The certificate lasts 10 years and contains only its name, with no personal name or email. The private key stays in the login keychain; temporary private-key files are removed automatically. macOS may ask you to confirm keychain operations. Re-running preserves the certificate; do not recreate it for each update. To publish from another machine, securely migrate the same signing identity and keep private-key backups out of the repository and installers. Losing, expiring, or replacing the identity may require authorization again. Stable signing identity does not establish live acceptance of every system permission; switching from an old ad-hoc build may require authorization once.
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.0.23/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.1.0/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
 
 ### Notification Preview
 

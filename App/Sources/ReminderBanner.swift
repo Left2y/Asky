@@ -33,9 +33,10 @@ final class ReminderBannerCenter {
     static let shadowInset: CGFloat = 24
     private static let maxVisible = 3
 
-    private final class Entry {
+    @MainActor private final class Entry {
         let item: ReminderBannerItem
         let panel: NSPanel
+        let motion = ReminderBannerMotion()
         var timer: Timer?
         var remaining: TimeInterval?
         var deadline: Date?
@@ -53,7 +54,7 @@ final class ReminderBannerCenter {
         guard entries.count < Self.maxVisible else { waiting.append(item); return }
         let panel = ReminderBannerPanel()
         let entry = Entry(item: item, panel: panel)
-        let view = ReminderBannerView(item: item,
+        let view = ReminderBannerView(item: item, motion: entry.motion,
                                       onDismiss: { [weak self] in self?.dismiss(item.id) },
                                       onHover: { [weak self] hovering in self?.setPaused(hovering, id: item.id) })
         let host = NSHostingView(rootView: view)
@@ -61,20 +62,15 @@ final class ReminderBannerCenter {
                           height: host.fittingSize.height)
         // Measured once; the panel frame is then owned by the stack layout, not the hosting view.
         host.sizingOptions = []
-        panel.setContentSize(size)
         panel.contentView = host
         entries.append(entry)
 
         guard let screen = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame
         else { return }
-        let target = origin(for: entries.count - 1, size: size, in: screen)
-        panel.alphaValue = 0
-        panel.setFrameOrigin(NSPoint(x: target.x + 40, y: target.y))
+        // The window sits at its final place; the card slides inside it, clipped at the screen's right edge.
+        panel.setFrame(NSRect(origin: origin(for: entries.count - 1, size: size, in: screen), size: size), display: false)
         panel.orderFrontRegardless()
-        animate(duration: 0.35) {
-            panel.animator().alphaValue = 1
-            panel.animator().setFrameOrigin(target)
-        }
+        DispatchQueue.main.async { entry.motion.presented = true }
         NSAccessibility.post(element: panel, notification: .announcementRequested,
                              userInfo: [.announcement: "\(item.title)，\(item.body)", .priority: NSAccessibilityPriorityLevel.high.rawValue])
         startTimer(entry)
@@ -84,11 +80,9 @@ final class ReminderBannerCenter {
         guard let index = entries.firstIndex(where: { $0.item.id == id }) else { return }
         let entry = entries.remove(at: index)
         entry.timer?.invalidate()
+        entry.motion.presented = false
         let panel = entry.panel
-        animate(duration: 0.2, {
-            panel.animator().alphaValue = 0
-            panel.animator().setFrameOrigin(NSPoint(x: panel.frame.minX + 24, y: panel.frame.minY))
-        }, completion: { panel.orderOut(nil) })
+        DispatchQueue.main.asyncAfter(deadline: .now() + (Self.reduceMotion ? 0 : 0.3)) { panel.orderOut(nil) }
         relayout()
         if !waiting.isEmpty { show(waiting.removeFirst()) }
     }
@@ -98,14 +92,20 @@ final class ReminderBannerCenter {
         entries.map(\.item.id).forEach(dismiss)
     }
 
+    static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+
     private func relayout() {
         guard let screen = (entries.first?.panel.screen ?? NSScreen.main)?.visibleFrame else { return }
-        var top = screen.maxY - Self.margin + Self.shadowInset
-        for entry in entries {
+        for (index, entry) in entries.enumerated() {
             let size = entry.panel.frame.size
-            let target = NSPoint(x: screen.maxX - Self.margin - size.width + Self.shadowInset, y: top - size.height)
-            animate(duration: 0.25) { entry.panel.animator().setFrameOrigin(target) }
-            top -= size.height - Self.shadowInset * 2 + Self.gap
+            let frame = NSRect(origin: origin(for: index, size: size, in: screen), size: size)
+            guard frame != entry.panel.frame else { continue }
+            // NSWindow animates `frame` (setFrame:display:), not setFrameOrigin.
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = Self.reduceMotion ? 0 : 0.25
+                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
+                entry.panel.animator().setFrame(frame, display: true)
+            }
         }
     }
 
@@ -135,15 +135,6 @@ final class ReminderBannerCenter {
         }
     }
 
-    private func animate(duration: TimeInterval, _ changes: () -> Void, completion: (@MainActor () -> Void)? = nil) {
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = reduceMotion ? 0 : duration
-            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
-            changes()
-        }, completionHandler: completion.map { done in { MainActor.assumeIsolated { done() } } })
-    }
-
     #if DEBUG
     /// Developer preview: two sample cards, no calendar or scheduler records.
     func showPreview() {
@@ -160,6 +151,12 @@ final class ReminderBannerCenter {
         }
     }
     #endif
+}
+
+/// Drives the slide; the window itself never moves for enter / exit.
+@MainActor @Observable
+final class ReminderBannerMotion {
+    var presented = false
 }
 
 private final class ReminderBannerPanel: NSPanel {
@@ -182,6 +179,7 @@ private final class ReminderBannerPanel: NSPanel {
 
 private struct ReminderBannerView: View {
     let item: ReminderBannerItem
+    let motion: ReminderBannerMotion
     let onDismiss: () -> Void
     let onHover: (Bool) -> Void
     @State private var hovering = false
@@ -276,6 +274,12 @@ private struct ReminderBannerView: View {
         }
         .accessibilityElement(children: .contain)
         .padding(ReminderBannerCenter.shadowInset)
+        // Off-window start: the panel and the screen edge clip the card while it slides in from the right.
+        .offset(x: motion.presented ? 0 : 360 + ReminderBannerCenter.shadowInset * 2)
+        .opacity(motion.presented || !ReminderBannerCenter.reduceMotion ? 1 : 0)
+        .animation(ReminderBannerCenter.reduceMotion ? .easeOut(duration: 0.15)
+                   : motion.presented ? .spring(duration: 0.45, bounce: 0.18) : .easeIn(duration: 0.25),
+                   value: motion.presented)
     }
 }
 

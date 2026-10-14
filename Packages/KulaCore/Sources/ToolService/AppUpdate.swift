@@ -170,6 +170,8 @@ enum AppUpdate {
         }
     }
 
+    static let lsregister = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
     /// Waits for the running app to exit, swaps bundles, deletes the old one and relaunches unless
     /// `$5` is 0. On a failed move the old bundle is restored so the user is never left without an app.
     /// Hang-up and terminate are ignored so a logout cannot interrupt the two renames midway.
@@ -181,9 +183,10 @@ enum AppUpdate {
     if mv "$old" "$backup"; then
       if mv "$new" "$old"; then rm -rf "$backup"; else mv "$backup" "$old"; fi
     fi
-    # Same path, new bundle: refresh Launch Services so the Dock drops the cached old icon.
+    # Same path, new bundle: refresh Launch Services before opening, or its stale record can make it
+    # launch another registered copy of a newer version, and the Dock keeps the cached old icon.
     touch "$old"
-    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$old" 2>/dev/null || true
+    \(lsregister) -f "$old" 2>/dev/null || true
     if [ "$relaunch" = 1 ]; then open -g "$old"; fi
     rm -rf "$work"
     """

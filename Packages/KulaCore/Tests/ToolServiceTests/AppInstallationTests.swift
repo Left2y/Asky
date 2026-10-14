@@ -14,6 +14,19 @@ struct AppInstallationTests {
         }
     }
 
+    @Test func installedCopyIsCurrentUnlessThisCopyIsNewer() throws {
+        let fm = FileManager.default
+        let app = fm.temporaryDirectory.appending(path: UUID().uuidString).appending(path: "Asky.app")
+        try fm.createDirectory(at: app.appending(path: "Contents"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: app.deletingLastPathComponent()) }
+        #expect(!ToolService.installedAppIsCurrent(app, current: "0.1.0"))
+        try PropertyListSerialization.data(fromPropertyList: ["CFBundleShortVersionString": "0.1.1"], format: .xml, options: 0)
+            .write(to: app.appending(path: "Contents/Info.plist"))
+        #expect(ToolService.installedAppIsCurrent(app, current: "0.1.0"))
+        #expect(ToolService.installedAppIsCurrent(app, current: "0.1.1"))
+        #expect(!ToolService.installedAppIsCurrent(app, current: "0.1.2"))
+    }
+
     @Test func collisionPreservesExistingAppAndSource() throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appending(path: UUID().uuidString)

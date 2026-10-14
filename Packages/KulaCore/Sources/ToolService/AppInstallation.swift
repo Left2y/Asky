@@ -52,15 +52,31 @@ extension ToolService {
         try fm.moveItem(at: staged, to: destination)
     }
 
+    /// Passed to the installed app by `reopenInstalledAppAfterExit`, so a misrouted launch cannot bounce forever.
+    public static let redirectedLaunchArgument = "--asky-redirected"
+
+    /// The installed copy is at least as new as this one, so opening it instead loses nothing.
+    public static func installedAppIsCurrent(_ url: URL, current: String = currentAppVersion) -> Bool {
+        let installed = NSDictionary(contentsOf: url.appending(path: "Contents/Info.plist"))?["CFBundleShortVersionString"] as? String
+        return installed.map { !AppUpdate.isNewer(current, than: $0) } ?? false
+    }
+
     /// Opens the installed bundle only after this process exits, avoiding Launch Services returning this instance.
+    /// Re-registers it first: a stale record (e.g. right after an update swap) can make Launch Services
+    /// open another registered copy with the same bundle identifier instead of this path.
     public static func reopenInstalledAppAfterExit(at url: URL) throws {
         guard Bundle(url: url)?.bundleIdentifier == Bundle.main.bundleIdentifier else {
             throw AppUpdateError.invalidBundle
         }
         let helper = Process()
         helper.executableURL = URL(filePath: "/bin/sh")
-        helper.arguments = ["-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$2\"",
-                            "asky-install", String(ProcessInfo.processInfo.processIdentifier), url.path]
+        helper.arguments = ["-c", """
+                            while kill -0 "$1" 2>/dev/null; do sleep 0.2; done
+                            \(AppUpdate.lsregister) -f "$2" 2>/dev/null || true
+                            /usr/bin/open "$2" --args "$3"
+                            """,
+                            "asky-install", String(ProcessInfo.processInfo.processIdentifier), url.path,
+                            redirectedLaunchArgument]
         helper.standardOutput = FileHandle.nullDevice
         helper.standardError = FileHandle.nullDevice
         try helper.run()

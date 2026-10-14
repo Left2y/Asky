@@ -6,6 +6,14 @@ enum AppInstallationPrompt {
     /// Runs before models, hotkeys and permission flows are initialized.
     static func handleLaunchIfNeeded() -> Bool {
         guard ToolService.appInstallationRequired else { return false }
+        // Launch Services can route a relaunch (e.g. after an update) to another registered copy;
+        // when the installed app is not older, hand over to it without asking. Once only, to avoid loops.
+        if let installed = ToolService.existingInstalledApp, ToolService.installedAppIsCurrent(installed),
+           !CommandLine.arguments.contains(ToolService.redirectedLaunchArgument),
+           (try? ToolService.reopenInstalledAppAfterExit(at: installed)) != nil {
+            NSApp.terminate(nil)
+            return true
+        }
         NSApp.activate(ignoringOtherApps: true)
         let alert = AppDialog.make()
         alert.messageText = NSLocalizedString("安装 Asky", comment: "")

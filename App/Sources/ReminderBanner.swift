@@ -62,15 +62,18 @@ final class ReminderBannerCenter {
                           height: host.fittingSize.height)
         // Measured once; the panel frame is then owned by the stack layout, not the hosting view.
         host.sizingOptions = []
-        panel.contentView = host
         entries.append(entry)
 
         guard let screen = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame
         else { return }
-        // The window sits at its final place; the card slides inside it, clipped at the screen's right edge.
+        // Final size and place before the content attaches, so the first layout is already the resting one and
+        // the only thing that animates is the horizontal slide inside the window (clipped at the screen edge).
         panel.setFrame(NSRect(origin: origin(for: entries.count - 1, size: size, in: screen), size: size), display: false)
+        host.frame = NSRect(origin: .zero, size: size)
+        panel.contentView = host
+        host.layoutSubtreeIfNeeded()
         panel.orderFrontRegardless()
-        DispatchQueue.main.async { entry.motion.presented = true }
+        DispatchQueue.main.async { entry.motion.present() }
         NSAccessibility.post(element: panel, notification: .announcementRequested,
                              userInfo: [.announcement: "\(item.title)，\(item.body)", .priority: NSAccessibilityPriorityLevel.high.rawValue])
         startTimer(entry)
@@ -80,7 +83,7 @@ final class ReminderBannerCenter {
         guard let index = entries.firstIndex(where: { $0.item.id == id }) else { return }
         let entry = entries.remove(at: index)
         entry.timer?.invalidate()
-        entry.motion.presented = false
+        entry.motion.dismiss()
         let panel = entry.panel
         DispatchQueue.main.asyncAfter(deadline: .now() + (Self.reduceMotion ? 0 : 0.3)) { panel.orderOut(nil) }
         relayout()
@@ -156,7 +159,21 @@ final class ReminderBannerCenter {
 /// Drives the slide; the window itself never moves for enter / exit.
 @MainActor @Observable
 final class ReminderBannerMotion {
-    var presented = false
+    private(set) var presented = false
+    /// The outer shadow is a separate layer; it fades in after the slide so it never trails the glass.
+    private(set) var settled = false
+
+    func present() {
+        let reduce = ReminderBannerCenter.reduceMotion
+        withAnimation(reduce ? .easeOut(duration: 0.15) : .smooth(duration: 0.4)) { presented = true } completion: {
+            withAnimation(.easeOut(duration: 0.15)) { self.settled = true }
+        }
+    }
+
+    func dismiss() {
+        settled = false
+        withAnimation(ReminderBannerCenter.reduceMotion ? .easeOut(duration: 0.15) : .easeIn(duration: 0.25)) { presented = false }
+    }
 }
 
 private final class ReminderBannerPanel: NSPanel {
@@ -249,6 +266,7 @@ private struct ReminderBannerView: View {
                         .overlay { shape.fill(.black).blendMode(.destinationOut) }
                         .compositingGroup()
                 }
+                .opacity(motion.settled ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
@@ -275,11 +293,9 @@ private struct ReminderBannerView: View {
         .accessibilityElement(children: .contain)
         .padding(ReminderBannerCenter.shadowInset)
         // Off-window start: the panel and the screen edge clip the card while it slides in from the right.
-        .offset(x: motion.presented ? 0 : 360 + ReminderBannerCenter.shadowInset * 2)
+        // Only x changes; the animation is applied by ReminderBannerMotion so no layout change rides along.
+        .offset(x: motion.presented || ReminderBannerCenter.reduceMotion ? 0 : 360 + ReminderBannerCenter.shadowInset * 2)
         .opacity(motion.presented || !ReminderBannerCenter.reduceMotion ? 1 : 0)
-        .animation(ReminderBannerCenter.reduceMotion ? .easeOut(duration: 0.15)
-                   : motion.presented ? .spring(duration: 0.45, bounce: 0.18) : .easeIn(duration: 0.25),
-                   value: motion.presented)
     }
 }
 

@@ -36,6 +36,19 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 - **个人记忆**：`MEMORY.md` 索引与按需读取的主题文件，支持明确保存、纠正、忘记及自动提炼与整理。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。
 
+### 与同类工具对比
+
+| | Asky | Spotlight | Raycast | Alfred |
+| --- | --- | --- | --- | --- |
+| 开源 | ✅ MIT | ❌ | ❌（扩展开源） | ❌ |
+| 价格 | 免费 | 系统自带 | 免费，AI 需付费方案 | 免费，Powerpack 付费 |
+| 剪贴板历史 | ✅ 文本、图片、文件 | ✅ macOS 26 起，默认关闭 | ✅ | Powerpack |
+| AI 助手 | 自带 API Key，OpenAI 兼容，预设 DeepSeek、Kimi、Qwen 等 | Apple Intelligence | Raycast AI（付费方案） | 需第三方 Workflow |
+| 本地 Markdown 记忆 | ✅ | ❌ | ❌ | ❌ |
+| MCP | ✅ | ❌ | ✅ | ❌ |
+
+对比基于 2026 年 10 月的公开信息，各产品功能以官方说明为准。
+
 ### 快速开始
 
 [下载 Asky](https://github.com/Niall-Young/Asky/releases)（macOS 15+，Apple Silicon）。打开 DMG，将 `Asky.app` 拖入“应用程序”后启动；安装包已包含 Node.js 和 AgentRuntime。ZIP 用于应用内更新。
@@ -121,6 +134,19 @@ The app icon and branding in Settings use a black graphite finish based on [Mark
 - **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key.
 - **Personal memory**: a `MEMORY.md` index and topic files read on demand, with explicit saves, corrections, forgetting, automatic extraction, and consolidation.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP.
+
+### Comparison
+
+| | Asky | Spotlight | Raycast | Alfred |
+| --- | --- | --- | --- | --- |
+| Open source | ✅ MIT | ❌ | ❌ (extensions are open) | ❌ |
+| Price | Free | Built into macOS | Free; AI requires a paid plan | Free; Powerpack is paid |
+| Clipboard history | ✅ Text, images, files | ✅ Since macOS 26, off by default | ✅ | Powerpack |
+| AI assistant | Your own API key, OpenAI-compatible, presets for DeepSeek, Kimi, Qwen, and more | Apple Intelligence | Raycast AI (paid plan) | Third-party workflows |
+| Local Markdown memory | ✅ | ❌ | ❌ | ❌ |
+| MCP | ✅ | ❌ | ✅ | ❌ |
+
+Based on public information as of October 2026; refer to each product's official documentation.
 
 ### Quick Start
 

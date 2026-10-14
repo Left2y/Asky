@@ -72,40 +72,9 @@ private struct NativeGlassBackground<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    /// The caller reserves shadowPadding in its transparent window canvas.
-    /// Cut out the source shape so the shadow never tints the glass interior.
-    func floatingSurfaceShadow<S: Shape>(in shape: S) -> some View {
-        modifier(DarkFloatingShadow(shape: shape))
-    }
-
     func nativeGlassBackground<S: InsettableShape>(in shape: S, interactive: Bool = false,
                                                    forceOpaque: Bool = false) -> some View {
         modifier(NativeGlassBackground(shape: shape, interactive: interactive, forceOpaque: forceOpaque))
-    }
-}
-
-private struct DarkFloatingShadow<S: Shape>: ViewModifier {
-    let shape: S
-    @Environment(\.colorScheme) private var scheme
-
-    func body(content: Content) -> some View {
-        content.background {
-            shape.fill(.black)
-                .shadow(color: .black.opacity(scheme == .dark ? 0.6 : 0.18), radius: LauncherLayout.shadowRadius,
-                        x: 0, y: LauncherLayout.shadowOffsetY)
-                .padding(LauncherLayout.shadowPadding)
-                .mask {
-                    Rectangle().overlay {
-                        shape.fill(.black)
-                            .padding(LauncherLayout.shadowPadding)
-                            .blendMode(.destinationOut)
-                    }
-                    .compositingGroup()
-                }
-                .padding(-LauncherLayout.shadowPadding)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
     }
 }
 

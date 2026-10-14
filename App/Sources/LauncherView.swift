@@ -56,9 +56,8 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        // Keep AppKit from outlining the transparent padded canvas. SwiftUI
-        // draws the shape shadow outside the surface instead.
-        hasShadow = false
+        // The window server derives the shadow from the visible surfaces.
+        hasShadow = true
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
         isReleasedWhenClosed = false
@@ -189,7 +188,6 @@ final class LauncherController {
             panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
                                               y: f.maxY - f.height * LauncherLayout.topInsetFraction + LauncherLayout.shadowPadding))
         }
-        panel.hasShadow = false
         panel.makeKeyAndOrderFront(nil)
         updateOutsideClickDismissal()
     }
@@ -322,7 +320,6 @@ struct LauncherView: View {
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(LauncherAccessoryButtonStyle(size: inputHeight))
-        .floatingSurfaceShadow(in: Circle())
         .overlay {
             // A single edge glint as each glass circle separates from the field.
             // Keep it out of the hit area and suppress it for reduced motion.
@@ -452,7 +449,6 @@ struct LauncherView: View {
         .contentShape(shellShape)
         .clipShape(shellShape)
         .nativeGlassBackground(in: shellShape)
-        .floatingSurfaceShadow(in: shellShape)
         .contentShape(shellShape)
         .overlay(alignment: .top) {
             if let toast = model.toast {

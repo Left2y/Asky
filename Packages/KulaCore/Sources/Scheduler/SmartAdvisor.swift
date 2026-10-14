@@ -236,7 +236,7 @@ struct References {
 
     func ref(_ alias: String) -> Ref? { table[alias.trimmingCharacters(in: .whitespaces).uppercased()] }
 
-    /// Human-readable evidence line shown under “查看依据”.
+    /// Human-readable evidence line shown under “提醒原因”.
     func describe(_ alias: String) -> String? {
         switch ref(alias) {
         case .event(let e): "日程：\(e.title)"

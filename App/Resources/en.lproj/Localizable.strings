@@ -145,7 +145,7 @@
 "无法打开链接，请检查网址或默认浏览器。" = "Couldn't open the link. Check the URL or default browser.";
 "无法拖拽：原始内容已不可用" = "Can't drag: the original content is no longer available";
 "无法更新固定状态" = "Couldn't update the pin status";
-"无记录的依据。" = "No evidence recorded.";
+"没有记录提醒原因。" = "No reason recorded for this reminder.";
 "日历" = "Calendar";
 "暂无别名" = "No aliases";
 "暂无剪贴板历史" = "No clipboard history";
@@ -161,7 +161,9 @@
 "未知来源" = "Unknown source";
 "未置顶" = "Unpinned";
 "本地连接" = "Local Connection";
-"查看依据" = "View Evidence";
+"提醒原因" = "Why This Reminder";
+"打开日程" = "Open Event";
+"查看路线" = "View Route";
 "标签已变化或已关闭，请重新搜索。" = "The tab changed or closed. Search again.";
 "检查中" = "Checking";
 "检查中…" = "Checking…";

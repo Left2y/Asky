@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Theme
+import ToolService
 
 /// One in-app reminder card. Unlike UserNotifications, Asky draws the whole surface itself.
 struct ReminderBannerItem: Identifiable {
@@ -16,6 +17,8 @@ struct ReminderBannerItem: Identifiable {
     var title: String
     var body: String
     var symbol = "calendar"
+    /// Why Asky raised this reminder; shown from the ⓘ beside the source line, not as a button.
+    var reasons: [String] = []
     var actions: [Action] = []
     /// Auto-dismiss delay; hovering pauses it. nil keeps the card until the user acts.
     var lifetime: TimeInterval? = 8
@@ -144,14 +147,23 @@ final class ReminderBannerCenter {
         show(ReminderBannerItem(source: "Asky · 情境提醒", timeLabel: "15 分钟后",
                                 title: "产品讨论会", body: "14:30 – 15:30 · 3 号会议室\n上次会议约定要带上新版原型，记得提前准备。",
                                 symbol: "calendar",
-                                actions: [.init(title: "稍后提醒"), .init(title: "查看依据", prominent: true)],
+                                reasons: ["日程：产品讨论会 14:30", "记忆：上次会议约定带新版原型"],
+                                actions: [.init(title: "稍后提醒"),
+                                          .init(title: "打开日程", prominent: true) { Self.openApp("com.apple.iCal") }],
                                 lifetime: nil))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             self?.show(ReminderBannerItem(source: "Asky · 出行提醒", timeLabel: "现在",
                                           title: "该出发了", body: "去往望京 SOHO 预计 28 分钟，路况较平时拥堵。",
                                           symbol: "car.fill",
-                                          actions: [.init(title: "已处理")]))
+                                          reasons: ["日程：望京 SOHO 拜访 10:30", "路况：较平时拥堵"],
+                                          actions: [.init(title: "已处理"),
+                                                    .init(title: "查看路线", prominent: true) { Self.openApp("com.apple.Maps") }]))
         }
+    }
+
+    private static func openApp(_ bundleID: String) {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
+        _ = ToolService.openLauncherApplication(url)
     }
     #endif
 }
@@ -200,6 +212,7 @@ private struct ReminderBannerView: View {
     let onDismiss: () -> Void
     let onHover: (Bool) -> Void
     @State private var hovering = false
+    @State private var showingReasons = false
     private let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
 
     var body: some View {
@@ -212,6 +225,25 @@ private struct ReminderBannerView: View {
                 Text(item.source)
                     .textStyle(.secondary)
                     .foregroundStyle(ThemeColor.kTextSubtle)
+                if !item.reasons.isEmpty {
+                    Button { showingReasons.toggle() } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 12))
+                            .foregroundStyle(ThemeColor.kTextSubtle)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(Text("提醒原因"))
+                    .accessibilityLabel(Text("提醒原因"))
+                    .popover(isPresented: $showingReasons, arrowEdge: .bottom) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("提醒原因").font(.system(size: 13, weight: .semibold))
+                            ForEach(item.reasons, id: \.self) { Text("• \($0)").textStyle(.secondary) }
+                        }
+                        .padding(12)
+                        .frame(width: 260, alignment: .leading)
+                    }
+                }
                 Spacer(minLength: 8)
                 Text(item.timeLabel)
                     .textStyle(.secondary)

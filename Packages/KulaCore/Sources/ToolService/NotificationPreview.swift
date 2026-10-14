@@ -11,7 +11,7 @@ public enum NotificationPreview {
         }
         var categories = await center.notificationCategories()
         categories.insert(UNNotificationCategory(identifier: "asky.preview", actions: [
-            UNNotificationAction(identifier: "evidence", title: "查看依据", options: [.foreground]),
+            UNNotificationAction(identifier: "evidence", title: "提醒原因", options: [.foreground]),
             UNNotificationAction(identifier: "handled", title: "已处理", options: []),
         ], intentIdentifiers: []))
         center.setNotificationCategories(categories)
@@ -20,7 +20,7 @@ public enum NotificationPreview {
         content.body = "15 分钟后有产品讨论会，记得提前准备。\n这是一条测试通知，不会创建真实日程。"
         content.sound = .default
         content.categoryIdentifier = "asky.preview"
-        content.userInfo = ["evidence": ["测试示例：产品讨论会将在 15 分钟后开始。"]]
+        content.userInfo = ["evidence": ["日程：产品讨论会将在 15 分钟后开始（测试示例）。"]]
         try await center.add(UNNotificationRequest(identifier: "asky.notification-preview", content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)))
     }

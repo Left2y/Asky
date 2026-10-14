@@ -36,7 +36,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 - **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。文件搜索排除目录和剪贴板排除应用在设置中逐项添加、编辑和删除；添加或编辑时使用系统选择面板，目录自动取目录名，应用自动取 Bundle ID。
 - **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。
 - **个人记忆**：`MEMORY.md` 索引与按需读取的主题文件，支持明确保存、纠正、忘记及自动提炼与整理。
-- **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。
+- **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。官方插件 [飞书](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca](https://github.com/Niall-Young/asky-plugin-orca) 在独立仓库发布。
 
 ### 与同类工具对比
 
@@ -57,7 +57,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 安装到“应用程序”后，自动更新默认开启：后台下载并校验新版本，在你不使用 Asky 时完成更新；可在“设置 › 关于 Asky › 软件更新”关闭。
 
-首次使用见[使用教程](docs/user-guide.md)。
+首次使用见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
 
 ### 使用方法
 
@@ -135,7 +135,7 @@ The app icon and branding in Settings use a black graphite finish based on [Mark
 - **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop. Settings provide individual add, edit, and delete controls for excluded search directories and clipboard apps. Adding or editing opens a system picker; folder names and app bundle IDs are extracted automatically.
 - **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key.
 - **Personal memory**: a `MEMORY.md` index and topic files read on demand, with explicit saves, corrections, forgetting, automatic extraction, and consolidation.
-- **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP.
+- **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP. Official plugins [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca) are published in separate repositories.
 
 ### Comparison
 
@@ -156,7 +156,7 @@ Based on public information as of October 2026; refer to each product's official
 
 When installed in Applications, automatic updates are enabled by default. Asky downloads and verifies new versions in the background, then installs them when you are not using the app. Disable this in Settings › About Asky › Software Update.
 
-Start with the [user guide (Chinese)](docs/user-guide.md).
+Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs).
 
 ### Usage
 

@@ -15,6 +15,8 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 
 [中文](#中文) | [English](#english)
 
+<img src="docs/assets/demo.gif" alt="Asky demo" width="800" />
+
 </div>
 
 ---

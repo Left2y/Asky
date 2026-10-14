@@ -181,6 +181,9 @@ enum AppUpdate {
     if mv "$old" "$backup"; then
       if mv "$new" "$old"; then rm -rf "$backup"; else mv "$backup" "$old"; fi
     fi
+    # Same path, new bundle: refresh Launch Services so the Dock drops the cached old icon.
+    touch "$old"
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$old" 2>/dev/null || true
     if [ "$relaunch" = 1 ]; then open -g "$old"; fi
     rm -rf "$work"
     """

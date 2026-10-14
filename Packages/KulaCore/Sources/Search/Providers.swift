@@ -6,21 +6,32 @@ import LocalStore
 /// Installed applications from standard folders (plus one level of vendor subfolders such as
 /// "/Applications/Adobe …"), ranked by fuzzy match + recent launches. The index is rebuilt when
 /// any scanned folder changes; rebuilds reuse unchanged bundles, so an install costs one parse.
+/// With a `cacheURL`, the index survives relaunches: a new process only re-checks each bundle's
+/// Info.plist date instead of parsing every bundle again.
 public final class AppsProvider: SearchProvider {
     public let source = SearchSource.app
     private let roots: [URL]
     private let extraApps: [URL]
     private let preferredLanguages: [String]
-    private struct IndexedApp {
+    private let cacheURL: URL?
+    private struct IndexedApp: Codable, Equatable {
         let name: String
         let path: String
         let searchNames: Set<String>
         let stamp: Date?
     }
-    private struct Index {
+    private struct Index: Codable, Equatable {
         var apps: [IndexedApp]
         var stamps: [String: Date]
     }
+    /// Cached names depend on the parser, the scanned locations and the user's languages.
+    private struct CacheFile: Codable {
+        var version: Int
+        var sources: [String]
+        var languages: [String]
+        var index: Index
+    }
+    private static let cacheVersion = 1
     private let index = Mutex<Index?>(nil)
     /// Serializes rebuilds so a background prewarm and a first search never parse twice.
     private let buildLock = NSLock()
@@ -28,10 +39,12 @@ public final class AppsProvider: SearchProvider {
 
     public init(roots: [URL] = AppsProvider.defaultRoots,
                 extraApps: [URL] = AppsProvider.defaultExtraApps,
-                preferredLanguages: [String] = Locale.preferredLanguages) {
+                preferredLanguages: [String] = Locale.preferredLanguages,
+                cacheURL: URL? = nil) {
         self.roots = roots
         self.extraApps = extraApps
         self.preferredLanguages = preferredLanguages
+        self.cacheURL = cacheURL
     }
 
     public static var defaultRoots: [URL] {
@@ -48,9 +61,14 @@ public final class AppsProvider: SearchProvider {
     public func invalidate() { index.withLock { $0 = nil } }
 
     /// Builds the index off the main thread so the first launcher query does not wait for it.
+    /// Same priority as searches: a first query waits on this build through `buildLock`,
+    /// which cannot boost a lower-priority holder.
     public func prewarm() {
-        Task.detached(priority: .utility) { [self] in _ = loadIndex() }
+        Task.detached(priority: .userInitiated) { [self] in _ = loadIndex() }
     }
+
+    /// Paths of indexed applications, building the index if needed. Blocks; call off the main thread.
+    public func applicationPaths() -> [String] { loadIndex().map(\.path) }
 
     public func recordLaunch(path: String, at date: Date = Date()) { usage.withLock { $0[path] = date } }
 
@@ -108,8 +126,12 @@ public final class AppsProvider: SearchProvider {
         defer { buildLock.unlock() }
         let folders = subfolders()
         let stamps = folderStamps(subfolders: folders)
-        let previous = index.withLock { $0 }
-        if let previous, previous.stamps == stamps { return previous.apps }
+        let memory = index.withLock { $0 }
+        if let memory, memory.stamps == stamps { return memory.apps }
+        // A disk index never short-circuits on folder stamps: apps updated in place while
+        // Asky was not running leave their folder date unchanged, so every bundle is re-checked.
+        let stored = memory == nil ? readCache() : nil
+        let previous = memory ?? stored
         let reusable = Dictionary((previous?.apps ?? []).map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
         var candidates = (roots + folders).flatMap { Self.visibleEntries(of: $0).filter { $0.pathExtension == "app" } }
         candidates += extraApps.filter { FileManager.default.fileExists(atPath: $0.path) }
@@ -125,8 +147,28 @@ public final class AppsProvider: SearchProvider {
                 out.append(indexedApp(at: url, stamp: stamp))
             }
         }
-        index.withLock { $0 = Index(apps: out, stamps: stamps) }
+        let built = Index(apps: out, stamps: stamps)
+        index.withLock { $0 = built }
+        if built != previous { writeCache(built) }
         return out
+    }
+
+    private var cacheSources: [String] { (roots + extraApps).map(\.path) }
+
+    private func readCache() -> Index? {
+        guard let cacheURL, let data = try? Data(contentsOf: cacheURL),
+              let file = try? JSONDecoder().decode(CacheFile.self, from: data),
+              file.version == Self.cacheVersion, file.sources == cacheSources, file.languages == preferredLanguages
+        else { return nil }
+        return file.index
+    }
+
+    private func writeCache(_ index: Index) {
+        guard let cacheURL else { return }
+        let file = CacheFile(version: Self.cacheVersion, sources: cacheSources, languages: preferredLanguages, index: index)
+        guard let data = try? JSONEncoder().encode(file) else { return }
+        try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? data.write(to: cacheURL, options: .atomic)
     }
 
     private func indexedApp(at url: URL, stamp: Date?) -> IndexedApp {
@@ -208,6 +250,11 @@ public final class SpotlightProvider: SearchProvider {
                 }) {
         self.settings = settings
         self.timeout = timeout
+    }
+
+    /// Runs one throwaway query so the first real search does not pay Spotlight's per-process setup.
+    public func prewarm() {
+        Task.detached(priority: .utility) { [self] in _ = await search("asky-prewarm", limit: 1) }
     }
 
     public func search(_ query: String, limit: Int) async -> [SearchResult] {

@@ -113,6 +113,42 @@ final class BatchSink {
         #expect(await p.search("viewer", limit: 5).map(\.title) == ["Viewer"])
     }
 
+    @Test func appsProviderReusesDiskIndexAcrossInstancesAndSeesOfflineUpdates() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let apps = root.appendingPathComponent("Apps")
+        let cache = root.appendingPathComponent("Caches/app-index.json")
+        func install(_ name: String, at date: Date) throws {
+            let contents = apps.appendingPathComponent("Editor.app/Contents")
+            try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+            let plist = contents.appendingPathComponent("Info.plist")
+            try PropertyListSerialization.data(fromPropertyList: ["CFBundleName": name], format: .xml, options: 0).write(to: plist)
+            try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: plist.path)
+        }
+        let start = Date()
+        try install("Old Editor", at: start)
+        let first = AppsProvider(roots: [apps], extraApps: [], cacheURL: cache)
+        #expect(await first.search("old editor", limit: 5).map(\.title) == ["Old Editor"])
+        #expect(FileManager.default.fileExists(atPath: cache.path))
+
+        // A new process loads the stored names without re-reading unchanged bundles.
+        let cachedPlist = apps.appendingPathComponent("Editor.app/Contents/Info.plist")
+        try PropertyListSerialization.data(fromPropertyList: ["CFBundleName": "Ignored"], format: .xml, options: 0).write(to: cachedPlist)
+        try FileManager.default.setAttributes([.modificationDate: start], ofItemAtPath: cachedPlist.path)
+        let relaunched = AppsProvider(roots: [apps], extraApps: [], cacheURL: cache)
+        #expect(await relaunched.search("old editor", limit: 5).map(\.title) == ["Old Editor"])
+
+        // An in-place update while not running leaves the folder date alone but is still found.
+        try install("New Editor", at: start.addingTimeInterval(10))
+        let updated = AppsProvider(roots: [apps], extraApps: [], cacheURL: cache)
+        #expect(await updated.search("new editor", limit: 5).map(\.title) == ["New Editor"])
+
+        // A corrupt cache file falls back to a full parse.
+        try "{".write(to: cache, atomically: true, encoding: .utf8)
+        let corrupt = AppsProvider(roots: [apps], extraApps: [], cacheURL: cache)
+        #expect(await corrupt.search("new editor", limit: 5).map(\.title) == ["New Editor"])
+    }
+
     @Test func appsProviderIncludesExtraApps() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

@@ -120,7 +120,8 @@ final class LauncherModel {
 
     var actionPreferences: SettingsPreferences { app.preferences }
     private let app: AppModel
-    private let apps = AppsProvider()
+    private let apps: AppsProvider
+    private let files: SpotlightProvider
     private let chrome = ChromeTabsProvider()
     private let shortcuts = ShortcutsProvider()
     private var coordinator: SearchCoordinator
@@ -145,12 +146,31 @@ final class LauncherModel {
         self.app = app
         self.searchProviders = searchProviders
         self.chromeAccessOverride = chromeBookmarkAccessAllowed
+        apps = AppsProvider(cacheURL: searchProviders == nil
+            ? app.store.root.appendingPathComponent("Caches/app-index.json") : nil)
+        let reader = SettingsReader(store: app.store)
+        files = SpotlightProvider(settings: {
+            let s = reader.load()
+            return (s.fileScopes.map { URL(filePath: $0) }, s.excludedDirectories)
+        })
         coordinator = SearchCoordinator(providers: [])
         rebuildProviders()
-        if searchProviders == nil { apps.prewarm() }
+        if searchProviders == nil { prewarm() }
+    }
+
+    /// Pays every per-process first-use cost in the background so the first search after
+    /// launch is as fast as later ones. Chrome is skipped: it may raise an automation prompt.
+    private func prewarm() {
+        apps.prewarm()
+        files.prewarm()
+        let apps = apps
+        Task.detached(priority: .utility) {
+            ToolService.prewarmLauncherIcons(filePaths: Array(apps.applicationPaths().prefix(12)))
+        }
     }
 
     func rebuildProviders() {
+        if searchProviders == nil { apps.prewarm() }
         chromeAccessTask?.cancel()
         chromeBookmarkAccessAllowed = chromeAccessOverride ?? (searchProviders != nil)
         configureProviders()
@@ -188,11 +208,7 @@ final class LauncherModel {
         let links = LinksProvider(knownSites: { [chrome] in
             useChrome ? ((try? ChromeBookmarkService.read(accessBookmark: reader.load().chromeBookmarkFolderAccess)) ?? []).map(\.url) + chrome.cachedURLs : []
         })
-        var providers: [any SearchProvider] = [apps, shortcuts,
-            SpotlightProvider(settings: {
-                let s = reader.load()
-                return (s.fileScopes.map { URL(filePath: $0) }, s.excludedDirectories)
-            })]
+        var providers: [any SearchProvider] = [apps, shortcuts, files]
         if useChrome { providers.append(chrome) }
         if useChrome && chromeBookmarkAccessAllowed {
             providers.append(links)

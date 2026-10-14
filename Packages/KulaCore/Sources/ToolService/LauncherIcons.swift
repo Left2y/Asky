@@ -33,6 +33,25 @@ extension ToolService {
         return icon
     }
 
+    /// Renders a few icons off the main thread so the system icon services are loaded
+    /// before the first result list draws (the first icon otherwise stalls ~80 ms).
+    public static func prewarmLauncherIcons(filePaths: [String]) {
+        Task.detached(priority: .utility) {
+            let side = 64
+            for path in filePaths {
+                guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                                                 bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                 colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+                      let context = NSGraphicsContext(bitmapImageRep: rep) else { continue }
+                let icon = NSWorkspace.shared.icon(forFile: path)
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = context
+                icon.draw(in: NSRect(x: 0, y: 0, width: side, height: side))
+                NSGraphicsContext.restoreGraphicsState()
+            }
+        }
+    }
+
     /// Resolve the actual app artwork for each configurable data source.
     @MainActor public static func dataSourceApplicationIcon(_ source: DataSourceID) -> NSImage? {
         let bundleID: String

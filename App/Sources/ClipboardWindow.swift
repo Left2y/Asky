@@ -93,15 +93,13 @@ final class ClipboardController {
         query = ""
         status = nil
         refresh()
-        // Read the target app's focus before the panel becomes key.
-        let anchor = ClipboardPlacement.focusedAnchor()
-        let point = anchor?.reference.map { NSPoint(x: $0.midX, y: $0.midY) } ?? NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
+        // Every opening starts from the default spot; a drag only moves this session.
+        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let frame = screen?.visibleFrame {
             let width = min(900, frame.width - 32)
-            let shell = anchor.flatMap { ClipboardPlacement.frame(size: CGSize(width: width, height: 244), anchor: $0, visible: frame) }
-                ?? NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244, width: width, height: 244)
-            panel.setFrame(shell.insetBy(dx: -LauncherLayout.shadowPadding, dy: -LauncherLayout.shadowPadding), display: false)
+            panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
+                                  width: width, height: 244)
+                .insetBy(dx: -LauncherLayout.shadowPadding, dy: -LauncherLayout.shadowPadding), display: false)
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         panel.level = .floating
@@ -332,7 +330,12 @@ private struct ClipboardHistoryView: View {
                                           action: controller.togglePinned)
                         .accessibilityValue(controller.pinned ? NSLocalizedString("已固定", comment: "") : NSLocalizedString("未固定", comment: ""))
                 }
-            }.padding(12)
+            }
+            .padding(12)
+            // The header gaps drag the panel, like the agent window's title bar.
+            .contentShape(Rectangle())
+            .gesture(WindowDragGesture())
+            .allowsWindowActivationEvents()
             Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
             if controller.items.isEmpty {
                 VStack(spacing: 8) {

@@ -95,12 +95,15 @@ final class ClipboardController {
         query = ""
         status = nil
         refresh()
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        // Read the target app's focus before the panel becomes key.
+        let anchor = ClipboardPlacement.focusedAnchor()
+        let point = anchor?.reference.map { NSPoint(x: $0.midX, y: $0.midY) } ?? NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
         if let frame = screen?.visibleFrame {
             let width = min(900, frame.width - 32)
-            panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
-                                  width: width, height: 244)
-                .insetBy(dx: -LauncherLayout.shadowPadding, dy: -LauncherLayout.shadowPadding), display: false)
+            let shell = anchor.flatMap { ClipboardPlacement.frame(size: CGSize(width: width, height: 244), anchor: $0, visible: frame) }
+                ?? NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244, width: width, height: 244)
+            panel.setFrame(shell.insetBy(dx: -LauncherLayout.shadowPadding, dy: -LauncherLayout.shadowPadding), display: false)
         }
         panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         panel.level = .floating

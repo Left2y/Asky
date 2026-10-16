@@ -41,7 +41,7 @@ public struct AdvisorInput: Sendable {
         for e in events.sorted(by: { $0.id < $1.id }) { h.add("e|\(e.id)|\(e.title)|\(e.fingerprint)") }
         for t in tasks.sorted(by: { $0.id < $1.id }) { h.add("t|\(t.id)|\(t.title)|\(t.due?.timeIntervalSince1970 ?? 0)") }
         for m in memories.sorted(by: { $0.sourceID < $1.sourceID }) { h.add("m|\(m.sourceID)|\(m.text)") }
-        for s in messages.sorted(by: { $0.id < $1.id }) { h.add("s|\(s.id)|\(s.summary)|\(s.due?.timeIntervalSince1970 ?? 0)") }
+        for s in messages.sorted(by: { $0.id < $1.id }) { h.add("s|\(s.id)|\(References.Ref.message(s).fingerprint)") }
         return h.hex
     }
 }
@@ -75,6 +75,7 @@ public struct SmartAdvisor: Sendable {
         - 需要提前准备的事项：会前材料、礼物、订票、预约、带证件或物品；
         - 日程、待办与记忆之间的关联或矛盾：截止日期前已被日程排满、记忆里提过的事与某个日程有关、承诺过的事还没有对应待办；
         - 临近截止却没有安排时间的待办；
+        - 短信中的明确预约、会议或出行尚未加入日程：尽早建议创建日程，不要等到开始时才提醒；
         - 短信事项里需要用户行动、且日程或待办里还没有对应安排的事：别人的请求或约定、用户答应过的事、取件/缴费/预约/改期等通知。
 
         不要做这些事：
@@ -105,6 +106,7 @@ public struct SmartAdvisor: Sendable {
             lines += ["", "短信事项（从近期短信中摘出）："]
             lines += refs.messages.map { alias, n in
                 "\(alias) \(f.string(from: n.date)) \(n.sender)：\(n.summary)" + (n.due.map { "（截止 \(f.string(from: $0))）" } ?? "")
+                    + (n.calendarDraft.map { "（待创建日程：\($0.title)，开始 \(f.string(from: $0.start))）" } ?? "")
             }
         }
         if !input.recentSuggestions.isEmpty {
@@ -129,6 +131,8 @@ public struct SmartAdvisor: Sendable {
             var fireDate = max(input.now, fire)
             if case .event(let e) = anchor { fireDate = min(fireDate, e.start) }
             guard fireDate <= latest, out.allSatisfy({ $0.eventID != anchor.key }) else { continue }
+            if case .message(let note) = anchor, let draft = note.calendarDraft,
+               (!draft.isValid(at: input.now) || draft.matchingEvent(in: input.events) != nil) { continue }
             out.append(ReminderPlan(eventID: anchor.key, reason: .insight, title: String(title.prefix(40)),
                                     body: String(body.prefix(200)),
                                     evidence: cited.compactMap { refs.ref($0)?.key } + cited.compactMap { refs.describe($0) },
@@ -137,13 +141,40 @@ public struct SmartAdvisor: Sendable {
         return out
     }
 
+    public static func matchesMessage(_ note: MessageNote, plan: ReminderPlan) -> Bool {
+        plan.eventID == References.Ref.message(note).key && plan.eventFingerprint == References.Ref.message(note).fingerprint
+    }
+
+    /// An explicit appointment needs no second model decision to offer a calendar draft.
+    public static func calendarSuggestions(in input: AdvisorInput) -> [ReminderPlan] {
+        var seen = Set<String>()
+        return input.messages.sorted { $0.date > $1.date }.compactMap { note in
+            guard let draft = note.calendarDraft, draft.isValid(at: input.now),
+                  draft.start <= input.now.addingTimeInterval(7 * 86400),
+                  draft.matchingEvent(in: input.events) == nil else { return nil }
+            let key = draft.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                + "|\(Int(draft.start.timeIntervalSince1970 / 60))"
+            guard seen.insert(key).inserted else { return nil }
+            let anchor = References.Ref.message(note)
+            return ReminderPlan(eventID: anchor.key, reason: .insight, title: "待添加日程：\(draft.title)",
+                body: note.summary, evidence: [anchor.key, "短信（\(note.sender)）：\(note.summary)"],
+                fireDate: input.now, eventFingerprint: anchor.fingerprint)
+        }
+    }
+
     /// Cached suggestions stay valid only while their anchor still exists unchanged in the current input.
     public static func stillValid(_ plans: [ReminderPlan], in input: AdvisorInput) -> [ReminderPlan] {
         let refs = References(input)
         let anchors = refs.events.map { References.Ref.event($0.1) } + refs.tasks.map { .task($0.1) } + refs.messages.map { .message($0.1) }
         let live = Dictionary(anchors.map { ($0.key, $0.fingerprint) },
                               uniquingKeysWith: { a, _ in a })
-        return plans.filter { $0.reason == .insight && live[$0.eventID] == $0.eventFingerprint }
+        return plans.filter { plan in
+            guard plan.reason == .insight, live[plan.eventID] == plan.eventFingerprint else { return false }
+            if let note = input.messages.first(where: { "message:\($0.id)" == plan.eventID }), let draft = note.calendarDraft {
+                return draft.isValid(at: input.now) && draft.matchingEvent(in: input.events) == nil
+            }
+            return true
+        }
     }
 
     // MARK: Parsing
@@ -210,7 +241,7 @@ struct References {
             case .event(let e): e.fingerprint
             case .task(let t): "\(t.title)|\(t.due?.timeIntervalSince1970 ?? 0)"
             case .memory(let m): m.text
-            case .message(let n): "\(n.summary)|\(n.due?.timeIntervalSince1970 ?? 0)"
+            case .message(let n): "\(n.summary)|\(n.due?.timeIntervalSince1970 ?? 0)|\(n.calendarDraft.map { $0.arguments.canonicalData().base64EncodedString() } ?? "")"
             }
         }
     }

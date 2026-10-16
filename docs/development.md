@@ -92,6 +92,10 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
 
 脚本生成 `build/releases/0.1.0/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
+### 短信日程编辑回归
+
+先按 README 完成 Debug 构建，再执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-message-calendar-regression.py`，检查实际编辑器模型校验和取消路径。加 `--preview` 可手动编辑、确认或取消示例；预览不读取短信、不创建真实日程。
+
 ### 通知预览
 
 Debug 参数 `--test-notification` 现在是 `--test-banner` 的兼容别名，均预览 Asky 自绘卡片，不再发送系统通知或请求通知权限；Release 不响应这两个参数。
@@ -187,6 +191,10 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
 Development and future packages default to the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once. The certificate lasts 10 years and contains only its name, with no personal name or email. The private key stays in the login keychain; temporary private-key files are removed automatically. macOS may ask you to confirm keychain operations. Re-running preserves the certificate; do not recreate it for each update. To publish from another machine, securely migrate the same signing identity and keep private-key backups out of the repository and installers. Losing, expiring, or replacing the identity may require authorization again. Stable signing identity does not establish live acceptance of every system permission; switching from an old ad-hoc build may require authorization once.
 
 The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.1.0/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+
+### Message Calendar Editor Regression
+
+After the README Debug build, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-message-calendar-regression.py` to check the actual editor model validation and cancellation path. Add `--preview` to edit, confirm, or cancel a sample manually. The preview neither reads messages nor creates real calendar events.
 
 ### Notification Preview
 

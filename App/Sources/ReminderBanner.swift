@@ -8,6 +8,7 @@ struct ReminderBannerItem: Identifiable {
     struct Action {
         var title: String
         var prominent = false
+        var dismissesCard = true
         var handler: @MainActor () -> Void = {}
     }
 
@@ -414,7 +415,7 @@ private struct ReminderBannerCard: View {
                     ForEach(Array(item.actions.enumerated()), id: \.offset) { _, action in
                         Button {
                             action.handler()
-                            onDismiss()
+                            if action.dismissesCard { onDismiss() }
                         } label: {
                             Text(action.title).frame(minWidth: 56)
                         }

@@ -72,7 +72,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。
 
-主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前黑白应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。
+主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前黑白应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。开启后台 AI、短信读取并授权后，可从短信/iMessage 中提取明确预约，在卡片中点击“创建日程”，核对或修改标题、起止时间和地点后写入日历；截止事项仍作为提醒建议。
 
 ### 配置与隐私
 
@@ -173,7 +173,7 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden.
 
-Proactive reminders use Asky’s own top-right cards with the current monochrome app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake.
+Proactive reminders use Asky’s own top-right cards with the current monochrome app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake. With background AI, message reading, and the required access enabled, explicit appointments in SMS/iMessage can offer a Create event action. Review or edit the title, start/end times, and location before saving to Calendar; deadlines remain reminder suggestions.
 
 ### Configuration and Privacy
 

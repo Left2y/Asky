@@ -69,3 +69,41 @@ private func triage(_ calls: Calls, batch: Int = 2500) -> MessageTriage {
         #expect(state.notes.isEmpty && state.watermark == 5)
     }
 }
+
+@Suite struct MessageCalendarExtractionTests {
+    @Test func extractsAppointmentButKeepsMissingEndExplicit() async throws {
+        let start = now.addingTimeInterval(86400)
+        let iso = ISO8601DateFormatter().string(from: start)
+        let calls = Calls([#"{"items":[{"source":["S1"],"summary":"明天下午参加产品评审","calendar":{"kind":"event","title":"产品评审","start":"\#(iso)","end":null,"location":"3号会议室"}}]}"#])
+        let state = await triage(calls).update(.init(), messages: [msg(10, "c:1", "明天下午来3号会议室参加产品评审")], now: now)
+        let draft = try #require(state.notes.first?.calendarDraft)
+        #expect(draft.start == start && draft.end == nil && draft.location == "3号会议室")
+        #expect(draft.proposedEnd == start.addingTimeInterval(3600))
+        #expect(draft.arguments["end"]?.stringValue == ISO8601DateFormatter().string(from: draft.proposedEnd))
+    }
+
+    @Test func deadlineAndInvalidAppointmentNeverBecomeCalendarActions() async {
+        let calls = Calls([#"""
+        {"items":[
+            {"source":["S1"],"summary":"周五前交材料","due":"2030-01-01T12:00:00Z"},
+            {"source":["S2"],"summary":"时间不合法","calendar":{"kind":"event","title":"预约","start":"bad"}},
+            {"source":["S3"],"summary":"已过期","calendar":{"kind":"event","title":"预约","start":"2020-01-01T12:00:00Z"}},
+            {"source":["S4"],"summary":"截止","calendar":{"kind":"deadline","title":"交材料","start":"2030-01-01T12:00:00Z"}},
+            {"source":["S5"],"summary":"无标题","calendar":{"kind":"event","title":" ","start":"2030-01-01T12:00:00Z"}}
+        ]}
+        """#])
+        let state = await triage(calls).update(.init(), messages: (1...5).map { msg($0, "c:1", "内容") }, now: now)
+        #expect(state.notes.count == 5 && state.notes.allSatisfy { $0.calendarDraft == nil })
+    }
+
+    @Test func legacySummariesAreEnrichedOnceWithoutDroppingWatermarkOnLaterRuns() async throws {
+        let data = Data(#"{"notes":[],"watermark":10}"#.utf8)
+        let legacy = try JSONDecoder().decode(MessageTriageState.self, from: data)
+        #expect(legacy.calendarExtractionVersion == nil)
+        let calls = Calls([#"{"items":[{"source":["S1"],"summary":"已提取"}]}"#])
+        let upgraded = await triage(calls).update(legacy, messages: [msg(5, "c:1", "旧消息")], now: now)
+        #expect(upgraded.calendarExtractionVersion == 1 && upgraded.watermark == 5)
+        let unchanged = await triage(calls).update(upgraded, messages: [msg(5, "c:1", "旧消息")], now: now)
+        #expect(calls.prompts.count == 1 && unchanged == upgraded)
+    }
+}

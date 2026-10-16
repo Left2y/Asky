@@ -18,6 +18,8 @@ final class ProactiveReminders: NSObject {
     private var observers: [NSObjectProtocol] = []
     private var checkpoint: Timer?
     private var deliveryTimer: Timer?
+    private var creatingCalendar: Set<String> = []
+    private let calendarCreation: MessageCalendarCreation
     private var bannerIDs: [String: UUID] = [:]
     private var pending: Task<Void, Never>?
     private var lastAdvisorCall: Date?
@@ -36,6 +38,7 @@ final class ProactiveReminders: NSObject {
 
     init(app: AppModel) {
         self.app = app
+        calendarCreation = MessageCalendarCreation(store: app.store)
         scheduler = ContextScheduler(store: ReminderStore(app.store))
         super.init()
     }
@@ -126,7 +129,13 @@ final class ProactiveReminders: NSObject {
                          now: now)
         }
         let cached = app.store.codableSetting(Self.advisorCacheKey, as: AdvisorCache.self)
-        let fallback = { SmartAdvisor.stillValid(cached?.plans ?? [], in: input()) }
+        func resolvedPlans(_ plans: [ReminderPlan]) -> [ReminderPlan] {
+            let current = input()
+            let calendar = SmartAdvisor.calendarSuggestions(in: current)
+            let calendarIDs = Set(calendar.map(\.eventID))
+            return calendar + SmartAdvisor.stillValid(plans, in: current).filter { !calendarIDs.contains($0.eventID) }
+        }
+        let fallback = { resolvedPlans(cached?.plans ?? []) }
         if lastAdvisorCall.map({ now.timeIntervalSince($0) < Self.advisorMinGap }) == true { return fallback() }
 
         let keychain = app.keychain, account = cfg.credentialRef
@@ -143,6 +152,7 @@ final class ProactiveReminders: NSObject {
             var triager = MessageTriage(complete: complete)
             triager.window = Double(days) * 86400
             let updated = await triager.update(triage, messages: messages, now: now)
+            guard !Task.isCancelled else { return [] }
             if updated != triage {
                 if updated.watermark != triage.watermark { lastAdvisorCall = now }
                 triage = updated
@@ -154,14 +164,15 @@ final class ProactiveReminders: NSObject {
         let current = input()
         let fingerprint = current.fingerprint
         if let cached, cached.fingerprint == fingerprint, now.timeIntervalSince(cached.generatedAt) < Self.advisorRefresh {
-            return SmartAdvisor.stillValid(cached.plans, in: current)
+            return resolvedPlans(cached.plans)
         }
         lastAdvisorCall = now
         guard let plans = try? await SmartAdvisor(complete: complete).suggest(current) else {
-            return SmartAdvisor.stillValid(cached?.plans ?? [], in: current)
+            return resolvedPlans(cached?.plans ?? [])
         }
+        guard !Task.isCancelled else { return [] }
         app.store.setCodableSetting(Self.advisorCacheKey, AdvisorCache(fingerprint: fingerprint, generatedAt: now, plans: plans))
-        return plans
+        return resolvedPlans(plans)
     }
 
     private func openTasks() async -> [TaskSnapshot] {
@@ -219,7 +230,7 @@ final class ProactiveReminders: NSObject {
         // Persist before presenting, so checkpoints and relaunches cannot show it twice.
         do { try scheduler.markDelivered(plan.id) } catch { return }
         withdrawCard(plan.id)
-        let item = ReminderBannerItem(
+        var item = ReminderBannerItem(
             source: "Asky", timeLabel: NSLocalizedString("现在", comment: ""),
             title: plan.title, body: plan.body,
             symbol: plan.reason == .travel ? "car.fill" : "calendar",
@@ -232,8 +243,64 @@ final class ProactiveReminders: NSObject {
                     self?.bannerIDs[plan.id] = nil
                 },
             ], lifetime: nil)
+        if calendarNote(for: plan)?.calendarDraft?.isValid(at: Date()) == true {
+            item.actions.removeLast()
+            item.actions.append(.init(title: NSLocalizedString("创建日程", comment: ""), prominent: true,
+                                      dismissesCard: false) { [weak self] in
+                Task { @MainActor in await self?.createCalendarEvent(for: plan) }
+            })
+        }
         bannerIDs[plan.id] = item.id
         ReminderBannerCenter.shared.show(item)
+    }
+
+    private func calendarNote(for plan: ReminderPlan) -> MessageNote? {
+        guard app.settings.advisorReadsMessages == true, app.settings.enabledSources.contains(.messages) else { return nil }
+        return app.store.codableSetting(Self.triageKey, as: MessageTriageState.self)?.notes.first {
+            "message:\($0.id)" == plan.eventID && SmartAdvisor.matchesMessage($0, plan: plan)
+        }
+    }
+
+    private func createCalendarEvent(for plan: ReminderPlan) async {
+        guard creatingCalendar.insert(plan.eventID).inserted else { return }
+        defer { creatingCalendar.remove(plan.eventID) }
+        guard let note = calendarNote(for: plan), let draft = note.calendarDraft,
+              draft.isValid(at: Date()), app.settings.enabledSources.contains(.calendar) else {
+            showCalendarError(NSLocalizedString("短信安排已变化或授权已关闭，请重新检查。", comment: ""))
+            return
+        }
+        var edited = draft
+        if !(await calendarCreation.hasRequest(sourceID: note.id)) {
+            guard let confirmed = MessageCalendarEditor.present(draft, source: note.summary) else { return }
+            guard calendarNote(for: plan)?.calendarDraft == draft, confirmed.isValid(at: Date()),
+                  app.settings.enabledSources.contains(.calendar) else { return }
+            edited = confirmed
+        }
+        let tools = app.tools
+        let result = await calendarCreation.submit(sourceID: note.id, draft: edited) { await tools.submit($0) }
+        if result.status == .completed {
+            try? scheduler.markHandled(plan.id)
+            if var state = app.store.codableSetting(Self.triageKey, as: MessageTriageState.self) {
+                state.notes.removeAll { $0.id == note.id }
+                app.store.setCodableSetting(Self.triageKey, state)
+            }
+            withdrawCard(plan.id)
+            ReminderBannerCenter.shared.show(.init(source: "Asky", timeLabel: NSLocalizedString("现在", comment: ""),
+                title: NSLocalizedString("日程已创建", comment: ""), body: edited.title))
+            schedule()
+        } else {
+            showCalendarError(result.status == .pendingVerification
+                ? NSLocalizedString("创建结果待核实，请先检查日历；不会重复创建。", comment: "")
+                : (result.error?.message ?? NSLocalizedString("日程未创建，请重试。", comment: "")))
+        }
+    }
+
+    private func showCalendarError(_ message: String) {
+        let alert = AppDialog.make()
+        alert.messageText = NSLocalizedString("日程创建结果", comment: "")
+        alert.informativeText = message
+        NSApp.activate()
+        alert.runModal()
     }
 
     private func snooze(_ id: String) {

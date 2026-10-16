@@ -559,3 +559,16 @@
 
 "现在" = "Now";
 "稍后提醒" = "Remind later";
+"创建日程" = "Create event";
+"日程已创建" = "Event created";
+"日程创建结果" = "Calendar result";
+"短信未提供结束时间，暂按 1 小时预填，请确认或修改。" = "The message has no end time. A one-hour duration is prefilled; please confirm or edit it.";
+"短信安排已变化或授权已关闭，请重新检查。" = "The message appointment has changed or access is off. Please check again.";
+"创建结果待核实，请先检查日历；不会重复创建。" = "The result is unverified. Check Calendar first; no duplicate event will be created.";
+"日程未创建，请重试。" = "The event was not created. Please try again.";
+"开始时间" = "Start";
+"结束时间" = "End";
+"地点" = "Location";
+"请填写标题和未来的开始时间，结束时间须晚于开始时间。" = "Enter a title and a future start time. The end must be after the start.";
+"日期" = "Date";
+"时间" = "Time";

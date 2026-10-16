@@ -181,27 +181,37 @@ enum LauncherWindowRegression {
         panel.onBlur()
         try require(controller.isVisible, "pin must preserve panel on blur")
         try await Task.sleep(for: .milliseconds(1300))
-        try require(abs(panel.frame.width - LauncherLayout.toolbarWidth - 264) <= 1, "toolbar must retain the original 720 pt width")
-        try require(abs(panel.frame.height - 328) <= 1, "accessories must not increase empty panel height: \(panel.frame.height)")
+        let accessories = panel.childWindows?.filter { $0 is SurfacePanel && $0.isVisible && $0.alphaValue > 0.99 } ?? []
+        try require(accessories.count == 2, "pin and filter must be separate surface windows: \(panel.childWindows?.map { "\(type(of: $0)) \($0.isVisible) \($0.alphaValue) \($0.frame)" } ?? [])")
+        try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
+                    "empty shell must yield accessory space: \(panel.frame.width)")
+        let footprint = accessories.reduce(panel.frame) { $0.union($1.frame) }
+        try require(abs(footprint.width - LauncherLayout.toolbarWidth) <= 1, "toolbar must retain the original 720 pt width")
+        try require(abs(panel.frame.height - 64) <= 1, "empty shell window must be exactly the 64 pt field: \(panel.frame.height)")
+        try require(panel.hasShadow && accessories.allSatisfy(\.hasShadow), "every surface uses the native window shadow")
         let field = searchField(in: panel.contentView!)!
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         let emptyFieldWidth = field.frame.width
         model.inputText = "Safari"
         try await Task.sleep(for: .milliseconds(300))
         try require(field.frame.width >= emptyFieldWidth + 150, "typing must return accessory space to the search field")
-        try require(abs(panel.frame.width - 984) <= 1, "typing must not change total window width")
+        try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(220))
-        try require(abs(panel.frame.height - 328) <= 1, "clearing must collapse the result window promptly")
-        try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing must restore the empty field width promptly")
+        try require(abs(panel.frame.height - 64) <= 1, "clearing must collapse the result window promptly")
+        // The reveal spring may still be in its ~2% overshoot here; the settled check follows.
+        try require(abs(field.frame.width - emptyFieldWidth) <= 4, "clearing must restore the empty field width promptly: \(field.frame.width) vs \(emptyFieldWidth)")
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing input must restore accessories within original width")
 
         model.isFilterMenuPresented = true
         try await Task.sleep(for: .milliseconds(100))
-        try require(panel.frame.height >= 584, "menu must have an unclipped hit-test canvas")
+        let menu = panel.childWindows?.first { $0 is SurfacePanel && $0.isVisible && $0.frame.height > 64 }
+        try require(menu.map { $0.frame.maxY <= panel.frame.minY && $0.hasShadow } == true,
+                    "filter menu must be its own shadowed surface below the field")
+        try require(abs(panel.frame.height - 64) <= 1, "menu must not resize the shell window")
         panel.onEscape()
-        try require(!model.isFilterMenuPresented && controller.isVisible, "Escape must close menu before launcher")
+        try require(!model.isFilterMenuPresented && controller.isVisible, "Escape must close menu before launcher: menu \(model.isFilterMenuPresented) visible \(controller.isVisible) key \(panel.isKeyWindow)")
         for filter in [LauncherFilter.applications, .files, .shortcuts, .quickLinks] {
             model.setFilter(filter)
             model.inputText = filter == .quickLinks ? "go" : "Safari"
@@ -471,7 +481,7 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(450))
         try require(model.results.count == 1, "cancelled local batches must not replace the AI selection")
         if let panel = NSApp.windows.first(where: { $0 is LauncherPanel }) as? LauncherPanel {
-            try require(abs(panel.frame.height - 391) <= 1,
+            try require(abs(panel.frame.height - 127) <= 1,
                         "single AI category must omit the 52 pt header from native window height")
         }
         model.submit(.executeSelection)
@@ -536,9 +546,9 @@ enum LauncherWindowRegression {
         }
         let event = NSEvent(cgEvent: CGEvent(scrollWheelEvent2Source: nil, units: .line,
                                            wheelCount: 1, wheel1: -4, wheel2: 0, wheel3: 0)!)!
-        try require(!panel.routeScrollWheel(event, at: .zero), "shadow must not intercept scrolling")
+        try require(!panel.routeScrollWheel(event, at: NSPoint(x: -1, y: -1)), "points outside the shell must not intercept scrolling")
         try require(model.selection == selection && editor.string == text && panel.firstResponder === editor,
-                    "scrolling must preserve selection, text and input focus")
+                    "scrolling must preserve selection, text and input focus: selection \(model.selection)/\(selection), text \(editor.string == text), responder \(String(describing: panel.firstResponder)), key \(panel.isKeyWindow)")
         let target = model.results.lastIndex { $0.source == .file }!
         let steps = target - selection
         let field = searchField(in: content)!
@@ -712,8 +722,8 @@ enum LauncherWindowRegression {
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let visibleFrame = screen?.visibleFrame {
             let availableHeight = floor(visibleFrame.height * 0.88 - 24)
-            // 64 pt field + 1 pt divider + 400 pt list + 264 pt shadow canvas.
-            let expectedHeight = min(465, availableHeight) + 264
+            // 64 pt field + 1 pt divider + 400 pt list; the window is exactly the shell.
+            let expectedHeight = min(465, availableHeight)
             try require(abs(baseline.height - expectedHeight) <= 1,
                         "long results must use the increased 400 pt list budget within screen bounds")
         }
@@ -774,7 +784,7 @@ enum LauncherWindowRegression {
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
             maxInputDrift = max(maxInputDrift, abs(top - inputTop))
         }
-        try require(abs(panel.frame.height - 328) <= 1, "clearing input must restore the 64 pt field plus shadow canvas")
+        try require(abs(panel.frame.height - 64) <= 1, "clearing input must restore the 64 pt field")
         print("settledChangeSamples=160 inputDrift=\(maxInputDrift)")
         try require(maxInputDrift <= 1, "shrinking/clearing results must preserve input position")
 

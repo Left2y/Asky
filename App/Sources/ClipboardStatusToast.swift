@@ -1,8 +1,10 @@
 import SwiftUI
 import Theme
 
-/// Compact feedback with its own surface, separated from the clipboard cards below it.
+/// Compact feedback in its own opaque window above the launcher or clipboard;
+/// the window server draws its shadow.
 struct ClipboardStatusToast: View {
+    static let cornerRadius: CGFloat = 12
     let message: String
     @Environment(\.colorScheme) private var scheme
 
@@ -22,11 +24,10 @@ struct ClipboardStatusToast: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
         .background(ThemeColor.kBackground.color(for: scheme, opaque: true),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    in: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
                 .strokeBorder(ThemeColor.kBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 }

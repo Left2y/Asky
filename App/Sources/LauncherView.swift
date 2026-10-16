@@ -17,11 +17,10 @@ enum LauncherLayout {
     static let inputTrailingPadding: CGFloat = 28
     static let inputSpacing: CGFloat = 12
     static let searchIconSize: CGFloat = 17
-    // Figma blur 80 maps to a 40 pt shadow radius. Reserve three radii
-    // around the shell so the transparent NSPanel does not clip the falloff.
-    static let shadowRadius: CGFloat = 40
-    static let shadowOffsetY: CGFloat = 12
-    static let shadowPadding: CGFloat = 132
+    /// Width the empty shell gives up to the two accessory circles.
+    static let accessoryReserve = 2 * (inputHeight + accessorySpacing)
+    static let filterMenuWidth: CGFloat = 220
+    static let filterMenuCornerRadius: CGFloat = 24
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
     // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
@@ -46,9 +45,8 @@ final class LauncherPanel: NSPanel {
     var actionPreferences: () -> SettingsPreferences = { SettingsPreferences() }
 
     init() {
-        super.init(contentRect: NSRect(x: 0, y: 0,
-                                      width: LauncherLayout.toolbarWidth + LauncherLayout.shadowPadding * 2,
-                                      height: LauncherLayout.inputHeight + LauncherLayout.shadowPadding * 2),
+        super.init(contentRect: NSRect(x: 0, y: 0, width: LauncherLayout.toolbarWidth,
+                                      height: LauncherLayout.inputHeight),
                    styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
                    backing: .buffered, defer: true)
         isFloatingPanel = true
@@ -56,7 +54,7 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
-        // The window server derives the shadow from the visible surfaces.
+        // The frame is exactly the glass shell, so the system shadow follows it.
         hasShadow = true
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
@@ -105,16 +103,37 @@ final class LauncherPanel: NSPanel {
     }
 }
 
+/// What the launcher shows outside its shell, each in its own surface window.
+struct LauncherChrome: Equatable {
+    var accessories = false
+    var filterMenu = false
+    var toast: String?
+}
+
+/// Shared with the accessory windows so their edge glint follows the reveal.
+@MainActor @Observable final class LauncherSurfaceState {
+    var accessoriesRevealed = false
+}
+
 @MainActor
 final class LauncherController {
     private let panel = LauncherPanel()
+    private let accessoryPanels = [SurfacePanel(), SurfacePanel()]
+    private let filterPanel = SurfacePanel()
+    private let toastPanel = SurfacePanel()
+    private let surfaces = LauncherSurfaceState()
+    private let reveal = SurfaceSpring()
     private let outsideClickDismissal = OutsideClickDismissal()
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
     private var contentID = UUID()
     private var resizeTask: Task<Void, Never>?
     private var hiding = false
+    private var chrome = LauncherChrome()
     private var availableShellHeight = CGFloat(WindowMetrics.launcherMaxHeight)
+    private var shellHeight = LauncherLayout.inputHeight
+    /// The full-width toolbar's top-left corner; every surface is placed from it.
+    private var origin = NSPoint.zero
 
     init(model: LauncherModel) {
         self.model = model
@@ -135,6 +154,8 @@ final class LauncherController {
         panel.onRevealInFinder = { [weak model] in model?.revealSelectionInFinder() ?? false }
         model.onHide = { [weak self] in self?.hide() }
         model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
+        reveal.onStep = { [weak self] _ in self?.layoutSurfaces() }
+        toastPanel.ignoresMouseEvents = true
     }
 
     var onOpenSettings: () -> Void {
@@ -151,11 +172,15 @@ final class LauncherController {
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
             availableShellHeight = min(CGFloat(WindowMetrics.launcherMaxHeight), floor(f.height * (1 - LauncherLayout.topInsetFraction) - LauncherLayout.bottomClearance))
+            // Anchor near the top of the pointer screen, leaving room for results below.
+            origin = NSPoint(x: f.midX - LauncherLayout.toolbarWidth / 2,
+                             y: f.maxY - f.height * LauncherLayout.topInsetFraction)
         }
         if hosting == nil {
             let id = UUID()
             contentID = id
-            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight) { [weak self] height in
+            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight,
+                                                                    onHeightChange: { [weak self] height in
                 // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
                 self?.resizeTask?.cancel()
                 self?.resizeTask = Task { @MainActor [weak self] in
@@ -163,7 +188,10 @@ final class LauncherController {
                     guard let self, self.contentID == id, self.hosting != nil else { return }
                     self.resize(to: height)
                 }
-            }
+            }, onChromeChange: { [weak self] chrome in
+                guard let self, self.contentID == id, self.hosting != nil else { return }
+                self.update(chrome)
+            })
             // Layout changes before the asynchronous panel resize. Pin the shell
             // to the top of the current host rather than centering it for a frame.
             .frame(maxHeight: .infinity, alignment: .top)))
@@ -171,24 +199,29 @@ final class LauncherController {
             view.sizingOptions = []
             // Give SwiftUI a stable canvas. Resizing the NSHostingView itself
             // produces an intermediate centered layout for AppKit's field editor.
-            // Only the transparent container/window resize; a flexible bottom
-            // margin keeps the fixed-height canvas anchored to the window top.
-            let canvasHeight = availableShellHeight + LauncherLayout.shadowPadding * 2
-            let container = NSView(frame: NSRect(origin: .zero, size: panel.frame.size))
-            view.frame = NSRect(x: 0, y: container.bounds.height - canvasHeight,
-                                width: container.bounds.width, height: canvasHeight)
+            // Only the container/window resize; a flexible bottom margin keeps
+            // the fixed-height canvas anchored to the window top.
+            shellHeight = LauncherLayout.inputHeight
+            let size = NSSize(width: LauncherLayout.toolbarWidth, height: shellHeight)
+            let container = NSView(frame: NSRect(origin: .zero, size: size))
+            container.clipsToBounds = true
+            view.frame = NSRect(x: 0, y: size.height - availableShellHeight,
+                                width: size.width, height: availableShellHeight)
             view.autoresizingMask = [.width, .minYMargin]
             container.addSubview(view)
-            panel.contentView = container
+            panel.setContentSize(size)
+            panel.contentView = WindowSurface.glassContentView(container, cornerRadius: LauncherLayout.expandedCornerRadius)
             hosting = view
+            for (index, accessory) in accessoryPanels.enumerated() {
+                let side = LauncherLayout.inputHeight
+                accessory.setSurface(LauncherAccessory(model: model, surfaces: surfaces, index: index),
+                                     size: NSSize(width: side, height: side), cornerRadius: side / 2)
+            }
         }
-        // Anchor near the top of the pointer screen, leaving room for results below.
-        if let f = screen?.visibleFrame {
-            let w = LauncherLayout.toolbarWidth + LauncherLayout.shadowPadding * 2
-            panel.setFrameTopLeftPoint(NSPoint(x: f.midX - w / 2,
-                                              y: f.maxY - f.height * LauncherLayout.topInsetFraction + LauncherLayout.shadowPadding))
-        }
+        reveal.set(0)
+        layoutSurfaces()
         panel.makeKeyAndOrderFront(nil)
+        for accessory in accessoryPanels { panel.addChildWindow(accessory, ordered: .above) }
         updateOutsideClickDismissal()
     }
 
@@ -196,39 +229,123 @@ final class LauncherController {
         guard panel.isVisible, !model.isPinned else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            return self.panel.frame.insetBy(dx: LauncherLayout.shadowPadding,
-                                           dy: LauncherLayout.shadowPadding).contains(point)
+            let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel]
+            return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
     }
 
-    private func resize(to contentHeight: CGFloat) {
-        let shadowSpace = LauncherLayout.shadowPadding * 2
-        let height = min(availableShellHeight + shadowSpace,
-                         max(LauncherLayout.inputHeight + shadowSpace, ceil(contentHeight)))
-        var frame = panel.frame
-        guard frame.height != height else { return }
-        // AppKit's origin is at the bottom left. Keep the input anchored while expanding down.
-        frame.origin.y = frame.maxY - height
-        frame.size.height = height
-        // Let AppKit draw after laying out the new content size instead of forcing
-        // a display of the intermediate field-editor/hosting-view geometry.
-        panel.setFrame(frame, display: false)
-        // The panel's origin and content layout must change in the same main-
-        // actor turn; otherwise the live editor briefly stays at the old height.
-        hosting?.layoutSubtreeIfNeeded()
-        panel.invalidateShadow()
+    private func update(_ next: LauncherChrome) {
+        let previous = chrome
+        chrome = next
+        if next.accessories != previous.accessories {
+            surfaces.accessoriesRevealed = next.accessories
+            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { reveal.set(next.accessories ? 1 : 0) }
+            // Typing recovers the full field promptly; only the empty launcher's
+            // separation uses the more expressive spring.
+            else if next.accessories { reveal.animate(to: 1, response: 0.28, damping: 0.78, in: panel) }
+            else { reveal.animate(to: 0, response: 0.18, damping: 1, in: panel) }
+        }
+        if next.filterMenu != previous.filterMenu { setFilterMenu(visible: next.filterMenu) }
+        if next.toast != previous.toast { setToast(next.toast) }
+        layoutSurfaces()
     }
 
-    /// Hiding releases the SwiftUI tree and the result payloads (panel resource scope).
+    private func setFilterMenu(visible: Bool) {
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        if visible {
+            let view = LauncherFilterMenu(model: model)
+            filterPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.filterMenuWidth),
+                                   cornerRadius: LauncherLayout.filterMenuCornerRadius)
+            filterPanel.alphaValue = reduceMotion ? 1 : 0
+            layoutSurfaces()
+            panel.addChildWindow(filterPanel, ordered: .above)
+            guard !reduceMotion else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                filterPanel.animator().alphaValue = 1
+            }
+        } else if reduceMotion {
+            filterPanel.remove()
+        } else {
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.14
+                filterPanel.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, !self.chrome.filterMenu else { return }
+                    self.filterPanel.remove()
+                }
+            })
+        }
+    }
+
+    private func setToast(_ message: String?) {
+        guard let message else { toastPanel.remove(); return }
+        let view = ClipboardStatusToast(message: message)
+        toastPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.toolbarWidth - 48),
+                              cornerRadius: ClipboardStatusToast.cornerRadius, glass: false)
+        layoutSurfaces()
+        panel.addChildWindow(toastPanel, ordered: .above)
+    }
+
+    /// Places every surface from the toolbar origin. Child windows follow the
+    /// parent's origin automatically, so they are reset after each shell move.
+    private func layoutSurfaces() {
+        let progress = CGFloat(reveal.value)
+        let side = LauncherLayout.inputHeight
+        let width = LauncherLayout.toolbarWidth - progress * LauncherLayout.accessoryReserve
+        let frame = NSRect(x: origin.x, y: origin.y - shellHeight, width: width, height: shellHeight)
+        if panel.frame != frame {
+            // Let AppKit draw after laying out the new content size instead of forcing
+            // a display of the intermediate field-editor/hosting-view geometry.
+            panel.setFrame(frame, display: false)
+            // The panel's origin and content layout must change in the same main-
+            // actor turn; otherwise the live editor briefly stays at the old height.
+            hosting?.layoutSubtreeIfNeeded()
+            panel.invalidateShadow()
+        }
+        let right = origin.x + LauncherLayout.toolbarWidth
+        for (index, accessory) in accessoryPanels.enumerated() {
+            let slots = CGFloat(2 - index)
+            // Each circle slides in from the right as it separates from the field.
+            let x = right - slots * side - CGFloat(1 - index) * LauncherLayout.accessorySpacing
+                + (1 - progress) * slots * 28
+            accessory.setFrame(NSRect(x: x, y: origin.y - side, width: side, height: side), display: false)
+            accessory.alphaValue = min(1, max(0, progress))
+            accessory.ignoresMouseEvents = !chrome.accessories
+        }
+        if filterPanel.isVisible {
+            filterPanel.setFrameTopLeftPoint(NSPoint(x: right - filterPanel.frame.width,
+                                                     y: origin.y - side - LauncherLayout.accessorySpacing))
+        }
+        if toastPanel.isVisible {
+            let size = toastPanel.frame.size
+            toastPanel.setFrameOrigin(NSPoint(x: frame.midX - size.width / 2, y: frame.maxY + 12))
+        }
+    }
+
+    private func resize(to contentHeight: CGFloat) {
+        let height = min(availableShellHeight, max(LauncherLayout.inputHeight, ceil(contentHeight)))
+        guard shellHeight != height else { return }
+        // AppKit's origin is at the bottom left; the input stays anchored while expanding down.
+        shellHeight = height
+        layoutSurfaces()
+    }
+
+    /// Hiding releases the SwiftUI trees and the result payloads (panel resource scope).
     func hide() {
         guard panel.isVisible, !hiding else { return }
         hiding = true
         defer { hiding = false }
         outsideClickDismissal.hide()
+        reveal.stop()
+        for surface in accessoryPanels + [filterPanel, toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
         contentID = UUID()
+        chrome = LauncherChrome()
+        surfaces.accessoriesRevealed = false
         model.reset()
         panel.contentView = nil
         hosting = nil
@@ -239,9 +356,9 @@ struct LauncherView: View {
     @Bindable var model: LauncherModel
     var maxShellHeight: CGFloat = CGFloat(WindowMetrics.launcherMaxHeight)
     var onHeightChange: (CGFloat) -> Void = { _ in }
+    var onChromeChange: (LauncherChrome) -> Void = { _ in }
     @State private var statusHeight: CGFloat = 0
     @State private var accessoriesVisible = false
-    @State private var hoveredFilter: LauncherFilter?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
@@ -253,132 +370,26 @@ struct LauncherView: View {
 
     private var hasInput: Bool { !model.query.isEmpty }
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
-    private var showsAccessories: Bool { accessoriesVisible && !hasInput }
-    private var searchWidth: CGFloat {
-        LauncherLayout.toolbarWidth - (showsAccessories ? 2 * (inputHeight + LauncherLayout.accessorySpacing) : 0)
-    }
-    private var revealAnimation: Animation? {
-        if reduceMotion { return nil }
-        // Typing should recover the full input width immediately; keep the
-        // more expressive spring only for the empty launcher's separation.
-        return hasInput ? .smooth(duration: 0.18, extraBounce: 0)
-            : .spring(response: 0.28, dampingFraction: 0.78)
+    private var chrome: LauncherChrome {
+        LauncherChrome(accessories: accessoriesVisible && !hasInput,
+                       filterMenu: model.isFilterMenuPresented && !hasInput,
+                       toast: model.toast)
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            searchShell
-                .simultaneousGesture(TapGesture().onEnded { model.isFilterMenuPresented = false })
-                .animation(reduceMotion ? nil : .smooth(duration: hasInput ? 0.18 : 0.12), value: showsAccessories)
-            HStack(spacing: LauncherLayout.accessorySpacing) {
-                accessory("pin", selected: model.isPinned, index: 0,
-                          label: model.isPinned ? "取消固定" : "固定窗口") {
-                    model.isPinned.toggle()
-                }
-                accessory("line.3.horizontal.decrease", selected: model.filter != .all || model.isFilterMenuPresented,
-                          index: 1, label: "筛选搜索") {
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.22)) {
-                        model.isFilterMenuPresented.toggle()
-                    }
-                }
+        searchShell
+            .simultaneousGesture(TapGesture().onEnded { model.isFilterMenuPresented = false })
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
+            .onChange(of: hasInput) { _, searching in
+                if searching { model.isFilterMenuPresented = false }
             }
-            .frame(width: LauncherLayout.toolbarWidth, height: inputHeight, alignment: .trailing)
-        }
-        .frame(width: LauncherLayout.toolbarWidth, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-        .onChange(of: hasInput) { _, searching in
-            if searching { model.isFilterMenuPresented = false }
-        }
-        .overlay(alignment: .topTrailing) {
-            if model.isFilterMenuPresented && !hasInput {
-                filterMenu
-                    .padding(.top, inputHeight + 12)
-                    .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .topTrailing)))
-            }
-        }
-        .frame(minHeight: model.isFilterMenuPresented && !hasInput ? 320 : 0, alignment: .top)
-        .padding(LauncherLayout.shadowPadding)
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
-        .task {
-            if reduceMotion { accessoriesVisible = true; return }
-            try? await Task.sleep(for: .milliseconds(20))
-            guard !Task.isCancelled else { return }
-            withAnimation(revealAnimation) {
+            .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
+            .task {
+                if reduceMotion { accessoriesVisible = true; return }
+                try? await Task.sleep(for: .milliseconds(20))
+                guard !Task.isCancelled else { return }
                 accessoriesVisible = true
             }
-        }
-    }
-
-    private func accessory(_ symbol: String, selected: Bool, index: Int, label: String,
-                           action: @escaping () -> Void) -> some View {
-        let glintEnabled = showsAccessories && !reduceMotion
-        return Button(action: action) {
-            Image(systemName: symbol + (symbol == "pin" && selected ? ".fill" : ""))
-                .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
-                .foregroundStyle(selected ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
-                .frame(width: inputHeight, height: inputHeight)
-                .contentShape(.interaction, Circle())
-        }
-        .buttonStyle(LauncherAccessoryButtonStyle(size: inputHeight))
-        .overlay {
-            // A single edge glint as each glass circle separates from the field.
-            // Keep it out of the hit area and suppress it for reduced motion.
-            Circle()
-                .strokeBorder(.white, lineWidth: 1)
-                .keyframeAnimator(initialValue: 0.0, trigger: showsAccessories) { edge, brightness in
-                    edge.opacity(glintEnabled ? brightness : 0)
-                } keyframes: { _ in
-                    LinearKeyframe(0.0, duration: Double(1 - index) * 0.035 + 0.04)
-                    LinearKeyframe(0.32, duration: 0.055)
-                    CubicKeyframe(0.0, duration: 0.18)
-                }
-                .allowsHitTesting(false)
-        }
-        .scaleEffect(showsAccessories ? 1 : 0.82)
-        .opacity(showsAccessories ? 1 : 0)
-        .offset(x: showsAccessories || reduceMotion ? 0 : CGFloat(2 - index) * 28)
-        .animation(reduceMotion ? nil : hasInput ? .smooth(duration: 0.18, extraBounce: 0)
-            : .spring(response: 0.28, dampingFraction: 0.78).delay(Double(1 - index) * 0.035),
-                   value: showsAccessories)
-        .transition(.scale(scale: 0.6).combined(with: .opacity))
-        .allowsHitTesting(showsAccessories)
-        .accessibilityHidden(!showsAccessories)
-        .accessibilityLabel(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
-        .accessibilityValue(selected ? "On" : "Off")
-        .help(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
-    }
-
-    private var filterMenu: some View {
-        VStack(spacing: 4) {
-            ForEach(LauncherFilter.allCases) { filter in
-                Button {
-                    model.setFilter(filter)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: filter.icon).frame(width: 22)
-                        Text(NSLocalizedString(filter.title, tableName: "Launcher", comment: "Launcher filter"))
-                        Spacer()
-                        if model.filter == filter { Image(systemName: "checkmark") }
-                    }
-                    .font(.system(size: 14))
-                    .padding(.horizontal, 14)
-                    .frame(height: 40)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .background(model.filter == filter || hoveredFilter == filter ? ThemeColor.kInteractionHover.color(for: colorScheme) : .clear,
-                            in: RoundedRectangle(cornerRadius: 12))
-                .onHover { inside in
-                    if inside { hoveredFilter = filter }
-                    else if hoveredFilter == filter { hoveredFilter = nil }
-                }
-            }
-        }
-        .padding(8)
-        .frame(width: 220)
-        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
-        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24))
-        .onDisappear { hoveredFilter = nil }
     }
 
     private var searchShell: some View {
@@ -442,24 +453,14 @@ struct LauncherView: View {
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
         }
-        .frame(width: searchWidth)
+        .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         // Blank input/result areas must belong to the shell's pointer region.
         .contentShape(shellShape)
         .clipShape(shellShape)
-        .nativeGlassBackground(in: shellShape)
+        .windowSurfaceBackground(in: shellShape)
         .contentShape(shellShape)
-        .overlay(alignment: .top) {
-            if let toast = model.toast {
-                ClipboardStatusToast(message: toast)
-                    .padding(.horizontal, 24)
-                    .visualEffect { content, geometry in
-                        content.offset(y: -geometry.size.height - 12)
-                    }
-                    .allowsHitTesting(false)
-            }
-        }
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
         }
@@ -492,6 +493,98 @@ struct LauncherView: View {
 
 }
 
+/// One accessory circle; it fills its own `SurfacePanel`.
+private struct LauncherAccessory: View {
+    @Bindable var model: LauncherModel
+    let surfaces: LauncherSurfaceState
+    let index: Int
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var isPin: Bool { index == 0 }
+    private var selected: Bool {
+        isPin ? model.isPinned : model.filter != .all || model.isFilterMenuPresented
+    }
+    private var label: String {
+        isPin ? (model.isPinned ? "取消固定" : "固定窗口") : "筛选搜索"
+    }
+    private var symbol: String {
+        isPin ? (model.isPinned ? "pin.fill" : "pin") : "line.3.horizontal.decrease"
+    }
+
+    var body: some View {
+        let size = LauncherLayout.inputHeight
+        let revealed = surfaces.accessoriesRevealed
+        let glints = revealed && !reduceMotion
+        Button {
+            if isPin { model.isPinned.toggle() } else { model.isFilterMenuPresented.toggle() }
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
+                .foregroundStyle(selected ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
+                .frame(width: size, height: size)
+                .contentShape(.interaction, Circle())
+        }
+        .buttonStyle(LauncherAccessoryButtonStyle(size: size))
+        .overlay {
+            // A single edge glint as each glass circle separates from the field.
+            Circle()
+                .strokeBorder(.white, lineWidth: 1)
+                .keyframeAnimator(initialValue: 0.0, trigger: revealed) { edge, brightness in
+                    edge.opacity(glints ? brightness : 0)
+                } keyframes: { _ in
+                    LinearKeyframe(0.0, duration: Double(1 - index) * 0.035 + 0.04)
+                    LinearKeyframe(0.32, duration: 0.055)
+                    CubicKeyframe(0.0, duration: 0.18)
+                }
+                .allowsHitTesting(false)
+        }
+        .accessibilityHidden(!revealed)
+        .accessibilityLabel(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
+        .accessibilityValue(selected ? "On" : "Off")
+        .help(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
+    }
+}
+
+/// The source filter list; it fills its own `SurfacePanel`.
+private struct LauncherFilterMenu: View {
+    @Bindable var model: LauncherModel
+    @State private var hoveredFilter: LauncherFilter?
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ForEach(LauncherFilter.allCases) { filter in
+                Button {
+                    model.setFilter(filter)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: filter.icon).frame(width: 22)
+                        Text(NSLocalizedString(filter.title, tableName: "Launcher", comment: "Launcher filter"))
+                        Spacer()
+                        if model.filter == filter { Image(systemName: "checkmark") }
+                    }
+                    .font(.system(size: 14))
+                    .padding(.horizontal, 14)
+                    .frame(height: 40)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .background(model.filter == filter || hoveredFilter == filter ? ThemeColor.kInteractionHover.color(for: colorScheme) : .clear,
+                            in: RoundedRectangle(cornerRadius: 12))
+                .onHover { inside in
+                    if inside { hoveredFilter = filter }
+                    else if hoveredFilter == filter { hoveredFilter = nil }
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: LauncherLayout.filterMenuWidth)
+        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
+        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: LauncherLayout.filterMenuCornerRadius))
+    }
+}
+
 private struct LauncherAccessoryButtonStyle: ButtonStyle {
     let size: CGFloat
     @State private var isHovered = false
@@ -502,7 +595,7 @@ private struct LauncherAccessoryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .frame(width: size, height: size)
-            .nativeGlassBackground(in: Circle())
+            .windowSurfaceBackground(in: Circle())
             .overlay {
                 Circle()
                     .fill(ThemeColor.kInteractionHover.color(for: colorScheme))
@@ -513,7 +606,6 @@ private struct LauncherAccessoryButtonStyle: ButtonStyle {
             // Keep the material inside the button label so its whole circle
             // participates in the button's native press and release gesture.
             .contentShape(.interaction, Circle())
-            .scaleEffect(configuration.isPressed && isEnabled ? 0.96 : 1)
             .onHover { isHovered = $0 }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)

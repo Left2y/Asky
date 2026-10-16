@@ -82,7 +82,7 @@ macOS 15 的兼容表面使用 `NSVisualEffectView` 的 `underWindowBackground` 
 
 macOS 26+ 使用原生液态玻璃；源码构建最低支持 macOS 15。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
 
-启动器、AI 对话、剪贴板及其玻璃控件、预览和授权浮层统一使用 `NativeGlassBackground`：macOS 26+ 普通模式仅使用原生 `.glassEffect(.regular, in:)`，不叠加 `background` 的黑白填充或自制渐变描边；原生材质负责磨砂、光学边缘和背景适配。按钮可使用 Regular 的 interactive 变体。所有浮窗的阴影只使用 AppKit 原生窗口阴影（`hasShadow`），不自绘形状阴影：玻璃背后叠加的黑色阴影形状会在合成异常时透出，使浅色玻璃变为深色而遮挡文字。见[原生窗口阴影](validation/2026-10-14-native-window-shadow.md)。
+启动器、AI 对话、剪贴板及其玻璃控件、预览和授权浮层统一使用 `NativeGlassBackground`：macOS 26+ 普通模式仅使用原生 `.glassEffect(.regular, in:)`，不叠加 `background` 的黑白填充或自制渐变描边；原生材质负责磨砂、光学边缘和背景适配。按钮可使用 Regular 的 interactive 变体。浮动表面采用 Spotlight 式窗口结构：启动器外壳、两个圆形按钮、筛选菜单、剪贴板主窗口和完整预览各自是一个窗口，窗口帧恰好等于玻璃外形，由 AppKit `NSGlassEffectView` 填满并开启 `hasShadow`，阴影由窗口服务器按可见外形生成；`NSGlassEffectView` 与内容层都按同一圆角裁剪，否则玻璃在窗口角落留下的微弱 alpha 会让系统阴影呈方角黑边。附属表面是外壳的子窗口；按钮分离动画在窗口层用显示链路弹簧驱动。提示条是不透明的独立表面。不使用透明留白画布与自绘阴影（前者被描出偏下黑框，后者曾让浅色玻璃变深）。降低透明度或增强对比度时由 SwiftUI 绘制不透明回退表面。见[Spotlight 式浮动表面](validation/2026-10-16-spotlight-surfaces.md)、[原生窗口阴影](validation/2026-10-14-native-window-shadow.md)与[启动器黑框](validation/2026-10-16-launcher-shadow-outline.md)。
 
 不使用 Clear 材质，避免背景文字直接折射进阅读区。降低透明度或增强对比度时关闭玻璃，改用不透明语义背景和清晰边框。剪贴板搜索框、固定按钮和历史卡片使用不带染色的原生 Regular 玻璃，移除深色语义填充；卡片仅在选中时增加描边。其他内容卡片保留原有内容层。原生材质随背景变化，不承诺固定黑白表面或 Figma 光学参数的逐项等价。验证见[原生玻璃统一记录](validation/2026-10-11-native-glass.md)。
 

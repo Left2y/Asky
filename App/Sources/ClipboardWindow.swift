@@ -47,12 +47,13 @@ final class ClipboardController {
     private let dragSource = ClipboardDragSource()
     private var refreshTimer: Timer?
     private let outsideClickDismissal = OutsideClickDismissal()
+    private let toastPanel = SurfacePanel()
     private var hiding = false
     var query = "" { didSet { selection = 0; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
     var selection = 0
     var pinned = false { didSet { updateOutsideClickDismissal() } }
-    var status: String?
+    var status: String? { didSet { if status != oldValue { updateToast() } } }
 
     init(app: AppModel) {
         self.app = app
@@ -68,6 +69,7 @@ final class ClipboardController {
             window.isReleasedWhenClosed = false
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         }
+        toastPanel.ignoresMouseEvents = true
         panel.level = .normal
         panel.title = NSLocalizedString("剪贴板历史", comment: "")
         preview.title = NSLocalizedString("剪贴板完整预览", comment: "")
@@ -82,9 +84,8 @@ final class ClipboardController {
         }
     }
 
-    private var shellFrame: NSRect {
-        panel.frame.insetBy(dx: LauncherLayout.shadowPadding, dy: LauncherLayout.shadowPadding)
-    }
+    /// The panel frame is exactly the glass shell, so the system shadow follows it.
+    private var shellFrame: NSRect { panel.frame }
 
     var isVisible: Bool { panel.isVisible }
     func toggle() { panel.isVisible ? hide() : show() }
@@ -98,10 +99,13 @@ final class ClipboardController {
         if let frame = screen?.visibleFrame {
             let width = min(900, frame.width - 32)
             panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
-                                  width: width, height: 244)
-                .insetBy(dx: -LauncherLayout.shadowPadding, dy: -LauncherLayout.shadowPadding), display: false)
+                                  width: width, height: 244), display: false)
         }
-        panel.contentView = NSHostingView(rootView: ClipboardHistoryView(controller: self))
+        let host = NSHostingView(rootView: ClipboardHistoryView(controller: self))
+        host.sizingOptions = []
+        host.frame = NSRect(origin: .zero, size: panel.frame.size)
+        panel.contentView = WindowSurface.glassContentView(host, cornerRadius: ClipboardHistoryView.cornerRadius)
+        panel.invalidateShadow()
         panel.level = .floating
         panel.orderFrontRegardless()
         panel.makeKey()
@@ -118,6 +122,7 @@ final class ClipboardController {
         defer { hiding = false }
         outsideClickDismissal.hide()
         dismissPreview()
+        toastPanel.remove()
         refreshTimer?.invalidate()
         refreshTimer = nil
         panel.orderOut(nil)
@@ -131,6 +136,16 @@ final class ClipboardController {
             guard let self else { return false }
             return self.shellFrame.contains(point) || (self.preview.isVisible && self.preview.frame.contains(point))
         }, dismiss: { [weak self] in self?.hide() })
+    }
+
+    /// The status toast is its own opaque surface centered 12 pt above the shell.
+    private func updateToast() {
+        guard panel.isVisible, let status else { toastPanel.remove(); return }
+        let view = ClipboardStatusToast(message: status)
+        let size = SurfacePanel.fittingSize(of: view, maxWidth: shellFrame.width - 48)
+        toastPanel.setSurface(view, size: size, cornerRadius: ClipboardStatusToast.cornerRadius, glass: false)
+        toastPanel.setFrameOrigin(NSPoint(x: shellFrame.midX - size.width / 2, y: shellFrame.maxY + 12))
+        if toastPanel.parent == nil { panel.addChildWindow(toastPanel, ordered: .above) }
     }
 
     func refresh() {
@@ -298,13 +313,18 @@ final class ClipboardController {
         if x < bounds.minX { x = anchor.minX } else if x + width > bounds.maxX { x = anchor.maxX - width }
         x = min(max(available.minX, x), available.maxX - width)
         preview.setFrame(NSRect(x: x, y: y, width: width, height: height), display: false)
-        preview.contentView = NSHostingView(rootView: ClipboardFullPreview(item: item, image: image)
+        let host = NSHostingView(rootView: ClipboardFullPreview(item: item, image: image)
             .onHover { [weak self] in self?.previewHover($0) })
+        host.sizingOptions = []
+        host.frame = NSRect(origin: .zero, size: preview.frame.size)
+        preview.contentView = WindowSurface.glassContentView(host, cornerRadius: ClipboardFullPreview.radius)
+        preview.invalidateShadow()
         preview.orderFrontRegardless()
     }
 }
 
 private struct ClipboardHistoryView: View {
+    static let cornerRadius: CGFloat = 32
     @Bindable var controller: ClipboardController
     @Environment(\.colorScheme) private var scheme
     var body: some View {
@@ -357,19 +377,8 @@ private struct ClipboardHistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
-        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 32))
-        .clipShape(RoundedRectangle(cornerRadius: 32))
-        .overlay(alignment: .top) {
-            if let status = controller.status {
-                ClipboardStatusToast(message: status)
-                    .padding(.horizontal, 24)
-                    .visualEffect { content, geometry in
-                        content.offset(y: -geometry.size.height - 12)
-                    }
-                    .allowsHitTesting(false)
-            }
-        }
-        .padding(LauncherLayout.shadowPadding)
+        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .onExitCommand { controller.hide() }
         .accessibilityValue(controller.status ?? "")
     }
@@ -474,7 +483,7 @@ private struct ClipboardFullPreview: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
-        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: Self.radius))
+        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.radius))
         .clipShape(RoundedRectangle(cornerRadius: Self.radius))
     }
 }

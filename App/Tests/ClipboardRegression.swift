@@ -112,7 +112,7 @@ enum ClipboardRegression {
                 if !CommandLine.arguments.contains("--preview"), !dragPreview { controller.pinned = true }
                 try await Task.sleep(for: .milliseconds(400))
                 @MainActor func panel() -> NSWindow { application.windows.first { $0.title == "剪贴板历史" }! }
-                @MainActor func shellFrame() -> NSRect { panel().frame.insetBy(dx: LauncherLayout.shadowPadding, dy: LauncherLayout.shadowPadding) }
+                @MainActor func shellFrame() -> NSRect { panel().frame }
                 @MainActor func snapshot(_ window: NSWindow, _ name: String) throws {
                     let view = window.contentView!
                     view.layoutSubtreeIfNeeded()
@@ -280,7 +280,7 @@ enum ClipboardRegression {
                     exit(0)
                 }
                 precondition(controller.items.count == 4)
-                precondition(panel().frame.height == 244 + LauncherLayout.shadowPadding * 2)
+                precondition(panel().frame.height == 244 && panel().hasShadow, "panel is exactly the shadowed glass shell")
                 precondition(controller.selection == 0, "first card is selected by default")
                 controller.moveSelection(1)
                 precondition(controller.selection == 1)

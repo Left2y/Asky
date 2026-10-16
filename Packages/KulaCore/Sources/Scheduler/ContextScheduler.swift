@@ -138,9 +138,9 @@ public struct ReminderRules: Sendable {
 }
 
 public struct ReconcileOutcome: Sendable {
-    /// Plans that must be (re)registered with the notification center.
+    /// Plans whose delivery must be (re)scheduled.
     public var schedule: [ReminderPlan] = []
-    /// Plan IDs whose pending notifications must be removed.
+    /// Plan IDs whose pending delivery and visible cards must be removed.
     public var cancel: [String] = []
 }
 

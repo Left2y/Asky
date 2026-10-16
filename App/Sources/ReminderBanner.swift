@@ -69,6 +69,7 @@ final class ReminderBannerCenter {
     }
 
     func dismiss(_ id: UUID) {
+        waiting.removeAll { $0.id == id }
         guard let index = stack.cards.firstIndex(where: { $0.id == id && !$0.leaving }) else { return }
         stopTimer(id)
         remaining[id] = nil

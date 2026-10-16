@@ -39,6 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--test-banner") || CommandLine.arguments.contains("--test-notification") {
+            // Preview only: no app data, permissions, scheduler or AI runtime are started.
+            ReminderBannerCenter.shared.showPreview()
+            return
+        }
         if CommandLine.arguments.contains("--test-confirmations") {
             // Exercise the real shared UI without starting the model or executing tools.
             let confirmations = ConfirmationCenter()
@@ -130,19 +135,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         Task {
             await model.start()
             reminders.start()
-            #if DEBUG
-            if CommandLine.arguments.contains("--test-banner") { ReminderBannerCenter.shared.showPreview() }
-            if CommandLine.arguments.contains("--test-notification") {
-                do { try await NotificationPreview.send() }
-                catch {
-                    let alert = AppDialog.make()
-                    alert.messageText = "测试通知未发送"
-                    alert.informativeText = error.localizedDescription
-                    NSApp.activate()
-                    alert.runModal()
-                }
-            }
-            #endif
         }
     }
 

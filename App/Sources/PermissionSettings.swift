@@ -34,7 +34,7 @@ final class PermissionSettingsModel {
         guard requesting == nil else { return }
         revision += 1
         let currentRevision = revision
-        for permission in SystemPermission.allCases {
+        for permission in SystemPermission.allCases.filter { $0 != .notifications } {
             let state = await readState(permission)
             guard revision == currentRevision, requesting == nil, !Task.isCancelled else { return }
             states[permission] = state
@@ -53,7 +53,7 @@ struct PermissionSettings: View {
     var body: some View {
         SettingsForm {
             Section(NSLocalizedString("系统权限", comment: "")) {
-                ForEach(SystemPermission.allCases) { permission in
+                ForEach(SystemPermission.allCases.filter { $0 != .notifications }) { permission in
                     HStack(spacing: 12) {
                         Image(systemName: symbol(for: permission))
                             .font(.system(size: 16, weight: .medium)).foregroundStyle(.white)

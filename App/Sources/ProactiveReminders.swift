@@ -1,6 +1,5 @@
 import AppKit
 import EventKit
-import UserNotifications
 import Contracts
 import LocalStore
 import Memory
@@ -8,17 +7,18 @@ import Scheduler
 import ToolService
 
 /// Wires the Context Scheduler to EventKit change notifications, wake / time-zone changes and an hourly checkpoint,
-/// and delivers plans as silent UserNotifications. Runs only while `proactiveReminders` is on.
+/// and delivers plans as silent Asky reminder cards. Runs only while `proactiveReminders` is on.
 /// With background AI on, the configured model also looks across events, open tasks and memories for things
 /// worth preparing, and, when separately allowed, recent SMS/iMessage; its suggestions go through the same
 /// dedupe, daily cap and quiet-hours rules.
 @MainActor
-final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
-    static let category = "asky.reminder"
+final class ProactiveReminders: NSObject {
     private let app: AppModel
     private let scheduler: ContextScheduler
     private var observers: [NSObjectProtocol] = []
     private var checkpoint: Timer?
+    private var deliveryTimer: Timer?
+    private var bannerIDs: [String: UUID] = [:]
     private var pending: Task<Void, Never>?
     private var lastAdvisorCall: Date?
     private static let advisorCacheKey = "reminders.advisor.cache"
@@ -41,14 +41,7 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func start() {
-        let center = UNUserNotificationCenter.current()
-        center.delegate = self
-        center.setNotificationCategories([UNNotificationCategory(identifier: Self.category, actions: [
-            UNNotificationAction(identifier: "evidence", title: NSLocalizedString("提醒原因", comment: ""), options: [.foreground]),
-            UNNotificationAction(identifier: "snooze", title: NSLocalizedString("稍后", comment: "")),
-            UNNotificationAction(identifier: "handled", title: NSLocalizedString("已处理", comment: "")),
-            UNNotificationAction(identifier: "disable", title: NSLocalizedString("关闭此类", comment: ""), options: [.destructive]),
-        ], intentIdentifiers: [])])
+        Task { await LegacyReminderNotifications.removeAll() }
 
         let nc = NotificationCenter.default, ws = NSWorkspace.shared.notificationCenter
         let trigger: @Sendable (Notification) -> Void = { [weak self] _ in Task { @MainActor in self?.schedule() } }
@@ -56,6 +49,14 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
             nc.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main, using: trigger),
             nc.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main, using: trigger),
             ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main, using: trigger),
+            ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    // Wake must revalidate before an overdue timer can present a stale plan.
+                    self?.deliveryTimer?.invalidate()
+                    self?.deliveryTimer = nil
+                    self?.pending?.cancel()
+                }
+            },
         ]
         let t = Timer(timeInterval: 3600, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.schedule() } }
         t.tolerance = 300
@@ -70,10 +71,15 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         checkpoint?.invalidate()
         checkpoint = nil
         pending?.cancel()
+        deliveryTimer?.invalidate()
+        deliveryTimer = nil
+        withdrawCards()
     }
 
     /// Debounced: bursts of EventKit changes collapse into one reconcile.
     func schedule() {
+        deliveryTimer?.invalidate()
+        deliveryTimer = nil
         pending?.cancel()
         pending = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
@@ -84,14 +90,10 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
 
     private func reconcile() async {
         let s = app.settings
-        let center = UNUserNotificationCenter.current()
         guard s.proactiveReminders, s.enabledSources.contains(.calendar), app.native.eventKit.calendarAuthorized else {
-            // Turning the feature off withdraws everything pending.
-            let ids = ReminderStore(app.store).plans(status: [.scheduled, .snoozed]).filter { !$0.userRequested }.map(\.id)
-            center.removePendingNotificationRequests(withIdentifiers: ids)
+            withdrawCards()
             return
         }
-        guard (try? await center.requestAuthorization(options: [.alert])) == true else { return }
         let now = Date()
         let ek = app.native.eventKit.store
         let pred = ek.predicateForEvents(withStart: now, end: now.addingTimeInterval(7 * 24 * 3600), calendars: nil)
@@ -100,10 +102,12 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
                           end: $0.endDate, location: $0.location, isAllDay: $0.isAllDay)
         }
         let insights = await smartSuggestions(events: events, settings: s, now: now)
+        guard !Task.isCancelled else { return }
         guard let outcome = try? scheduler.reconcile(events: events, insights: insights,
                                                      travelEnabled: s.enabledSources.contains(.maps), now: now) else { return }
-        center.removePendingNotificationRequests(withIdentifiers: outcome.cancel)
-        for plan in outcome.schedule { await deliver(plan) }
+        guard !Task.isCancelled else { return }
+        for id in outcome.cancel { withdrawCard(id) }
+        armDelivery()
     }
 
     // MARK: Smart suggestions
@@ -194,56 +198,64 @@ final class ProactiveReminders: NSObject, UNUserNotificationCenterDelegate {
         app.memory.context().map { [ContextSnippet(sourceID: "memory/\(MemoryFolder.indexName)", text: $0)] } ?? []
     }
 
-    private func deliver(_ plan: ReminderPlan) async {
-        let content = UNMutableNotificationContent()
-        content.title = plan.title
-        content.body = plan.body
-        content.sound = nil
-        content.categoryIdentifier = Self.category
-        content.userInfo = ["planID": plan.id, "evidence": plan.evidence]
-        let interval = max(1, plan.fireDate.timeIntervalSinceNow)
-        let req = UNNotificationRequest(identifier: plan.id, content: content,
-                                        trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
-        try? await UNUserNotificationCenter.current().add(req)
-    }
-
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
-        -> UNNotificationPresentationOptions {
-        let id = notification.request.identifier
-        await MainActor.run { try? scheduler.markDelivered(id) }
-        return [.banner, .list]
-    }
-
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        let id = response.notification.request.identifier
-        let action = response.actionIdentifier
-        let evidence = response.notification.request.content.userInfo["evidence"] as? [String] ?? []
-        let title = response.notification.request.content.title
-        await MainActor.run { handle(action: action, planID: id, title: title, evidence: evidence) }
-    }
-
-    private func handle(action: String, planID: String, title: String, evidence: [String]) {
-        switch action {
-        case "snooze":
-            if let when = try? scheduler.snooze(planID), let plan = ReminderStore(app.store).plans(status: [.snoozed]).first(where: { $0.id == planID }) {
-                var p = plan
-                p.fireDate = when
-                Task { await deliver(p) }
-            }
-        case "handled":
-            try? scheduler.markHandled(planID)
-        case "disable":
-            if let plan = ReminderStore(app.store).plans(status: [.scheduled, .snoozed, .delivered]).first(where: { $0.id == planID }),
-               let ids = try? scheduler.disableCategory(plan.reason) {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
-            }
-        default:
-            try? scheduler.markDelivered(planID)
-            let alert = AppDialog.make()
-            alert.messageText = title
-            alert.informativeText = evidence.isEmpty ? NSLocalizedString("没有记录提醒原因。", comment: "") : evidence.map { "• \($0)" }.joined(separator: "\n")
-            NSApp.activate()
-            alert.runModal()
+    /// Rebuild from persisted plans after every reconcile, including unchanged and snoozed plans.
+    private func armDelivery() {
+        deliveryTimer?.invalidate()
+        deliveryTimer = nil
+        guard app.settings.proactiveReminders, app.settings.enabledSources.contains(.calendar),
+              app.native.eventKit.calendarAuthorized else { return }
+        let plans = ReminderStore(app.store).plans(status: [.scheduled, .snoozed]).sorted { $0.fireDate < $1.fireDate }
+        let now = Date()
+        for plan in plans where plan.fireDate <= now { deliver(plan) }
+        guard let next = plans.first(where: { $0.fireDate > now }) else { return }
+        let timer = Timer(fire: next.fireDate, interval: 0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.armDelivery() }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        deliveryTimer = timer
+    }
+
+    private func deliver(_ plan: ReminderPlan) {
+        // Persist before presenting, so checkpoints and relaunches cannot show it twice.
+        do { try scheduler.markDelivered(plan.id) } catch { return }
+        withdrawCard(plan.id)
+        let item = ReminderBannerItem(
+            source: "Asky", timeLabel: NSLocalizedString("现在", comment: ""),
+            title: plan.title, body: plan.body,
+            symbol: plan.reason == .travel ? "car.fill" : "calendar",
+            reasons: plan.evidence,
+            actions: [
+                .init(title: NSLocalizedString("稍后提醒", comment: "")) { [weak self] in self?.snooze(plan.id) },
+                .init(title: NSLocalizedString("关闭此类", comment: "")) { [weak self] in self?.disable(plan) },
+                .init(title: NSLocalizedString("已处理", comment: ""), prominent: true) { [weak self] in
+                    try? self?.scheduler.markHandled(plan.id)
+                    self?.bannerIDs[plan.id] = nil
+                },
+            ], lifetime: nil)
+        bannerIDs[plan.id] = item.id
+        ReminderBannerCenter.shared.show(item)
+    }
+
+    private func snooze(_ id: String) {
+        guard (try? scheduler.snooze(id)) != nil else { return }
+        bannerIDs[id] = nil
+        armDelivery()
+    }
+
+    private func disable(_ plan: ReminderPlan) {
+        guard (try? scheduler.disableCategory(plan.reason)) != nil else { return }
+        let ids = ReminderStore(app.store).plans(status: [.delivered, .cancelled])
+            .filter { $0.reason == plan.reason && !$0.userRequested }.map(\.id)
+        for id in ids { withdrawCard(id) }
+        armDelivery()
+    }
+
+    private func withdrawCard(_ planID: String) {
+        guard let id = bannerIDs.removeValue(forKey: planID) else { return }
+        ReminderBannerCenter.shared.dismiss(id)
+    }
+
+    private func withdrawCards() {
+        for id in Array(bannerIDs.keys) { withdrawCard(id) }
     }
 }

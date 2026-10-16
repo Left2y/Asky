@@ -94,7 +94,7 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
 
 ### 通知预览
 
-Debug 版本可用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-notification` 在 5 秒后发送真实的 Asky 通知，包含默认声音和“提醒原因 / 已处理”操作，不创建日程或提醒计划。在系统设置 › 通知 › Asky 开启声音并选择“持续”提醒样式，可预览持续保留的效果。日常智能建议仍默认无声；Release 不响应此参数。
+Debug 参数 `--test-notification` 现在是 `--test-banner` 的兼容别名，均预览 Asky 自绘卡片，不再发送系统通知或请求通知权限；Release 不响应这两个参数。
 
 Debug 版本可用 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-banner`，或菜单栏 › 预览提醒卡片，查看 Asky 自绘的提醒卡片：右上角浮层，不抢焦点。新卡片以 8pt 间隔向下排列，约 4 秒后折叠成层叠，只显示最前一张；点击露出的边缘可重新展开，逐张处理。悬停时暂停折叠和自动消失。它不进通知中心，也不创建日程。
 
@@ -190,6 +190,6 @@ The script creates a DMG, an updater ZIP, and their `.sha256` files under `build
 
 ### Notification Preview
 
-In Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-notification` to deliver a real Asky notification after 5 seconds, with default sound and “Why This Reminder / Mark handled” actions. It creates no calendar event or reminder plan. Enable sound and persistent alerts in System Settings › Notifications › Asky to preview that behavior. Everyday suggestions remain silent by default; Release ignores this argument.
+In Debug, `--test-notification` is now a compatibility alias for `--test-banner`. Both preview Asky’s own cards without sending system notifications or requesting notification permission. Release ignores both arguments.
 
 In Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-banner`, or use menu bar › 预览提醒卡片, to preview Asky’s self-drawn reminder cards: top-right floating panels that never take focus. New cards line up with 8 pt gaps, then fold into a layered stack after about 4 seconds so only the front card shows; click the peeking edges to unfold and handle them one by one. Hovering pauses folding and auto-dismiss. They do not appear in Notification Center and create no calendar items.

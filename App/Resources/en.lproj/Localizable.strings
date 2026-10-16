@@ -556,3 +556,6 @@
 "不能包含空格，不区分大小写。" = "No spaces. Case-insensitive.";
 "选择应用…" = "Choose App…";
 "更换…" = "Change…";
+
+"现在" = "Now";
+"稍后提醒" = "Remind later";

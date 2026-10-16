@@ -72,6 +72,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。
 
+主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前黑白应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。
+
 ### 配置与隐私
 
 在“设置 › 智能配置”选择 DeepSeek、MiniMax、GLM、Kimi、Qwen 或 OpenAI，预设自动填写 API 地址并提供模型选项，只需输入 API Key。选择“完全自定义”可手动填写 OpenAI 兼容地址和模型名。切换 API 地址后需填写对应的新 Key。Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。先保存再检查配置；检查失败时显示 HTTP 状态与服务商原因。余额不足、认证失败或网络错误不代表模型不支持对应能力。
@@ -170,6 +172,8 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden.
+
+Proactive reminders use Asky’s own top-right cards with the current monochrome app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake.
 
 ### Configuration and Privacy
 

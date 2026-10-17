@@ -735,6 +735,7 @@ private struct ComposerSubmitButtonStyle: ButtonStyle {
 }
 
 private struct ToolCallRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: ChatItem
     let status: ExecutionStatus?
     let pluginManager: PluginManager?
@@ -742,7 +743,7 @@ private struct ToolCallRow: View {
     @State private var pluginIcon: NSImage?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Group {
                     if status == nil {
@@ -762,10 +763,15 @@ private struct ToolCallRow: View {
                 }
                 .frame(width: 16, height: 16)
                 if item.toolError != nil {
-                    Button { expanded.toggle() } label: {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                            expanded.toggle()
+                        }
+                    } label: {
                         HStack(spacing: 4) {
                             Text(item.text)
-                            Image(mingCute: expanded ? "chevron.down" : "chevron.right", size: 12)
+                            Image(mingCute: "chevron.right", size: 12)
+                                .rotationEffect(.degrees(expanded ? 90 : 0))
                                 .accessibilityHidden(true)
                         }
                         .contentShape(Rectangle())
@@ -781,9 +787,15 @@ private struct ToolCallRow: View {
                 }
                 Spacer(minLength: 0)
             }
-            if expanded, let error = item.toolError {
+            if let error = item.toolError {
                 Text(error).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 24)
+                    .padding(.top, 8)
+                    .frame(height: expanded ? nil : 0, alignment: .top)
+                    .opacity(expanded ? 1 : 0)
+                    .clipped()
+                    .accessibilityHidden(!expanded)
             }
         }
         .textStyle(AgentLayout.message)

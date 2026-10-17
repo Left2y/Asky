@@ -22,7 +22,10 @@ enum AgentReplyRegression {
         model.handle(.textDelta(taskID: "clarification", "之前的流式说明"), conversationID: cid)
         model.handle(.clarification(taskID: "clarification", question: "「年后啊」这句我没接上上下文，能补充一下你的意思吗？"), conversationID: cid)
         model.handle(.taskState(taskID: "clarification", .awaitingInput), conversationID: cid)
-        model.finishTask(conversationID: cid)
+        let completedAt = Date()
+        model.finishTask(conversationID: cid, now: completedAt)
+        precondition(model.items[0].completedAt == completedAt)
+        precondition(model.items[0].responseID == "clarification")
         precondition(model.items.count == 1, "clarification must have only one reply/copy button")
         precondition(model.streaming.isEmpty)
         precondition(model.items[0].workSeconds == 13, "finished reply retains elapsed time")
@@ -41,6 +44,17 @@ enum AgentReplyRegression {
         model.finishTask(conversationID: cid)
         precondition(model.items.count == 3 && model.items.last?.workSeconds != nil)
         precondition(model.taskStartedAt == nil && !model.isRunning)
+        let clock = Date(timeIntervalSince1970: 1_800_000_000)
+        for (age, key, value) in [(0, "刚刚", 0), (59, "刚刚", 0), (60, "%d 分钟前", 1),
+                                  (3599, "%d 分钟前", 59), (3600, "%d 小时前", 1),
+                                  (86399, "%d 小时前", 23), (86400, "%d 天前", 1),
+                                  (259199, "%d 天前", 2)] {
+            let expected = value == 0 ? NSLocalizedString(key, comment: "") : String(format: NSLocalizedString(key, comment: ""), value)
+            precondition(ChatCompletionTime.label(clock.addingTimeInterval(-Double(age)), now: clock) == expected)
+        }
+        precondition(ChatCompletionTime.label(clock.addingTimeInterval(-259200), now: clock) == ChatCompletionTime.exact(clock.addingTimeInterval(-259200)))
+        precondition(ChatCompletionTime.label(clock.addingTimeInterval(1), now: clock) == NSLocalizedString("刚刚", comment: ""))
+        print("Completion time regression passed: minute, hour, day, three-day boundaries and clock skew")
         print("AgentReply regression passed: clarification, persisted question, final reply, cancellation, elapsed time")
         let attachmentID = try store.create(title: "附件消息回归")
         let file = root.appending(path: "PRD-Spotlight.md")
@@ -72,6 +86,7 @@ enum AgentReplyRegression {
         if CommandLine.arguments.contains("--tool-preview") {
             let toolID = try store.create(title: "工具调用样式")
             model.open(toolID)
+            model.beginResponse(taskID: "tools", now: Date().addingTimeInterval(-13))
             for (id, tool, status, error) in [
                 ("calendar", "calendar_search_events", ExecutionStatus.completed, Optional<String>.none),
                 ("lark", "plugin_lark__help", .failed, "Error: unknown command \"message\" for \"lark-cli\"\n    at run (plugins/lark/index.mjs:21:5)"),
@@ -104,6 +119,8 @@ enum AgentReplyRegression {
             precondition(!model.items[1].text.contains("Error:"))
             precondition(model.items[1].toolError?.contains("unknown command") == true)
             precondition(model.items[1].pluginID == "lark")
+            model.handle(.message(taskID: "tools", "已检查日历与相关工具，飞书调用失败，可展开工作时间查看详情。"), conversationID: toolID)
+            if !CommandLine.arguments.contains("--running-preview") { model.finishTask(conversationID: toolID) }
             let controller = AgentWindowController(model: model, presentation: WindowPresentation())
             controller.show()
             runPreview(controller, application: application)

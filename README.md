@@ -38,7 +38,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
 - **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。文件搜索排除目录和剪贴板排除应用在设置中逐项添加、编辑和删除；添加或编辑时使用系统选择面板，目录自动取目录名，应用自动取 Bundle ID。
-- **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。向上浏览对话时，输入框上方 8pt 显示圆形玻璃向下按钮，点击回到底部。
+- **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。每轮工作时长显示在回复上方，点击箭头查看工具调用数量与详情，完成后默认收起。回复左下方为复制按钮和完成时间：不足 1 分钟显示“刚刚”，1 小时内显示分钟前，24 小时内显示小时前，3 天内显示天前，之后显示精确到秒的日期时间；悬停可查看完整时间。向上浏览对话时，输入框上方 8pt 显示圆形玻璃向下按钮，点击回到底部。
 - **个人记忆**：`MEMORY.md` 索引与按需读取的主题文件，支持明确保存、纠正、忘记及自动提炼与整理。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。官方插件 [飞书](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca](https://github.com/Niall-Young/asky-plugin-orca) 在独立仓库发布。
 
@@ -155,7 +155,7 @@ The app icon and branding in Settings use a black graphite finish based on [Mark
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
 - **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop. Settings provide individual add, edit, and delete controls for excluded search directories and clipboard apps. Adding or editing opens a system picker; folder names and app bundle IDs are extracted automatically.
-- **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key. While browsing earlier messages, a circular glass down-arrow button appears 8pt above the composer; click it to return to the bottom.
+- **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key. Each turn shows its work duration above the reply; click the arrow for the tool-call count and details. Calls collapse when the task finishes. Copy and completion time appear at the lower left: just now under a minute, minutes under an hour, hours under 24 hours, days under three days, then a date and time including seconds. Hover for the exact timestamp. While browsing earlier messages, a circular glass down-arrow button appears 8pt above the composer; click it to return to the bottom.
 - **Personal memory**: a `MEMORY.md` index and topic files read on demand, with explicit saves, corrections, forgetting, automatic extraction, and consolidation.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP. Official plugins [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca) are published in separate repositories.
 

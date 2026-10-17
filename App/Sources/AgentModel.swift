@@ -17,6 +17,8 @@ struct ChatItem: Identifiable, Hashable {
     var toolName: String? = nil
     var toolError: String? = nil
     var workSeconds: Int? = nil
+    var completedAt: Date? = nil
+    var responseID: String? = nil
     var attachments: [AttachmentRef] = []
 
     var toolSource: DataSourceID? {
@@ -148,10 +150,15 @@ final class AgentModel {
     }
 
     private static func item(_ m: StoredMessage) -> ChatItem {
-        ChatItem(id: m.id, kind: m.role == "user" ? .user : m.role == "assistant" ? .assistant : .notice, text: m.text, attachments: m.attachments)
+        ChatItem(id: m.id, kind: m.role == "user" ? .user : m.role == "assistant" ? .assistant : .notice, text: m.text, completedAt: m.role == "assistant" ? m.createdAt : nil, responseID: m.role == "assistant" ? m.id : nil, attachments: m.attachments)
     }
 
     private func appendTrimmed(_ item: ChatItem) {
+        var item = item
+        if item.kind != .user, let taskID {
+            item.responseID = taskID
+            item.completedAt = nil
+        }
         items.append(item)
         if items.count > Self.window {
             let removed = items.count - Self.window
@@ -255,7 +262,7 @@ final class AgentModel {
         }
     }
 
-    func finishTask(conversationID cid: String) {
+    func finishTask(conversationID cid: String, now: Date = Date()) {
         if !streaming.isEmpty {
             if let m = try? store.append(conversationID: cid, role: "assistant", text: streaming) { appendTrimmed(Self.item(m)) }
             streaming = ""
@@ -265,7 +272,10 @@ final class AgentModel {
         }
         if let started = taskStartedAt,
            let index = items.indices.last(where: { $0 >= responseStartIndex && items[$0].kind == .assistant }) {
-            items[index].workSeconds = max(0, Int(Date().timeIntervalSince(started)))
+            items[index].workSeconds = max(0, Int(now.timeIntervalSince(started)))
+        }
+        for index in items.indices where items[index].responseID == taskID && items[index].kind == .assistant {
+            items[index].completedAt = now
         }
         taskStartedAt = nil
         taskID = nil

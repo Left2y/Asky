@@ -338,6 +338,7 @@ private struct Transcript: View {
     private let items: [ChatItem]
     private let streaming: String
     private let hasOlder: Bool
+    private let taskID: String?
     private let taskStartedAt: Date?
     private let isRunning: Bool
     private let state: AgentTaskState?
@@ -347,6 +348,7 @@ private struct Transcript: View {
         items = model.items
         streaming = model.streaming
         hasOlder = model.hasOlder
+        taskID = model.taskID
         taskStartedAt = model.taskStartedAt
         isRunning = model.isRunning
         state = model.state
@@ -359,28 +361,9 @@ private struct Transcript: View {
                     if hasOlder {
                         Button(NSLocalizedString("加载更早的消息", comment: "")) { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
                     }
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        VStack(alignment: .leading, spacing: 6) {
-                            ChatBubble(item: item)
-                            if item.needsPermissionSettings {
-                                Button(NSLocalizedString("管理权限…", comment: "")) { model.openSettings(permissions: true) }
-                                    .buttonStyle(.link)
-                            }
-                        }
-                        .padding(.top, index == 0 ? 0 : Self.spacing(before: item, after: items[index - 1]))
-                    }
-                    if !streaming.isEmpty {
-                        ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: streaming)).padding(.top, 12)
-                    }
-                    if let started = taskStartedAt, isRunning {
-                        TimelineView(.periodic(from: started, by: 1)) { context in
-                            Text("Work for \(max(0, Int(context.date.timeIntervalSince(started))))s")
-                                .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    if let s = state, isRunning {
-                        Text(Self.label(s)).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                        ResponseGroupView(group: group, model: model)
+                            .padding(.top, index == 0 ? 0 : (group.items.first?.kind == .user ? 20 : 12))
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
@@ -420,10 +403,24 @@ private struct Transcript: View {
         }
     }
 
-    private static func spacing(before item: ChatItem, after previous: ChatItem) -> CGFloat {
-        if case .user = item.kind { return 20 }
-        if case .user = previous.kind { return 4 }
-        return 16
+    private var groups: [ChatResponseGroup] {
+        var result: [ChatResponseGroup] = []
+        for item in items {
+            let id = item.responseID ?? item.id
+            if result.last?.id == id {
+                result[result.count - 1].items.append(item)
+            } else {
+                result.append(ChatResponseGroup(id: id, items: [item]))
+            }
+        }
+        if isRunning, let id = taskID {
+            if result.last?.id != id { result.append(ChatResponseGroup(id: id, items: [])) }
+            result[result.count - 1].startedAt = taskStartedAt
+            result[result.count - 1].isRunning = true
+            result[result.count - 1].streaming = streaming
+            result[result.count - 1].state = state
+        }
+        return result
     }
 
     static func label(_ s: AgentTaskState) -> String {
@@ -436,6 +433,99 @@ private struct Transcript: View {
         case .cancelled: NSLocalizedString("已停止", comment: "")
         case .failed: NSLocalizedString("失败", comment: "")
         case .pendingVerification: NSLocalizedString("待核实", comment: "")
+        }
+    }
+}
+
+struct ChatResponseGroup: Identifiable {
+    let id: String
+    var items: [ChatItem]
+    var startedAt: Date?
+    var isRunning = false
+    var streaming = ""
+    var state: AgentTaskState?
+
+    var tools: [ChatItem] { items.filter { if case .tool = $0.kind { true } else { false } } }
+    var content: [ChatItem] { items.filter { if case .tool = $0.kind { false } else { true } } }
+    var workSeconds: Int? { items.compactMap(\.workSeconds).last }
+}
+
+/// The exact timestamp remains available while the visible label ages with the clock.
+enum ChatCompletionTime {
+    static func label(_ date: Date, now: Date) -> String {
+        let seconds = max(0, Int(now.timeIntervalSince(date)))
+        if seconds < 60 { return NSLocalizedString("刚刚", comment: "") }
+        if seconds < 3600 { return String(format: NSLocalizedString("%d 分钟前", comment: ""), seconds / 60) }
+        if seconds < 86400 { return String(format: NSLocalizedString("%d 小时前", comment: ""), seconds / 3600) }
+        if seconds < 3 * 86400 { return String(format: NSLocalizedString("%d 天前", comment: ""), seconds / 86400) }
+        return exact(date)
+    }
+
+    static func exact(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.string(from: date)
+    }
+}
+
+private struct ResponseGroupView: View {
+    let group: ChatResponseGroup
+    let model: AgentModel
+    @State private var expanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if group.isRunning || group.workSeconds != nil || !group.tools.isEmpty {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let seconds = group.startedAt.map { max(0, Int(context.date.timeIntervalSince($0))) } ?? group.workSeconds ?? 0
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("Work for \(seconds)s")
+                            Image(mingCute: "chevron.right", size: 12)
+                                .rotationEffect(.degrees(expanded ? 90 : 0))
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(ToolErrorDisclosureButtonStyle())
+                    .textStyle(.secondary)
+                    .foregroundStyle(ThemeColor.kTextSubtlest)
+                    .accessibilityLabel("Work for \(seconds)s")
+                    .accessibilityValue(expanded ? "expanded" : "collapsed")
+                    .accessibilityHint(NSLocalizedString(expanded ? "收起工具调用" : "展开工具调用", comment: ""))
+                }
+                if expanded {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(String(format: NSLocalizedString("%d 次工具调用", comment: ""), group.tools.count))
+                            .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+                        ForEach(group.tools) { item in message(item) }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            ForEach(group.content) { item in message(item) }
+            if !group.streaming.isEmpty {
+                ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: group.streaming))
+            }
+            if group.isRunning, let state = group.state {
+                Text(Transcript.label(state)).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+            }
+        }
+        .onChange(of: group.isRunning) { _, running in
+            if !running { expanded = false }
+        }
+    }
+
+    private func message(_ item: ChatItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ChatBubble(item: item)
+            if item.needsPermissionSettings {
+                Button(NSLocalizedString("管理权限…", comment: "")) { model.openSettings(permissions: true) }
+                    .buttonStyle(.link)
+            }
         }
     }
 }
@@ -477,13 +567,17 @@ private struct ChatBubble: View {
                 ChatMarkdownView(text: item.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if item.id != "streaming" {
-                    HStack {
-                        if let seconds = item.workSeconds {
-                            Text("Work for \(seconds)s").textStyle(.secondary)
-                                .foregroundStyle(ThemeColor.kTextSubtlest)
-                        }
-                        Spacer()
+                    HStack(spacing: 6) {
                         copyButton
+                        if let completed = item.completedAt {
+                            TimelineView(.periodic(from: .now, by: 1)) { context in
+                                Text(ChatCompletionTime.label(completed, now: context.date))
+                                    .textStyle(.secondary)
+                                    .foregroundStyle(ThemeColor.kTextSubtlest)
+                            }
+                            .help(ChatCompletionTime.exact(completed))
+                        }
+                        Spacer(minLength: 0)
                     }
                 }
             }

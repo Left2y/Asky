@@ -47,8 +47,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         if CommandLine.arguments.contains("--test-confirmations") {
             // Exercise the real shared UI without starting the model or executing tools.
+            NSApp.setActivationPolicy(.regular)
+            let previewWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 540),
+                                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            previewWindow.title = "Asky"
+            previewWindow.center()
+            previewWindow.makeKeyAndOrderFront(nil)
             let confirmations = ConfirmationCenter()
             Task { @MainActor in
+                defer { previewWindow.close() }
+                let reference = AppDialog.make()
+                reference.messageText = "Save this message as a draft?"
+                reference.informativeText = "This message has not been sent and contains unsaved changes. You can save it as a draft to work on later."
+                reference.addButton(withTitle: "Save")
+                reference.addButton(withTitle: "Delete").hasDestructiveAction = true
+                reference.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
+                NSApp.activate()
+                _ = await AppDialog.present(reference, for: previewWindow)
                 let previews: [(String, CallerOrigin)] = [
                     ("plugin_lark__execute", .agent(sessionID: "preview")),
                     ("calendar_update_event", .agent(sessionID: "preview")),
@@ -71,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                     alert.informativeText = "样式预览：不会安装、更新或下载。"
                     alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
                     NSApp.activate()
-                    _ = alert.runModal()
+                    _ = await AppDialog.present(alert)
                 }
                 NSApp.terminate(nil)
             }
@@ -327,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             alert.messageText = NSLocalizedString("无法更改登录时启动", comment: "")
             alert.informativeText = error.localizedDescription
             NSApp.activate()
-            alert.runModal()
+            Task { @MainActor in await AppDialog.present(alert) }
         }
     }
 

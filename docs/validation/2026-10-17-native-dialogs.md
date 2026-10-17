@@ -1,5 +1,7 @@
 # 原生 Dialog / Alert 核对
 
+补充：本记录只确认了使用 NSAlert，未正确区分独立 alert 与 sheet，不能作为参考图外观验收。后续修正与验证见 [原生 sheet](2026-10-17-native-alert-sheets.md)。
+
 日期：2026-10-17。环境：macOS 27.0.1，本地 Debug 构建。
 
 ## 结果

@@ -271,7 +271,7 @@ final class ProactiveReminders: NSObject {
         }
         var edited = draft
         if !(await calendarCreation.hasRequest(sourceID: note.id)) {
-            guard let confirmed = MessageCalendarEditor.present(draft, source: note.summary) else { return }
+            guard let confirmed = await MessageCalendarEditor.present(draft, source: note.summary) else { return }
             guard calendarNote(for: plan)?.calendarDraft == draft, confirmed.isValid(at: Date()),
                   app.settings.enabledSources.contains(.calendar) else { return }
             edited = confirmed
@@ -300,7 +300,7 @@ final class ProactiveReminders: NSObject {
         alert.messageText = NSLocalizedString("日程创建结果", comment: "")
         alert.informativeText = message
         NSApp.activate()
-        alert.runModal()
+        Task { @MainActor in await AppDialog.present(alert) }
     }
 
     private func snooze(_ id: String) {

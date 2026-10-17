@@ -20,7 +20,7 @@ private struct AppDialogModifier: ViewModifier {
     func body(content: Content) -> some View {
         content.onChange(of: isPresented) { _, presented in
             guard presented else { return }
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard isPresented else { return }
                 let alert = AppDialog.make()
                 alert.messageText = title
@@ -31,7 +31,7 @@ private struct AppDialogModifier: ViewModifier {
                     else if index == buttons.count - 1 { button.keyEquivalent = "\u{1b}" }
                 }
                 NSApp.activate()
-                let response = alert.runModal()
+                let response = await AppDialog.present(alert)
                 isPresented = false
                 onResponse(response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue)
             }

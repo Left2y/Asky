@@ -40,7 +40,7 @@ extension ToolService {
                 let alert = AppDialog.make()
                 alert.messageText = NSLocalizedString("所选应用没有 Bundle ID，无法添加排除项。", comment: "")
                 alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
-                alert.runModal()
+                await AppDialog.present(alert)
                 return nil
             }
             return identifier

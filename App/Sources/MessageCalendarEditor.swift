@@ -6,7 +6,7 @@ import ToolService
 /// Uses the shared app dialog; nothing is written until the user accepts the edited fields.
 @MainActor
 enum MessageCalendarEditor {
-    static func present(_ draft: MessageCalendarDraft, source: String) -> MessageCalendarDraft? {
+    static func present(_ draft: MessageCalendarDraft, source: String) async -> MessageCalendarDraft? {
         let model = MessageCalendarEditorModel(draft)
         let alert = AppDialog.make()
         alert.messageText = NSLocalizedString("创建日程？", comment: "")
@@ -21,7 +21,7 @@ enum MessageCalendarEditor {
         host.frame = NSRect(x: 0, y: 0, width: 400, height: 330)
         alert.accessoryView = host
         NSApp.activate()
-        guard alert.runModal() == .alertFirstButtonReturn, model.isValid else { return nil }
+        guard await AppDialog.present(alert) == .alertFirstButtonReturn, model.isValid else { return nil }
         return model.draft
     }
 }

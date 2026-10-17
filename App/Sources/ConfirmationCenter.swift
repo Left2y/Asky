@@ -28,8 +28,7 @@ final class ConfirmationCenter {
         let pending = queue
         queue.removeAll()
         pending.forEach { $0.continuation.resume(returning: .rejected) }
-        if let alert, NSApp.modalWindow === alert.window { NSApp.abortModal() }
-        alert?.window.orderOut(nil)
+        if let alert { AppDialog.dismiss(alert) }
     }
 
     private func showNextAlert() {
@@ -62,9 +61,9 @@ final class ConfirmationCenter {
         alert.addButton(withTitle: NSLocalizedString("不执行", comment: "")).keyEquivalent = "\u{1b}"
         self.alert = alert
 
-        // Schedule the modal loop after the continuation has been registered. AppKit owns
+        // Schedule presentation after the continuation has been registered. AppKit owns
         // focus, layout, appearance, and keyboard handling, just like a system permission alert.
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             guard self.queue.contains(where: { $0.id == pending.id }) else {
                 self.alert = nil
@@ -72,7 +71,7 @@ final class ConfirmationCenter {
                 return
             }
             NSApp.activate()
-            let response = alert.runModal()
+            let response = await AppDialog.present(alert)
             alert.window.orderOut(nil)
             self.alert = nil
             if let index = self.queue.firstIndex(where: { $0.id == pending.id }) {

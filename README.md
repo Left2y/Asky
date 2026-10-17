@@ -28,7 +28,7 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 
 Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪贴板可独立使用，AI 助手按需启动。项目仍在开发中，完整系统权限与交互验收见[验证记录](docs/validation/)。
 
-应用内 dialog / alert 统一采用 macOS 原生 `NSAlert`，外观与按钮布局由系统管理。
+应用内 dialog / alert 统一采用 macOS 原生 `NSAlert`：有所属窗口时使用 sheet，无所属窗口时使用独立 alert；外观与按钮布局由系统管理。
 
 应用图标与设置中的品牌图使用黑色石墨质感，轮廓源文件见 [Mark.svg](App/Branding/Mark.svg)；菜单栏使用同轮廓的单色模板图。
 
@@ -135,7 +135,7 @@ Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer py
 
 Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipboard history work independently; the AI assistant starts on demand. The project is in development; see [validation records](docs/validation/) for system permission and interaction acceptance status.
 
-In-app dialogs and alerts use native macOS `NSAlert`, with appearance and button layout managed by the system.
+In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning window is available, or a standalone alert otherwise. The system manages appearance and button layout.
 
 The app icon and branding in Settings use a black graphite finish based on [Mark.svg](App/Branding/Mark.svg). The menu bar uses the same silhouette as a monochrome template.
 

@@ -19,9 +19,6 @@ struct TerminalSettings: View {
                 if let keywordProblem {
                     Text(keywordProblem).foregroundStyle(.red)
                 }
-                Text(String(format: NSLocalizedString("输入 %@ 后按空格，再输入要执行的命令。", comment: ""),
-                            app.settings.terminalCommandKeyword))
-                    .foregroundStyle(.secondary)
             }
             Section(NSLocalizedString("终端", comment: "")) {
                 LabeledContent(NSLocalizedString("执行命令的终端", comment: "")) {

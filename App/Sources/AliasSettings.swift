@@ -35,8 +35,6 @@ struct AliasSettings: View {
                 }
             } header: {
                 Text(label("应用与快捷指令别名"))
-            } footer: {
-                Text(label("在输入框中输入别名并回车，即可直接打开对应的应用或运行快捷指令。"))
             }
         }
         // An in-window dialog: the system sheet draws its own opaque chrome and ignores our surfaces.

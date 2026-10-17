@@ -26,9 +26,11 @@ public enum ClipboardAccess {
         let app = NSWorkspace.shared.frontmostApplication
         let urls = concealed ? [] : fileURLs(from: pb)
         // Chat apps can publish a temporary image file plus its filename instead of bitmap data.
+        // File selections can also advertise a bitmap of their icon or video preview.
+        // Only promote an actual image file; never let that bitmap replace a document/movie URL.
         // Keep multi-file selections intact; snapshot a single image before the source removes it.
         let image = concealed || urls.count > 1 ? nil :
-            (imageData(from: pb) ?? imageFileData(from: urls))
+            (urls.isEmpty ? imageData(from: pb) : imageFileData(from: urls))
         return Snapshot(changeCount: pb.changeCount, text: concealed ? nil : pb.string(forType: .string),
                         image: image,
                         fileURLs: image == nil ? urls : [],

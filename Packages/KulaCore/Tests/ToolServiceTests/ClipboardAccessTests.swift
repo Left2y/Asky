@@ -5,6 +5,34 @@ import LocalStore
 
 @Suite @MainActor
 struct ClipboardAccessTests {
+    @Test func fileIconsAndMovieThumbnailsDoNotReplaceFileSelections() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let pb = NSPasteboard.withUniqueName()
+        defer { pb.releaseGlobally() }
+        for name in ["说明.md", "文档.pdf", "视频.mp4", "视频.mov", "文件夹", "已删除.mp4"] {
+            let file = root.appending(path: name)
+            if name == "文件夹" {
+                try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
+            } else if name != "已删除.mp4" {
+                try Data("contents".utf8).write(to: file)
+            }
+            for (type, data) in [(NSPasteboard.PasteboardType.png, try #require(bitmap.representation(using: .png, properties: [:]))),
+                                 (.tiff, try #require(bitmap.tiffRepresentation))] {
+                pb.clearContents()
+                #expect(pb.writeObjects([file as NSURL]))
+                #expect(pb.setData(data, forType: type))
+                let snapshot = ClipboardAccess.snapshot(from: pb)
+                #expect(snapshot.fileURLs == [file])
+                #expect(snapshot.image == nil)
+            }
+        }
+    }
+
     @Test func chatImageFlavorsSurviveFilenameTextAndTemporaryFileRemoval() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

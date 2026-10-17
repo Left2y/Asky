@@ -18,7 +18,7 @@ struct ReminderBannerItem: Identifiable {
     var title: String
     var body: String
     var symbol = "calendar"
-    /// Why Asky raised this reminder; shown from the ⓘ beside the source line, not as a button.
+    /// Supporting context retained with the reminder; not displayed on the card.
     var reasons: [String] = []
     var actions: [Action] = []
     /// Auto-dismiss delay; hovering pauses it. nil keeps the card until the user acts.
@@ -350,8 +350,13 @@ private struct ReminderBannerCard: View {
     let onDismiss: () -> Void
     let onHeight: (CGFloat) -> Void
     @State private var hovering = false
-    @State private var showingReasons = false
     private let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+
+    private var sourceLabel: String {
+        if item.source == "Asky" { return "" }
+        let prefix = "Asky · "
+        return item.source.hasPrefix(prefix) ? String(item.source.dropFirst(prefix.count)) : item.source
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -360,27 +365,10 @@ private struct ReminderBannerCard: View {
                     .resizable()
                     .frame(width: 18, height: 18)
                     .accessibilityHidden(true)
-                Text(item.source)
-                    .textStyle(.secondary)
-                    .foregroundStyle(ThemeColor.kTextSubtle)
-                if !item.reasons.isEmpty {
-                    Button { showingReasons.toggle() } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 12))
-                            .foregroundStyle(ThemeColor.kTextSubtle)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(Text("提醒原因"))
-                    .accessibilityLabel(Text("提醒原因"))
-                    .popover(isPresented: $showingReasons, arrowEdge: .bottom) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("提醒原因").font(.system(size: 13, weight: .semibold))
-                            ForEach(item.reasons, id: \.self) { Text("• \($0)").textStyle(.secondary) }
-                        }
-                        .padding(12)
-                        .frame(width: 260, alignment: .leading)
-                    }
+                if !sourceLabel.isEmpty {
+                    Text(sourceLabel)
+                        .textStyle(.secondary)
+                        .foregroundStyle(ThemeColor.kTextSubtle)
                 }
                 Spacer(minLength: 8)
                 Text(item.timeLabel)

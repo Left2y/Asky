@@ -16,7 +16,9 @@ struct StarRepositoryRow: View {
                 .foregroundStyle(starred ? AnyShapeStyle(Color.yellow) : AnyShapeStyle(ThemeColor.kIconSubtle))
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.bounce, value: bounce)
-                .frame(width: 56, height: 40)
+                .frame(width: 56, height: 56)
+                .background(ThemeColor.kBackgroundNeutral,
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(starred ? NSLocalizedString("已点亮 Star，感谢支持！", comment: "")

@@ -12,7 +12,11 @@ struct AboutSettings: View {
         SettingsForm {
             Section {
                 HStack(spacing: 14) {
-                    Image("AskyLogo").resizable().scaledToFit().frame(width: 56, height: 56).accessibilityHidden(true)
+                    // The logo artwork carries ~9% transparent margin; scale it so the visible
+                    // square matches the 56 pt tile used by StarRepositoryRow.
+                    Image("AskyLogo").resizable().scaledToFit().frame(width: 56, height: 56)
+                        .scaleEffect(1.22)
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(verbatim: "Asky").font(.title2.weight(.semibold))
                         Text(ToolService.currentAppBuild.isEmpty
@@ -31,10 +35,10 @@ struct AboutSettings: View {
                 StarRepositoryRow()
             }
             Section(NSLocalizedString("软件更新", comment: "")) {
-                HStack {
+                HStack(alignment: .center, spacing: 16) {
                     statusText
-                    Spacer(minLength: 12)
-                    actionButton
+                    Spacer(minLength: 16)
+                    actionArea
                 }
                 LabeledContent {
                     Toggle("", isOn: $app.preferences.automaticUpdates).labelsHidden()
@@ -60,18 +64,39 @@ struct AboutSettings: View {
         case .idle: Text(NSLocalizedString("尚未检查更新", comment: "")).foregroundStyle(.secondary)
         case .checking: HStack(spacing: 8) { ProgressView().controlSize(.small); Text(NSLocalizedString("检查中…", comment: "")) }
         case .upToDate: Text(NSLocalizedString("已是最新版本", comment: "")).foregroundStyle(.secondary)
-        case .available(let release): releaseText(release, NSLocalizedString("发现新版本 %@", comment: ""))
+        case .available(let release):
+            Text(String(format: NSLocalizedString("发现新版本 %@", comment: ""), release.version))
+                .fixedSize(horizontal: false, vertical: true)
         case .downloading(_, let step): HStack(spacing: 8) { ProgressView().controlSize(.small); Text(step) }
-        case .ready(let staged): releaseText(staged.release, NSLocalizedString("新版本 %@ 已就绪，将在你不使用 Asky 时自动完成更新", comment: ""))
+        case .ready(let staged):
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(format: NSLocalizedString("新版本 %@ 已就绪", comment: ""), staged.release.version))
+                Text(NSLocalizedString("将在你不使用 Asky 时自动完成更新", comment: ""))
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         case .installing: HStack(spacing: 8) { ProgressView().controlSize(.small); Text(NSLocalizedString("正在安装…", comment: "")) }
         case .failed(let message): Text(message).foregroundStyle(ThemeColor.kTextNegative).fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func releaseText(_ release: AppRelease, _ format: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(String(format: format, release.version))
-            Link(NSLocalizedString("查看发布说明", comment: ""), destination: release.pageURL).font(.caption)
+    /// Release notes live beside the primary action rather than under the status text.
+    private var pendingRelease: AppRelease? {
+        switch updater.status {
+        case .available(let release), .downloading(let release, _): release
+        case .ready(let staged): staged.release
+        default: nil
+        }
+    }
+
+    @ViewBuilder private var actionArea: some View {
+        HStack(spacing: 8) {
+            if let release = pendingRelease {
+                SettingsButton(NSLocalizedString("查看发布说明", comment: "")) {
+                    _ = ToolService.openLauncherURL(release.pageURL)
+                }
+            }
+            actionButton
         }
     }
 

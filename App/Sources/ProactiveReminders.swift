@@ -19,7 +19,6 @@ final class ProactiveReminders: NSObject {
     private var checkpoint: Timer?
     private var deliveryTimer: Timer?
     private var creatingCalendar: Set<String> = []
-    private let calendarCreation: MessageCalendarCreation
     private var bannerIDs: [String: UUID] = [:]
     private var pending: Task<Void, Never>?
     private var lastAdvisorCall: Date?
@@ -38,7 +37,6 @@ final class ProactiveReminders: NSObject {
 
     init(app: AppModel) {
         self.app = app
-        calendarCreation = MessageCalendarCreation(store: app.store)
         scheduler = ContextScheduler(store: ReminderStore(app.store))
         super.init()
     }
@@ -269,29 +267,13 @@ final class ProactiveReminders: NSObject {
             showCalendarError(NSLocalizedString("短信安排已变化或授权已关闭，请重新检查。", comment: ""))
             return
         }
-        var edited = draft
-        if !(await calendarCreation.hasRequest(sourceID: note.id)) {
-            guard let confirmed = await MessageCalendarEditor.present(draft, source: note.summary) else { return }
-            guard calendarNote(for: plan)?.calendarDraft == draft, confirmed.isValid(at: Date()),
-                  app.settings.enabledSources.contains(.calendar) else { return }
-            edited = confirmed
-        }
-        let tools = app.tools
-        let result = await calendarCreation.submit(sourceID: note.id, draft: edited) { await tools.submit($0) }
-        if result.status == .completed {
-            try? scheduler.markHandled(plan.id)
-            if var state = app.store.codableSetting(Self.triageKey, as: MessageTriageState.self) {
-                state.notes.removeAll { $0.id == note.id }
-                app.store.setCodableSetting(Self.triageKey, state)
-            }
-            withdrawCard(plan.id)
-            ReminderBannerCenter.shared.show(.init(source: "Asky", timeLabel: NSLocalizedString("现在", comment: ""),
-                title: NSLocalizedString("日程已创建", comment: ""), body: edited.title))
-            schedule()
-        } else {
-            showCalendarError(result.status == .pendingVerification
-                ? NSLocalizedString("创建结果待核实，请先检查日历；不会重复创建。", comment: "")
-                : (result.error?.message ?? NSLocalizedString("日程未创建，请重试。", comment: "")))
+        do {
+            try await ToolService.openCalendarDraft(title: draft.title, start: draft.start,
+                end: draft.proposedEnd, location: draft.location, sourceID: note.id,
+                notes: note.summary)
+            // Calendar owns confirmation and saving. A successful handoff is not a saved event.
+        } catch {
+            showCalendarError(error.localizedDescription)
         }
     }
 

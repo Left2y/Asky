@@ -37,7 +37,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 ### 核心能力
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
-- **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。文件搜索排除目录和剪贴板排除应用在设置中逐项添加、编辑和删除；添加或编辑时使用系统选择面板，目录自动取目录名，应用自动取 Bundle ID。
+- **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。默认使用卡片式，顶部按钮可切换为左侧历史列表、右侧内容预览的列表式；切换保留搜索与选中项。文件搜索排除目录和剪贴板排除应用在设置中逐项添加、编辑和删除；添加或编辑时使用系统选择面板，目录自动取目录名，应用自动取 Bundle ID。
 - **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。每轮工作时长显示在回复上方，有工具调用时可点击箭头查看详情，完成后默认收起；不显示调用次数，没有工具调用时只显示时长。回复左下方为复制按钮和完成时间：不足 1 分钟显示“刚刚”，1 小时内显示分钟前，24 小时内显示小时前，3 天内显示天前，之后显示精确到秒的日期时间；悬停可查看完整时间。向上浏览对话时，输入框上方 8pt 显示圆形玻璃向下按钮，点击回到底部。
 - **个人记忆**：`MEMORY.md` 索引与按需读取的主题文件，支持明确保存、纠正、忘记及自动提炼与整理。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录与通讯录，支持情境提醒、可信 GitHub 插件和 MCP。官方插件 [飞书](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca](https://github.com/Niall-Young/asky-plugin-orca) 在独立仓库发布。
@@ -122,6 +122,8 @@ Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer py
 
 聊天图片剪贴板回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images`（先完成 Debug 构建）。
 
+剪贴板布局回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts`（先完成 Debug 构建），检查布局切换、选中项保留、搜索、固定与复制，并生成实际窗口截图。
+
 复制提示条回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces`（先完成 Debug 构建），检查深浅色圆角表面并生成截图。
 
 日程配置回归：Debug 构建后执行 `python3 App/Tests/run-calendar-editor-regression.py`；加 `--preview` 查看无真实写入的示例，另加 `--preview-error` 检查冲突后修改重试。
@@ -154,7 +156,7 @@ The app icon and branding in Settings use a black graphite finish based on [Mark
 ### Features
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
-- **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop. Settings provide individual add, edit, and delete controls for excluded search directories and clipboard apps. Adding or editing opens a system picker; folder names and app bundle IDs are extracted automatically.
+- **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop. Cards are the default; the header button switches to a history list with a content preview on the right, preserving the query and selection. Settings provide individual add, edit, and delete controls for excluded search directories and clipboard apps. Adding or editing opens a system picker; folder names and app bundle IDs are extracted automatically.
 - **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key. Each turn shows its work duration above the reply; when tools were called, click the arrow for details. Calls collapse when the task finishes. Call counts are hidden; turns without tool calls show only the duration. Copy and completion time appear at the lower left: just now under a minute, minutes under an hour, hours under 24 hours, days under three days, then a date and time including seconds. Hover for the exact timestamp. While browsing earlier messages, a circular glass down-arrow button appears 8pt above the composer; click it to return to the bottom.
 - **Personal memory**: a `MEMORY.md` index and topic files read on demand, with explicit saves, corrections, forgetting, automatic extraction, and consolidation.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual suggestions, trusted GitHub plugins, and MCP. Official plugins [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca) are published in separate repositories.
@@ -238,6 +240,8 @@ Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/
 Dock visibility regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only` (build Debug first).
 
 Chat-image clipboard regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images` (build Debug first).
+
+Clipboard layout regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts` (build Debug first) checks layout switching, selection retention, search, pinning, and copying, and captures actual window snapshots.
 
 Copy-toast regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces` (build Debug first) checks rounded surfaces in light and dark appearances and captures snapshots.
 

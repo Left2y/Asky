@@ -7,6 +7,7 @@ import Theme
 private final class ClipboardPanel: NSPanel {
     var dismiss: () -> Void = {}
     var onOpenSettings: () -> Void = {}
+    var scrollsHorizontally = true
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     override func cancelOperation(_ sender: Any?) { dismiss() }
@@ -14,7 +15,7 @@ private final class ClipboardPanel: NSPanel {
     /// Cards only scroll horizontally, so a vertical wheel/trackpad gesture scrolls them too (no Shift needed).
     override func sendEvent(_ event: NSEvent) {
         if SettingsShortcut.matches(event) { onOpenSettings(); return }
-        if event.type == .scrollWheel, let converted = ClipboardScroll.horizontal(event) { super.sendEvent(converted) }
+        if scrollsHorizontally, event.type == .scrollWheel, let converted = ClipboardScroll.horizontal(event) { super.sendEvent(converted) }
         else { super.sendEvent(event) }
     }
 }
@@ -49,6 +50,35 @@ final class ClipboardController {
     private let outsideClickDismissal = OutsideClickDismissal()
     private let toastPanel = SurfacePanel()
     private var hiding = false
+    enum Layout { case cards, list }
+    var layout: Layout = .cards
+
+    func toggleLayout() {
+        dismissPreview()
+        layout = layout == .cards ? .list : .cards
+        panel.scrollsHorizontally = layout == .cards
+        resizePanel()
+        updateToast()
+    }
+
+    private func resizePanel() {
+        guard let screen = panel.screen ?? NSScreen.main else { return }
+        let available = screen.visibleFrame.insetBy(dx: 16, dy: 16)
+        let height = min(layout == .cards ? 244.0 : 560.0, available.height)
+        let width = min(900.0, available.width)
+        let x = min(max(panel.frame.minX, available.minX), available.maxX - width)
+        let y = max(available.minY, min(panel.frame.maxY, available.maxY) - height)
+        panel.setFrame(NSRect(x: x, y: y, width: width, height: height), display: true)
+        panel.invalidateShadow()
+    }
+
+    func select(_ item: ClipboardItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        selection = index
+    }
+
+    var selectedItem: ClipboardItem? { items.indices.contains(selection) ? items[selection] : nil }
+
     var query = "" { didSet { selection = 0; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
     var selection = 0
@@ -101,6 +131,7 @@ final class ClipboardController {
             panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
                                   width: width, height: 244), display: false)
         }
+        resizePanel()
         let host = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         host.sizingOptions = []
         host.frame = NSRect(origin: .zero, size: panel.frame.size)
@@ -239,7 +270,7 @@ final class ClipboardController {
     }
 
     func hover(_ item: ClipboardItem, frame: NSRect, inside: Bool) {
-        guard !dragSource.active else { return }
+        guard layout == .cards, !dragSource.active else { return }
         if inside {
             guard hoveredItemID != item.id else { return }
             hoveredItemID = item.id
@@ -345,6 +376,9 @@ private struct ClipboardHistoryView: View {
                 .padding(.horizontal, 16).frame(height: 36)
                 .nativeGlassBackground(in: Capsule())
                 HStack(spacing: 12) {
+                    ClipboardHeaderButton(symbol: controller.layout == .cards ? "checklist" : "app.badge",
+                                          title: controller.layout == .cards ? NSLocalizedString("切换为列表", comment: "") : NSLocalizedString("切换为卡片", comment: ""),
+                                          action: controller.toggleLayout)
                     ClipboardHeaderButton(symbol: controller.pinned ? "pin.fill" : "pin",
                                           title: controller.pinned ? NSLocalizedString("取消固定窗口", comment: "") : NSLocalizedString("固定窗口", comment: ""),
                                           action: controller.togglePinned)
@@ -362,6 +396,8 @@ private struct ClipboardHistoryView: View {
                     Text(controller.query.isEmpty ? NSLocalizedString("暂无剪贴板历史", comment: "") : NSLocalizedString("没有匹配的内容", comment: ""))
                     Text(NSLocalizedString("复制文字或图片后会显示在这里", comment: "")).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if controller.layout == .list {
+                ClipboardListView(controller: controller)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
@@ -380,7 +416,6 @@ private struct ClipboardHistoryView: View {
         .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.cornerRadius))
         .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .onExitCommand { controller.hide() }
-        .accessibilityValue(controller.status ?? "")
     }
 
 }
@@ -458,6 +493,117 @@ private struct ClipboardHistoryCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.kind == .image ? "\(NSLocalizedString("图片", comment: "")), \(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))" : String((item.text ?? "").prefix(200)))
         .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }
+    }
+}
+
+private struct ClipboardListView: View {
+    let controller: ClipboardController
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 4) {
+                        ForEach(controller.items) { item in
+                            ClipboardHistoryRow(item: item, controller: controller).id(item.id)
+                        }
+                    }.padding(12)
+                }
+                .onChange(of: controller.selection) { _, _ in
+                    if let item = controller.selectedItem { proxy.scrollTo(item.id, anchor: .center) }
+                }
+                .onAppear {
+                    if let item = controller.selectedItem { proxy.scrollTo(item.id, anchor: .center) }
+                }
+            }
+            .frame(width: 340)
+            Rectangle().fill(ThemeColor.kBorder).frame(width: 1)
+            if let item = controller.selectedItem {
+                ClipboardListDetail(item: item).id(item.id)
+            }
+        }
+    }
+}
+
+private struct ClipboardHistoryRow: View {
+    let item: ClipboardItem
+    let controller: ClipboardController
+    private var selected: Bool { controller.selectedItem?.id == item.id }
+    private var title: String {
+        if item.kind == .image { return NSLocalizedString("图片", comment: "") }
+        return item.text ?? item.filePaths.map { URL(filePath: $0).lastPathComponent }.joined(separator: ", ")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Group {
+                if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
+                    Image(nsImage: image).resizable().scaledToFill()
+                } else if let icon = item.kind == .file ? ClipboardAccess.fileIcon(for: item) : ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
+                    Image(nsImage: icon).resizable().scaledToFit()
+                } else {
+                    Image(mingCute: item.kind == .file ? "doc" : "text.document", size: 22)
+                        .foregroundStyle(ThemeColor.kIconSubtle)
+                }
+            }
+            .frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title.replacingOccurrences(of: "\n", with: " ")).textStyle(.resultPrimary).lineLimit(1)
+                Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))
+                    .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle) }
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        .background { if selected { RoundedRectangle(cornerRadius: 16).fill(ThemeColor.kBorder) } }
+        .overlay {
+            if selected { RoundedRectangle(cornerRadius: 16).strokeBorder(ThemeColor.kBorderIntense, lineWidth: 1) }
+        }
+        .overlay(ClipboardCardMouseSurface(
+            copy: { controller.select(item) }, hover: { _, _ in },
+            drag: { view, event in controller.select(item); controller.beginDrag(item, from: view, event: event) }
+        ).clipShape(RoundedRectangle(cornerRadius: 16)))
+        .contextMenu {
+            Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
+            Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
+            Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : [.isButton])
+        .accessibilityAction { controller.select(item) }
+    }
+}
+
+private struct ClipboardListDetail: View {
+    let item: ClipboardItem
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Group {
+                if item.kind == .image, let path = item.filePath, let image = NSImage(contentsOfFile: path) {
+                    Image(nsImage: image).resizable().scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else {
+                    ScrollView {
+                        Text(item.text ?? (item.kind == .image ? NSLocalizedString("原始图片已不可用", comment: "") : item.filePaths.joined(separator: "\n")))
+                            .textStyle(.resultPrimary).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: "")).textStyle(.resultPrimary)
+                HStack {
+                    Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
+                    Spacer()
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(item.byteSize), countStyle: .file))
+                }.textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+            }
+        }
+        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

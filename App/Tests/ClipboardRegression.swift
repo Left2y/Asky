@@ -124,6 +124,39 @@ enum ClipboardRegression {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-\(name).png"))
                 }
+                if CommandLine.arguments.contains("--layouts") {
+                    precondition(controller.layout == .cards && panel().frame.height == 244)
+                    controller.selection = 1
+                    let selectedID = controller.selectedItem!.id
+                    controller.toggleLayout()
+                    try await Task.sleep(for: .milliseconds(400))
+                    precondition(controller.selectedItem?.id == selectedID && panel().frame.height == 560)
+                    try snapshot(panel(), "layout-list-image")
+                    controller.selection = 2
+                    try await Task.sleep(for: .milliseconds(200))
+                    try snapshot(panel(), "layout-list-text")
+                    controller.query = "Another"
+                    precondition(controller.items.count == 1 && controller.layout == .list)
+                    controller.pinItem(controller.items[0])
+                    precondition(controller.items[0].pinned)
+                    controller.copySelection()
+                    precondition(NSPasteboard.general.string(forType: .string) == "Another clipboard card")
+                    controller.toggleLayout()
+                    precondition(controller.query == "Another" && panel().frame.height == 244)
+                    controller.query = ""
+                    try await Task.sleep(for: .milliseconds(200))
+                    try snapshot(panel(), "layout-cards")
+                    controller.toggleLayout()
+                    try await Task.sleep(for: .milliseconds(200))
+                    try snapshot(panel(), "layout-list")
+                    print("Clipboard layout switching, selection, filtering, pinning and copy passed")
+                    if CommandLine.arguments.contains("--layout-preview") {
+                        try await Task.sleep(for: .seconds(300))
+                    }
+                    controller.hide()
+                    application.terminate(nil)
+                    return
+                }
                 if dragPreview || dragTest {
                     // Keep the initial launch stable, then enable the real unpinned dismissal shield.
                     panel().makeKey()

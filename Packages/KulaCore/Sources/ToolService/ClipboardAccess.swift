@@ -94,6 +94,44 @@ public enum ClipboardAccess {
         return url
     }
 
+    public struct Information {
+        public let typeName: String?
+        public let pixelDimensions: String?
+        public let byteSize: Int?
+    }
+
+    /// Read original metadata, never thumbnail point sizes or serialized file-path bytes.
+    public static func information(for item: ClipboardItem) -> Information {
+        if item.kind == .text {
+            return Information(typeName: nil, pixelDimensions: nil, byteSize: item.byteSize)
+        }
+        let paths = item.kind == .file ? item.filePaths : [item.filePath].compactMap { $0 }
+        var total = 0
+        var complete = !paths.isEmpty
+        for path in paths {
+            if let values = try? URL(filePath: path).resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
+               values.isRegularFile == true, let size = values.fileSize {
+                total += size
+            } else { complete = false }
+        }
+        var typeName: String?
+        var dimensions: String?
+        if paths.count == 1, let path = paths.first {
+            let url = URL(filePath: path)
+            typeName = (try? url.resourceValues(forKeys: [.contentTypeKey]))?.contentType?.localizedDescription
+            if let source = CGImageSourceCreateWithURL(url as CFURL, nil) {
+                if let identifier = CGImageSourceGetType(source) { typeName = UTType(identifier as String)?.localizedDescription }
+                if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                   let width = properties[kCGImagePropertyPixelWidth] as? Int,
+                   let height = properties[kCGImagePropertyPixelHeight] as? Int {
+                    dimensions = "\(width) × \(height) px"
+                }
+            }
+        }
+        return Information(typeName: typeName, pixelDimensions: dimensions,
+                           byteSize: complete ? total : (item.kind == .image ? item.byteSize : nil))
+    }
+
     public static func fileIcon(for item: ClipboardItem) -> NSImage? {
         guard item.kind == .file, let path = item.filePaths.first else { return nil }
         return NSWorkspace.shared.icon(forFile: path)

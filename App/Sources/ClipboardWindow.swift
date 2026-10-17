@@ -711,7 +711,7 @@ private struct ClipboardListDetail: View {
                 } else if item.kind == .file, let icon = ClipboardAccess.fileIcon(for: item) {
                     VStack(spacing: 16) {
                         Image(nsImage: icon).resizable().scaledToFit()
-                            .frame(width: 256, height: 256)
+                            .frame(width: 160, height: 160)
                         Text(item.filePaths.map { URL(filePath: $0).lastPathComponent }.joined(separator: "\n"))
                             .textStyle(.resultPrimary).textSelection(.enabled)
                             .multilineTextAlignment(.center)
@@ -727,23 +727,51 @@ private struct ClipboardListDetail: View {
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
             Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    if let icon = ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
-                        Image(nsImage: icon).resizable().frame(width: 28, height: 28)
-                    } else {
-                        Image(mingCute: "doc.on.clipboard").frame(width: 28, height: 28)
-                    }
-                    Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: "")).textStyle(.resultPrimary)
-                }
-                HStack {
-                    Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
-                    Spacer()
-                    Text(ByteCountFormatter.string(fromByteCount: Int64(item.byteSize), countStyle: .file))
-                }.textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
-            }
+            ClipboardInformation(item: item)
         }
         .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct ClipboardInformation: View {
+    let item: ClipboardItem
+    private func label(_ key: String) -> String { NSLocalizedString(key, tableName: "Clipboard", comment: "") }
+
+    var body: some View {
+        let info = ClipboardAccess.information(for: item)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(label("信息")).textStyle(.resultPrimary)
+            Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 12) {
+                GridRow {
+                    Text(label("来源"))
+                    HStack(spacing: 6) {
+                        if let icon = ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
+                            Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+                        }
+                        Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))
+                    }
+                }
+                GridRow {
+                    Text(label("类型"))
+                    Text(info.typeName ?? label(item.kind == .image ? "图片" : item.kind == .file ? "文件" : "文本"))
+                }
+                GridRow {
+                    Text(label("尺寸"))
+                    Text(info.pixelDimensions ?? "—")
+                }
+                GridRow {
+                    Text(label("大小"))
+                    Text(info.byteSize.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "—")
+                }
+                GridRow {
+                    Text(label("复制时间"))
+                    Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
+                }
+            }
+            .textStyle(.secondary)
+            .foregroundStyle(ThemeColor.kTextSubtlest)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -5,6 +5,25 @@ import LocalStore
 
 @Suite @MainActor
 struct ClipboardAccessTests {
+    @Test func informationUsesOriginalPixelsAndFileBytes() throws {
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString + ".png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 64, pixelsHigh: 36,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        bitmap.size = NSSize(width: 32, height: 18)
+        let data = try #require(bitmap.representation(using: .png, properties: [:]))
+        try data.write(to: url)
+        let image = ClipboardItem(kind: .image, filePath: url.path, byteSize: data.count, contentHash: "image")
+        #expect(ClipboardAccess.information(for: image).pixelDimensions == "64 × 36 px")
+        let file = ClipboardItem(kind: .file, filePaths: [url.path], byteSize: 1, contentHash: "file")
+        #expect(ClipboardAccess.information(for: file).byteSize == data.count)
+        try FileManager.default.removeItem(at: url)
+        #expect(ClipboardAccess.information(for: file).byteSize == nil)
+        #expect(ClipboardAccess.information(for: image).pixelDimensions == nil)
+        #expect(ClipboardAccess.information(for: image).byteSize == data.count)
+    }
+
     @Test func fileIconsAndMovieThumbnailsDoNotReplaceFileSelections() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

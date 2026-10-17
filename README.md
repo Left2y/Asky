@@ -30,7 +30,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 应用内 dialog / alert 统一采用 macOS 原生 `NSAlert`：有所属窗口时使用 sheet，无所属窗口时使用独立 alert；外观与按钮布局由系统管理。操作确认用一段自然语言说明目标与变更，不提供详情展开项。
 
-功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识、真实应用图标，以及启动器“打开链接”和“搜索书签”的原有彩色图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，插件工具调用统一使用 tool 图标，设置页的官方与已安装插件保留对应应用 Logo（优先使用插件声明的图标），失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
+功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识、真实应用图标，以及启动器“打开链接”“搜索书签”“关闭 Asky”的扁平色块图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，插件工具调用统一使用 tool 图标，设置页的官方与已安装插件保留对应应用 Logo（优先使用插件声明的图标），失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
 
 应用图标与设置中的品牌图采用浅蓝磨砂小伙伴：无触角、歪头微笑、深蓝底与放大裁切。正式分层源文件为 [AskyNative.icon](App/Branding/AskyNative.icon/icon.json)，由 Icon Composer 创建并通过 Xcode 编译：深蓝背景填充与透明小伙伴前景独立，关闭前景玻璃效果、分组高光、透光及额外投影。系统负责图标遮罩，不再嵌套带留白的圆角底板。静态导出为 [Logo.png](App/Branding/Logo.png) 和 [Asky.icns](App/Branding/Asky.icns)；菜单栏使用简化单色轮廓 [Mark.svg](App/Branding/Mark.svg)。
 
@@ -75,7 +75,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 启动器总宽为 720 pt，初始顶部位于屏幕可用高度的 18%；结果列表最高 380 pt（含分组标题），并按屏幕底部空间收缩。搜索采用紧凑单行结果：左侧显示 24 pt 图标与名称，右侧显示应用、文件格式或来源类型，不显示路径；文件路径仍可用快捷键复制。
 
-在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示白底红色 Logo，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
+在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示与书签、链接统一的低饱和圆角底板电源图标，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
 
 结果底部提供悬浮操作区：左侧按选中项展示常用操作，无可用动作时隐藏；右侧「更多 ⌘K」只在有附加动作时显示。应用和文件可在更多中选择「在访达中显示」「复制路径」，链接和标签页可复制链接。`⌘K` 打开/关闭更多菜单，`↑` / `↓` 选择菜单动作、`Return` 执行，`Escape` 关闭菜单；关闭后保留搜索词与结果选择，方向键继续选择结果。列表在悬浮控件下方渐隐，滚动末尾保留操作区空间。
 
@@ -163,7 +163,7 @@ Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipbo
 
 In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning window is available, or a standalone alert otherwise. The system manages appearance and button layout. Action confirmations describe the target and changes in one paragraph, without an expandable details section.
 
-Functional icons use bundled MingCute vector templates; brand marks, real application icons, and the launcher’s original colored Open Link and Search Bookmarks icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, plugin tool calls share the tool icon, and failures use a circular exclamation mark. Official and installed plugins in Settings retain the corresponding app logo, preferring plugin-provided artwork when available. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
+Functional icons use bundled MingCute vector templates; brand marks, real application icons, and the launcher’s flat-color Open Link, Search Bookmarks, and Quit Asky icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, plugin tool calls share the tool icon, and failures use a circular exclamation mark. Official and installed plugins in Settings retain the corresponding app logo, preferring plugin-provided artwork when available. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
 
 The app icon and branding in Settings feature a pale-blue frosted companion with a smooth hornless silhouette, tilted smile, dark navy background, and enlarged crop. The production source is [AskyNative.icon](App/Branding/AskyNative.icon/icon.json), created in Icon Composer and compiled by Xcode, with a separate navy background fill and transparent companion foreground. Foreground glass effects, group specular highlights, translucency, and additional shadows are disabled. The system applies the icon mask without nesting a padded rounded tile. Static exports are [Logo.png](App/Branding/Logo.png) and [Asky.icns](App/Branding/Asky.icns); the menu bar uses the simplified monochrome silhouette in [Mark.svg](App/Branding/Mark.svg).
 
@@ -208,7 +208,7 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 
 The launcher is 720 pt wide and opens 18% down the screen’s usable area. The result list is capped at 380 pt including section headers, shrinking as needed to fit above the screen’s bottom edge. Search uses compact single-line results with a 24 pt icon and name on the left and the application, file format, or source type on the right. Paths are hidden from rows and remain available through the Copy file path shortcut.
 
-Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with a red logo on white, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
+Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with a power symbol on a muted rounded tile, matching the bookmark and link icons, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
 
 A floating action area overlays the bottom of the results. The left side shows the selected item's primary action and hides when none is available; “More ⌘K” appears on the right only when secondary actions exist. Apps and files offer Reveal in Finder and Copy path; links and tabs offer Copy link. Press `⌘K` to toggle More, `↑` / `↓` to choose an action, `Return` to execute, or `Escape` to dismiss. Closing the menu preserves the query and result selection, and arrow keys resume navigating results. Rows fade beneath the floating controls, with extra clearance at the end of the scrollable content.
 

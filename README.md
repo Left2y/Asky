@@ -126,7 +126,7 @@ Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer py
 
 剪贴板筛选回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --filters`（先完成 Debug 构建），检查类型筛选、较早历史、搜索组合、菜单定位与重新打开后的默认项。
 
-视频预览回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --video-preview`（先完成 Debug 构建，并在 PATH 中提供 FFmpeg），生成 H.264 MP4，检查列表与悬停预览、切换、关闭及原文件复制，并生成窗口截图。
+视频预览回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --video-preview`（先完成 Debug 构建，并在 PATH 中提供 FFmpeg），生成 H.264 MP4，检查列表与悬停预览、切换、关闭及原文件复制，并生成窗口截图。追加 `--portrait-video` 使用竖版视频；横竖版均检查播放控件出现后预览尺寸保持稳定。
 
 复制提示条回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces`（先完成 Debug 构建），检查深浅色圆角表面并生成截图。
 
@@ -249,7 +249,7 @@ Clipboard layout regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Dev
 
 Clipboard filter regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --filters` (after the Debug build) checks categories, older history, combined search, menu placement, and the default selection on reopening.
 
-Video preview regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --video-preview` (build Debug first; FFmpeg must be on PATH) generates an H.264 MP4 and checks list and hover previews, selection switching, dismissal, and original-file copying, with window snapshots.
+Video preview regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --video-preview` (build Debug first; FFmpeg must be on PATH) generates an H.264 MP4 and checks list and hover previews, selection switching, dismissal, and original-file copying, with window snapshots. Add `--portrait-video` to use a portrait fixture; both orientations check that revealing playback controls preserves the preview size.
 
 Copy-toast regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces` (build Debug first) checks rounded surfaces in light and dark appearances and captures snapshots.
 

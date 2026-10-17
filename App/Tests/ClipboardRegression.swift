@@ -234,7 +234,13 @@ enum ClipboardRegression {
                     precondition(player.currentTime().seconds > 0.1, "video playback must advance")
                     player.pause()
                     precondition(listPreview[0].bounds.height > 100)
+                    let listSize = listPreview[0].bounds.size
+                    precondition(listSize.height > 200, "list video must fill the preview height before controls appear")
                     try await verifyControlInsets(listPreview[0])
+                    try await Task.sleep(for: .seconds(2))
+                    precondition(listPreview[0].bounds.size == listSize,
+                        "floating controls must not change the list video size")
+                    print("Stable list video size: \(listSize)")
                     try snapshot(panel(), "video-list")
                     controller.query = "Another"
                     try await Task.sleep(for: .milliseconds(300))
@@ -256,7 +262,12 @@ enum ClipboardRegression {
                     precondition(hoverPreview.count == 1 && (hoverPreview[0].player?.currentItem?.asset as? AVURLAsset)?.url == url)
                     precondition(hoverPreview[0].player?.currentItem?.status == .readyToPlay)
                     precondition(hover.frame.height > 200, "video hover must have room for playback")
+                    let hoverSize = hoverPreview[0].bounds.size
                     try await verifyControlInsets(hoverPreview[0])
+                    try await Task.sleep(for: .seconds(2))
+                    precondition(hoverPreview[0].bounds.size == hoverSize,
+                        "floating controls must not change the hover video size")
+                    print("Stable hover video size: \(hoverSize)")
                     try snapshot(hover, "video-hover")
                     controller.dismissPreview()
                     precondition(!hover.isVisible && hover.contentView == nil)

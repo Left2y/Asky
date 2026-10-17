@@ -839,7 +839,7 @@ private final class ClipboardPlayerView: AVPlayerView {
 
     private func refreshControlsLayout() {
         // AVKit creates the controls lazily when the pointer enters the video.
-        DispatchQueue.main.async { [weak self] in self?.needsLayout = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in self?.needsLayout = true }
     }
 
 
@@ -886,6 +886,14 @@ private struct ClipboardVideoPreview: NSViewRepresentable {
         view.videoGravity = .resizeAspect
         view.player = AVPlayer(url: url)
         return view
+    }
+
+    // The native player's intrinsic height changes when floating controls appear.
+    // Always accept the preview's proposed size so controls cannot shrink the video.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: AVPlayerView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height,
+              width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
     }
 
     func updateNSView(_ view: AVPlayerView, context: Context) {}

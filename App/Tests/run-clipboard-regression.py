@@ -45,7 +45,7 @@ subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], env=e
 if "--video-preview" in sys.argv:
     fixture = root / "build/clipboard-video-fixture.mp4"
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-                    "-i", "testsrc2=size=640x360:rate=24", "-t", "3", "-c:v", "libx264",
+                    "-i", "testsrc2=size=" + ("360x640" if "--portrait-video" in sys.argv else "640x360") + ":rate=24", "-t", "3", "-c:v", "libx264",
                     "-pix_fmt", "yuv420p", str(fixture)], check=True)
     environment["ASKY_CLIPBOARD_VIDEO_FIXTURE"] = str(fixture)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

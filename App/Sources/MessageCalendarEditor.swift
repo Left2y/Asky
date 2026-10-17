@@ -188,10 +188,6 @@ private struct MessageCalendarEditorView: View {
                             }.frame(width: 280).padding(16).fixedSize()
                         }
                     }
-                    .padding(.leading, 10)
-                    .overlay(alignment: .leading) {
-                        Capsule().fill(Color.accentColor).frame(width: 4)
-                    }
                     TextField("添加地点", text: $model.location)
                         .accessibilityLabel("地点").padding(14).editorRow()
                     HStack(spacing: 10) {

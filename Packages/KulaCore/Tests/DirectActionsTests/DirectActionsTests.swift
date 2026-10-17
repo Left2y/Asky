@@ -127,7 +127,9 @@ import Foundation
         let upgraded = registry
         registry.addMissingWebsitePresets(excluding: ["gemini"])
         #expect(registry == upgraded)
-        #expect(KeywordRegistry().commands.count == 8)
+        #expect(KeywordRegistry().commands.map(\.keyword) == [
+            "go", "chat", "yt", "dy", "tb", "jd", "bl", "gh", "bd", "hb", "zh", "xhs", "wb",
+        ])
     }
 
     @Test func chatGPTCarriesQueryWithoutUserTemplate() throws {

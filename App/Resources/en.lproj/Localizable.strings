@@ -301,6 +301,11 @@
 "bilibili 搜索" = "bilibili Search";
 
 "GitHub 搜索" = "GitHub Search";
+"百度搜索" = "Baidu Search";
+"花瓣搜索" = "Huaban Search";
+"知乎搜索" = "Zhihu Search";
+"小红书搜索" = "Xiaohongshu Search";
+"微博搜索" = "Weibo Search";
 
 "请先填写备忘录中的账户名和已有文件夹名，再点击添加。此处只设置允许访问的范围，不会新建文件夹；系统权限将在使用备忘录时请求。" = "Enter the account and an existing folder name from Notes, then click Add. This only sets the allowed scope; it does not create a folder. System permission is requested when Notes is used.";
 "此备忘录文件夹已添加。" = "This Notes folder has already been added.";

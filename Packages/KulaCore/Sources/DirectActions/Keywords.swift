@@ -56,6 +56,11 @@ public struct KeywordCommand: Sendable, Codable, Hashable, Identifiable {
         KeywordCommand(keyword: "jd", name: "京东搜索", urlTemplate: "https://search.jd.com/Search?keyword={query}"),
         KeywordCommand(keyword: "bl", name: "bilibili 搜索", urlTemplate: "https://search.bilibili.com/all?keyword={query}"),
         KeywordCommand(keyword: "gh", name: "GitHub 搜索", urlTemplate: "https://github.com/search?q={query}"),
+        KeywordCommand(keyword: "bd", name: "百度搜索", urlTemplate: "https://www.baidu.com/s?wd={query}"),
+        KeywordCommand(keyword: "hb", name: "花瓣搜索", urlTemplate: "https://huaban.com/search/?q={query}"),
+        KeywordCommand(keyword: "zh", name: "知乎搜索", urlTemplate: "https://www.zhihu.com/search?type=content&q={query}"),
+        KeywordCommand(keyword: "xhs", name: "小红书搜索", urlTemplate: "https://www.xiaohongshu.com/search_result?keyword={query}"),
+        KeywordCommand(keyword: "wb", name: "微博搜索", urlTemplate: "https://s.weibo.com/weibo?q={query}"),
     ]
 }
 

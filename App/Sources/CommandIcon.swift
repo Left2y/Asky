@@ -7,6 +7,8 @@ struct CommandIcon: View {
         case google = "go", chatGPT = "chat", youtube = "yt", douyin = "dy"
         case taobao = "tb", jd = "jd", bilibili = "bl", github = "gh"
 
+        case baidu = "bd", huaban = "hb", zhihu = "zh", xiaohongshu = "xhs", weibo = "wb"
+
         var asset: String {
             switch self {
             case .google: "CommandGoogle"
@@ -17,6 +19,11 @@ struct CommandIcon: View {
             case .jd: "CommandJD"
             case .bilibili: "CommandBilibili"
             case .github: "CommandGitHub"
+            case .baidu: "CommandBaidu"
+            case .huaban: "CommandHuaban"
+            case .zhihu: "CommandZhihu"
+            case .xiaohongshu: "CommandXiaohongshu"
+            case .weibo: "CommandWeibo"
             }
         }
     }

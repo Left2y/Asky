@@ -65,7 +65,7 @@ import DirectActions
         #expect(rows.first?.target.identifier.contains("swift%20testing") == true)
     }
 
-    @Test(arguments: ["yt", "dy", "tb", "jd", "bl", "gh"])
+    @Test(arguments: ["yt", "dy", "tb", "jd", "bl", "gh", "bd", "hb", "zh", "xhs", "wb"])
     func builtInSiteSearchCarriesEncodedQuery(_ keyword: String) throws {
         let query = "中文 & + # / ?"
         var state = LauncherInputState()
@@ -83,7 +83,9 @@ import DirectActions
         let destinations: [String: (String, String)] = [
             "yt": ("www.youtube.com", "search_query"), "tb": ("s.taobao.com", "q"),
             "jd": ("search.jd.com", "keyword"), "bl": ("search.bilibili.com", "keyword"),
-            "gh": ("github.com", "q"),
+            "gh": ("github.com", "q"), "bd": ("www.baidu.com", "wd"),
+            "hb": ("huaban.com", "q"), "zh": ("www.zhihu.com", "q"),
+            "xhs": ("www.xiaohongshu.com", "keyword"), "wb": ("s.weibo.com", "q"),
         ]
         if keyword == "dy" {
             #expect(url.host == "www.douyin.com")
@@ -93,7 +95,9 @@ import DirectActions
         } else {
             let destination = try #require(destinations[keyword])
             #expect(url.host == destination.0)
-            #expect(components.queryItems == [URLQueryItem(name: destination.1, value: query)])
+            let expectedItems = (keyword == "zh" ? [URLQueryItem(name: "type", value: "content")] : [])
+                + [URLQueryItem(name: destination.1, value: query)]
+            #expect(components.queryItems == expectedItems)
         }
         #expect(components.fragment == nil)
         #expect(row.actions == [.openURL(url)])

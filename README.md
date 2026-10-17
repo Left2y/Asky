@@ -30,7 +30,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 应用内 dialog / alert 统一采用 macOS 原生 `NSAlert`：有所属窗口时使用 sheet，无所属窗口时使用独立 alert；外观与按钮布局由系统管理。操作确认用一段自然语言说明目标与变更，不提供详情展开项。
 
-功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识与真实应用图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，所有插件统一使用 tool 图标，失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
+功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识与真实应用图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，插件工具调用统一使用 tool 图标，设置页的官方与已安装插件保留对应应用 Logo（优先使用插件声明的图标），失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
 
 应用图标与设置中的品牌图使用黑色石墨质感，轮廓源文件见 [Mark.svg](App/Branding/Mark.svg)；菜单栏使用同轮廓的单色模板图。
 
@@ -147,7 +147,7 @@ Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipbo
 
 In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning window is available, or a standalone alert otherwise. The system manages appearance and button layout. Action confirmations describe the target and changes in one paragraph, without an expandable details section.
 
-Functional icons use bundled MingCute vector templates; brand marks and real application icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, all plugins share the tool icon, and failures use a circular exclamation mark. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
+Functional icons use bundled MingCute vector templates; brand marks and real application icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, plugin tool calls share the tool icon, and failures use a circular exclamation mark. Official and installed plugins in Settings retain the corresponding app logo, preferring plugin-provided artwork when available. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
 
 The app icon and branding in Settings use a black graphite finish based on [Mark.svg](App/Branding/Mark.svg). The menu bar uses the same silhouette as a monochrome template.
 

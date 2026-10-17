@@ -39,9 +39,10 @@ struct CommandIcon: View {
         if let brand = Brand(rawValue: keyword.lowercased()) {
             image = Image(brand.asset).renderingMode(brand == .github ? .template : .original)
             // Keep the visible longest edge at 20 pt inside the shared 24 pt slot.
-            // Only ChatGPT has an inset: its 1024 px canvas contains 882 px artwork.
+            // ChatGPT's solid tile is 824 px in a 1024 px canvas; the faint outer
+            // shadow reaches 882 px but must not count toward its visible size.
             // DeepSeek's white tile fills its canvas and needs no compensation.
-            artworkSize = brand == .chatGPT ? 20 * 1024 / 882 : 20
+            artworkSize = brand == .chatGPT ? 20 * 1024 / 824 : 20
         } else {
             image = Image(mingCute: "globe")
             artworkSize = 18

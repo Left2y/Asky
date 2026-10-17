@@ -310,6 +310,11 @@ enum ClipboardRegression {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
                     precondition(legacy.clipboardLayout == .cards)
                     precondition(controller.layout == .cards && panel().frame.height == 244)
+                    // Layout callbacks run directly; isolate them from concurrent desktop input.
+                    panel().makeFirstResponder(nil)
+                    panel().resignKey()
+                    panel().ignoresMouseEvents = true
+                    controller.query = ""
                     controller.selection = 1
                     let selectedID = controller.selectedItem!.id
                     app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
@@ -356,6 +361,14 @@ enum ClipboardRegression {
                     precondition(toast != nil, "copy toast must be visible above the list")
                     try snapshot(toast!, "layout-list-copy-toast")
                     try snapshot(panel(), "layout-list-copy")
+                    try await Task.sleep(for: .milliseconds(1000))
+                    controller.copySelection()
+                    try await Task.sleep(for: .milliseconds(1000))
+                    precondition(controller.status != nil && toast!.isVisible,
+                                 "repeated copies must restart the toast lifetime")
+                    try await Task.sleep(for: .milliseconds(1200))
+                    precondition(controller.status == nil && !toast!.isVisible && controller.isVisible,
+                                 "toast must disappear automatically without closing the list")
                     precondition(controller.items.count == 1 && controller.layout == .list)
                     controller.pinItem(controller.items[0])
                     precondition(controller.items[0].pinned)

@@ -79,6 +79,7 @@ final class ClipboardController {
     private var refreshTimer: Timer?
     private let outsideClickDismissal = OutsideClickDismissal()
     private let toastPanel = SurfacePanel()
+    private var toastDismissTask: Task<Void, Never>?
     private let filterPanel = SurfacePanel()
     private var hiding = false
     var layout: ClipboardLayout { app.preferences.clipboardLayout }
@@ -118,7 +119,19 @@ final class ClipboardController {
     var items: [ClipboardItem] = []
     var selection = 0
     var pinned = false { didSet { updateOutsideClickDismissal() } }
-    var status: String? { didSet { if status != oldValue { updateToast() } } }
+    var status: String? {
+        didSet {
+            toastDismissTask?.cancel()
+            toastDismissTask = nil
+            if status != oldValue { updateToast() }
+            guard status != nil else { return }
+            toastDismissTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                self?.status = nil
+            }
+        }
+    }
 
     init(app: AppModel) {
         self.app = app
@@ -199,6 +212,7 @@ final class ClipboardController {
         isFilterMenuPresented = false
         outsideClickDismissal.hide()
         dismissPreview()
+        status = nil
         toastPanel.remove()
         refreshTimer?.invalidate()
         refreshTimer = nil

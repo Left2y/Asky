@@ -23,7 +23,7 @@ struct AboutSettings: View {
                             .textSelection(.enabled)
                     }
                     Spacer(minLength: 12)
-                    SettingsButton(NSLocalizedString("在 GitHub 查看项目", comment: "")) {
+                    SettingsButton("GitHub", assetImage: "CommandGitHub") {
                         _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
                     }
                 }

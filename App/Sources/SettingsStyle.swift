@@ -180,19 +180,20 @@ struct SettingsButton: View {
     let action: () -> Void
     let role: ButtonRole?
     var systemImage: String?
+    var assetImage: String?
     var isLoading: Bool
     var isComplete: Bool
     var loadingTitle: String?
     var isBordered: Bool
-    init(_ title: String, role: ButtonRole? = nil, systemImage: String? = nil,
+    init(_ title: String, role: ButtonRole? = nil, systemImage: String? = nil, assetImage: String? = nil,
          isLoading: Bool = false, isComplete: Bool = false, loadingTitle: String? = nil,
          isBordered: Bool = true, action: @escaping () -> Void) {
-        self.title = title; self.role = role; self.systemImage = systemImage; self.action = action
+        self.title = title; self.role = role; self.systemImage = systemImage; self.assetImage = assetImage; self.action = action
         self.isLoading = isLoading; self.isComplete = isComplete; self.loadingTitle = loadingTitle
         self.isBordered = isBordered
     }
     var body: some View {
-        SettingsPushButton(title: title, role: role, systemImage: systemImage,
+        SettingsPushButton(title: title, role: role, systemImage: systemImage, assetImage: assetImage,
                            hidesTitle: isLoading || isComplete, isBordered: isBordered, action: action)
             .fixedSize()
             .overlay {
@@ -209,6 +210,7 @@ private struct SettingsPushButton: NSViewRepresentable {
     let title: String
     let role: ButtonRole?
     let systemImage: String?
+    let assetImage: String?
     let hidesTitle: Bool
     let isBordered: Bool
     let action: () -> Void
@@ -232,7 +234,12 @@ private struct SettingsPushButton: NSViewRepresentable {
         button.controlSize = controlSize == .large || controlSize == .extraLarge ? .large : .regular
         button.image = systemImage.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
             .flatMap { title.isEmpty ? $0.withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) : $0 }
-        button.imagePosition = systemImage == nil ? .noImage : title.isEmpty ? .imageOnly : .imageLeading
+        if let assetImage, let image = NSImage(named: assetImage)?.copy() as? NSImage {
+            image.size = NSSize(width: 14, height: 14)
+            image.isTemplate = true
+            button.image = image
+        }
+        button.imagePosition = button.image == nil ? .noImage : title.isEmpty ? .imageOnly : .imageLeading
         button.contentTintColor = role == .destructive ? .systemRed : nil
         button.isBordered = isBordered
         button.isEnabled = enabled

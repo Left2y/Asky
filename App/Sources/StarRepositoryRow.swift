@@ -11,15 +11,15 @@ struct StarRepositoryRow: View {
     @State private var bounce = 0
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: starred ? "star.fill" : "star")
-                .font(.system(size: 22))
+                .font(.system(size: 20))
                 .foregroundStyle(starred ? AnyShapeStyle(Color.yellow) : AnyShapeStyle(ThemeColor.kIconSubtle))
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.bounce, value: bounce)
-                .frame(width: 28)
+                .frame(width: 56, height: 40)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(starred ? NSLocalizedString("已点亮 Star，感谢支持！", comment: "")
                              : NSLocalizedString("喜欢 Asky？去 GitHub 点个 Star", comment: ""))
                 Text(starred ? NSLocalizedString("你的支持是持续更新的动力。", comment: "")
@@ -28,7 +28,8 @@ struct StarRepositoryRow: View {
             }
             Spacer(minLength: 12)
             SettingsButton(starred ? NSLocalizedString("查看仓库", comment: "")
-                                   : NSLocalizedString("去点 Star", comment: "")) {
+                                   : NSLocalizedString("去点 Star", comment: ""),
+                           systemImage: "arrow.up.right") {
                 openedPage = true
                 _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
             }

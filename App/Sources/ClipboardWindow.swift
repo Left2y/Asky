@@ -669,7 +669,7 @@ private struct ClipboardHistoryRow: View {
             .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title.replacingOccurrences(of: "\n", with: " ")).textStyle(.resultPrimary).lineLimit(1)
-                Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))
+                Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
                     .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
             }
             Spacer(minLength: 0)

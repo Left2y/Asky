@@ -586,6 +586,7 @@ private struct ClipboardListDetail: View {
                         Text(item.text ?? (item.kind == .image ? NSLocalizedString("原始图片已不可用", comment: "") : item.filePaths.joined(separator: "\n")))
                             .textStyle(.resultPrimary).textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(.trailing, 16)
                     }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)

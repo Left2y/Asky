@@ -64,6 +64,7 @@ final class GlassSurfaceView: NSGlassEffectView {
         wrapper.layer?.masksToBounds = true
         inactiveTint.frame = wrapper.bounds
         inactiveTint.autoresizingMask = [.width, .height]
+        inactiveTint.cornerRadius = cornerRadius
         inactiveTint.isHidden = true
         wrapper.addSubview(inactiveTint)
         content.frame = wrapper.bounds
@@ -73,13 +74,18 @@ final class GlassSurfaceView: NSGlassEffectView {
     }
 }
 
-/// Sits between the glass and its content. The alpha is the measured
-/// difference between the system's active and inactive glass.
+/// Sits between the glass and its content and redraws what the active
+/// material has over the inactive one: a uniform fill lift plus the specular
+/// rim, which is strongest on the horizontal edges and faint on the sides.
+/// The alphas are measured from screenshots of active vs inactive glass.
 private final class InactiveGlassTintView: NSView {
+    var cornerRadius: CGFloat = 0 {
+        didSet { needsDisplay = true }
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        update()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -89,12 +95,46 @@ private final class InactiveGlassTintView: NSView {
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        update()
+        needsDisplay = true
     }
 
-    private func update() {
+    override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext,
+              bounds.width > 0, bounds.height > 0 else { return }
         let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(dark ? 0.05 : 0.015).cgColor
+        // Uniform difference between the active and inactive materials.
+        ctx.setFillColor(white(dark ? 0.05 : 0.015))
+        ctx.fill(bounds)
+        // Rim bands: centre inset, width and edge alpha of each ring.
+        let bands: [(inset: CGFloat, width: CGFloat, alpha: CGFloat)] = dark
+            ? [(0.5, 1, 0.24), (1.5, 1, 0.055), (3.25, 2.5, 0.022)]
+            : [(0.5, 1, 0.40), (1.5, 1, 0.085), (3.25, 2.5, 0.035)]
+        for band in bands {
+            let radius = max(0, cornerRadius - band.inset)
+            let rect = bounds.insetBy(dx: band.inset, dy: band.inset)
+            ctx.saveGState()
+            ctx.addPath(CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius,
+                               transform: nil))
+            ctx.setLineWidth(band.width)
+            ctx.replacePathWithStrokedPath()
+            ctx.clip()
+            // Top and bottom edges carry the highlight; the vertical sides
+            // fade towards the middle.
+            let stops: [(location: CGFloat, scale: CGFloat)] =
+                [(0, 1), (0.20, 0.45), (0.35, 0.10), (0.65, 0.10), (0.80, 0.45), (1, 1)]
+            let colors = stops.map { white(band.alpha * $0.scale) }
+            if let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                                         colors: colors as CFArray,
+                                         locations: stops.map(\.location)) {
+                ctx.drawLinearGradient(gradient, start: CGPoint(x: 0, y: bounds.maxY),
+                                       end: CGPoint(x: 0, y: bounds.minY), options: [])
+            }
+            ctx.restoreGState()
+        }
+    }
+
+    private func white(_ alpha: CGFloat) -> CGColor {
+        NSColor(srgbRed: 1, green: 1, blue: 1, alpha: alpha).cgColor
     }
 }
 

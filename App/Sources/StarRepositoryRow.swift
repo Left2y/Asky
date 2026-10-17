@@ -27,8 +27,7 @@ struct StarRepositoryRow: View {
             }
             Spacer(minLength: 12)
             SettingsButton(starred ? NSLocalizedString("查看仓库", comment: "")
-                                   : NSLocalizedString("去点 Star", comment: ""),
-                           systemImage: "arrow.up.right") {
+                                   : NSLocalizedString("去点 Star", comment: "")) {
                 openedPage = true
                 _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
             }

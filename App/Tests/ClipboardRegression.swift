@@ -112,7 +112,7 @@ enum ClipboardRegression {
                 let controller = ClipboardController(app: app)
                 let dragPreview = CommandLine.arguments.contains("--drag-preview")
                 let dragTest = CommandLine.arguments.contains("--drag") || fileTest
-                if CommandLine.arguments.contains("--preview") || dragPreview || dragTest { controller.pinned = true }
+                if CommandLine.arguments.contains("--preview") || CommandLine.arguments.contains("--layouts") || dragPreview || dragTest { controller.pinned = true }
                 controller.show()
                 if !CommandLine.arguments.contains("--preview"), !dragPreview { controller.pinned = true }
                 try await Task.sleep(for: .milliseconds(400))
@@ -320,7 +320,42 @@ enum ClipboardRegression {
                     controller.selection = 2
                     try await Task.sleep(for: .milliseconds(200))
                     try snapshot(panel(), "layout-list-text")
+                    // Exercise the rendered row mouse surface and the search field's Return delegate.
+                    @MainActor func descendants<T: NSView>(_ view: NSView, of type: T.Type) -> [T] {
+                        (view as? T).map { [$0] } ?? view.subviews.flatMap { descendants($0, of: type) }
+                    }
+                    let rows = descendants(panel().contentView!, of: ClipboardCardMouseView.self)
+                    precondition(!rows.isEmpty)
+                    controller.status = nil
+                    let down = NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [],
+                        timestamp: 0, windowNumber: panel().windowNumber, context: nil, eventNumber: 0,
+                        clickCount: 1, pressure: 1)!
+                    let up = NSEvent.mouseEvent(with: .leftMouseUp, location: .zero, modifierFlags: [],
+                        timestamp: 0, windowNumber: panel().windowNumber, context: nil, eventNumber: 0,
+                        clickCount: 1, pressure: 0)!
+                    rows[0].mouseDown(with: down)
+                    rows[0].mouseUp(with: up)
+                    precondition(controller.selectedItem?.id == controller.items[0].id)
+                    precondition(NSPasteboard.general.string(forType: .string) == controller.items[0].text,
+                                 "click must select and copy the clicked row")
+                    precondition(controller.status == NSLocalizedString("已复制", comment: "") && controller.isVisible)
                     controller.query = "Another"
+                    try await Task.sleep(for: .milliseconds(200))
+                    controller.status = nil
+                    NSPasteboard.general.clearContents()
+                    let field = descendants(panel().contentView!, of: CompletionTextField.self).first!
+                    let delegate = field.delegate as! LauncherSearchField.Coordinator
+                    precondition(delegate.control(field, textView: NSTextView(),
+                        doCommandBy: #selector(NSResponder.insertNewline(_:))))
+                    precondition(NSPasteboard.general.string(forType: .string) == "Another clipboard card",
+                                 "Return must copy the selected list row")
+                    precondition(controller.status == NSLocalizedString("已复制", comment: "") && controller.isVisible,
+                                 "Return must show copy feedback and keep the list open")
+                    try await Task.sleep(for: .milliseconds(200))
+                    let toast = panel().childWindows!.first { $0.isVisible && $0.frame.minY > panel().frame.maxY }
+                    precondition(toast != nil, "copy toast must be visible above the list")
+                    try snapshot(toast!, "layout-list-copy-toast")
+                    try snapshot(panel(), "layout-list-copy")
                     precondition(controller.items.count == 1 && controller.layout == .list)
                     controller.pinItem(controller.items[0])
                     precondition(controller.items[0].pinned)

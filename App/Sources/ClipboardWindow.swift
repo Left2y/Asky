@@ -441,7 +441,10 @@ private struct ClipboardHistoryView: View {
                                         placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
                                         backspaceOnEmpty: { false }, move: controller.moveSelection,
                                         moveHorizontal: controller.moveSelection,
-                                        submit: { _ in controller.pasteSelection() })
+                                        submit: { _ in
+                                            if controller.layout == .list { controller.copySelection() }
+                                            else { controller.pasteSelection() }
+                                        })
                         .frame(height: 24)
                 }
                 .padding(.horizontal, 16).frame(height: 36)
@@ -686,7 +689,7 @@ private struct ClipboardHistoryRow: View {
                     in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .overlay(ClipboardCardMouseSurface(
-            copy: { controller.select(item) }, hover: { _, inside in hovering = inside },
+            copy: { controller.select(item); controller.copy(item) }, hover: { _, inside in hovering = inside },
             drag: { view, event in controller.select(item); controller.beginDrag(item, from: view, event: event) }
         ).clipShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius)))
         .contextMenu {
@@ -697,7 +700,8 @@ private struct ClipboardHistoryRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : [.isButton])
-        .accessibilityAction { controller.select(item) }
+        .accessibilityAction { controller.select(item); controller.copy(item) }
+        .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }
     }
 }
 

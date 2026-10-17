@@ -810,12 +810,78 @@ private struct ClipboardFullPreview: View {
     }
 }
 
+/// AVKit leaves extra space below its movable floating controls by default.
+/// Locate the native glass surface using public AppKit types, and align its
+/// bottom gap with its horizontal gap without replacing the playback controls.
+private final class ClipboardPlayerView: AVPlayerView {
+    private var controlsBottom: NSLayoutConstraint?
+    private var controlsTracking: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let controlsTracking { removeTrackingArea(controlsTracking) }
+        let tracking = NSTrackingArea(rect: .zero,
+            options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
+            owner: self)
+        addTrackingArea(tracking)
+        controlsTracking = tracking
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        refreshControlsLayout()
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        refreshControlsLayout()
+    }
+
+    private func refreshControlsLayout() {
+        // AVKit creates the controls lazily when the pointer enters the video.
+        DispatchQueue.main.async { [weak self] in self?.needsLayout = true }
+    }
+
+
+    override func layout() {
+        super.layout()
+        guard controlsStyle == .floating,
+              let glass = glassSurface(in: self) else { return }
+        var controls: NSView = glass
+        while let parent = controls.superview, parent !== self,
+              abs(parent.bounds.height - controls.frame.height) < 0.5 {
+            controls = parent
+        }
+        guard let container = controls.superview, container !== self,
+              controls.bounds.height > 0, controls.bounds.height < container.bounds.height else { return }
+        let frame = convert(controls.bounds, from: controls)
+        let inset = max(8, (bounds.width - frame.width) / 2)
+        if controlsBottom?.firstItem as? NSView !== controls {
+            controlsBottom?.isActive = false
+            let constraint = controls.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -inset)
+            // Override AVKit's low-priority movable position, preserving its
+            // required minimum margins and compact-height fallback.
+            constraint.priority = .defaultHigh
+            constraint.isActive = true
+            controlsBottom = constraint
+        } else if abs((controlsBottom?.constant ?? 0) + inset) > 0.5 {
+            controlsBottom?.constant = -inset
+        }
+    }
+
+    private func glassSurface(in view: NSView) -> NSView? {
+        if #available(macOS 26.0, *), view is NSGlassEffectView,
+           view.bounds.width > 100, view.bounds.height >= 40 { return view }
+        return view.subviews.lazy.compactMap { self.glassSurface(in: $0) }.first
+    }
+}
+
 /// Keep playback local to the visible preview and release its asset when removed.
 private struct ClipboardVideoPreview: NSViewRepresentable {
     let url: URL
 
     func makeNSView(context: Context) -> AVPlayerView {
-        let view = AVPlayerView()
+        let view = ClipboardPlayerView()
         view.controlsStyle = .floating
         view.videoGravity = .resizeAspect
         view.player = AVPlayer(url: url)

@@ -198,6 +198,30 @@ enum ClipboardRegression {
                     func previews(in view: NSView) -> [AVPlayerView] {
                         (view as? AVPlayerView).map { [$0] } ?? view.subviews.flatMap { previews(in: $0) }
                     }
+                    @MainActor func verifyControlInsets(_ preview: AVPlayerView) async throws {
+                        let center = preview.window!.convertPoint(toScreen: preview.convert(
+                            NSPoint(x: preview.bounds.midX, y: preview.bounds.midY), to: nil))
+                        CGWarpMouseCursorPosition(CGPoint(x: center.x, y: NSScreen.screens[0].frame.maxY - center.y))
+                        preview.mouseEntered(with: NSEvent.mouseEvent(with: .mouseMoved, location: .zero,
+                            modifierFlags: [], timestamp: 0, windowNumber: preview.window!.windowNumber,
+                            context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
+                        try await Task.sleep(for: .milliseconds(400))
+                        preview.layoutSubtreeIfNeeded()
+                        @MainActor func glass(in view: NSView) -> NSView? {
+                            if view is NSGlassEffectView, view.bounds.width > 100, view.bounds.height >= 40 { return view }
+                            return view.subviews.lazy.compactMap { glass(in: $0) }.first
+                        }
+                        guard let surface = glass(in: preview) else {
+                            preconditionFailure("native floating controls must have a glass surface")
+                        }
+                        let frame = preview.convert(surface.bounds, from: surface)
+                        let left = frame.minX - preview.bounds.minX
+                        let right = preview.bounds.maxX - frame.maxX
+                        let bottom = preview.isFlipped ? preview.bounds.maxY - frame.maxY : frame.minY - preview.bounds.minY
+                        precondition(abs(left - right) < 1 && abs(left - bottom) < 1,
+                            "floating controls must have equal left/right/bottom gaps: \(left), \(right), \(bottom)")
+                        print("Video control gaps: \(left), \(right), \(bottom) pt")
+                    }
                     app.preferences.clipboardLayout = .list
                     controller.updateLayout()
                     try await Task.sleep(for: .seconds(3))
@@ -210,6 +234,7 @@ enum ClipboardRegression {
                     precondition(player.currentTime().seconds > 0.1, "video playback must advance")
                     player.pause()
                     precondition(listPreview[0].bounds.height > 100)
+                    try await verifyControlInsets(listPreview[0])
                     try snapshot(panel(), "video-list")
                     controller.query = "Another"
                     try await Task.sleep(for: .milliseconds(300))
@@ -231,6 +256,7 @@ enum ClipboardRegression {
                     precondition(hoverPreview.count == 1 && (hoverPreview[0].player?.currentItem?.asset as? AVURLAsset)?.url == url)
                     precondition(hoverPreview[0].player?.currentItem?.status == .readyToPlay)
                     precondition(hover.frame.height > 200, "video hover must have room for playback")
+                    try await verifyControlInsets(hoverPreview[0])
                     try snapshot(hover, "video-hover")
                     controller.dismissPreview()
                     precondition(!hover.isVisible && hover.contentView == nil)

@@ -1,4 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<rect x="2" y="2" width="20" height="20" rx="4.5" fill="#DDE7F1"/>
-<g fill="none" stroke="#436589" stroke-width="1.7"><path d="M8 6.5h8v11l-4-2.6-4 2.6z" stroke-linejoin="round"/></g>
+<defs>
+<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#FAFBFD"/></linearGradient>
+<linearGradient id="symbol" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#72AAE6"/><stop offset="1" stop-color="#3979BE"/></linearGradient>
+</defs>
+<rect x="2" y="2" width="20" height="20" rx="4.5" fill="url(#tile)" stroke="#E6EBF1" stroke-width="0.3"/>
+<g fill="none" stroke="#2C5682" stroke-width="1.7" opacity="0.14" transform="translate(0 0.3)"><path d="M8 6.5h8v11l-4-2.6-4 2.6z" stroke-linejoin="round"/></g>
+<g fill="none" stroke="url(#symbol)" stroke-width="1.6"><path d="M8 6.5h8v11l-4-2.6-4 2.6z" stroke-linejoin="round"/></g>
 </svg>

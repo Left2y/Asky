@@ -93,7 +93,8 @@ struct LauncherActionBar: View {
         .font(.system(size: 12))
         .fixedSize()
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
-        .nativeGlassBackground(in: Capsule())
+        .nativeGlassBackground(in: Capsule(), style: .clear)
+        .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
         .accessibilityIdentifier("launcher-action-bar")
     }
 }

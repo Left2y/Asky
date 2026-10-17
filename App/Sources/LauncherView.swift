@@ -77,7 +77,7 @@ final class LauncherPanel: NSPanel {
         if event.type == .keyDown, event.charactersIgnoringModifiers == "k",
            event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
            (firstResponder as? NSTextView)?.hasMarkedText() != true,
-           childWindows?.contains(where: { $0.contentView.flatMap { Self.actionsButton(in: $0) } != nil }) == true {
+           contentView.flatMap({ Self.actionsButton(in: $0) }) != nil {
             onShowActions()
             return
         }
@@ -138,8 +138,6 @@ final class LauncherController {
     private let accessoryPanels = [SurfacePanel(), SurfacePanel()]
     private let filterPanel = SurfacePanel()
     private let toastPanel = SurfacePanel()
-    private let actionPanel = SurfacePanel()
-    private let actionMenuPanel = SurfacePanel()
     private let surfaces = LauncherSurfaceState()
     private let reveal = SurfaceSpring()
     private let outsideClickDismissal = OutsideClickDismissal()
@@ -156,9 +154,6 @@ final class LauncherController {
 
     init(model: LauncherModel) {
         self.model = model
-        // These controls float inside the shell; a second window shadow creates a dark rim.
-        actionPanel.hasShadow = false
-        actionMenuPanel.hasShadow = false
         panel.onEscape = { [weak self] in
             guard let self else { return }
             if self.model.isFilterMenuPresented { self.model.isFilterMenuPresented = false }
@@ -172,7 +167,7 @@ final class LauncherController {
             self.hide()
         }
         panel.onShowActions = { [weak self] in
-            guard let view = self?.actionMenuPanel.contentView else { return }
+            guard let view = self?.panel.contentView else { return }
             func find(_ view: NSView) -> NSButton? {
                 if let button = view as? NSButton, button.identifier?.rawValue == "launcher-actions-menu" { return button }
                 return view.subviews.lazy.compactMap { find($0) }.first
@@ -209,7 +204,7 @@ final class LauncherController {
         if hosting == nil {
             let id = UUID()
             contentID = id
-            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight,
+            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, launcher: panel, maxShellHeight: availableShellHeight,
                                                                     onHeightChange: { [weak self] height in
                 // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
                 self?.resizeTask?.cancel()
@@ -261,7 +256,7 @@ final class LauncherController {
             guard let self else { return false }
             // Native menu tracking owns its own clicks, including clicks outside the shell.
             if self.panel.isTrackingActionMenu { return true }
-            let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel, self.actionPanel, self.actionMenuPanel]
+            let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
     }
@@ -279,7 +274,6 @@ final class LauncherController {
         }
         if next.filterMenu != previous.filterMenu { setFilterMenu(visible: next.filterMenu) }
         if next.toast != previous.toast { setToast(next.toast) }
-        if next.actions != previous.actions { setActions(visible: next.actions != nil) }
         layoutSurfaces()
     }
 
@@ -310,21 +304,6 @@ final class LauncherController {
                 }
             })
         }
-    }
-
-    private func setActions(visible: Bool) {
-        guard visible else { actionPanel.remove(); actionMenuPanel.remove(); return }
-        let bar = LauncherActionBar(model: model)
-        actionPanel.setSurface(bar, size: SurfacePanel.fittingSize(of: bar, maxWidth: 480),
-                               cornerRadius: LauncherLayout.actionBarHeight / 2, glass: false)
-        panel.addChildWindow(actionPanel, ordered: .above)
-        if !model.extraBarActions.isEmpty {
-            let side = LauncherLayout.actionBarHeight
-            actionMenuPanel.setSurface(LauncherActionsMenu(actions: model.extraBarActions, launcher: panel)
-                .frame(width: side, height: side).nativeGlassBackground(in: Circle()),
-                size: NSSize(width: side, height: side), cornerRadius: side / 2, glass: false)
-            panel.addChildWindow(actionMenuPanel, ordered: .above)
-        } else { actionMenuPanel.remove() }
     }
 
     private func setToast(_ message: String?) {
@@ -366,13 +345,6 @@ final class LauncherController {
             filterPanel.setFrameTopLeftPoint(NSPoint(x: right - filterPanel.frame.width,
                                                      y: origin.y - side - LauncherLayout.accessorySpacing))
         }
-        let actionY = frame.minY + 14
-        if actionMenuPanel.isVisible {
-            actionMenuPanel.setFrameOrigin(NSPoint(x: frame.maxX - 16 - actionMenuPanel.frame.width, y: actionY))
-        }
-        if actionPanel.isVisible {
-            actionPanel.setFrameOrigin(NSPoint(x: frame.minX + 16, y: actionY))
-        }
         if toastPanel.isVisible {
             let size = toastPanel.frame.size
             toastPanel.setFrameOrigin(NSPoint(x: frame.midX - size.width / 2, y: frame.maxY + 12))
@@ -394,7 +366,7 @@ final class LauncherController {
         defer { hiding = false }
         outsideClickDismissal.hide()
         reveal.stop()
-        for surface in accessoryPanels + [filterPanel, toastPanel, actionPanel, actionMenuPanel] { surface.remove() }
+        for surface in accessoryPanels + [filterPanel, toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
@@ -409,6 +381,7 @@ final class LauncherController {
 
 struct LauncherView: View {
     @Bindable var model: LauncherModel
+    let launcher: LauncherPanel
     var maxShellHeight: CGFloat = CGFloat(WindowMetrics.launcherMaxHeight)
     var onHeightChange: (CGFloat) -> Void = { _ in }
     var onChromeChange: (LauncherChrome) -> Void = { _ in }
@@ -521,6 +494,22 @@ struct LauncherView: View {
         .contentShape(shellShape)
         .clipShape(shellShape)
         .windowSurfaceBackground(in: shellShape)
+        .overlay(alignment: .bottom) {
+            if !model.commonBarActions.isEmpty {
+                HStack(spacing: 0) {
+                    LauncherActionBar(model: model)
+                    Spacer(minLength: 16)
+                    if !model.extraBarActions.isEmpty {
+                        LauncherActionsMenu(actions: model.extraBarActions, launcher: launcher)
+                            .frame(width: LauncherLayout.actionBarHeight, height: LauncherLayout.actionBarHeight)
+                            .nativeGlassBackground(in: Circle(), style: .clear)
+                            .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
+            }
+        }
         .contentShape(shellShape)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
@@ -847,7 +836,7 @@ private struct ResultList: View {
                     VStack(spacing: 0) {
                         Rectangle()
                         LinearGradient(stops: [.init(color: .black, location: 0),
-                                               .init(color: .black.opacity(0.2), location: 0.45),
+                                               .init(color: .black.opacity(0.85), location: 0.5),
                                                .init(color: .clear, location: 1)],
                                        startPoint: .top, endPoint: .bottom)
                             .frame(height: LauncherLayout.actionBarClearance)

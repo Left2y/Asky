@@ -77,7 +77,8 @@ enum LauncherWindowRegression {
     private struct ActionProvider: SearchProvider {
         let source = SearchSource.app
         func search(_ query: String, limit: Int) async -> [SearchResult] {
-            [SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/Applications/Orca.app"),
+            guard query == "orca" else { return [] }
+            return [SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/Applications/Orca.app"),
                           title: "Orca", subtitle: "/Applications/Orca.app", actions: [.open, .revealInFinder]),
              SearchResult(source: .file, target: TargetRef(kind: "file", identifier: "/tmp/example.md"),
                           title: "example.md", actions: [.open, .revealInFinder]),
@@ -108,27 +109,17 @@ enum LauncherWindowRegression {
             if let button = view as? NSButton, button.identifier?.rawValue == "launcher-actions-menu" { return button }
             return view.subviews.lazy.compactMap { menuButton($0) }.first
         }
-        guard let menuSurface = panel.childWindows?.first(where: { $0.contentView.flatMap { menuButton($0) } != nil }),
-              let button = menuSurface.contentView.flatMap({ menuButton($0) }), let coordinator = button.target as? LauncherActionsMenu.Coordinator else {
+        guard let button = menuButton(content), let coordinator = button.target as? LauncherActionsMenu.Coordinator else {
             throw NSError(domain: "Actions", code: 2)
         }
         if let scroll = scrollView(in: content) {
             let list = scroll.convert(scroll.bounds, to: nil)
-            let footer = menuSurface.frame
-            try require(panel.frame.contains(footer), "floating menu remains inside the shell")
-            try require(footer.width == footer.height && !menuSurface.hasShadow,
-                        "menu is a separate circle without a second window shadow")
-            let bar = panel.childWindows!.first { $0 !== menuSurface && $0.frame.height == LauncherLayout.actionBarHeight }!
-            try require(!bar.hasShadow, "floating capsule has no extra window shadow")
-            try require(abs(bar.frame.minX - panel.frame.minX - 16) < 1,
-                        "common action capsule is anchored on the left")
-            try require(abs(panel.frame.maxX - footer.maxX - 16) < 1 && bar.frame.maxX < footer.minX,
-                        "menu is anchored right with flexible space between")
-            if #available(macOS 26, *), WindowSurface.usesNativeGlass {
-                try require(!(bar.contentView is NSGlassEffectView) && !(menuSurface.contentView is NSGlassEffectView),
-                            "AI button glass is drawn once in SwiftUI without a second AppKit glass layer")
-            }
-            try require(list.minY < footer.maxY - panel.frame.minY, "results scroll under the floating controls")
+            let footer = button.convert(button.bounds, to: nil)
+            try require(button.window === panel, "floating controls share the list window and its backdrop")
+            try require(abs(panel.frame.width - footer.midX - 36) < 1,
+                        "more action is centered in its 40pt circle 16pt from the right edge: \(footer)")
+            try require(abs(footer.midY - 34) < 1, "controls float 14pt above the shell bottom: \(footer)")
+            try require(list.minY < footer.maxY, "results viewport extends behind the floating controls")
         }
         if let rep = content.bitmapImageRepForCachingDisplay(in: content.bounds) {
             content.cacheDisplay(in: content.bounds, to: rep)

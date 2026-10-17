@@ -225,6 +225,13 @@ final class ReminderBannerCenter {
                                           actions: [.init(title: "已处理"),
                                                     .init(title: "查看路线", prominent: true) { Self.openApp("com.apple.Maps") }]))
         }
+        // Deterministic preview of the folded → expanded path; keep it open for inspection.
+        if CommandLine.arguments.contains("--test-banner-reflow") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+                self?.setHovering(true)
+                self?.expand()
+            }
+        }
     }
 
     private static func openApp(_ bundleID: String) {
@@ -284,11 +291,14 @@ private struct ReminderBannerStackView: View {
         let _ = stack.layoutVersion
         let front = stack.active.first
         ZStack(alignment: .top) {
+            // All shadows sit below all glass surfaces and are excluded from every card,
+            // so a neighbour's shadow cannot darken translucent content during reflow.
+            shadowLayer
             ForEach(stack.cards) { card in
                 let rank = stack.rank(of: card.id)
                 let behind = !stack.expanded && (rank ?? 0) > 0
                 let depth = CGFloat(min(rank ?? 0, ReminderBannerCenter.maxPeeking))
-                ReminderBannerCard(item: card.item, settled: card.settled, contentVisible: !behind,
+                ReminderBannerCard(item: card.item, contentVisible: !behind,
                                    // Folded cards take the front card's size so only an even sliver shows below it.
                                    foldedHeight: behind ? front?.height : nil,
                                    onDismiss: { center.dismiss(card.id) },
@@ -315,6 +325,49 @@ private struct ReminderBannerStackView: View {
         .onHover { center.setHovering($0) }
         .padding(ReminderBannerCenter.shadowInset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var shadowLayer: some View {
+        ZStack(alignment: .top) {
+            ForEach(stack.cards) { card in
+                surface(for: card, castsShadow: true)
+            }
+        }
+        .frame(width: ReminderBannerCenter.width, height: stack.contentHeight, alignment: .top)
+        .mask {
+            Rectangle().padding(-ReminderBannerCenter.shadowInset)
+                .overlay(alignment: .top) {
+                    ZStack(alignment: .top) {
+                        ForEach(stack.cards) { card in
+                            surface(for: card, castsShadow: false)
+                        }
+                    }
+                    .frame(width: ReminderBannerCenter.width, height: stack.contentHeight, alignment: .top)
+                    .blendMode(.destinationOut)
+                }
+                .compositingGroup()
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func surface(for card: ReminderBannerStack.Card, castsShadow: Bool) -> some View {
+        let rank = stack.rank(of: card.id)
+        let behind = !stack.expanded && (rank ?? 0) > 0
+        let depth = CGFloat(min(rank ?? 0, ReminderBannerCenter.maxPeeking))
+        let height = behind ? stack.active.first?.height ?? card.height : card.height
+        return RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(.black)
+            .frame(width: ReminderBannerCenter.width, height: height)
+            .shadow(color: .black.opacity(behind ? 0.12 : 0.28),
+                    radius: castsShadow ? (behind ? 6 : 14) : 0,
+                    x: 0, y: castsShadow ? (behind ? 2 : 6) : 0)
+            .opacity(castsShadow && !card.settled ? 0 : 1)
+            .scaleEffect(behind ? 1 - depth * 0.05 : 1, anchor: .bottom)
+            .offset(x: card.presented || ReminderBannerCenter.reduceMotion ? 0
+                    : ReminderBannerCenter.width + ReminderBannerCenter.shadowInset * 2,
+                    y: stack.y(of: card.id))
+            .opacity(visible(card, rank: rank) ? 1 : 0)
     }
 
     private func visible(_ card: ReminderBannerStack.Card, rank: Int?) -> Bool {
@@ -344,7 +397,6 @@ private final class ReminderBannerPanel: NSPanel {
 
 private struct ReminderBannerCard: View {
     let item: ReminderBannerItem
-    let settled: Bool
     let contentVisible: Bool
     let foldedHeight: CGFloat?
     let onDismiss: () -> Void
@@ -425,19 +477,6 @@ private struct ReminderBannerCard: View {
         .frame(height: foldedHeight, alignment: .top)
         .clipped()
         .nativeGlassBackground(in: shape)
-        .background {
-            // Shadow only outside the card, so it never darkens the translucent glass.
-            shape.fill(.black)
-                .shadow(color: .black.opacity(contentVisible ? 0.28 : 0.12), radius: contentVisible ? 14 : 6, x: 0, y: contentVisible ? 6 : 2)
-                .mask {
-                    Rectangle().padding(-ReminderBannerCenter.shadowInset)
-                        .overlay { shape.fill(.black).blendMode(.destinationOut) }
-                        .compositingGroup()
-                }
-                .opacity(settled ? 1 : 0)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
         .overlay(alignment: .topTrailing) {
             if hovering && contentVisible {
                 Button(action: onDismiss) {

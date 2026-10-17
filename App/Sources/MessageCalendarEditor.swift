@@ -81,11 +81,69 @@ private struct MessageCalendarEditorForm: View {
     }
 
     private func dateAndTime(_ date: Binding<Date>) -> some View {
-        HStack(spacing: 12) {
-            DatePicker(NSLocalizedString("日期", comment: ""), selection: date, displayedComponents: [.date])
-            DatePicker(NSLocalizedString("时间", comment: ""), selection: date, displayedComponents: [.hourAndMinute])
-            Spacer(minLength: 0)
+        NativeDateTimeSelect(selection: date)
+            .fixedSize()
+    }
+}
+
+private struct NativeDateTimeSelect: NSViewRepresentable {
+    @Binding var selection: Date
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let select = NSPopUpButton(frame: .zero, pullsDown: false)
+        select.controlSize = .regular
+        select.font = .systemFont(ofSize: 14)
+        select.setAccessibilityLabel(NSLocalizedString("日期和时间", comment: ""))
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let value = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        menu.addItem(value)
+        let picker = NSDatePicker()
+        picker.datePickerStyle = .clockAndCalendar
+        picker.datePickerElements = [.yearMonthDay, .hourMinute]
+        picker.dateValue = selection
+        picker.target = context.coordinator
+        picker.action = #selector(Coordinator.changed(_:))
+        picker.sizeToFit()
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: picker.frame.width + 24,
+                                             height: picker.frame.height + 24))
+        picker.frame.origin = NSPoint(x: 12, y: 12)
+        container.addSubview(picker)
+        let item = NSMenuItem()
+        item.view = container
+        menu.addItem(item)
+        select.menu = menu
+        select.selectItem(at: 0)
+        context.coordinator.select = select
+        context.coordinator.picker = picker
+        return select
+    }
+
+    func updateNSView(_ select: NSPopUpButton, context: Context) {
+        context.coordinator.parent = self
+        select.item(at: 0)?.title = title
+        if context.coordinator.picker?.dateValue != selection {
+            context.coordinator.picker?.dateValue = selection
         }
-        .labelsHidden()
+    }
+
+    private var title: String {
+        selection.formatted(.dateTime.year().month().day().hour().minute())
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var parent: NativeDateTimeSelect
+        weak var select: NSPopUpButton?
+        weak var picker: NSDatePicker?
+
+        init(_ parent: NativeDateTimeSelect) { self.parent = parent }
+
+        @objc func changed(_ picker: NSDatePicker) {
+            parent.selection = picker.dateValue
+            select?.item(at: 0)?.title = parent.title
+        }
     }
 }

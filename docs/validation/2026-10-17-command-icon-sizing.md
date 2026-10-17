@@ -1,5 +1,7 @@
 # 指令品牌图标尺寸修正
 
+> 本记录中的尺寸补偿方案已撤回。用户后续反馈外框变形；当前实现与验证以 `2026-10-17-command-icon-contours.md` 为准，不能将本记录视为视觉验收通过。
+
 ## 原因与修改
 
 `CommandIcon` 原先把 ChatGPT 与 DeepSeek 都按 24 pt 绘制，其余品牌按 20 pt 绘制。ChatGPT 的 1024 px 画布中实体底板为 824 px，外围微弱阴影延伸至 882 px，DeepSeek 则没有外部透明留白，导致 DeepSeek 明显偏大。

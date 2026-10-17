@@ -30,27 +30,20 @@ struct CommandIcon: View {
     }
 
     static let size: CGFloat = 24
-    static let cornerRadius: CGFloat = 6
 
     private let image: Image
     private let artworkSize: CGFloat
-    private let artworkScale: CGFloat
+    private let hasSquareTile: Bool
 
     init(keyword: String) {
         if let brand = Brand(rawValue: keyword.lowercased()) {
             image = Image(brand.asset).renderingMode(brand == .github ? .template : .original)
-            // Keep the visible longest edge at 20 pt inside the shared 24 pt slot.
-            // ChatGPT's solid tile is 824 px in a 1024 px canvas; the faint outer
-            // shadow reaches 882 px but must not count toward its visible size.
-            // DeepSeek's white tile fills its canvas and needs no compensation.
-            artworkSize = brand == .chatGPT ? 20 * 1024 / 824 : 20
-            // Douyin's note occupies only 392 / 512 px of its dark canvas.
-            // Enlarge the artwork within the tile without enlarging the tile itself.
-            artworkScale = brand == .douyin ? 1.12 : 1
+            artworkSize = brand == .chatGPT ? Self.size : 20
+            hasSquareTile = ![.google, .chatGPT, .youtube, .github].contains(brand)
         } else {
             image = Image(mingCute: "globe")
             artworkSize = 18
-            artworkScale = 1
+            hasSquareTile = false
         }
     }
 
@@ -58,16 +51,28 @@ struct CommandIcon: View {
         image = terminalIcon.map(Image.init(nsImage:)) ?? Image(mingCute: "terminal")
         // macOS application artwork also includes an inset around the app tile.
         artworkSize = terminalIcon == nil ? 18 : Self.size
-        artworkScale = 1
+        hasSquareTile = false
     }
 
     var body: some View {
+        artwork
+            .fixedSize()
+            .frame(width: Self.size, height: Self.size)
+            .fixedSize()
+    }
+
+    @ViewBuilder private var artwork: some View {
+        if hasSquareTile {
+            originalArtwork
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .circular))
+        } else {
+            originalArtwork
+        }
+    }
+
+    private var originalArtwork: some View {
         image.resizable().scaledToFit()
             .frame(width: artworkSize, height: artworkSize)
-            .scaleEffect(artworkScale)
             .foregroundStyle(.primary)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .frame(width: Self.size, height: Self.size)
-            .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
     }
 }

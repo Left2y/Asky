@@ -55,9 +55,11 @@ enum SettingsRegression {
                     dock.showDockIcon = model.preferences.showDockIcon
                     precondition(application.activationPolicy() == .accessory)
                     let window = SettingsWindow.make(app: model)
-                    dock.settingsOpen = true
-                    window.makeKeyAndOrderFront(nil)
+                    let presentation = WindowPresentation()
+                    presentation.show(window)
                     try await Task.sleep(for: .milliseconds(600))
+                    precondition(application.activationPolicy() == .accessory)
+                    precondition(window.isVisible && window.isKeyWindow)
                     if let view = window.contentView,
                        let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -68,14 +70,18 @@ enum SettingsRegression {
                     let enabled = try AppModel(root: root).preferences.showDockIcon
                     precondition(enabled)
                     window.close()
-                    dock.settingsOpen = false
                     precondition(application.activationPolicy() == .regular)
-                    dock.settingsOpen = true
-                    window.makeKeyAndOrderFront(nil)
+                    presentation.show(window)
+                    try await Task.sleep(for: .milliseconds(600))
+                    precondition(application.activationPolicy() == .regular)
+                    precondition(window.isVisible && window.isKeyWindow)
                     model.preferences.showDockIcon = false
-                    precondition(application.activationPolicy() == .regular)
+                    precondition(application.activationPolicy() == .accessory)
+                    presentation.show(window)
+                    try await Task.sleep(for: .milliseconds(600))
+                    precondition(window.isVisible && window.isKeyWindow)
+                    precondition(application.activationPolicy() == .accessory)
                     window.close()
-                    dock.settingsOpen = false
                     precondition(application.activationPolicy() == .accessory)
                     let disabled = try AppModel(root: root).preferences.showDockIcon
                     precondition(!disabled)
@@ -84,7 +90,7 @@ enum SettingsRegression {
                     let relaunched = DockVisibilityController()
                     relaunched.showDockIcon = try AppModel(root: root).preferences.showDockIcon
                     precondition(application.activationPolicy() == .regular)
-                    print("Dock visibility: legacy defaults, persistence, live changes, window close and relaunch passed")
+                    print("Dock visibility: legacy defaults, persistence, live changes with settings open, settings focus, window close and relaunch passed")
                     exit(0)
                 }
                 guard model.keywords.commands == KeywordCommand.builtIn,

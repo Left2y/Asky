@@ -20,7 +20,7 @@ enum AskyMain {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var model: AppModel!
     private var launcher: LauncherController!
     private var launcherModel: LauncherModel!
@@ -369,24 +369,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         agentWindow.showNewConversation()
     }
 
-    func windowWillClose(_ notification: Notification) {
-        guard notification.object as? NSWindow === settingsWindow else { return }
-        dockVisibility.settingsOpen = false
-    }
-
     @objc private func openSettings() {
         if settingsWindow == nil {
             let w = SettingsWindow.make(app: model)
             w.level = .normal
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.isReleasedWhenClosed = false
-            w.delegate = self
             w.center()
             settingsWindow = w
         }
         launcher.hide()
         clipboardWindow.hide()
-        dockVisibility.settingsOpen = true
         // Updates replace the bundle in place, so the Dock may still hold the old cached icon.
         if let icon = Bundle.main.image(forResource: "AppIcon") { NSApp.applicationIconImage = icon }
         if let settingsWindow { windowPresentation.show(settingsWindow) }

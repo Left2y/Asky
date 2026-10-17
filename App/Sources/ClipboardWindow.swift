@@ -815,36 +815,32 @@ private struct ClipboardFullPreview: View {
 /// bottom gap with its horizontal gap without replacing the playback controls.
 private final class ClipboardPlayerView: AVPlayerView {
     private var controlsBottom: NSLayoutConstraint?
-    private var controlsTracking: NSTrackingArea?
+    private var controlsLayoutObserver: CFRunLoopObserver?
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let controlsTracking { removeTrackingArea(controlsTracking) }
-        let tracking = NSTrackingArea(rect: .zero,
-            options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
-            owner: self)
-        addTrackingArea(tracking)
-        controlsTracking = tracking
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let controlsLayoutObserver { CFRunLoopObserverInvalidate(controlsLayoutObserver) }
+        controlsLayoutObserver = nil
+        guard window != nil else { return }
+        // AVKit creates its pane asynchronously. Resolve its position at the
+        // end of the event cycle, before the window server receives the frame.
+        let observer = CFRunLoopObserverCreateWithHandler(nil,
+            CFRunLoopActivity.beforeWaiting.rawValue, true, 0) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.alignFloatingControls() }
+            }
+        controlsLayoutObserver = observer
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
     }
-
-    override func mouseEntered(with event: NSEvent) {
-        super.mouseEntered(with: event)
-        refreshControlsLayout()
-    }
-
-    override func mouseMoved(with event: NSEvent) {
-        super.mouseMoved(with: event)
-        refreshControlsLayout()
-    }
-
-    private func refreshControlsLayout() {
-        // AVKit creates the controls lazily when the pointer enters the video.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in self?.needsLayout = true }
-    }
-
 
     override func layout() {
         super.layout()
+        // AVKit lays out the floating pane below this view in its hierarchy.
+        // Resolve that layout before locating and positioning its glass surface.
+        subviews.forEach { $0.layoutSubtreeIfNeeded() }
+        alignFloatingControls()
+    }
+
+    private func alignFloatingControls() {
         guard controlsStyle == .floating,
               let glass = glassSurface(in: self) else { return }
         var controls: NSView = glass
@@ -866,6 +862,11 @@ private final class ClipboardPlayerView: AVPlayerView {
             controlsBottom = constraint
         } else if abs((controlsBottom?.constant ?? 0) + inset) > 0.5 {
             controlsBottom?.constant = -inset
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+            container.layoutSubtreeIfNeeded()
         }
     }
 

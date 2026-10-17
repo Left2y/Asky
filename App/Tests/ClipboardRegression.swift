@@ -199,18 +199,46 @@ enum ClipboardRegression {
                         (view as? AVPlayerView).map { [$0] } ?? view.subviews.flatMap { previews(in: $0) }
                     }
                     @MainActor func verifyControlInsets(_ preview: AVPlayerView) async throws {
+                        @MainActor func glass(in view: NSView) -> NSView? {
+                            if view is NSGlassEffectView, view.bounds.width > 100, view.bounds.height >= 40 { return view }
+                            return view.subviews.lazy.compactMap { glass(in: $0) }.first
+                        }
                         let center = preview.window!.convertPoint(toScreen: preview.convert(
                             NSPoint(x: preview.bounds.midX, y: preview.bounds.midY), to: nil))
                         CGWarpMouseCursorPosition(CGPoint(x: center.x, y: NSScreen.screens[0].frame.maxY - center.y))
                         preview.mouseEntered(with: NSEvent.mouseEvent(with: .mouseMoved, location: .zero,
                             modifierFlags: [], timestamp: 0, windowNumber: preview.window!.windowNumber,
                             context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
-                        try await Task.sleep(for: .milliseconds(400))
-                        preview.layoutSubtreeIfNeeded()
-                        @MainActor func glass(in view: NSView) -> NSView? {
-                            if view is NSGlassEffectView, view.bounds.width > 100, view.bounds.height >= 40 { return view }
-                            return view.subviews.lazy.compactMap { glass(in: $0) }.first
+                        let windowFrame = preview.window!.frame
+                        let playerFrame = preview.convert(preview.bounds, to: nil)
+                        @MainActor final class Frames {
+                            var firstControlsFrame: NSRect?
+                            var count = 0
                         }
+                        let frames = Frames()
+                        // Sample after the player's pre-display layout observer,
+                        // rather than midway through AVKit's asynchronous updates.
+                        let observer = CFRunLoopObserverCreateWithHandler(nil,
+                            CFRunLoopActivity.beforeWaiting.rawValue, true, 1000) { _, _ in
+                            MainActor.assumeIsolated {
+                                precondition(preview.window!.frame == windowFrame &&
+                                    preview.convert(preview.bounds, to: nil) == playerFrame,
+                                    "hover window and video must not move when controls appear")
+                                if let surface = glass(in: preview) {
+                                    let frame = preview.convert(surface.bounds, from: surface)
+                                    if let first = frames.firstControlsFrame {
+                                        precondition(abs(frame.minY - first.minY) < 0.5,
+                                            "controls must not jump between displayed frames")
+                                    } else { frames.firstControlsFrame = frame }
+                                    frames.count += 1
+                                }
+                            }
+                        }
+                        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+                        try await Task.sleep(for: .milliseconds(400))
+                        CFRunLoopObserverInvalidate(observer)
+                        precondition(frames.count > 0, "must sample displayed playback controls")
+                        preview.layoutSubtreeIfNeeded()
                         guard let surface = glass(in: preview) else {
                             preconditionFailure("native floating controls must have a glass surface")
                         }

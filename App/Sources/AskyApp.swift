@@ -45,6 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             ReminderBannerCenter.shared.showPreview()
             return
         }
+        if CommandLine.arguments.contains("--test-confirmation-matrix") {
+            ConfirmationPreviews.run()
+            return
+        }
         if CommandLine.arguments.contains("--test-confirmations") {
             // Exercise the real shared UI without starting the model or executing tools.
             NSApp.setActivationPolicy(.regular)

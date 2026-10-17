@@ -58,14 +58,11 @@ struct AliasSettings: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private func aliasMenu(_ item: LauncherAlias) -> some View {
-        Menu {
+        SettingsMoreMenu {
             Button(label("编辑")) { editor = AliasDraft(item) }
             Divider()
             Button(label("删除"), role: .destructive) { app.preferences.aliases.removeAll { $0.id == item.id } }
-        } label: {
-            Image(mingCute: "ellipsis.circle", size: 15).foregroundStyle(.secondary)
         }
-        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .accessibilityLabel(label("更多操作") + " " + item.alias).help(label("更多操作"))
     }
 }

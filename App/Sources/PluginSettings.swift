@@ -92,7 +92,7 @@ struct PluginSettings: View {
         .help(plugin.isOfficial ? "" : plugin.repository)
     }
     private func pluginMenu(_ plugin: InstalledPlugin) -> some View {
-        Menu {
+        SettingsMoreMenu {
             if !(plugin.manifest.configuration ?? []).isEmpty {
                 Button(label("配置")) { editing = plugin }
             }
@@ -104,10 +104,7 @@ struct PluginSettings: View {
             }
             Divider()
             Button(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }
-        } label: {
-            Image(mingCute: "ellipsis.circle", size: 15).foregroundStyle(.secondary)
         }
-        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .accessibilityLabel(label("更多操作")).help(label("更多操作")).disabled(busy)
     }
     private func pluginIcon(repository: String) -> some View {

@@ -21,6 +21,7 @@ enum MingCute {
         "chevron.down": "MingCute-down",
         "chevron.up": "MingCute-up",
         "ellipsis.circle": "MingCute-more_3",
+        "ellipsis.vertical": "MingCute-more_2",
         "plus": "MingCute-add",
         "trash": "MingCute-delete_2",
         "arrow.clockwise": "MingCute-refresh_1",

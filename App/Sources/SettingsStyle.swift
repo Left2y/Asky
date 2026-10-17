@@ -174,6 +174,34 @@ private struct SettingsRegularGlass: NSViewRepresentable {
     }
 }
 
+/// Shared icon button for row actions; keeps the native menu and its keyboard behavior.
+struct SettingsMoreMenu<Content: View>: View {
+    @ViewBuilder var content: Content
+    @State private var hovered = false
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        Menu {
+            content
+        } label: {
+            Image(mingCute: "ellipsis.vertical", size: 15)
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .background {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(ThemeColor.kInteractionHover)
+                .opacity(enabled && hovered ? 1 : 0)
+                .allowsHitTesting(false)
+        }
+        .onHover { hovered = $0 }
+    }
+}
+
 /// A native AppKit push button, including the system bezel, focus and disabled states.
 struct SettingsButton: View {
     let title: String

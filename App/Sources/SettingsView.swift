@@ -420,6 +420,8 @@ private struct SourceSettings: View {
 
     @ViewBuilder private func sourceIcon(_ source: DataSourceID) -> some View {
         DataSourceIcon(source: source)
+            // The bundled logo has no native Icon Services drop shadow.
+            .shadow(color: .black.opacity(source == .memory ? 0.22 : 0), radius: 1, x: 0, y: 1)
             .overlay {
                 if source == .chrome || source == .memory {
                     // Preserve the native plate and shadow. Enlarge only the central

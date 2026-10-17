@@ -50,12 +50,10 @@ final class ClipboardController {
     private let outsideClickDismissal = OutsideClickDismissal()
     private let toastPanel = SurfacePanel()
     private var hiding = false
-    enum Layout { case cards, list }
-    var layout: Layout = .cards
+    var layout: ClipboardLayout { app.preferences.clipboardLayout }
 
-    func toggleLayout() {
+    func updateLayout() {
         dismissPreview()
-        layout = layout == .cards ? .list : .cards
         panel.scrollsHorizontally = layout == .cards
         resizePanel()
         updateToast()
@@ -131,7 +129,7 @@ final class ClipboardController {
             panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
                                   width: width, height: 244), display: false)
         }
-        resizePanel()
+        updateLayout()
         let host = NSHostingView(rootView: ClipboardHistoryView(controller: self))
         host.sizingOptions = []
         host.frame = NSRect(origin: .zero, size: panel.frame.size)
@@ -376,9 +374,6 @@ private struct ClipboardHistoryView: View {
                 .padding(.horizontal, 16).frame(height: 36)
                 .nativeGlassBackground(in: Capsule())
                 HStack(spacing: 12) {
-                    ClipboardHeaderButton(symbol: controller.layout == .cards ? "checklist" : "app.badge",
-                                          title: controller.layout == .cards ? NSLocalizedString("切换为列表", comment: "") : NSLocalizedString("切换为卡片", comment: ""),
-                                          action: controller.toggleLayout)
                     ClipboardHeaderButton(symbol: controller.pinned ? "pin.fill" : "pin",
                                           title: controller.pinned ? NSLocalizedString("取消固定窗口", comment: "") : NSLocalizedString("固定窗口", comment: ""),
                                           action: controller.togglePinned)
@@ -415,6 +410,7 @@ private struct ClipboardHistoryView: View {
         .foregroundStyle(ThemeColor.kText)
         .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.cornerRadius))
         .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .onChange(of: controller.layout) { _, _ in controller.updateLayout() }
         .onExitCommand { controller.hide() }
     }
 

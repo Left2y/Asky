@@ -125,10 +125,13 @@ enum ClipboardRegression {
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-\(name).png"))
                 }
                 if CommandLine.arguments.contains("--layouts") {
+                    let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
+                    precondition(legacy.clipboardLayout == .cards)
                     precondition(controller.layout == .cards && panel().frame.height == 244)
                     controller.selection = 1
                     let selectedID = controller.selectedItem!.id
-                    controller.toggleLayout()
+                    app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
+                    controller.updateLayout()
                     try await Task.sleep(for: .milliseconds(400))
                     precondition(controller.selectedItem?.id == selectedID && panel().frame.height == 560)
                     try snapshot(panel(), "layout-list-image")
@@ -141,19 +144,39 @@ enum ClipboardRegression {
                     precondition(controller.items[0].pinned)
                     controller.copySelection()
                     precondition(NSPasteboard.general.string(forType: .string) == "Another clipboard card")
-                    controller.toggleLayout()
+                    app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
+                    controller.updateLayout()
                     precondition(controller.query == "Another" && panel().frame.height == 244)
                     controller.query = ""
                     try await Task.sleep(for: .milliseconds(200))
                     try snapshot(panel(), "layout-cards")
-                    controller.toggleLayout()
+                    app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
+                    controller.updateLayout()
                     try await Task.sleep(for: .milliseconds(200))
                     try snapshot(panel(), "layout-list")
-                    print("Clipboard layout switching, selection, filtering, pinning and copy passed")
+                    let reloaded = try AppModel(root: root)
+                    precondition(reloaded.preferences.clipboardLayout == .list)
+                    print("Clipboard settings layout, persistence, legacy default, selection, filtering, pinning and copy passed")
                     if CommandLine.arguments.contains("--layout-preview") {
                         try await Task.sleep(for: .seconds(300))
                     }
                     controller.hide()
+                    app.settingsTab = SettingsPage.general.rawValue
+                    let settingsWindow = SettingsWindow.make(app: app)
+                    settingsWindow.makeKeyAndOrderFront(nil)
+                    try await Task.sleep(for: .milliseconds(500))
+                    func scrollToClipboard(_ view: NSView) {
+                        if let scroll = view as? NSScrollView, scroll.frame.width > 300,
+                           let document = scroll.documentView {
+                            scroll.contentView.scroll(to: NSPoint(x: 0, y: max(0, document.bounds.height - scroll.contentSize.height)))
+                            scroll.reflectScrolledClipView(scroll.contentView)
+                        }
+                        for child in view.subviews { scrollToClipboard(child) }
+                    }
+                    scrollToClipboard(settingsWindow.contentView!)
+                    try await Task.sleep(for: .milliseconds(200))
+                    try snapshot(settingsWindow, "layout-settings")
+                    settingsWindow.orderOut(nil)
                     application.terminate(nil)
                     return
                 }

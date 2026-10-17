@@ -581,6 +581,7 @@
 "展开工具调用" = "Expand tool calls";
 "收起工具调用" = "Collapse tool calls";
 
-/* Clipboard layout switch */
-"切换为列表" = "Switch to List";
-"切换为卡片" = "Switch to Cards";
+/* Clipboard layout preference */
+"显示方式" = "Display Style";
+"卡片式" = "Cards";
+"列表式" = "List";

@@ -265,7 +265,7 @@ private struct ChatInlineNativeText: NSViewRepresentable {
             }
             if intent.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             if let url = run.imageURL {
-                let image = images[url].flatMap(NSImage.init(data:)) ?? NSImage(systemSymbolName: "photo", accessibilityDescription: nil)!
+                let image = images[url].flatMap(NSImage.init(data:)) ?? MingCute.image("photo")
                 let attachment = NSTextAttachment()
                 attachment.image = image
                 attachment.bounds = NSRect(x: 0, y: -2, width: min(120, 14 * image.size.width / max(1, image.size.height)), height: 14)
@@ -310,8 +310,8 @@ private struct ChatCodeBlock: View {
                     copied = MessageClipboard.copy(configuration.content)
                 } label: {
                     Group {
-                        if copied { Image(systemName: "checkmark").font(.system(size: 14, weight: .medium)) }
-                        else { Image("ChatCopy") }
+                        if copied { Image(mingCute: "checkmark", size: 14) }
+                        else { Image("ChatCopy").resizable().scaledToFit().frame(width: 14, height: 14) }
                     }
                     .frame(width: 16, height: 16).padding(6)
                 }
@@ -377,7 +377,7 @@ private struct ChatRemoteImage: View {
                         } label: {
                             Group {
                                 if downloading { ProgressView().controlSize(.small) }
-                                else { Image(systemName: downloaded ? "checkmark" : "arrow.down.to.line") }
+                                else { Image(mingCute: downloaded ? "checkmark" : "arrow.down.to.line", size: 14) }
                             }
                             .font(.system(size: 14, weight: .medium))
                             .frame(width: 32, height: 32)
@@ -393,7 +393,7 @@ private struct ChatRemoteImage: View {
                     }
             } else {
                 HStack(spacing: 8) {
-                    if failed { Image(systemName: "photo") } else { ProgressView().controlSize(.small) }
+                    if failed { Image(mingCute: "photo") } else { ProgressView().controlSize(.small) }
                     Text(failed ? LocalizedStringKey("图片加载失败") : LocalizedStringKey("正在加载图片…")).font(.system(size: 14))
                     if failed {
                         Button("重试") { failed = false }
@@ -436,7 +436,7 @@ private struct ChatInlineImageProvider: InlineImageProvider {
             return Image(nsImage: image)
         } catch {
             if Task.isCancelled { throw error }
-            return Image(systemName: "photo")
+            return Image(mingCute: "photo")
         }
     }
 }

@@ -122,7 +122,7 @@ struct PermissionAppCard: View {
                     .font(.system(size: 13)).foregroundStyle(ThemeColor.kTextSubtle)
             }
             Spacer(minLength: 0)
-            Image(systemName: "hand.draw").foregroundStyle(ThemeColor.kIconSubtle)
+            Image(mingCute: "hand.draw").foregroundStyle(ThemeColor.kIconSubtle)
         }
         .padding(16)
         .foregroundStyle(ThemeColor.kText)

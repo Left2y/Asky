@@ -374,7 +374,7 @@ private struct SourceSettings: View {
                                         if selected { app.settings.notesFolders.append(folder) }
                                     })) {
                                     HStack {
-                                        Label(folder.folder, systemImage: "folder")
+                                        Label { Text(folder.folder) } icon: { Image(mingCute: "folder") }
                                         if foldersLoaded && !availableFolders.contains(folder) {
                                             Text(NSLocalizedString("未找到，请取消选择或刷新", comment: "")).foregroundStyle(.secondary)
                                         }
@@ -606,7 +606,7 @@ private struct MemorySettings: View {
                 NSWorkspace.shared.activateFileViewerSelecting([app.memory.indexURL])
             } label: {
                 LabeledContent {
-                    Image(systemName: "arrow.up.forward.app").foregroundStyle(.secondary)
+                    Image(mingCute: "arrow.up.forward.app").foregroundStyle(.secondary)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("记忆文件", comment: ""))

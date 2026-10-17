@@ -105,7 +105,7 @@ struct PluginSettings: View {
             Divider()
             Button(label("卸载"), role: .destructive) { perform("卸载插件") { try await manager.uninstall(plugin.id) } }
         } label: {
-            Image(systemName: "ellipsis.circle").font(.system(size: 15)).foregroundStyle(.secondary)
+            Image(mingCute: "ellipsis.circle", size: 15).foregroundStyle(.secondary)
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .accessibilityLabel(label("更多操作")).help(label("更多操作")).disabled(busy)

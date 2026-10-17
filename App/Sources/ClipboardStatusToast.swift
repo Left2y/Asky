@@ -11,8 +11,7 @@ struct ClipboardStatusToast: View {
     var body: some View {
         HStack(spacing: 8) {
             if message == NSLocalizedString("已复制", comment: "") {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .semibold))
+                Image(mingCute: "checkmark", size: 12)
                     .accessibilityHidden(true)
             }
             Text(message)

@@ -12,7 +12,7 @@ struct DataSourceIcon: View {
         } else if let icon = ToolService.dataSourceApplicationIcon(source) {
             Image(nsImage: icon).renderingMode(.original).resizable().scaledToFit()
         } else {
-            Image(systemName: fallbackSymbol).resizable().scaledToFit()
+            Image(mingCute: fallbackSymbol).resizable().scaledToFit()
         }
     }
 

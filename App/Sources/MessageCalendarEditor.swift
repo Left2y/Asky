@@ -137,7 +137,7 @@ private struct MessageCalendarEditorView: View {
         VStack(spacing: 16) {
             HStack {
                 Button(action: cancel) {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 18))
+                    Image(mingCute: "xmark.circle.fill", size: 18)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain).accessibilityLabel("取消").disabled(model.saving)

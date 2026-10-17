@@ -222,7 +222,7 @@ private struct PermissionAuthorizationView: View {
                     .font(.system(size: 16, weight: .regular))
                 Spacer()
                 Button(action: close) {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .medium))
+                    Image(mingCute: "xmark", size: 12)
                         .frame(width: 28, height: 28).contentShape(.circle)
                 }
                 .buttonStyle(.plain).foregroundStyle(ThemeColor.kTextSubtle)

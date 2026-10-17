@@ -33,13 +33,13 @@ struct CommandIcon: View {
             // The official ChatGPT app artwork includes its own transparent inset.
             artworkSize = brand == .chatGPT ? Self.size : 20
         } else {
-            image = Image(systemName: "globe")
+            image = Image(mingCute: "globe")
             artworkSize = 18
         }
     }
 
     init(terminalIcon: NSImage?) {
-        image = terminalIcon.map(Image.init(nsImage:)) ?? Image(systemName: "terminal")
+        image = terminalIcon.map(Image.init(nsImage:)) ?? Image(mingCute: "terminal")
         // macOS application artwork also includes an inset around the app tile.
         artworkSize = terminalIcon == nil ? 18 : Self.size
     }

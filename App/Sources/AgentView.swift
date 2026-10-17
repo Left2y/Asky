@@ -170,8 +170,7 @@ struct AgentView: View {
             ZStack {
                 if showingHistory {
                     HStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 17)).frame(width: 17, height: 20)
+                        Image(mingCute: "magnifyingglass", size: 17).frame(width: 17, height: 20)
                             .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
                         ConversationSearchField(text: $historyQuery,
                             textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
@@ -215,7 +214,7 @@ struct AgentView: View {
     }
 
     private func headerIcon(_ symbol: String) -> some View {
-        Image(systemName: symbol)
+        Image(mingCute: symbol)
             .frame(width: 20, height: 20)
             .frame(width: 32, height: 32)
             .contentShape(.interaction, Circle())
@@ -462,7 +461,7 @@ private struct ChatBubble: View {
         case .notice:
             Text(item.text).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
         case .error:
-            Label(item.text, systemImage: "exclamationmark.triangle").textStyle(.secondary).foregroundStyle(ThemeColor.kTextNegative)
+            Label { Text(item.text) } icon: { Image(mingCute: "exclamationmark.triangle") }.textStyle(.secondary).foregroundStyle(ThemeColor.kTextNegative)
         }
     }
 
@@ -483,9 +482,9 @@ private struct ChatBubble: View {
         } label: {
             Group {
                 if copyFeedbackID != nil {
-                    Image(systemName: "checkmark").font(.system(size: 14, weight: .medium))
+                    Image(mingCute: "checkmark", size: 14)
                 } else {
-                    Image("ChatCopy")
+                    Image("ChatCopy").resizable().scaledToFit().frame(width: 14, height: 14)
                 }
             }
             .frame(width: 16, height: 16).padding(6)
@@ -541,15 +540,14 @@ private struct Composer: View {
             .padding(.horizontal, 20)
             HStack {
                 Button { importing = true } label: {
-                    Image(systemName: "paperclip").font(.system(size: 14)).frame(width: 32, height: 32)
+                    Image(mingCute: "paperclip", size: 14).frame(width: 32, height: 32)
                 }
                 .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
                 .accessibilityLabel(NSLocalizedString("选择文件或图片", comment: ""))
                 Spacer()
                 ApprovalModePicker(model: model)
                 Button { if model.isRunning { model.stop() } else { model.send() } } label: {
-                    Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")
-                        .font(.system(size: 14, weight: .medium)).frame(width: 32, height: 32)
+                    Image(mingCute: model.isRunning ? "stop.fill" : "arrow.up", size: 14).frame(width: 32, height: 32)
                 }
                 .buttonStyle(ComposerSubmitButtonStyle())
                 .disabled(!model.isRunning && !model.canSend)
@@ -584,7 +582,7 @@ private struct ApprovalModePicker: View {
         let mode = model.approvalMode
         Button { showing.toggle() } label: {
             HStack(spacing: 4) {
-                Image(systemName: Self.icon(mode)).font(.system(size: 13))
+                Image(mingCute: Self.icon(mode), size: 13)
                 Text(Self.shortTitle(mode)).font(.system(size: 13))
             }
             .foregroundStyle(mode == .fullAccess ? AnyShapeStyle(Self.fullAccessColor) : AnyShapeStyle(ThemeColor.kTextSubtle))
@@ -637,14 +635,14 @@ private struct ApprovalModeRow: View {
         let tint = option == .fullAccess ? AnyShapeStyle(Color.orange) : AnyShapeStyle(ThemeColor.kText)
         Button(action: action) {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: ApprovalModePicker.icon(option)).font(.system(size: 15)).frame(width: 20)
+                Image(mingCute: ApprovalModePicker.icon(option), size: 15).frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ApprovalModePicker.title(option)).font(.system(size: 13, weight: .medium))
                     Text(ApprovalModePicker.detail(option)).font(.system(size: 12)).opacity(0.75)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
-                if selected { Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)) }
+                if selected { Image(mingCute: "checkmark", size: 12) }
             }
             .foregroundStyle(tint)
             .padding(.horizontal, 10).padding(.vertical, 8)
@@ -750,7 +748,7 @@ private struct ToolCallRow: View {
                     if status == nil {
                         ProgressView().controlSize(.small)
                     } else if status == .failed {
-                        Image(systemName: "xmark.circle")
+                        Image(mingCute: "xmark.circle")
                             .accessibilityLabel(AgentModel.statusLabel(.failed))
                     } else if let pluginIcon {
                         Image(nsImage: pluginIcon).resizable().scaledToFit()
@@ -759,7 +757,7 @@ private struct ToolCallRow: View {
                     } else if let source = item.toolSource {
                         DataSourceIcon(source: source)
                     } else {
-                        Image(systemName: item.toolSymbol)
+                        Image(mingCute: item.toolSymbol)
                     }
                 }
                 .frame(width: 20, height: 20)
@@ -770,8 +768,7 @@ private struct ToolCallRow: View {
                 Spacer(minLength: 0)
                 if item.toolError != nil {
                     Button { expanded.toggle() } label: {
-                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 12)).frame(width: 28, height: 28)
+                        Image(mingCute: expanded ? "chevron.down" : "chevron.right", size: 12).frame(width: 28, height: 28)
                     }
                     .buttonStyle(AgentIconButtonStyle())
                     .accessibilityLabel(NSLocalizedString(expanded ? "收起错误详情" : "展开错误详情", comment: ""))

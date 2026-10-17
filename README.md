@@ -30,6 +30,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 应用内 dialog / alert 统一采用 macOS 原生 `NSAlert`：有所属窗口时使用 sheet，无所属窗口时使用独立 alert；外观与按钮布局由系统管理。操作确认用一段自然语言说明目标与变更，不提供详情展开项。
 
+功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识与真实应用图标。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
+
 应用图标与设置中的品牌图使用黑色石墨质感，轮廓源文件见 [Mark.svg](App/Branding/Mark.svg)；菜单栏使用同轮廓的单色模板图。
 
 ### 核心能力
@@ -142,6 +144,8 @@ Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer py
 Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipboard history work independently; the AI assistant starts on demand. The project is in development; see [validation records](docs/validation/) for system permission and interaction acceptance status.
 
 In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning window is available, or a standalone alert otherwise. The system manages appearance and button layout. Action confirmations describe the target and changes in one paragraph, without an expandable details section.
+
+Functional icons use bundled MingCute vector templates; brand marks and real application icons retain their original artwork. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
 
 The app icon and branding in Settings use a black graphite finish based on [Mark.svg](App/Branding/Mark.svg). The menu bar uses the same silhouette as a monochrome template.
 

@@ -36,7 +36,7 @@ struct SettingsEditableList: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     HStack(spacing: 12) {
                         Group {
-                            if let systemImage { Label(item, systemImage: systemImage) } else { Text(item) }
+                            if let systemImage { Label { Text(item) } icon: { Image(mingCute: systemImage) } } else { Text(item) }
                         }
                         .lineLimit(1)
                         .truncationMode(.middle)

@@ -466,8 +466,7 @@ struct LauncherView: View {
         }
     }
     private var searchIcon: some View {
-        Image(systemName: "magnifyingglass")
-            .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
+        Image(mingCute: "magnifyingglass", size: LauncherLayout.searchIconSize)
             .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
             .frame(width: 19, height: 24)
             .accessibilityHidden(true)
@@ -481,7 +480,7 @@ struct LauncherView: View {
         } else if let command = model.commandInput?.command {
             CommandIcon(keyword: command.keyword)
         } else {
-            Image(systemName: "globe").font(.system(size: 20)).foregroundStyle(ThemeColor.kIcon)
+            Image(mingCute: "globe", size: 20).foregroundStyle(ThemeColor.kIcon)
         }
     }
 
@@ -519,8 +518,7 @@ private struct LauncherAccessory: View {
         Button {
             if isPin { model.isPinned.toggle() } else { model.isFilterMenuPresented.toggle() }
         } label: {
-            Image(systemName: symbol)
-                .font(.system(size: LauncherLayout.searchIconSize, weight: .regular))
+            Image(mingCute: symbol, size: LauncherLayout.searchIconSize)
                 .foregroundStyle(selected ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
                 .frame(width: size, height: size)
                 .contentShape(.interaction, Circle())
@@ -559,10 +557,10 @@ private struct LauncherFilterMenu: View {
                     model.setFilter(filter)
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: filter.icon).frame(width: 22)
+                        Image(mingCute: filter.icon).frame(width: 22)
                         Text(NSLocalizedString(filter.title, tableName: "Launcher", comment: "Launcher filter"))
                         Spacer()
-                        if model.filter == filter { Image(systemName: "checkmark") }
+                        if model.filter == filter { Image(mingCute: "checkmark") }
                     }
                     .font(.system(size: 14))
                     .padding(.horizontal, 14)
@@ -655,8 +653,7 @@ private struct CurrencyConversionView: View {
     var body: some View {
         HStack(spacing: 12) {
             currency(code: query.from, amount: query.amount)
-            Image(systemName: "arrow.left.arrow.right")
-                .font(.system(size: 16, weight: .medium))
+            Image(mingCute: "arrow.left.arrow.right", size: 16)
                 .foregroundStyle(ThemeColor.kIcon)
                 .accessibilityHidden(true)
             currency(code: query.to, amount: value)
@@ -883,7 +880,7 @@ private struct ResultRow: View {
                 Text(flag).font(.system(size: 28))
                     .accessibilityLabel(CurrencyPresentation.name(for: result.target.identifier))
             } else {
-                Image(systemName: Self.symbol(.currency)).font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
+                Image(mingCute: Self.symbol(.currency), size: 28).foregroundStyle(ThemeColor.kIcon)
             }
         case .link:
             Image("Link").resizable().scaledToFit()
@@ -904,10 +901,10 @@ private struct ResultRow: View {
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()
             } else {
-                Image(systemName: "globe").font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
+                Image(mingCute: "globe", size: 28).foregroundStyle(ThemeColor.kIcon)
             }
         default:
-            Image(systemName: Self.symbol(result.source)).font(.system(size: 28)).foregroundStyle(ThemeColor.kIcon)
+            Image(mingCute: Self.symbol(result.source), size: 28).foregroundStyle(ThemeColor.kIcon)
         }
     }
 

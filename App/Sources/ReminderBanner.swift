@@ -435,8 +435,7 @@ private struct ReminderBannerCard: View {
             }
 
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: item.symbol)
-                    .font(.system(size: 16, weight: .medium))
+                Image(mingCute: item.symbol, size: 16)
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
                     .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -480,8 +479,7 @@ private struct ReminderBannerCard: View {
         .overlay(alignment: .topTrailing) {
             if hovering && contentVisible {
                 Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                    Image(mingCute: "xmark", size: 10)
                         .frame(width: 20, height: 20)
                         .contentShape(Circle())
                 }

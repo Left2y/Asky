@@ -22,14 +22,13 @@ struct ComposerAttachmentCard: View {
                     if let data = thumbnail ?? loadedThumbnail, let image = NSImage(data: data) {
                         Image(nsImage: image).resizable().scaledToFill()
                     } else {
-                        Image(systemName: "photo").font(.system(size: 28))
+                        Image(mingCute: "photo", size: 28)
                     }
                 }
                 .frame(width: 52, height: 52).clipped()
             } else {
                 HStack(spacing: 12) {
-                    Image(systemName: "text.document")
-                        .font(.system(size: 24, weight: .regular))
+                    Image(mingCute: "text.document", size: 24)
                         .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
                         .frame(width: 44, height: 44)
                         .background(ThemeColor.kBackground, in: .rect(cornerRadius: 8))
@@ -54,7 +53,7 @@ struct ComposerAttachmentCard: View {
         .overlay(alignment: .topTrailing) {
             if let remove {
                 Button(action: remove) {
-                    Image(systemName: "xmark").font(TextStyle(size: 14, weight: 500, mode: .default).font)
+                    Image(mingCute: "xmark", size: 14)
                         .foregroundStyle(ThemeColor("iconInverted").color(for: colorScheme))
                         .frame(width: 20, height: 20)
                         .background(ThemeColor.kBackgroundPrimary, in: .circle)

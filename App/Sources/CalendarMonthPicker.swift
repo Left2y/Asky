@@ -66,7 +66,7 @@ struct CalendarMonthPicker: View {
                 displayedMonth = calendar.dateInterval(of: .month, for: date)?.start ?? date
             }
         } label: {
-            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+            Image(mingCute: symbol, size: 12)
                 .frame(width: 28, height: 28).contentShape(Rectangle())
         }
         .buttonStyle(.plain).accessibilityLabel(Text(title))

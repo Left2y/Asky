@@ -63,7 +63,7 @@ struct AliasSettings: View {
             Divider()
             Button(label("删除"), role: .destructive) { app.preferences.aliases.removeAll { $0.id == item.id } }
         } label: {
-            Image(systemName: "ellipsis.circle").font(.system(size: 15)).foregroundStyle(.secondary)
+            Image(mingCute: "ellipsis.circle", size: 15).foregroundStyle(.secondary)
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .accessibilityLabel(label("更多操作") + " " + item.alias).help(label("更多操作"))
@@ -126,7 +126,7 @@ private struct AliasEditor: View {
                 Text(label(draft.isNew ? "添加别名" : "编辑别名")).font(.system(size: 16))
                 Spacer()
                 Button(action: close) {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .medium))
+                    Image(mingCute: "xmark", size: 12)
                         .frame(width: 28, height: 28).contentShape(.circle)
                 }
                 .buttonStyle(.plain).foregroundStyle(ThemeColor.kTextSubtle)

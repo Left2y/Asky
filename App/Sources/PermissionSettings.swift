@@ -55,8 +55,7 @@ struct PermissionSettings: View {
             Section(NSLocalizedString("系统权限", comment: "")) {
                 ForEach(SystemPermission.allCases.filter { $0 != .notifications }) { permission in
                     HStack(spacing: 12) {
-                        Image(systemName: symbol(for: permission))
-                            .font(.system(size: 16, weight: .medium)).foregroundStyle(.white)
+                        Image(mingCute: symbol(for: permission), size: 16).foregroundStyle(.white)
                             .frame(width: 30, height: 30)
                             .background(iconColor(for: permission), in: RoundedRectangle(cornerRadius: 7))
                             .drawingGroup() // 字形与底色一起栅格化，避免小数坐标下分别取整导致图标偏 1px
@@ -87,8 +86,7 @@ struct PermissionSettings: View {
                     .padding(.vertical, 4)
                 }
                 HStack(spacing: 12) {
-                    Image(systemName: "bookmark")
-                        .font(.system(size: 16, weight: .medium)).foregroundStyle(.white)
+                    Image(mingCute: "bookmark", size: 16).foregroundStyle(.white)
                         .frame(width: 30, height: 30)
                         .background(Color.blue, in: RoundedRectangle(cornerRadius: 7))
                         .drawingGroup()

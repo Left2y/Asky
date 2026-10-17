@@ -1,7 +1,16 @@
 {
-  "images" : [
-    { "filename" : "Bookmark.png", "idiom" : "universal", "scale" : "1x" },
-    { "filename" : "Bookmark@2x.png", "idiom" : "universal", "scale" : "2x" }
+  "images": [
+    {
+      "filename": "icon.svg",
+      "idiom": "universal"
+    }
   ],
-  "info" : { "author" : "xcode", "version" : 1 }
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true,
+    "template-rendering-intent": "template"
+  }
 }

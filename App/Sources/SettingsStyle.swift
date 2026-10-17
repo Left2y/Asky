@@ -197,7 +197,7 @@ struct SettingsButton: View {
                            hidesTitle: isLoading || isComplete, isBordered: isBordered, action: action)
             .fixedSize()
             .overlay {
-                if isComplete { Image(systemName: "checkmark").accessibilityHidden(true) }
+                if isComplete { Image(mingCute: "checkmark").accessibilityHidden(true) }
                 else if isLoading {
                     if let loadingTitle { Text(loadingTitle).font(.system(size: 14)) }
                     else { ProgressView().controlSize(.small) }
@@ -232,8 +232,7 @@ private struct SettingsPushButton: NSViewRepresentable {
                 enabled ? NSColor.controlTextColor : NSColor.disabledControlTextColor
         ])
         button.controlSize = controlSize == .large || controlSize == .extraLarge ? .large : .regular
-        button.image = systemImage.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
-            .flatMap { title.isEmpty ? $0.withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) : $0 }
+        button.image = systemImage.map { MingCute.image($0, size: title.isEmpty ? 12 : 14) }
         if let assetImage, let image = NSImage(named: assetImage)?.copy() as? NSImage {
             image.size = NSSize(width: 14, height: 14)
             image.isTemplate = true

@@ -12,8 +12,7 @@ struct StarRepositoryRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: starred ? "star.fill" : "star")
-                .font(.system(size: 20))
+            Image(mingCute: starred ? "star.fill" : "star", size: 20)
                 .foregroundStyle(starred ? AnyShapeStyle(Color.yellow) : AnyShapeStyle(ThemeColor.kIconSubtle))
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.bounce, value: bounce)

@@ -74,7 +74,7 @@ Launcher 收起尺寸与输入文字来自 node 22:348；Agent 初始尺寸来�
 | 进度与状态 | ProgressView 与结构化工具结果 | 停止、拒绝、错误与待核实可区分 |
 | 附件与来源 | 原生预览、文件或目标打开入口 | 缩略图、查看原件与可追溯来源 |
 
-Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重写控件固有行为。不能把可点击文字当按钮、颜色当唯一状态或失去原生输入法行为。图标初始优先系统 SF Symbols，若后续提供自有图标再记录来源与替换映射。
+Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重写控件固有行为。不能把可点击文字当按钮、颜色当唯一状态或失去原生输入法行为。功能图标统一使用 [MingCute Icons](https://github.com/mingcute-design/mingcute-icons) 的线性 SVG，选中或运行状态按需采用同库填充版本。图标作为本地矢量模板资产打包，通过 `MingCute` 共享映射供 SwiftUI 和 AppKit 使用，大小显式指定，颜色继承语义前景色。设置侧栏与旧功能资产也使用同库图形。自动审批使用用户提供的 `hand_line`（源文件 `App/Artwork/approval-hand.svg`），按钮与审批菜单共享同一映射。聊天与代码块复制采用用户提供的 `copy_2_line`（`App/Artwork/copy.svg`）。Asky 品牌标识、真实应用/网站标识、用户自选图标与内容缩略图保留原始来源。资源版本、完整替换映射见 `scripts/mingcute-icons.json`，Apache-2.0 许可随应用打包在 `App/Resources/ThirdParty/MingCute/`。
 
 ### Dialog 与 Alert
 

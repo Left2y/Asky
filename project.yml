@@ -24,6 +24,10 @@ targets:
       - path: App/Sources
       - path: App/Assets.xcassets
       - path: App/Resources
+        excludes: [ThirdParty]
+      - path: App/Resources/ThirdParty
+        type: folder
+        buildPhase: resources
     info:
       path: App/Info.plist
       properties:

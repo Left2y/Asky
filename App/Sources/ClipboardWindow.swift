@@ -331,7 +331,7 @@ private struct ClipboardHistoryView: View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
                 HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
+                    Image(mingCute: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
                     LauncherSearchField(text: $controller.query, fontSize: 16,
                                         textColor: NSColor(ThemeColor.kText.color(for: scheme)),
                                         accessibilityLabel: NSLocalizedString("搜索剪贴板历史", comment: ""),
@@ -393,7 +393,7 @@ private struct ClipboardHeaderButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
+            Image(mingCute: symbol)
                 .frame(width: 32, height: 32)
                 .nativeGlassBackground(in: Circle(), interactive: true)
                 .contentShape(.interaction, Circle())
@@ -415,9 +415,9 @@ private struct ClipboardHistoryCard: View {
             HStack {
                 if let icon = ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
                     Image(nsImage: icon).resizable().frame(width: 28, height: 28)
-                } else { Image(systemName: "doc.on.clipboard").frame(width: 28, height: 28) }
+                } else { Image(mingCute: "doc.on.clipboard").frame(width: 28, height: 28) }
                 Spacer()
-                if item.pinned { Image(systemName: "pin.fill").font(.caption).foregroundStyle(ThemeColor.kIconSubtle) }
+                if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle) }
             }
             if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                 Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)

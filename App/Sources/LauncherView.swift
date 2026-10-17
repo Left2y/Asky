@@ -23,8 +23,6 @@ enum LauncherLayout {
     static let filterMenuCornerRadius: CGFloat = 24
     static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
     static let dividerHeight: CGFloat = 1
-    static let actionBarHeight: CGFloat = 40
-    static let actionBarClearance: CGFloat = 68
     // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
     static let currencyCardHeight: CGFloat = 146
     static let rowHeight: CGFloat = 50
@@ -39,8 +37,6 @@ enum LauncherLayout {
 
 /// Floating, non-activating launcher panel that still takes key focus for the input field.
 final class LauncherPanel: NSPanel {
-    var isTrackingActionMenu = false
-    var onShowActions: () -> Void = {}
     var onEscape: () -> Void = {}
     var onBlur: () -> Void = {}
     var onOpenSettings: () -> Void = {}
@@ -74,13 +70,6 @@ final class LauncherPanel: NSPanel {
         if actionPreferences().revealInFinderHotKey.matches(event),
            (firstResponder as? NSTextView)?.hasMarkedText() != true,
            onRevealInFinder() { return }
-        if event.type == .keyDown, event.charactersIgnoringModifiers == "k",
-           event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-           (firstResponder as? NSTextView)?.hasMarkedText() != true,
-           contentView.flatMap({ Self.actionsButton(in: $0) }) != nil {
-            onShowActions()
-            return
-        }
         if event.type == .scrollWheel,
            routeScrollWheel(event, at: event.locationInWindow) { return }
         super.sendEvent(event)
@@ -100,11 +89,6 @@ final class LauncherPanel: NSPanel {
         return true
     }
 
-    private static func actionsButton(in view: NSView) -> NSButton? {
-        if let button = view as? NSButton, button.identifier?.rawValue == "launcher-actions-menu" { return button }
-        return view.subviews.lazy.compactMap { actionsButton(in: $0) }.first
-    }
-
     private static func scrollView(in view: NSView) -> NSScrollView? {
         if let scroll = view as? NSScrollView { return scroll }
         return view.subviews.lazy.compactMap { scrollView(in: $0) }.first
@@ -115,7 +99,7 @@ final class LauncherPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) { onEscape() }
     override func resignKey() {
         super.resignKey()
-        if !isTrackingActionMenu { onBlur() }
+        onBlur()
     }
 }
 
@@ -124,7 +108,6 @@ struct LauncherChrome: Equatable {
     var accessories = false
     var filterMenu = false
     var toast: String?
-    var actions: String?
 }
 
 /// Shared with the accessory windows so their edge glint follows the reveal.
@@ -166,14 +149,6 @@ final class LauncherController {
             guard !self.model.isPinned else { return }
             self.hide()
         }
-        panel.onShowActions = { [weak self] in
-            guard let view = self?.panel.contentView else { return }
-            func find(_ view: NSView) -> NSButton? {
-                if let button = view as? NSButton, button.identifier?.rawValue == "launcher-actions-menu" { return button }
-                return view.subviews.lazy.compactMap { find($0) }.first
-            }
-            find(view)?.performClick(nil)
-        }
         panel.actionPreferences = { [weak model] in model?.actionPreferences ?? SettingsPreferences() }
         panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
         panel.onRevealInFinder = { [weak model] in model?.revealSelectionInFinder() ?? false }
@@ -204,7 +179,7 @@ final class LauncherController {
         if hosting == nil {
             let id = UUID()
             contentID = id
-            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, launcher: panel, maxShellHeight: availableShellHeight,
+            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight,
                                                                     onHeightChange: { [weak self] height in
                 // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
                 self?.resizeTask?.cancel()
@@ -254,8 +229,6 @@ final class LauncherController {
         guard panel.isVisible, !model.isPinned else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            // Native menu tracking owns its own clicks, including clicks outside the shell.
-            if self.panel.isTrackingActionMenu { return true }
             let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
@@ -381,7 +354,6 @@ final class LauncherController {
 
 struct LauncherView: View {
     @Bindable var model: LauncherModel
-    let launcher: LauncherPanel
     var maxShellHeight: CGFloat = CGFloat(WindowMetrics.launcherMaxHeight)
     var onHeightChange: (CGFloat) -> Void = { _ in }
     var onChromeChange: (LauncherChrome) -> Void = { _ in }
@@ -401,10 +373,7 @@ struct LauncherView: View {
     private var chrome: LauncherChrome {
         LauncherChrome(accessories: accessoriesVisible && !hasInput,
                        filterMenu: model.isFilterMenuPresented && !hasInput,
-                       toast: model.toast,
-                       actions: model.commonBarActions.isEmpty ? nil :
-                        (model.selectedActionResult?.id ?? "") + model.commonBarActions.map { $0.title + $0.shortcut }.joined()
-                        + model.extraBarActions.map { $0.title + $0.shortcut }.joined())
+                       toast: model.toast)
     }
 
     var body: some View {
@@ -483,9 +452,6 @@ struct LauncherView: View {
                     .padding(.trailing, LauncherLayout.inputTrailingPadding).padding(.vertical, 8)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
-            if model.calculation != nil, !model.commonBarActions.isEmpty {
-                Color.clear.frame(height: LauncherLayout.actionBarClearance)
-            }
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
@@ -494,22 +460,6 @@ struct LauncherView: View {
         .contentShape(shellShape)
         .clipShape(shellShape)
         .windowSurfaceBackground(in: shellShape)
-        .overlay(alignment: .bottom) {
-            if !model.commonBarActions.isEmpty {
-                HStack(spacing: 0) {
-                    LauncherActionBar(model: model)
-                    Spacer(minLength: 16)
-                    if !model.extraBarActions.isEmpty {
-                        LauncherActionsMenu(actions: model.extraBarActions, launcher: launcher)
-                            .frame(width: LauncherLayout.actionBarHeight, height: LauncherLayout.actionBarHeight)
-                            .nativeGlassBackground(in: Circle(), style: .clear)
-                            .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
-            }
-        }
         .contentShape(shellShape)
         .onChange(of: model.status) { _, status in
             if status == nil { statusHeight = 0 }
@@ -774,16 +724,12 @@ private struct ResultList: View {
         return !model.hasScope && resultSections.count > 1
     }
 
-    private var bottomClearance: CGFloat {
-        LauncherLayout.listBottomPadding + (model.commonBarActions.isEmpty ? 0 : LauncherLayout.actionBarClearance)
-    }
-
     private var height: CGFloat {
         let rows = CGFloat(visibleResults.count) * LauncherLayout.rowHeight
         let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
         // Headers share the eight-row budget. Short result lists still size to their content.
         let listHeightLimit = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
-        return min(rows + headers + bottomClearance, listHeightLimit, maxHeight)
+        return min(rows + headers + LauncherLayout.listBottomPadding, listHeightLimit, maxHeight)
     }
 
     var body: some View {
@@ -806,7 +752,7 @@ private struct ResultList: View {
                                 if r.source == .currency {
                                     ResultRow(result: r, selected: false, keyword: nil)
                                         .accessibilityLabel(r.title)
-                                        .padding(.bottom, r.id == visibleResults.last?.id ? bottomClearance : 0)
+                                        .padding(.bottom, r.id == visibleResults.last?.id ? LauncherLayout.listBottomPadding : 0)
                                         .id(r.id)
                                 } else {
                                     Button {
@@ -820,7 +766,7 @@ private struct ResultList: View {
                                     .accessibilityAddTraits(i == model.selection ? .isSelected : [])
                                     // Keep clearance inside the final row's scroll target,
                                     // so every selection uses the same minimal reveal.
-                                    .padding(.bottom, r.id == visibleResults.last?.id ? bottomClearance : 0)
+                                    .padding(.bottom, r.id == visibleResults.last?.id ? LauncherLayout.listBottomPadding : 0)
                                     .id(r.id)
                                 }
                             }
@@ -830,19 +776,6 @@ private struct ResultList: View {
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
             }
             .scrollIndicators(.hidden)
-            .mask {
-                if model.commonBarActions.isEmpty { Rectangle() }
-                else {
-                    VStack(spacing: 0) {
-                        Rectangle()
-                        LinearGradient(stops: [.init(color: .black, location: 0),
-                                               .init(color: .black.opacity(0.85), location: 0.5),
-                                               .init(color: .clear, location: 1)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: LauncherLayout.actionBarClearance)
-                    }
-                }
-            }
             .frame(height: min(maxHeight, max(height, retainedHeight)))
             .task(id: LayoutRequest(query: model.query, height: height, isSearching: model.isSearching)) {
                 let target = height

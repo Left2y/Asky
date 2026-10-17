@@ -19,7 +19,6 @@
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
-python3 App/Tests/run-launcher-window-regression.py --actions
 python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
@@ -122,7 +121,6 @@ After the Debug build in [README](../README.md), run native regression checks. S
 
 ```sh
 python3 App/Tests/run-launcher-window-regression.py
-python3 App/Tests/run-launcher-window-regression.py --actions
 python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons

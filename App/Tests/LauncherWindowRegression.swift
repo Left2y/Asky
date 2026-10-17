@@ -38,9 +38,7 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--actions") || CommandLine.arguments.contains("--actions-preview") {
-                        try await checkActions()
-                    } else if CommandLine.arguments.contains("--bookmarks") {
+                    if CommandLine.arguments.contains("--bookmarks") {
                         try await checkBookmarks()
                     } else if CommandLine.arguments.contains("--accessories-preview") {
                         try await previewAccessories()
@@ -72,99 +70,6 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
-    }
-
-    private struct ActionProvider: SearchProvider {
-        let source = SearchSource.app
-        func search(_ query: String, limit: Int) async -> [SearchResult] {
-            guard query == "orca" else { return [] }
-            return [SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/Applications/Orca.app"),
-                          title: "Orca", subtitle: "/Applications/Orca.app", actions: [.open, .revealInFinder]),
-             SearchResult(source: .file, target: TargetRef(kind: "file", identifier: "/tmp/example.md"),
-                          title: "example.md", actions: [.open, .revealInFinder]),
-             SearchResult(source: .keyword, target: TargetRef(kind: "url", identifier: "https://example.com"),
-                          title: "Example", actions: [.openURL(URL(string: "https://example.com")!), .copy("https://example.com")])]
-        }
-    }
-
-    private static func checkActions() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-actions-\(UUID())")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let app = try AppModel(root: root)
-        let model = LauncherModel(app: app, searchProviders: [ActionProvider()])
-        let controller = LauncherController(model: model)
-        // Keep the fixture open while the developer continues working in another app.
-        model.isPinned = true
-        NSApp.activate(ignoringOtherApps: true)
-        try await Task.sleep(for: .milliseconds(200))
-        controller.show()
-        defer { controller.hide() }
-        model.query = "orca"
-        try await Task.sleep(for: .milliseconds(450))
-        guard let panel = NSApp.windows.compactMap({ $0 as? LauncherPanel }).first(where: \.isVisible),
-              let content = panel.contentView else { throw NSError(domain: "Actions", code: 1) }
-        try require(model.commonBarActions.count == 2 && model.extraBarActions.count == 1,
-                    "app exposes open/Finder, with copy path in the menu")
-        func menuButton(_ view: NSView) -> NSButton? {
-            if let button = view as? NSButton, button.identifier?.rawValue == "launcher-actions-menu" { return button }
-            return view.subviews.lazy.compactMap { menuButton($0) }.first
-        }
-        guard let button = menuButton(content), let coordinator = button.target as? LauncherActionsMenu.Coordinator else {
-            throw NSError(domain: "Actions", code: 2)
-        }
-        if let scroll = scrollView(in: content) {
-            let list = scroll.convert(scroll.bounds, to: nil)
-            let footer = button.convert(button.bounds, to: nil)
-            try require(button.window === panel, "floating controls share the list window and its backdrop")
-            try require(abs(panel.frame.width - footer.midX - 36) < 1,
-                        "more action is centered in its 40pt circle 16pt from the right edge: \(footer)")
-            try require(abs(footer.midY - 34) < 1, "controls float 14pt above the shell bottom: \(footer)")
-            try require(list.minY < footer.maxY, "results viewport extends behind the floating controls")
-        }
-        if let rep = content.bitmapImageRepForCachingDisplay(in: content.bounds) {
-            content.cacheDisplay(in: content.bounds, to: rep)
-            if let png = rep.representation(using: .png, properties: [:]) {
-                try png.write(to: URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "build/launcher-actions-" + (NSApp.appearance?.name.rawValue ?? "default") + ".png"))
-            }
-        }
-        if CommandLine.arguments.contains("--actions-preview") {
-            print("actions preview window=\(panel.windowNumber) frame=\(panel.frame)")
-            fflush(stdout)
-            try await Task.sleep(for: .seconds(20))
-        }
-        @MainActor final class TrackingState { var tracked = false }
-        let state = TrackingState()
-        let timer = Timer(timeInterval: 0.2, repeats: false) { _ in
-            MainActor.assumeIsolated {
-                guard let menu = coordinator.activeMenu else { return }
-                state.tracked = panel.isTrackingActionMenu && menu.items.count == 1
-                menu.cancelTracking()
-                menu.performActionForItem(at: 0)
-            }
-        }
-        RunLoop.main.add(timer, forMode: .eventTracking)
-        RunLoop.main.add(timer, forMode: .common)
-        let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
-                                     timestamp: 0, windowNumber: panel.windowNumber, context: nil,
-                                     characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
-        panel.sendEvent(event)
-        timer.invalidate()
-        try require(state.tracked && controller.isVisible, "Cmd K opens native menu without hiding the launcher; tracked=\(state.tracked), visible=\(controller.isVisible)")
-        try require(NSPasteboard.general.string(forType: .string) == "/Applications/Orca.app" && model.toast != nil,
-                    "menu copies the selected path and shows feedback")
-        model.selection = 1
-        try require(model.selectedActionResult?.source == .file && model.commonBarActions.count == 2,
-                    "file selection updates the actions")
-        model.selection = model.results.firstIndex { $0.title == "Example" }!
-        try require(model.commonBarActions.count == 1 && model.extraBarActions.count == 1,
-                    "URL selection replaces Finder/path with open/copy link")
-        model.extraBarActions[0].perform()
-        try require(NSPasteboard.general.string(forType: .string) == "https://example.com", "URL copy uses actual URL")
-        controller.show()
-        model.query = "1+1"
-        try await Task.sleep(for: .milliseconds(250))
-        try require(model.commonBarActions.count == 1 && model.extraBarActions.isEmpty,
-                    "calculator offers only its copy action")
     }
 
     private static func checkBookmarks() async throws {

@@ -3,23 +3,6 @@ import DirectActions
 
 extension ToolService {
     @MainActor
-    @discardableResult
-    public static func copyLauncherText(_ text: String) -> Bool {
-        NSPasteboard.general.clearContents()
-        return NSPasteboard.general.setString(text, forType: .string)
-    }
-
-    @MainActor
-    public static func revealLauncherTarget(_ path: String) {
-        NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
-    }
-
-    @MainActor
-    public static func openLauncherFile(_ url: URL) {
-        NSWorkspace.shared.open(url)
-    }
-
-    @MainActor
     public static func chooseLauncherSearchFolder() async -> URL? {
         let panel = NSOpenPanel()
         panel.title = NSLocalizedString("添加文件搜索范围", comment: "")

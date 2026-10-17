@@ -30,7 +30,7 @@ enum MingCute {
         "arrow.up.forward.app": "MingCute-external_link",
         "arrow.down.to.line": "MingCute-download",
         "arrow.left.arrow.right": "MingCute-transfer_horizontal",
-        "line.3.horizontal.decrease": "MingCute-filter",
+        "line.3.horizontal.decrease": "MingCute-filter_2",
         "list.bullet": "MingCute-history",
         "pencil": "MingCute-edit",
         "paperclip": "MingCute-attachment",
@@ -74,6 +74,7 @@ enum MingCute {
         "bookmark": "MingCute-bookmark",
         "warning": "MingCute-warning",
         "tool": "MingCute-tool",
+        "video": "MingCute-video",
     ]
 
     static func image(_ symbol: String, size: CGFloat = 16) -> NSImage {

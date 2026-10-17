@@ -135,6 +135,59 @@ enum ClipboardRegression {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-\(name).png"))
                 }
+                if CommandLine.arguments.contains("--filters") || CommandLine.arguments.contains("--filter-preview") {
+                    let movie = ClipboardItem(kind: .file, text: "sample movie.mp4", filePath: root.appending(path: "missing.mp4").path,
+                                              byteSize: 10, contentHash: "filter-movie")
+                    let document = ClipboardItem(kind: .file, text: "sample document.pdf", filePath: root.appending(path: "missing.pdf").path,
+                                                 byteSize: 10, contentHash: "filter-document")
+                    try store.insert(movie)
+                    try store.insert(document)
+                    for i in 0..<105 {
+                        try store.insert(ClipboardItem(kind: .text, text: "newer sample text \(i)", byteSize: 20, contentHash: "filter-text-\(i)"))
+                    }
+                    controller.refresh()
+                    precondition(controller.filter == .all && controller.items.count == 100)
+                    for (filter, ids) in [(ClipboardFilter.image, [picture.id]), (.video, [movie.id]), (.file, [document.id])] {
+                        controller.filter = filter
+                        precondition(Set(controller.items.map(\.id)) == Set(ids), "category must find older matching records")
+                        precondition(controller.selection == 0)
+                    }
+                    controller.filter = .text
+                    precondition(controller.items.count == 100 && controller.items.allSatisfy { $0.kind == .text })
+                    controller.query = "sample"
+                    controller.filter = .file
+                    precondition(controller.items.map(\.id) == [document.id])
+                    controller.filter = .image
+                    precondition(controller.items.isEmpty, "query and type must both match")
+                    controller.query = ""
+                    controller.filter = .video
+                    app.preferences.clipboardLayout = .list
+                    controller.updateLayout()
+                    try await Task.sleep(for: .milliseconds(250))
+                    try snapshot(panel(), "filter-list-video")
+                    controller.hide()
+                    controller.show()
+                    precondition(controller.filter == .all, "new opening defaults to all")
+                    controller.toggleFilterMenu()
+                    try await Task.sleep(for: .milliseconds(250))
+                    let menu = application.windows.first { $0.title == "筛选剪贴板" }!
+                    precondition(menu.isVisible && menu.parent == panel())
+                    precondition(abs(menu.frame.maxY - (panel().frame.maxY - 52)) < 0.5,
+                                 "menu sits 6pt below the filter button")
+                    precondition(abs(menu.frame.maxX - (panel().frame.maxX - 56)) < 0.5,
+                                 "menu right edge aligns with the filter button")
+                    try snapshot(menu, "filter-menu")
+                    try snapshot(panel(), "filter-header")
+                    if CommandLine.arguments.contains("--filter-preview") {
+                        try await Task.sleep(for: .seconds(90))
+                    }
+                    controller.isFilterMenuPresented = false
+                    precondition(!menu.isVisible)
+                    controller.hide()
+                    print("Clipboard filters passed: all categories, older history, search intersection, both layouts, reset and menu lifecycle")
+                    application.terminate(nil)
+                    return
+                }
                 if CommandLine.arguments.contains("--video-preview") {
                     let url = URL(filePath: ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_VIDEO_FIXTURE"]!)
                     let movie = ClipboardItem(kind: .file, text: url.lastPathComponent, filePath: url.path,

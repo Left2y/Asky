@@ -27,7 +27,7 @@
     "arrow.up.forward.app": "external_link",
     "arrow.down.to.line": "download",
     "arrow.left.arrow.right": "transfer_horizontal",
-    "line.3.horizontal.decrease": "filter",
+    "line.3.horizontal.decrease": "filter_2",
     "list.bullet": "history",
     "pencil": "edit",
     "paperclip": "attachment",
@@ -70,7 +70,8 @@
     "externaldrive.badge.checkmark": "storage",
     "bookmark": "bookmark",
     "warning": "warning",
-    "tool": "tool"
+    "tool": "tool",
+    "video": "video"
   },
   "assets": {
     "Bookmark": "bookmark",

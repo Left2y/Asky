@@ -578,6 +578,5 @@
 "%d 分钟前" = "%d minutes ago";
 "%d 小时前" = "%d hours ago";
 "%d 天前" = "%d days ago";
-"%d 次工具调用" = "%d tool calls";
 "展开工具调用" = "Expand tool calls";
 "收起工具调用" = "Collapse tool calls";

@@ -577,8 +577,10 @@ private struct ChatBubble: View {
                 ChatMarkdownView(text: item.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if item.id != "streaming" {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 16) {
                         copyButton
+                            // Align the visible glyph with the text, keeping its padded hit area.
+                            .padding(.leading, -8)
                         if let completed = item.completedAt {
                             TimelineView(.periodic(from: .now, by: 1)) { context in
                                 Text(ChatCompletionTime.label(completed, now: context.date))

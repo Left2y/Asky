@@ -73,8 +73,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 for (tool, origin) in previews {
                     let decision = await confirmations.present(ConfirmationRequest(
                         requestID: UUID().uuidString, tool: tool,
-                        target: "样式预览：不会执行真实操作",
-                        changes: tool == "plugin_lark__execute" ? ["标题：示例"] : ["内容：样式预览"],
+                        target: tool == "plugin_lark__execute" ? "将通过「飞书」创建知识库内容。"
+                            : tool == "calendar_update_event" ? "日程「产品评审」"
+                            : tool == "messages_prepare_draft" ? "小李" : "备忘录「项目想法」",
+                        changes: tool == "plugin_lark__execute" ? ["标题：项目说明"]
+                            : tool == "calendar_update_event" ? ["地点：3 号会议室 → 5 号会议室"]
+                            : tool == "messages_prepare_draft" ? ["草稿：我周末来看你。"]
+                            : ["追加：下周先完成登录页面。"],
+                        note: "这是预览，点击确认不会执行真实操作。",
                         argumentsDigest: "preview", origin: origin,
                         title: tool == "plugin_lark__execute" ? "通过飞书创建知识库内容？" : nil,
                         details: tool == "plugin_lark__execute" ? #"{"argv":["wiki","spaces","node-create","--data","{\"title\":\"示例\"}"]}"# : nil))

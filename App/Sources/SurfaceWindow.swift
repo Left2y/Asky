@@ -99,7 +99,9 @@ final class SurfacePanel: NSPanel {
     static func fittingSize<V: View>(of view: V, maxWidth: CGFloat) -> NSSize {
         let size = NSHostingController(rootView: view)
             .sizeThatFits(in: CGSize(width: maxWidth, height: .greatestFiniteMagnitude))
-        return NSSize(width: ceil(size.width), height: ceil(size.height))
+        // Hosting a measured view can round glyph widths up by a point (notably
+        // the toast's checkmark). Leave room so text cannot wrap after sizing.
+        return NSSize(width: min(maxWidth, ceil(size.width) + 1), height: ceil(size.height))
     }
 
     func remove() {

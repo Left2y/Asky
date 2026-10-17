@@ -10,6 +10,10 @@ enum ClipboardRegression {
         application.setActivationPolicy(.accessory)
         Task { @MainActor in
             do {
+                if CommandLine.arguments.contains("--toast-surfaces") {
+                    try await verifyToastSurfaces()
+                    exit(0)
+                }
                 let root = FileManager.default.temporaryDirectory.appending(path: "Asky-clipboard-\(UUID())")
                 let app = try AppModel(root: root)
                 let store = ClipboardStore(app.store)
@@ -400,6 +404,35 @@ enum ClipboardRegression {
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func verifyToastSurfaces() async throws {
+        let panel = SurfacePanel()
+        for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+            panel.appearance = NSAppearance(named: appearance)
+            for (kind, message) in [("copied", "已复制"), ("error", "无法复制：原始内容已不可用")] {
+                let view = ClipboardStatusToast(message: message)
+                let size = SurfacePanel.fittingSize(of: view, maxWidth: 672)
+                panel.setSurface(view, size: size, cornerRadius: ClipboardStatusToast.cornerRadius, glass: false)
+                panel.center()
+                panel.orderFrontRegardless()
+                try await Task.sleep(for: .milliseconds(200))
+                let host = panel.contentView!
+                host.layoutSubtreeIfNeeded()
+                precondition(panel.frame.size == size, "hosting must preserve the measured surface size")
+                precondition(size.height <= 40, "short feedback must fit on one line")
+                let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                precondition(bitmap.colorAt(x: 0, y: 0)!.alphaComponent < 0.1,
+                             "toast corner must remain transparent rather than overflow as a rectangle")
+                precondition(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2)!.alphaComponent > 0.99,
+                             "toast must retain its opaque background")
+                try bitmap.representation(using: .png, properties: [:])!.write(
+                    to: URL(filePath: "build/clipboard-toast-\(name)-\(kind).png"))
+                print("PASS: toast \(name) \(kind) \(size)")
+                panel.remove()
+            }
+        }
     }
 }
 

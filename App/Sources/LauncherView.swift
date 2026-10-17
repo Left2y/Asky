@@ -39,6 +39,7 @@ enum LauncherLayout {
 final class LauncherPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onBlur: () -> Void = {}
+    var onKeyChange: (Bool) -> Void = { _ in }
     var onOpenSettings: () -> Void = {}
     var onCopyPath: () -> Bool = { false }
     var onRevealInFinder: () -> Bool = { false }
@@ -97,8 +98,13 @@ final class LauncherPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     override func cancelOperation(_ sender: Any?) { onEscape() }
+    override func becomeKey() {
+        super.becomeKey()
+        onKeyChange(true)
+    }
     override func resignKey() {
         super.resignKey()
+        onKeyChange(false)
         onBlur()
     }
 }
@@ -148,6 +154,9 @@ final class LauncherController {
             self.model.isFilterMenuPresented = false
             guard !self.model.isPinned else { return }
             self.hide()
+        }
+        panel.onKeyChange = { [weak self] keyed in
+            self?.updateGlassAppearance(keyed: keyed)
         }
         panel.actionPreferences = { [weak model] in model?.actionPreferences ?? SettingsPreferences() }
         panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
@@ -226,11 +235,21 @@ final class LauncherController {
                 accessory.setSurface(LauncherAccessory(model: model, surfaces: surfaces, index: index),
                                      size: NSSize(width: side, height: side), cornerRadius: side / 2)
             }
+            updateGlassAppearance(keyed: panel.isKeyWindow)
         }
         layoutSurfaces()
         panel.makeKeyAndOrderFront(nil)
         for accessory in accessoryPanels { panel.addChildWindow(accessory, ordered: .above) }
         updateOutsideClickDismissal()
+    }
+
+    /// Child surfaces can never be key, so the system draws their glass with
+    /// the dimmer inactive material. Match them to the shell while it is key.
+    private func updateGlassAppearance(keyed: Bool) {
+        let matches = keyed && WindowSurface.usesNativeGlass
+        for surface in accessoryPanels + [filterPanel] {
+            surface.matchesActiveAppearance = matches
+        }
     }
 
     private func updateOutsideClickDismissal() {
@@ -264,6 +283,7 @@ final class LauncherController {
             let view = LauncherFilterMenu(model: model)
             filterPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.filterMenuWidth),
                                    cornerRadius: LauncherLayout.filterMenuCornerRadius)
+            updateGlassAppearance(keyed: panel.isKeyWindow)
             filterPanel.alphaValue = reduceMotion ? 1 : 0
             layoutSurfaces()
             panel.addChildWindow(filterPanel, ordered: .above)

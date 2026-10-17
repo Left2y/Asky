@@ -27,11 +27,9 @@ enum WindowSurface {
         content.layer?.cornerCurve = .continuous
         content.layer?.masksToBounds = true
         if #available(macOS 26, *), usesNativeGlass {
-            let glass = NSGlassEffectView(frame: content.frame)
+            let glass = GlassSurfaceView(frame: content.frame)
             glass.cornerRadius = cornerRadius
-            content.frame = glass.bounds
-            content.autoresizingMask = [.width, .height]
-            glass.contentView = content
+            glass.install(content, cornerRadius: cornerRadius)
             glass.wantsLayer = true
             glass.layer?.cornerRadius = cornerRadius
             glass.layer?.cornerCurve = .continuous
@@ -40,6 +38,63 @@ enum WindowSurface {
         }
         content.autoresizingMask = [.width, .height]
         return content
+    }
+}
+
+/// System glass in a non-key window renders with the dimmer inactive
+/// material. Child surfaces (launcher buttons, menus) can never be key, so
+/// next to the key shell they read as a darker material even over the same
+/// backdrop. `matchesActiveAppearance` restores the highlight the system adds
+/// to the active window's glass.
+@available(macOS 26, *)
+final class GlassSurfaceView: NSGlassEffectView {
+    private let inactiveTint = InactiveGlassTintView(frame: .zero)
+    private let wrapper = NSView(frame: .zero)
+
+    var matchesActiveAppearance = false {
+        didSet { inactiveTint.isHidden = !matchesActiveAppearance }
+    }
+
+    func install(_ content: NSView, cornerRadius: CGFloat) {
+        wrapper.frame = bounds
+        wrapper.autoresizingMask = [.width, .height]
+        wrapper.wantsLayer = true
+        wrapper.layer?.cornerRadius = cornerRadius
+        wrapper.layer?.cornerCurve = .continuous
+        wrapper.layer?.masksToBounds = true
+        inactiveTint.frame = wrapper.bounds
+        inactiveTint.autoresizingMask = [.width, .height]
+        inactiveTint.isHidden = true
+        wrapper.addSubview(inactiveTint)
+        content.frame = wrapper.bounds
+        content.autoresizingMask = [.width, .height]
+        wrapper.addSubview(content)
+        contentView = wrapper
+    }
+}
+
+/// Sits between the glass and its content. The alpha is the measured
+/// difference between the system's active and inactive glass.
+private final class InactiveGlassTintView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        update()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// Decoration only: never steal clicks from the button above it.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        update()
+    }
+
+    private func update() {
+        let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        layer?.backgroundColor = NSColor.white.withAlphaComponent(dark ? 0.05 : 0.015).cgColor
     }
 }
 
@@ -69,6 +124,22 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 /// A borderless panel sized to one surface. It never takes key focus, so the
 /// owning panel keeps the text field while this one handles clicks.
 final class SurfacePanel: NSPanel {
+    /// Matches this surface's glass to the active appearance of the window
+    /// that owns its visual group while that window is key.
+    var matchesActiveAppearance: Bool {
+        get {
+            if #available(macOS 26, *), let glass = contentView as? GlassSurfaceView {
+                return glass.matchesActiveAppearance
+            }
+            return false
+        }
+        set {
+            if #available(macOS 26, *), let glass = contentView as? GlassSurfaceView {
+                glass.matchesActiveAppearance = newValue
+            }
+        }
+    }
+
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
                    styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: true)

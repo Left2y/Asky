@@ -189,6 +189,19 @@ enum LauncherWindowRegression {
         try require(abs(footprint.width - LauncherLayout.toolbarWidth) <= 1, "toolbar must retain the original 720 pt width")
         try require(abs(panel.frame.height - 64) <= 1, "empty shell window must be exactly the 64 pt field: \(panel.frame.height)")
         try require(panel.hasShadow && accessories.allSatisfy(\.hasShadow), "every surface uses the native window shadow")
+        if WindowSurface.usesNativeGlass {
+            // Child surfaces never become key, so their glass needs the
+            // active-window highlight to match the key shell.
+            try require(accessories.allSatisfy { ($0 as? SurfacePanel)?.matchesActiveAppearance == panel.isKeyWindow },
+                        "accessory glass must follow the shell's key appearance")
+            panel.onKeyChange(true)
+            try require(accessories.allSatisfy { ($0 as? SurfacePanel)?.matchesActiveAppearance == true },
+                        "accessory glass must match the key shell's appearance")
+            panel.onKeyChange(false)
+            try require(accessories.allSatisfy { ($0 as? SurfacePanel)?.matchesActiveAppearance == false },
+                        "accessory glass must dim with the shell when it resigns key")
+            panel.onKeyChange(panel.isKeyWindow)
+        }
         let field = searchField(in: panel.contentView!)!
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         let emptyFieldWidth = field.frame.width

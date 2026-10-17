@@ -76,6 +76,12 @@ Launcher 收起尺寸与输入文字来自 node 22:348；Agent 初始尺寸来�
 
 Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重写控件固有行为。不能把可点击文字当按钮、颜色当唯一状态或失去原生输入法行为。图标初始优先系统 SF Symbols，若后续提供自有图标再记录来源与替换映射。
 
+### Dialog 与 Alert
+
+应用内提示、错误、安装与更新确认、工具执行确认统一使用 macOS 原生 `NSAlert`，经 `AppDialog` 创建。外壳、圆角、材质、阴影、文字排版和按钮布局均交给 AppKit，随系统版本和外观设置呈现；不按参考图自绘一套固定外观，也不套用启动器的玻璃窗口结构。
+
+主要操作使用默认按钮，取消或拒绝保留 Escape 行为；内容包含具体目标和变更。需要编辑字段时使用原生 accessory view，技术参数放在可展开的“操作详情”中。系统权限提示、打开与保存面板继续使用对应的系统界面。
+
 ## Liquid Glass
 
 macOS 15 的兼容表面使用 `NSVisualEffectView` 的 `underWindowBackground` 材质与 `behindWindow` 模式，叠加现有 `background` 变量（浅色白 60%、深色黑 60%）及 1pt `border` 描边。设置侧栏与内容区同步适配；按钮降级为原生 bordered / borderedProminent。用户已接受系统控制的背景模糊半径，不要求精确 120px。辅助功能模式保持不透明背景与高对比描边。

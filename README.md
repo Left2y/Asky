@@ -73,6 +73,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 | 网页与终端 | `go 关键词`、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
+搜索采用紧凑单行结果：左侧显示 24 pt 图标与名称，右侧显示应用、文件格式或来源类型，不显示路径；文件路径仍可用快捷键复制。
+
 在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示白底红色 Logo，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
 
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
@@ -199,6 +201,8 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 | New AI chat | `Ctrl + Shift + /` |
 | Web and terminal | `go keyword`, `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
+
+Search uses compact single-line results with a 24 pt icon and name on the left and the application, file format, or source type on the right. Paths are hidden from rows and remain available through the Copy file path shortcut.
 
 Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with a red logo on white, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
 

@@ -6,3 +6,12 @@
 "固定窗口" = "Pin window";
 "取消固定" = "Unpin window";
 "筛选搜索" = "Filter search";
+"链接" = "Link";
+"书签" = "Bookmark";
+"标签页" = "Tab";
+"剪贴板" = "Clipboard";
+"命令" = "Command";
+"计算" = "Calculation";
+"单位换算" = "Conversion";
+"汇率" = "Currency";
+"终端命令" = "Terminal command";

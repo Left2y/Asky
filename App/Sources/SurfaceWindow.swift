@@ -17,6 +17,14 @@ enum WindowSurface {
             && !workspace.accessibilityDisplayShouldIncreaseContrast
     }
 
+    static func updateCorners(of view: NSView, radius: CGFloat, circular: Bool) {
+        view.layer?.cornerRadius = radius
+        view.layer?.cornerCurve = circular ? .circular : .continuous
+        if #available(macOS 26, *), let glass = view as? GlassSurfaceView {
+            glass.updateCorners(radius: radius, circular: circular)
+        }
+    }
+
     /// Wraps `content` in the window-filling glass view when it applies.
     /// Both views are clipped to the rounded shape: the glass leaves faint
     /// alpha in the window corners, and the window server derives the shadow
@@ -53,6 +61,17 @@ final class GlassSurfaceView: NSGlassEffectView {
 
     var matchesActiveAppearance = false {
         didSet { inactiveTint.isHidden = !matchesActiveAppearance }
+    }
+
+    func updateCorners(radius: CGFloat, circular: Bool) {
+        cornerRadius = radius
+        let curve: CALayerCornerCurve = circular ? .circular : .continuous
+        let layers: [NSView?] = [self, wrapper, wrapper.subviews.last]
+        for view in layers.compactMap({ $0 }) {
+            view.layer?.cornerRadius = radius
+            view.layer?.cornerCurve = curve
+        }
+        inactiveTint.cornerRadius = radius
     }
 
     func install(_ content: NSView, cornerRadius: CGFloat) {

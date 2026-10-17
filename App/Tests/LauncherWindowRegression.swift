@@ -38,7 +38,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--bookmarks") {
+                    if CommandLine.arguments.contains("--compact-results") {
+                        try await checkCompactResults()
+                    } else if CommandLine.arguments.contains("--bookmarks") {
                         try await checkBookmarks()
                     } else if CommandLine.arguments.contains("--accessories-preview") {
                         try await previewAccessories()
@@ -70,6 +72,69 @@ enum LauncherWindowRegression {
     private static func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "LauncherWindowRegression", code: 1,
                                       userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+
+    private struct CompactProvider: SearchProvider {
+        let source: SearchSource
+        let results: [SearchResult]
+        func search(_ query: String, limit: Int) async -> [SearchResult] { Array(results.prefix(limit)) }
+    }
+
+    private static func checkCompactResults() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-compact-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let pdf = root.appending(path: "项目说明.pdf")
+        try Data().write(to: pdf)
+        let folder = root.appending(path: "Design.assets")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try require(ToolService.launcherFileType(filePath: pdf.path) == "PDF", "PDF must show its format")
+        try require(ToolService.launcherFileType(filePath: folder.path) != "ASSETS", "directory extension must not become file format")
+        let app = try AppModel(root: root.appending(path: "store"))
+        let model = LauncherModel(app: app, searchProviders: [
+            CompactProvider(source: .app, results: [
+                SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/System/Applications/Notes.app"),
+                             title: "备忘录", subtitle: "/System/Applications/Notes.app", actions: [.open], score: 100),
+                SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/System/Applications/Utilities/Terminal.app"),
+                             title: "终端", subtitle: "/System/Applications/Utilities/Terminal.app", actions: [.open], score: 99)]),
+            CompactProvider(source: .file, results: [pdf, folder].enumerated().map { index, url in
+                SearchResult(source: .file, target: TargetRef(kind: "file", identifier: url.path),
+                             title: url.lastPathComponent, subtitle: root.path, actions: [.open], score: Double(90 - index))
+            } + [SearchResult(source: .file, target: TargetRef(kind: "file", identifier: root.appending(path: "readme.md").path),
+                              title: String(repeating: "很长的中英文项目名称 Design reference ", count: 4) + ".md",
+                              subtitle: root.path, actions: [.open], score: 80)])
+        ])
+        let controller = LauncherController(model: model)
+        model.query = "design"
+        controller.show()
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
+            throw NSError(domain: "CompactResults", code: 1)
+        }
+        panel.onBlur = {}
+        defer { controller.hide() }
+        try await Task.sleep(for: .milliseconds(800))
+        try require(model.results.contains { $0.source == .file }, "file fixture must render")
+        guard let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+            throw NSError(domain: "CompactResults", code: 2)
+        }
+        try require(panel.contentView?.layer?.cornerRadius == 26, "expanded shell must retain the 26 pt radius")
+        try require(panel.contentView?.layer?.cornerCurve == .circular, "expanded shell must retain circular corners")
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try bitmap.representation(using: .png, properties: [:])?.write(to:
+            URL(filePath: "build/launcher-compact-\(NSApp.appearance!.name.rawValue).png"))
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(1000))
+        try require(abs(panel.frame.height - 52) <= 1, "empty shell must be 52 pt high")
+        try require(panel.contentView?.layer?.cornerRadius == 26, "empty shell must use a 26 pt radius")
+        try require(panel.contentView?.layer?.cornerCurve == .circular, "empty shell ends must be circular")
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                             "build/launcher-compact-empty-\(NSApp.appearance!.name.rawValue).png"]
+        try capture.run()
+        capture.waitUntilExit()
+        try require(capture.terminationStatus == 0, "empty capsule screenshot must succeed")
+        print("compact results: PDF/folder types and mixed native rows rendered")
     }
 
     private static func checkBookmarks() async throws {
@@ -187,7 +252,7 @@ enum LauncherWindowRegression {
                     "empty shell must yield accessory space: \(panel.frame.width)")
         let footprint = accessories.reduce(panel.frame) { $0.union($1.frame) }
         try require(abs(footprint.width - LauncherLayout.toolbarWidth) <= 1, "toolbar must retain the original 720 pt width")
-        try require(abs(panel.frame.height - 64) <= 1, "empty shell window must be exactly the 64 pt field: \(panel.frame.height)")
+        try require(abs(panel.frame.height - 52) <= 1, "empty shell window must be exactly the 52 pt field: \(panel.frame.height)")
         try require(panel.hasShadow && accessories.allSatisfy(\.hasShadow), "every surface uses the native window shadow")
         if WindowSurface.usesNativeGlass {
             // Child surfaces never become key, so their glass needs the
@@ -215,11 +280,11 @@ enum LauncherWindowRegression {
                     "showing a visible launcher must preserve the revealed shell width")
         model.inputText = "Safari"
         try await Task.sleep(for: .milliseconds(300))
-        try require(field.frame.width >= emptyFieldWidth + 150, "typing must return accessory space to the search field")
+        try require(field.frame.width >= emptyFieldWidth + 125, "typing must return accessory space to the search field")
         try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(220))
-        try require(abs(panel.frame.height - 64) <= 1, "clearing must collapse the result window promptly")
+        try require(abs(panel.frame.height - 52) <= 1, "clearing must collapse the result window promptly")
         // The reveal spring may still be in its ~2% overshoot here; the settled check follows.
         try require(abs(field.frame.width - emptyFieldWidth) <= 4, "clearing must restore the empty field width promptly: \(field.frame.width) vs \(emptyFieldWidth)")
         try await Task.sleep(for: .milliseconds(400))
@@ -230,7 +295,7 @@ enum LauncherWindowRegression {
         let menu = panel.childWindows?.first { $0 is SurfacePanel && $0.isVisible && $0.frame.height > 64 }
         try require(menu.map { $0.frame.maxY <= panel.frame.minY && $0.hasShadow } == true,
                     "filter menu must be its own shadowed surface below the field")
-        try require(abs(panel.frame.height - 64) <= 1, "menu must not resize the shell window")
+        try require(abs(panel.frame.height - 52) <= 1, "menu must not resize the shell window")
         panel.onEscape()
         try require(!model.isFilterMenuPresented && controller.isVisible, "Escape must close menu before launcher: menu \(model.isFilterMenuPresented) visible \(controller.isVisible) key \(panel.isKeyWindow)")
         for filter in [LauncherFilter.applications, .files, .shortcuts, .quickLinks] {
@@ -266,7 +331,7 @@ enum LauncherWindowRegression {
             let buttons = panel.childWindows?.filter { $0 is SurfacePanel && $0.frame.height == LauncherLayout.inputHeight } ?? []
             try require(buttons.count == 2 && buttons.allSatisfy { $0.isVisible && $0.alphaValue > 0.99 && $0.contentView != nil },
                         "reopen cycle \(cycle) must retain both rendered accessory surfaces")
-            try require(buttons.allSatisfy { $0.frame.size == NSSize(width: 64, height: 64) && $0.hasShadow },
+            try require(buttons.allSatisfy { $0.frame.size == NSSize(width: 52, height: 52) && $0.hasShadow },
                         "both accessory surfaces must use identical geometry and shadow settings")
             controller.hide()
         }
@@ -515,8 +580,8 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(450))
         try require(model.results.count == 1, "cancelled local batches must not replace the AI selection")
         if let panel = NSApp.windows.first(where: { $0 is LauncherPanel }) as? LauncherPanel {
-            try require(abs(panel.frame.height - 127) <= 1,
-                        "single AI category must omit the 52 pt header from native window height")
+            try require(abs(panel.frame.height - 103) <= 1,
+                        "single AI category must omit the 30 pt header from native window height")
         }
         model.submit(.executeSelection)
         try require(submitted == [prompt], "ordinary Return must hand the prompt to AI once")
@@ -756,10 +821,10 @@ enum LauncherWindowRegression {
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let visibleFrame = screen?.visibleFrame {
             let availableHeight = floor(visibleFrame.height * 0.88 - 24)
-            // 64 pt field + 1 pt divider + 400 pt list; the window is exactly the shell.
-            let expectedHeight = min(465, availableHeight)
+            // 52 pt field + 1 pt divider + 304 pt list; the window is exactly the shell.
+            let expectedHeight = min(357, availableHeight)
             try require(abs(baseline.height - expectedHeight) <= 1,
-                        "long results must use the increased 400 pt list budget within screen bounds")
+                        "long results must use the compact 304 pt list budget within screen bounds")
         }
         if !CommandLine.arguments.contains("--bottom-clearance") {
             try await checkSystemDelivery(controller: controller, panel: panel, content: content)
@@ -818,7 +883,7 @@ enum LauncherWindowRegression {
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
             maxInputDrift = max(maxInputDrift, abs(top - inputTop))
         }
-        try require(abs(panel.frame.height - 64) <= 1, "clearing input must restore the 64 pt field")
+        try require(abs(panel.frame.height - 52) <= 1, "clearing input must restore the 52 pt field")
         print("settledChangeSamples=160 inputDrift=\(maxInputDrift)")
         try require(maxInputDrift <= 1, "shrinking/clearing results must preserve input position")
 

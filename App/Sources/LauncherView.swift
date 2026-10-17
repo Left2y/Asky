@@ -10,7 +10,7 @@ enum LauncherLayout {
     // Keep empty and populated fields aligned to the populated search layout.
     static let topInsetFraction: CGFloat = 0.12
     static let bottomClearance: CGFloat = 24
-    static let inputHeight: CGFloat = 64
+    static let inputHeight: CGFloat = 52
     static let accessorySpacing: CGFloat = 12
     static let toolbarWidth = WindowMetrics.launcherWidth
     static let inputLeadingPadding: CGFloat = 28
@@ -21,13 +21,14 @@ enum LauncherLayout {
     static let accessoryReserve = 2 * (inputHeight + accessorySpacing)
     static let filterMenuWidth: CGFloat = 220
     static let filterMenuCornerRadius: CGFloat = 24
-    static let expandedCornerRadius = CGFloat(Radius.values["radius32"] ?? 32)
+    static let shellCornerRadius = inputHeight / 2
     static let dividerHeight: CGFloat = 1
-    // Figma Spotlight Item 38:461: 694 × 50, 32 pt icon, 16 pt radius.
+    // Compact, single-line results based on the supplied Tinycast reference.
     static let currencyCardHeight: CGFloat = 146
-    static let rowHeight: CGFloat = 50
+    static let rowHeight: CGFloat = 38
+    static let rowIconSize: CGFloat = 24
     static let maxVisibleResults = 8
-    static let sectionHeaderHeight: CGFloat = 52
+    static let sectionHeaderHeight: CGFloat = 30
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 13
     static let listBottomPadding: CGFloat = 12
@@ -228,7 +229,7 @@ final class LauncherController {
             view.autoresizingMask = [.width, .minYMargin]
             container.addSubview(view)
             panel.setContentSize(size)
-            panel.contentView = WindowSurface.glassContentView(container, cornerRadius: LauncherLayout.expandedCornerRadius)
+            panel.contentView = WindowSurface.glassContentView(container, cornerRadius: LauncherLayout.shellCornerRadius)
             hosting = view
             for (index, accessory) in accessoryPanels.enumerated() {
                 let side = LauncherLayout.inputHeight
@@ -332,6 +333,10 @@ final class LauncherController {
             hosting?.layoutSubtreeIfNeeded()
             panel.invalidateShadow()
         }
+        if let surface = panel.contentView {
+            WindowSurface.updateCorners(of: surface,
+                radius: LauncherLayout.shellCornerRadius, circular: true)
+        }
         let right = origin.x + LauncherLayout.toolbarWidth
         for (index, accessory) in accessoryPanels.enumerated() {
             let slots = CGFloat(2 - index)
@@ -391,9 +396,8 @@ struct LauncherView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var shellShape: RoundedRectangle {
-        // At 64 pt high, the 32 pt corners already form the empty capsule.
-        // Keep one material shape identity when results appear/disappear.
-        RoundedRectangle(cornerRadius: LauncherLayout.expandedCornerRadius, style: .continuous)
+        // Preserve the same circular corners before and after results expand.
+        RoundedRectangle(cornerRadius: LauncherLayout.shellCornerRadius, style: .circular)
     }
 
     private var hasInput: Bool { !model.query.isEmpty }
@@ -430,7 +434,7 @@ struct LauncherView: View {
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
-                    fontSize: 18,
+                    fontSize: 16,
                     textColor: NSColor(ThemeColor.kText.color(for: colorScheme)),
                     placeholder: NSLocalizedString("搜索或输入你的任务", comment: "Launcher empty input placeholder"),
                     placeholderColor: NSColor(ThemeColor.kTextSubtle.color(for: colorScheme)),
@@ -751,11 +755,11 @@ private struct ResultList: View {
                     ForEach(sections, id: \.self) { source in
                         VStack(spacing: 0) {
                             if showsHeaders {
-                                Text(source).font(.system(size: 14, weight: .regular))
+                                Text(source).font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(ThemeColor.kTextSubtle)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 16)
-                                    .padding(.top, 16).padding(.bottom, 12)
+                                    .padding(.top, 6).padding(.bottom, 4)
                                     .frame(height: LauncherLayout.sectionHeaderHeight)
                             }
                             ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element) == source && ($0.element.source != .currency || $0.element.target.identifier != excludedCurrencyCode) }, id: \.element.id) { i, r in
@@ -842,32 +846,29 @@ private struct ResultRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            icon.frame(width: 32, height: 32)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 8) {
-                    Text(keyword == nil ? result.title : result.title.components(separatedBy: "：").first ?? result.title)
-                        .font(.system(size: 14)).lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundStyle(ThemeColor.kText)
-                    if let keyword {
-                        Text(keyword).font(.system(size: 14)).lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .foregroundStyle(ThemeColor.kTextSubtle)
-                            .padding(.horizontal, 6)
-                            .frame(height: 22)
-                            .background(ThemeColor.kBackgroundNeutral,
-                                        in: RoundedRectangle(cornerRadius: 12))
-                    }
-                }
-                .frame(height: 22, alignment: .leading)
-                if keyword == nil, !result.subtitle.isEmpty {
-                    Text(result.source == .app ? result.target.identifier : result.subtitle)
-                        .font(.system(size: 12)).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(height: 20, alignment: .leading)
-                }
+            icon.frame(width: LauncherLayout.rowIconSize, height: LauncherLayout.rowIconSize)
+            Text(keyword == nil ? result.title : result.title.components(separatedBy: "：").first ?? result.title)
+                .font(.system(size: 14)).lineLimit(1)
+                .truncationMode(.tail)
+                .foregroundStyle(ThemeColor.kText)
+                .layoutPriority(1)
+            if let keyword {
+                Text(keyword).font(.system(size: 12)).lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .foregroundStyle(ThemeColor.kTextSubtle)
+                    .padding(.horizontal, 6)
+                    .frame(height: 20)
+                    .background(ThemeColor.kBackgroundNeutral,
+                                in: RoundedRectangle(cornerRadius: 10))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 12)
+            Text(typeLabel)
+                .font(.system(size: 12))
+                .foregroundStyle(ThemeColor.kTextSubtle)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 160, alignment: .trailing)
+                .layoutPriority(2)
         }
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)
@@ -877,6 +878,28 @@ private struct ResultRow: View {
                     in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .onHover { hovering = result.source != .currency && $0 }
+    }
+
+    private var typeLabel: String {
+        let key: String
+        switch result.source {
+        case .app: key = "应用"
+        case .file:
+            return ToolService.launcherFileType(filePath: result.target.identifier)
+                ?? NSLocalizedString("文件", tableName: "Launcher", comment: "Result type")
+        case .link: key = "链接"
+        case .bookmark: key = "书签"
+        case .chromeTab: key = "标签页"
+        case .clipboard: key = "剪贴板"
+        case .keyword: key = "命令"
+        case .calculator: key = "计算"
+        case .conversion: key = "单位换算"
+        case .currency: key = "汇率"
+        case .terminal: key = "终端命令"
+        case .shortcut: key = "快捷指令"
+        case .askAI: return "AI"
+        }
+        return NSLocalizedString(key, tableName: "Launcher", comment: "Result type")
     }
 
     @ViewBuilder private var icon: some View {
@@ -899,10 +922,10 @@ private struct ResultRow: View {
             CommandIcon(terminalIcon: terminalIcon)
         case .currency:
             if let flag = CurrencyPresentation.flag(for: result.target.identifier) {
-                Text(flag).font(.system(size: 28))
+                Text(flag).font(.system(size: LauncherLayout.rowIconSize))
                     .accessibilityLabel(CurrencyPresentation.name(for: result.target.identifier))
             } else {
-                Image(mingCute: Self.symbol(.currency), size: 28).foregroundStyle(ThemeColor.kIcon)
+                Image(mingCute: Self.symbol(.currency), size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
             }
         case .link:
             Image("Link").resizable().scaledToFit()
@@ -923,10 +946,10 @@ private struct ResultRow: View {
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()
             } else {
-                Image(mingCute: "globe", size: 28).foregroundStyle(ThemeColor.kIcon)
+                Image(mingCute: "globe", size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
             }
         default:
-            Image(mingCute: Self.symbol(result.source), size: 28).foregroundStyle(ThemeColor.kIcon)
+            Image(mingCute: Self.symbol(result.source), size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
         }
     }
 

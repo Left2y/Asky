@@ -1,5 +1,6 @@
 import AppKit
 import Contracts
+import UniformTypeIdentifiers
 
 extension ToolService {
     @MainActor public static func pluginApplicationIcon(repository: String) -> NSImage? {
@@ -31,6 +32,19 @@ extension ToolService {
         let icon = NSWorkspace.shared.icon(forFile: filePath)
         launcherIcons.setObject(icon, forKey: filePath as NSString)
         return icon
+    }
+
+    /// File metadata is read here, alongside the launcher's system icon lookup.
+    @MainActor public static func launcherFileType(filePath: String) -> String? {
+        let url = URL(fileURLWithPath: filePath)
+        let values = try? url.resourceValues(forKeys: [.contentTypeKey, .isDirectoryKey])
+        let type = values?.contentType
+        if values?.isDirectory == true {
+            return (type ?? .folder).localizedDescription
+        }
+        let ext = url.pathExtension
+        if !ext.isEmpty { return ext.uppercased() }
+        return type?.localizedDescription
     }
 
     /// Renders a few icons off the main thread so the system icon services are loaded

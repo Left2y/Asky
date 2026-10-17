@@ -673,27 +673,22 @@ private struct ClipboardHistoryRow: View {
                 if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                     Image(nsImage: image).resizable().scaledToFill()
                 } else if item.kind == .text {
-                    Image(mingCute: "doc.on.clipboard", size: 22)
+                    Image(mingCute: "doc.on.clipboard", size: 18)
                         .foregroundStyle(ThemeColor.kIconSubtle)
-                        .frame(width: 32, height: 32)
+                        .frame(width: LauncherLayout.rowIconSize, height: LauncherLayout.rowIconSize)
                         .background(ThemeColor.kBackgroundNeutral, in: RoundedRectangle(cornerRadius: 6))
                 } else if let icon = ClipboardAccess.fileIcon(for: item) {
                     Image(nsImage: icon).resizable().scaledToFit()
                 } else {
-                    Image(mingCute: item.kind == .file ? "doc" : "text.document", size: 22)
+                    Image(mingCute: item.kind == .file ? "doc" : "text.document", size: 18)
                         .foregroundStyle(ThemeColor.kIconSubtle)
                 }
             }
-            .frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 6))
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: 14)).foregroundStyle(ThemeColor.kText).lineLimit(1)
-                    .truncationMode(.tail).frame(height: 22, alignment: .leading)
-                Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
-                    .font(.system(size: 12)).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
-                    .truncationMode(.tail).frame(height: 20, alignment: .leading)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(width: LauncherLayout.rowIconSize, height: LauncherLayout.rowIconSize).clipShape(RoundedRectangle(cornerRadius: 6))
+            Text(title.replacingOccurrences(of: "\n", with: " "))
+                .font(.system(size: 14)).foregroundStyle(ThemeColor.kText).lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle) }
         }
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)

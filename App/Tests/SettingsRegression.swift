@@ -397,6 +397,7 @@ enum SettingsRegression {
                   resets == (regrant ? 0 : 1) else {
                 fatalError("authorization is modal or dismissed before a fresh grant")
             }
+            try assertAuthorizationSurface(panel, appearance: regrant ? "light-regrant" : "light")
             for _ in 0..<30 where controller.window != nil {
                 try await Task.sleep(for: .milliseconds(100))
             }
@@ -430,11 +431,34 @@ enum SettingsRegression {
             }, resetAuthorization: { _ in })
         cancelled.show(.screenRecording, colorScheme: .dark)
         try await Task.sleep(for: .milliseconds(150))
+        guard let darkPanel = cancelled.window else { fatalError("missing dark authorization panel") }
+        try assertAuthorizationSurface(darkPanel, appearance: "dark")
         cancelled.window?.close()
         try await Task.sleep(for: .milliseconds(600))
         guard cancelled.window == nil, !dismissed else {
             fatalError("cancelling authorization should stop observation without dismissing System Settings")
         }
+    }
+
+    private static func assertAuthorizationSurface(_ panel: NSPanel, appearance: String) throws {
+        guard let surface = panel.contentView,
+              abs(panel.frame.width - 360) < 1, panel.hasShadow,
+              surface.layer?.cornerRadius == 24, surface.layer?.masksToBounds == true else {
+            fatalError("authorization window must fit its clipped glass with no transparent padding")
+        }
+        if #available(macOS 26, *), WindowSurface.usesNativeGlass {
+            guard surface is NSGlassEffectView else { fatalError("authorization must use the native glass surface") }
+        }
+        let expectedAppearance: NSAppearance.Name = appearance == "dark" ? .darkAqua : .aqua
+        guard panel.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == expectedAppearance else {
+            fatalError("authorization glass appearance must match its content")
+        }
+        let capture = Process()
+        capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-l", String(panel.windowNumber), "build/authorization-\(appearance).png"]
+        try capture.run()
+        capture.waitUntilExit()
+        guard capture.terminationStatus == 0 else { fatalError("authorization window capture failed") }
     }
 
     private static func assertDetailBelowToolbar(_ split: NSSplitViewController, window: NSWindow) {

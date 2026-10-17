@@ -28,6 +28,7 @@ struct PermissionAuthorizationSettingsHandle {
 final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
     static let shared = PermissionAuthorizationWindow()
     private var panel: NSPanel?
+    private weak var hostingView: NSView?
     private var settingsSession: PermissionAuthorizationSettingsHandle?
     private var observation: Task<Void, Never>?
     private var generation = UUID()
@@ -67,7 +68,10 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
         let panel = AuthorizationPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
                                        backing: .buffered, defer: false)
         panel.title = "\(permission.title) — Asky"
-        panel.contentView = host
+        panel.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+        host.frame = NSRect(origin: .zero, size: host.fittingSize)
+        hostingView = host
+        panel.contentView = WindowSurface.glassContentView(host, cornerRadius: 24)
         panel.isReleasedWhenClosed = false
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -165,6 +169,7 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
         settingsSession = nil
         let oldPanel = panel
         panel = nil
+        hostingView = nil
         oldPanel?.delegate = nil
         oldPanel?.close()
     }
@@ -172,7 +177,7 @@ final class PermissionAuthorizationWindow: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) { cancel() }
 
     private func resizeToContent() {
-        guard let panel, let content = panel.contentView else { return }
+        guard let panel, let content = hostingView else { return }
         content.layoutSubtreeIfNeeded()
         let size = content.fittingSize
         if size.width > 0, size.height > 0, size != panel.frame.size { panel.setContentSize(size) }
@@ -264,8 +269,7 @@ private struct PermissionAuthorizationView: View {
         .padding(20)
         .frame(width: 360)
         .foregroundStyle(ThemeColor.kText)
-        .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .padding(20)
+        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
 }

@@ -110,7 +110,7 @@ struct LauncherChrome: Equatable {
     var toast: String?
 }
 
-/// Shared with the accessory windows so their edge glint follows the reveal.
+/// Shared with the accessory windows so accessibility follows the reveal.
 @MainActor @Observable final class LauncherSurfaceState {
     var accessoriesRevealed = false
 }
@@ -506,7 +506,6 @@ private struct LauncherAccessory: View {
     let surfaces: LauncherSurfaceState
     let index: Int
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isPin: Bool { index == 0 }
     private var selected: Bool {
@@ -522,7 +521,6 @@ private struct LauncherAccessory: View {
     var body: some View {
         let size = LauncherLayout.inputHeight
         let revealed = surfaces.accessoriesRevealed
-        let glints = revealed && !reduceMotion
         Button {
             if isPin { model.isPinned.toggle() } else { model.isFilterMenuPresented.toggle() }
         } label: {
@@ -532,19 +530,6 @@ private struct LauncherAccessory: View {
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(LauncherAccessoryButtonStyle(size: size))
-        .overlay {
-            // A single edge glint as each glass circle separates from the field.
-            Circle()
-                .strokeBorder(.white, lineWidth: 1)
-                .keyframeAnimator(initialValue: 0.0, trigger: revealed) { edge, brightness in
-                    edge.opacity(glints ? brightness : 0)
-                } keyframes: { _ in
-                    LinearKeyframe(0.0, duration: Double(1 - index) * 0.035 + 0.04)
-                    LinearKeyframe(0.32, duration: 0.055)
-                    CubicKeyframe(0.0, duration: 0.18)
-                }
-                .allowsHitTesting(false)
-        }
         .accessibilityHidden(!revealed)
         .accessibilityLabel(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
         .accessibilityValue(selected ? "On" : "Off")

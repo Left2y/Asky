@@ -192,6 +192,14 @@ enum LauncherWindowRegression {
         let field = searchField(in: panel.contentView!)!
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         let emptyFieldWidth = field.frame.width
+        // Menu/Dock requests may show an already visible launcher. Its child
+        // surfaces must retain their reveal instead of becoming transparent.
+        controller.show()
+        try await Task.sleep(for: .milliseconds(400))
+        try require(accessories.allSatisfy { $0.isVisible && $0.alphaValue > 0.99 },
+                    "showing a visible launcher must preserve both accessory windows")
+        try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
+                    "showing a visible launcher must preserve the revealed shell width")
         model.inputText = "Safari"
         try await Task.sleep(for: .milliseconds(300))
         try require(field.frame.width >= emptyFieldWidth + 150, "typing must return accessory space to the search field")
@@ -236,7 +244,20 @@ enum LauncherWindowRegression {
         model.isPinned = true
         panel.onEscape()
         try require(!controller.isVisible && !model.isPinned && model.filter == .all, "Escape must dismiss pinned launcher and reset session")
-        print("accessories: filter isolation, input position, menu canvas, pin/blur/Escape passed")
+        for cycle in 0..<6 {
+            controller.show()
+            model.isPinned = true
+            try await Task.sleep(for: .milliseconds(cycle.isMultiple(of: 2) ? 30 : 120))
+            controller.show()
+            try await Task.sleep(for: .milliseconds(650))
+            let buttons = panel.childWindows?.filter { $0 is SurfacePanel && $0.frame.height == LauncherLayout.inputHeight } ?? []
+            try require(buttons.count == 2 && buttons.allSatisfy { $0.isVisible && $0.alphaValue > 0.99 && $0.contentView != nil },
+                        "reopen cycle \(cycle) must retain both rendered accessory surfaces")
+            try require(buttons.allSatisfy { $0.frame.size == NSSize(width: 64, height: 64) && $0.hasShadow },
+                        "both accessory surfaces must use identical geometry and shadow settings")
+            controller.hide()
+        }
+        print("accessories: filter isolation, input position, menu canvas, pin/blur/Escape and repeated show passed")
     }
 
     private static func checkCommandIcons() async throws {

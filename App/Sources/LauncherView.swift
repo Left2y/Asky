@@ -168,6 +168,12 @@ final class LauncherController {
     func toggle() { isVisible ? hide() : show() }
 
     func show() {
+        // Menu/Dock reopen requests can arrive while the launcher is visible.
+        // Resetting the spring then would leave the unchanged chrome at alpha 0.
+        guard !panel.isVisible else {
+            panel.makeKeyAndOrderFront(nil)
+            return
+        }
         model.rebuildProviders()
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
@@ -177,6 +183,9 @@ final class LauncherController {
                              y: f.maxY - f.height * LauncherLayout.topInsetFraction)
         }
         if hosting == nil {
+            // Initialize before installing the tree: SwiftUI may publish its
+            // initial chrome during layout, starting the accessory reveal.
+            reveal.set(0)
             let id = UUID()
             contentID = id
             let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight,
@@ -218,7 +227,6 @@ final class LauncherController {
                                      size: NSSize(width: side, height: side), cornerRadius: side / 2)
             }
         }
-        reveal.set(0)
         layoutSurfaces()
         panel.makeKeyAndOrderFront(nil)
         for accessory in accessoryPanels { panel.addChildWindow(accessory, ordered: .above) }

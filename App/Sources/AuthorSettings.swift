@@ -19,9 +19,13 @@ struct AuthorSettings: View {
                 }
                 LabeledContent("GitHub") {
                     Link("github.com/Niall-Young", destination: URL(string: "https://github.com/Niall-Young")!)
+                        .buttonStyle(.link)
+                        .foregroundStyle(.link)
                 }
                 LabeledContent("X") {
                     Link("x.com/NiallxYoung", destination: URL(string: "https://x.com/NiallxYoung")!)
+                        .buttonStyle(.link)
+                        .foregroundStyle(.link)
                 }
                 if openingFailed {
                     Text(NSLocalizedString("无法打开链接，请检查默认浏览器或邮件应用。", comment: ""))

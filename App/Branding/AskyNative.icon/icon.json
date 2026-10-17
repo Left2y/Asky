@@ -1,30 +1,33 @@
 {
-  "fill": {
-    "solid": "srgb:0.075,0.110,0.205,1.000"
+  "fill" : {
+    "solid" : "srgb:0.07500,0.11000,0.20500,1.00000"
   },
-  "groups": [
+  "groups" : [
     {
-      "layers": [
+      "layers" : [
         {
-          "glass": false,
-          "image-name": "Companion.png",
-          "name": "Companion"
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "Companion.png",
+          "name" : "Companion"
         }
       ],
-      "name": "Companion",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0
+      "name" : "Companion",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
       },
-      "specular": false,
-      "translucency": {
-        "enabled": false,
-        "value": 0
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
       }
     }
   ],
-  "supported-platforms": {
-    "squares": [
+  "supported-platforms" : {
+    "squares" : [
       "macOS"
     ]
   }

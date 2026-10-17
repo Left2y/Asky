@@ -38,8 +38,10 @@ struct CommandIcon: View {
     init(keyword: String) {
         if let brand = Brand(rawValue: keyword.lowercased()) {
             image = Image(brand.asset).renderingMode(brand == .github ? .template : .original)
-            // Official ChatGPT and DeepSeek artwork includes its own inset.
-            artworkSize = [.chatGPT, .deepSeek].contains(brand) ? Self.size : 20
+            // Keep the visible longest edge at 20 pt inside the shared 24 pt slot.
+            // Only ChatGPT has an inset: its 1024 px canvas contains 882 px artwork.
+            // DeepSeek's white tile fills its canvas and needs no compensation.
+            artworkSize = brand == .chatGPT ? 20 * 1024 / 882 : 20
         } else {
             image = Image(mingCute: "globe")
             artworkSize = 18

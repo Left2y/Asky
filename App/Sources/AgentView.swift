@@ -734,6 +734,13 @@ private struct ComposerSubmitButtonStyle: ButtonStyle {
     }
 }
 
+private struct ToolErrorDisclosureButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(ThemeColor.kTextSubtlest)
+    }
+}
+
 private struct ToolCallRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: ChatItem
@@ -776,7 +783,7 @@ private struct ToolCallRow: View {
                         }
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ToolErrorDisclosureButtonStyle())
                     .accessibilityHint(NSLocalizedString(expanded ? "收起错误详情" : "展开错误详情", comment: ""))
                     .accessibilityValue(expanded ? "expanded" : "collapsed")
                 } else {

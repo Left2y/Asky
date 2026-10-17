@@ -482,7 +482,7 @@ private struct ResponseGroupView: View {
                         let seconds = group.startedAt.map { max(0, Int(context.date.timeIntervalSince($0))) } ?? group.workSeconds ?? 0
                         if group.tools.isEmpty {
                             Text("Work for \(seconds)s")
-                                .textStyle(.secondary)
+                                .textStyle(AgentLayout.message)
                                 .foregroundStyle(ThemeColor.kTextSubtlest)
                         } else {
                             Button {
@@ -497,7 +497,7 @@ private struct ResponseGroupView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(ToolErrorDisclosureButtonStyle())
-                            .textStyle(.secondary)
+                            .textStyle(AgentLayout.message)
                             .foregroundStyle(ThemeColor.kTextSubtlest)
                             .accessibilityLabel("Work for \(seconds)s")
                             .accessibilityValue(expanded ? "expanded" : "collapsed")
@@ -521,7 +521,7 @@ private struct ResponseGroupView: View {
                 ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: group.streaming))
             }
             if group.isRunning, let state = group.state {
-                Text(Transcript.label(state)).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
+                Text(Transcript.label(state)).textStyle(AgentLayout.message).foregroundStyle(ThemeColor.kTextSubtlest)
             }
         }
         .onChange(of: group.isRunning) { _, running in
@@ -560,12 +560,14 @@ private struct ChatBubble: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                HStack { Spacer(minLength: 40); bubble.padding(.horizontal, 12).padding(.vertical, 10)
-                    .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
-                copyButton
-                    .onHover { copyHovering = $0 }
-                    .opacity(hovering || copyHovering || copyFocused || copyFeedbackID != nil ? 1 : 0)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack { Spacer(minLength: 40); bubble.padding(.horizontal, 12).padding(.vertical, 10)
+                        .background(ThemeColor.kBackgroundNeutral, in: .rect(cornerRadius: 16)) }
+                    copyButton
+                        .onHover { copyHovering = $0 }
+                        .opacity(hovering || copyHovering || copyFocused || copyFeedbackID != nil ? 1 : 0)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
             // Include the empty action row and the gap below the bubble in

@@ -607,11 +607,14 @@ private struct ApprovalModePicker: View {
     @Bindable var model: AgentModel
     @State private var showing = false
 
+    static let iconSize: CGFloat = 16
+
     var body: some View {
         let mode = model.approvalMode
         Button { showing.toggle() } label: {
-            HStack(spacing: 4) {
-                Image(mingCute: Self.icon(mode), size: 13)
+            HStack(alignment: .center, spacing: 4) {
+                Image(mingCute: Self.icon(mode), size: Self.iconSize)
+                    .frame(width: Self.iconSize, height: Self.iconSize)
                 Text(Self.shortTitle(mode)).font(.system(size: 13))
             }
             .foregroundStyle(mode == .fullAccess ? AnyShapeStyle(ThemeColor.kTextNegative) : AnyShapeStyle(ThemeColor.kTextSubtle))
@@ -665,7 +668,8 @@ private struct ApprovalModeRow: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 10) {
-                    Image(mingCute: ApprovalModePicker.icon(option), size: 15).frame(width: 20)
+                    Image(mingCute: ApprovalModePicker.icon(option), size: ApprovalModePicker.iconSize)
+                        .frame(width: 20, height: ApprovalModePicker.iconSize)
                     Text(ApprovalModePicker.title(option)).font(.system(size: 13, weight: .medium))
                     Spacer(minLength: 8)
                     if selected { Image(mingCute: "checkmark", size: 12) }

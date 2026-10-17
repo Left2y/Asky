@@ -72,6 +72,7 @@ enum MingCute {
         "externaldrive.badge.checkmark": "MingCute-storage",
         "bookmark": "MingCute-bookmark",
         "warning": "MingCute-warning",
+        "tool": "MingCute-tool",
     ]
 
     static func image(_ symbol: String, size: CGFloat = 16) -> NSImage {

@@ -9,7 +9,8 @@ import plistlib
 import shutil
 
 root = Path(__file__).resolve().parents[2]
-products = root / "build/DerivedData/Build/Products/Debug"
+derived_data = Path(os.environ.get("ASKY_DERIVED_DATA", root / "build/DerivedData"))
+products = derived_data / "Build/Products/Debug"
 if not (products / "Search.o").exists():
     sys.exit("Build the Debug app with the README command first.")
 
@@ -18,20 +19,22 @@ sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
 command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
            "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
 command += ["-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
-maps = root / "build/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps"
+maps = derived_data / "Build/Intermediates.noindex/GeneratedModuleMaps"
 for path in sorted(maps.glob("*.modulemap")):
     command += ["-Xcc", "-fmodule-map-file=" + str(path)]
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
-    command += ["-I", str(root / "build/DerivedData/SourcePackages/checkouts" / relative)]
+    command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
 command += [str(root / "App/Tests/AgentReplyRegression.swift")]
 command += [str(path) for path in sorted(products.glob("*.o"))]
-binary = root / "build/agent-reply-regression"
+artifacts = derived_data / "AgentReplyRegression" if "ASKY_DERIVED_DATA" in os.environ else root / "build"
+artifacts.mkdir(parents=True, exist_ok=True)
+binary = artifacts / "agent-reply-regression"
 command += ["-lsqlite3", "-o", str(binary)]
 environment = os.environ.copy()
 environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 subprocess.run(command, env=environment, cwd=root, check=True)
-bundle = root / "build/AgentReplyRegression.app/Contents"
+bundle = artifacts / "AgentReplyRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)
 (bundle / "Resources").mkdir(exist_ok=True)
 executable = bundle / "MacOS/AgentReplyRegression"

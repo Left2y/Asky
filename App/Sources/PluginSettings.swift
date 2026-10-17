@@ -11,7 +11,6 @@ struct PluginSettings: View {
     @State private var busy = false
     @State private var status = ""
     @State private var editing: InstalledPlugin?
-    @State private var icons: [String: NSImage] = [:]
     private var manager: PluginManager { app.tools.plugins }
     private func label(_ key: String) -> String { NSLocalizedString(key, comment: "") }
     var body: some View {
@@ -26,7 +25,7 @@ struct PluginSettings: View {
             Section(label("官方插件")) {
                 ForEach(PluginManager.officialRepositories, id: \.self) { source in
                     HStack(spacing: 12) {
-                        pluginIcon(repository: source)
+                        pluginIcon()
                         VStack(alignment: .leading, spacing: 3) {
                             Text(source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca")
                             Text(label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务"))
@@ -45,7 +44,7 @@ struct PluginSettings: View {
                 if plugins.isEmpty { Text(label("尚未安装插件")).foregroundStyle(.secondary) }
                 ForEach(plugins) { plugin in
                     HStack(spacing: 12) {
-                        pluginIcon(repository: plugin.repository)
+                        pluginIcon()
                         VStack(alignment: .leading, spacing: 3) {
                             Text(plugin.manifest.name)
                             pluginSubtitle(plugin)
@@ -110,32 +109,12 @@ struct PluginSettings: View {
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .accessibilityLabel(label("更多操作")).help(label("更多操作")).disabled(busy)
     }
-    private func pluginIcon(repository: String) -> some View {
-        Group {
-            if let icon = icons[repository] {
-                Image(nsImage: icon).resizable().scaledToFit()
-            } else {
-                Image("Plugin").resizable().scaledToFit()
-            }
-        }
-        .frame(width: 36, height: 36)
-        .accessibilityHidden(true)
+    private func pluginIcon() -> some View {
+        Image(mingCute: "tool", size: 36)
+            .accessibilityHidden(true)
     }
     private func reload() async {
-        let installed = await manager.installed()
-        var artwork: [String: NSImage] = [:]
-        for source in PluginManager.officialRepositories {
-            artwork[source] = ToolService.pluginApplicationIcon(repository: source)
-        }
-        for plugin in installed {
-            if let data = await manager.iconData(for: plugin.id), let image = NSImage(data: data), image.isValid {
-                artwork[plugin.repository] = image
-            } else {
-                artwork[plugin.repository] = ToolService.pluginApplicationIcon(repository: plugin.repository)
-            }
-        }
-        icons = artwork
-        plugins = installed
+        plugins = await manager.installed()
     }
     private func perform(_ title: String, operation: @escaping () async throws -> Void) {
         busy = true; status = label(title)

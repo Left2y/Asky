@@ -30,7 +30,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 应用内 dialog / alert 统一采用 macOS 原生 `NSAlert`：有所属窗口时使用 sheet，无所属窗口时使用独立 alert；外观与按钮布局由系统管理。操作确认用一段自然语言说明目标与变更，不提供详情展开项。
 
-功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识与真实应用图标。AI 工具调用图标槽统一为 16×16 pt，Orca 与飞书官方插件使用透明品牌标志，失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
+功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识与真实应用图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，所有插件统一使用 tool 图标，失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
 
 应用图标与设置中的品牌图使用黑色石墨质感，轮廓源文件见 [Mark.svg](App/Branding/Mark.svg)；菜单栏使用同轮廓的单色模板图。
 
@@ -126,6 +126,8 @@ Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer py
 
 日程配置回归：Debug 构建后执行 `python3 App/Tests/run-calendar-editor-regression.py`；加 `--preview` 查看无真实写入的示例，另加 `--preview-error` 检查冲突后修改重试。
 
+对话、启动器和设置回归可通过 `ASKY_DERIVED_DATA=/path/to/DerivedData` 使用对应的 Debug 构建产物，便于并行验证。
+
 原生回归、通知预览与 `scripts/package-release.py` 打包流程见[开发与发布指南](docs/development.md)。打包前提交源码并保持工作区干净；使用固定的 `Asky Local Signing` 证书，生成 DMG、更新 ZIP 与校验文件。检查结果写入 `docs/validation/`。
 
 ### 开源协议
@@ -145,7 +147,7 @@ Asky is a native macOS launcher built with SwiftUI and AppKit. Search and clipbo
 
 In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning window is available, or a standalone alert otherwise. The system manages appearance and button layout. Action confirmations describe the target and changes in one paragraph, without an expandable details section.
 
-Functional icons use bundled MingCute vector templates; brand marks and real application icons retain their original artwork. AI tool-call icon slots are 16×16 pt, with transparent brand marks for the official Orca and Feishu plugins and a circular exclamation mark for failures. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
+Functional icons use bundled MingCute vector templates; brand marks and real application icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, all plugins share the tool icon, and failures use a circular exclamation mark. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
 
 The app icon and branding in Settings use a black graphite finish based on [Mark.svg](App/Branding/Mark.svg). The menu bar uses the same silhouette as a monochrome template.
 
@@ -240,6 +242,8 @@ Chat-image clipboard regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents
 Copy-toast regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces` (build Debug first) checks rounded surfaces in light and dark appearances and captures snapshots.
 
 Calendar editor regression: after the Debug build, run `python3 App/Tests/run-calendar-editor-regression.py`; add `--preview` for a sample without calendar writes, and `--preview-error` to check editing and retrying after a conflict.
+
+Agent reply, launcher, and settings regressions accept `ASKY_DERIVED_DATA=/path/to/DerivedData` to use the matching Debug build products during parallel validation.
 
 See the [development and release guide](docs/development.md) for native regressions, notification previews, and the `scripts/package-release.py` workflow. Commit source changes and keep the working tree clean before packaging. Use the persistent `Asky Local Signing` certificate to produce a DMG, updater ZIP, and checksums. Record checks in `docs/validation/`.
 

@@ -361,7 +361,7 @@ private struct Transcript: View {
                     }
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         VStack(alignment: .leading, spacing: 6) {
-                            ChatBubble(item: item, pluginManager: model.pluginManager)
+                            ChatBubble(item: item)
                             if item.needsPermissionSettings {
                                 Button(NSLocalizedString("管理权限…", comment: "")) { model.openSettings(permissions: true) }
                                     .buttonStyle(.link)
@@ -442,7 +442,6 @@ private struct Transcript: View {
 
 private struct ChatBubble: View {
     let item: ChatItem
-    var pluginManager: PluginManager? = nil
     @State private var hovering = false
     @State private var copyHovering = false
     @State private var copyFeedbackID: UUID?
@@ -489,7 +488,7 @@ private struct ChatBubble: View {
                 }
             }
         case .tool(let status):
-            ToolCallRow(item: item, status: status, pluginManager: pluginManager)
+            ToolCallRow(item: item, status: status)
         case .notice:
             Text(item.text).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
         case .error:
@@ -666,15 +665,16 @@ private struct ApprovalModeRow: View {
     var body: some View {
         let tint = option == .fullAccess ? AnyShapeStyle(Color.orange) : AnyShapeStyle(ThemeColor.kText)
         Button(action: action) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(mingCute: ApprovalModePicker.icon(option), size: 15).frame(width: 20)
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 10) {
+                    Image(mingCute: ApprovalModePicker.icon(option), size: 15).frame(width: 20)
                     Text(ApprovalModePicker.title(option)).font(.system(size: 13, weight: .medium))
-                    Text(ApprovalModePicker.detail(option)).font(.system(size: 12)).opacity(0.75)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    if selected { Image(mingCute: "checkmark", size: 12) }
                 }
-                Spacer(minLength: 8)
-                if selected { Image(mingCute: "checkmark", size: 12) }
+                Text(ApprovalModePicker.detail(option)).font(.system(size: 12)).opacity(0.75)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 30)
             }
             .foregroundStyle(tint)
             .padding(.horizontal, 10).padding(.vertical, 8)
@@ -777,9 +777,7 @@ private struct ToolCallRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: ChatItem
     let status: ExecutionStatus?
-    let pluginManager: PluginManager?
     @State private var expanded = false
-    @State private var pluginIcon: NSImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -790,11 +788,9 @@ private struct ToolCallRow: View {
                     } else if status == .failed {
                         Image(mingCute: "warning", size: 16)
                             .accessibilityLabel(AgentModel.statusLabel(.failed))
-                    } else if let pluginIcon {
-                        Image(nsImage: pluginIcon).resizable().scaledToFit()
                     } else if item.pluginID != nil {
-                        Image("Plugin").resizable().scaledToFit()
-                    } else if let source = item.toolSource, source != .web {
+                        Image(mingCute: "tool", size: 16)
+                    } else if let source = item.toolSource, source != .web, source != .memory {
                         DataSourceIcon(source: source)
                     } else {
                         Image(mingCute: item.toolSymbol)
@@ -839,18 +835,6 @@ private struct ToolCallRow: View {
         }
         .textStyle(AgentLayout.message)
         .foregroundStyle(ThemeColor.kTextSubtlest)
-        .task(id: item.pluginID) {
-            guard let id = item.pluginID, let pluginManager else { return }
-            if let data = await pluginManager.iconData(for: id), let image = NSImage(data: data), image.isValid {
-                pluginIcon = image
-            } else {
-                let installed = await pluginManager.installed()
-                let repository = installed.first(where: { $0.id == id })?.repository
-                    ?? PluginManager.officialRepositories.first(where: { $0.hasSuffix("asky-plugin-" + id) })
-                if let repository {
-                    pluginIcon = ToolService.pluginApplicationIcon(repository: repository)
-                }
-            }
-        }
+
     }
 }

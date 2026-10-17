@@ -68,14 +68,15 @@
     "bell.badge": "notification_newdot",
     "externaldrive.badge.checkmark": "storage",
     "bookmark": "bookmark",
-    "warning": "warning"
+    "warning": "warning",
+    "tool": "tool"
   },
   "assets": {
     "Bookmark": "bookmark",
     "Agent": "ai",
     "Calculator": "counter_2",
     "Link": "link",
-    "Plugin": "plugin_2",
+    "Plugin": "tool",
     "ChatCopy": "custom/copy",
     "Settings-advanced": "settings_3",
     "Settings-model": "ai",

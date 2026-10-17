@@ -84,6 +84,7 @@ enum AgentReplyRegression {
                 ("shortcuts", "shortcuts_list", .completed, nil),
                 ("memory", "memory_read", .completed, nil),
                 ("plugin", "plugin_orca__help", .completed, nil),
+                ("lark-success", "plugin_lark__help", .completed, nil),
                 ("running", "notes_search", nil, nil)
             ] as [(String, String, ExecutionStatus?, String?)] {
                 model.handle(.toolCall(taskID: "tools", ActionRequest(requestID: id, tool: tool, arguments: .object([:]), origin: .agent(sessionID: toolID), intent: .explicitRequest)), conversationID: toolID)
@@ -91,9 +92,14 @@ enum AgentReplyRegression {
                     model.handle(.toolResult(taskID: "tools", ExecutionResult(requestID: id, status: status, error: error.map { ToolError(.invalidArguments, $0) })), conversationID: toolID)
                 }
             }
-            precondition(model.items.count == 12, "preview must include each tool family and execution state")
+            precondition(NSImage(named: "MingCute-tool") != nil, "plugins must use the bundled tool icon")
+            precondition(model.items.filter { $0.pluginID != nil }.allSatisfy { $0.toolSymbol == "tool" },
+                         "Orca and Feishu share the same tool icon")
+            precondition(model.items.count == 13, "preview must include each tool family and execution state")
             precondition(model.items.first { $0.id == "search" }?.toolSymbol == "magnifyingglass",
                          "web search uses the MingCute search icon")
+            precondition(model.items.first { $0.id == "memory" }?.toolSymbol == "brain",
+                         "memory calls use the MingCute brain icon")
             precondition(!model.items[0].text.contains("已完成"))
             precondition(!model.items[1].text.contains("Error:"))
             precondition(model.items[1].toolError?.contains("unknown command") == true)

@@ -555,6 +555,20 @@ final class LauncherModel {
         return true
     }
 
+    /// Copy the selected file or app bundle as a Finder-pasteable file URL.
+    @discardableResult
+    func copySelectedFile() -> Bool {
+        guard let result = selectedActionResult, [.file, .app].contains(result.source),
+              result.actions.contains(.revealInFinder) else { return false }
+        closeActionsMenu()
+        if ClipboardAccess.copyFile(at: URL(fileURLWithPath: result.target.identifier)) {
+            showToast(NSLocalizedString("已拷贝", comment: ""))
+        } else {
+            showToast(NSLocalizedString("无法拷贝文件", comment: ""))
+        }
+        return true
+    }
+
     private func showToast(_ message: String) {
         toastTask?.cancel()
         toast = message
@@ -714,6 +728,9 @@ extension LauncherModel {
             if !event.isARepeat { toggleActionsMenu() }
             return true
         }
+        if event.keyCode == 8, modifiers == .command,
+           ((NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().length ?? 0) == 0,
+           copySelectedFile() { return true }
         guard isActionsMenuPresented else { return false }
         if modifiers.isEmpty {
             switch event.keyCode {
@@ -745,13 +762,27 @@ extension LauncherModel {
         return LauncherAction(action: action, source: result.source, shortcut: "↵")
     }
 
+    var finderLauncherAction: LauncherAction? {
+        guard let result = selectedActionResult, [.file, .app].contains(result.source),
+              result.primaryAction != .revealInFinder,
+              result.actions.contains(.revealInFinder) else { return nil }
+        return LauncherAction(action: .revealInFinder, source: result.source,
+                              shortcut: actionPreferences.revealInFinderHotKey.label)
+    }
+
     var secondaryActions: [LauncherAction] {
         guard let result = selectedActionResult, result.primaryAction != nil else { return [] }
-        var actions = result.actions.dropFirst().map {
+        var actions = result.actions.dropFirst().filter {
+            finderLauncherAction == nil || $0 != .revealInFinder
+        }.map {
             LauncherAction(action: $0, source: result.source,
                            shortcut: $0 == .revealInFinder ? actionPreferences.revealInFinderHotKey.label : nil)
         }
         if result.actions.contains(.revealInFinder) {
+            if [.file, .app].contains(result.source) {
+                actions.append(LauncherAction(title: "拷贝", icon: "doc.on.clipboard",
+                                              shortcut: "⌘ C", kind: .copyFile))
+            }
             actions.append(LauncherAction(title: "复制路径", icon: "doc.on.clipboard",
                                           shortcut: actionPreferences.copyPathHotKey.label, kind: .copyPath))
         }
@@ -789,6 +820,7 @@ extension LauncherModel {
         let result = selectedActionResult
         closeActionsMenu()
         switch action.kind {
+        case .copyFile: _ = copySelectedFile()
         case .copyPath: _ = copySelectedPath()
         case .result(let value):
             if let result { execute(result, action: value) }

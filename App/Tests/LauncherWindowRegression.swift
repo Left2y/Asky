@@ -99,7 +99,16 @@ enum LauncherWindowRegression {
                                      title: title, actions: [.open, .revealInFinder], score: Double(100 - index)))
         }
         let provider = CompactProvider(source: .file, results: rows)
-        let model = LauncherModel(app: app, searchProviders: [provider])
+        struct AppCopyProvider: SearchProvider {
+            let source = SearchSource.app
+            func search(_ query: String, limit: Int) async -> [SearchResult] {
+                guard query == "Notes" else { return [] }
+                return [SearchResult(source: .app,
+                    target: TargetRef(kind: "app", identifier: "/System/Applications/Notes.app"),
+                    title: "Notes", actions: [.open, .revealInFinder], score: 100)]
+            }
+        }
+        let model = LauncherModel(app: app, searchProviders: [provider, AppCopyProvider()])
         let controller = LauncherController(model: model)
         model.query = "Design"
         controller.show()
@@ -120,6 +129,7 @@ enum LauncherWindowRegression {
         let frame = panel.frame
         func key(_ code: UInt16, modifiers: NSEvent.ModifierFlags = [], repeatKey: Bool = false) {
             let character: String = switch code {
+            case 8: "c"
             case 40: "k"
             case 125: "\u{F701}"
             case 126: "\u{F700}"
@@ -144,7 +154,12 @@ enum LauncherWindowRegression {
             try require(process.terminationStatus == 0, "action screenshot must succeed")
         }
         try require(model.primaryLauncherAction?.title == "打开", "file primary action must be Open")
-        try require(model.secondaryActions.count == 2, "file menu must offer reveal and path copy")
+        try require(model.finderLauncherAction?.title == "在访达中显示" &&
+                    model.finderLauncherAction?.shortcut == model.actionPreferences.revealInFinderHotKey.label,
+                    "file must expose Finder action with configured shortcut in the left action bar")
+        try require(model.secondaryActions.count == 2 && !model.secondaryActions.contains {
+            if case .result(.revealInFinder) = $0.kind { return true }; return false
+        }, "file menu must contain only file copy and path copy")
         try capture("closed")
         key(40, modifiers: .command)
         try await Task.sleep(for: .milliseconds(200))
@@ -173,6 +188,57 @@ enum LauncherWindowRegression {
         try require(!model.isActionsMenuPresented && NSPasteboard.general.string(forType: .string) == fixture.path,
                     "Return on Copy path must execute the selected menu action")
         try require(controller.isVisible, "Copy path must retain launcher")
+        func copiedURLs() -> [URL] {
+            (NSPasteboard.general.readObjects(forClasses: [NSURL.self],
+                options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        }
+        guard let editor = panel.firstResponder as? NSTextView else {
+            throw NSError(domain: "ActionBarEditor", code: 1)
+        }
+        editor.setSelectedRange(NSRange(location: 0, length: 0))
+        key(8, modifiers: .command)
+        try require(copiedURLs() == [fixture], "Cmd C must copy a file URL, not path text")
+        try require(controller.isVisible && model.inputText == input && model.results[model.selection].id == resultID,
+                    "file copy must retain launcher, query and selection")
+        editor.setSelectedRange(NSRange(location: 0, length: 3))
+        let textCopy = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+            timestamp: 0, windowNumber: panel.windowNumber, context: nil, characters: "c",
+            charactersIgnoringModifiers: "c", isARepeat: false, keyCode: 8)!
+        try require(!model.handleActionKey(textCopy), "selected text must fall through to native Copy")
+        // This harness dispatches directly to the panel, bypassing the application's Edit menu.
+        editor.copy(nil)
+        try require(NSPasteboard.general.string(forType: .string) == "Des" && copiedURLs().isEmpty,
+                    "Cmd C must preserve selected search text copying")
+        editor.setSelectedRange(NSRange(location: 0, length: 0))
+        key(40, modifiers: .command)
+        key(36)
+        try require(!model.isActionsMenuPresented && copiedURLs() == [fixture],
+                    "Return on Copy must copy file and close menu")
+        key(40, modifiers: .command)
+        key(8, modifiers: .command)
+        try require(!model.isActionsMenuPresented && copiedURLs() == [fixture],
+                    "Cmd C must also work with More open")
+        let appURL = URL(fileURLWithPath: "/System/Applications/Notes.app")
+        model.query = "Notes"
+        try await Task.sleep(for: .milliseconds(400))
+        model.selection = 0
+        try require(model.finderLauncherAction != nil && model.secondaryActions.count == 2,
+                    "app must expose Finder in action bar and keep copies in menu")
+        try capture("app")
+        editor.setSelectedRange(NSRange(location: 0, length: 0))
+        key(8, modifiers: .command)
+        try require(copiedURLs() == [appURL], "Cmd C on app must copy app bundle URL")
+        model.query = "Design"
+        try await Task.sleep(for: .milliseconds(400))
+        model.selection = 1
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("preserve clipboard", forType: .string)
+        key(8, modifiers: .command)
+        try require(NSPasteboard.general.string(forType: .string) == "preserve clipboard",
+                    "missing original must not erase clipboard")
+        model.selection = 0
+
+
         key(40, modifiers: .command)
         key(53)
         try require(!model.isActionsMenuPresented && controller.isVisible, "Escape must close only menu")
@@ -187,7 +253,7 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(300))
         try capture("last-row")
         model.selection = model.results.firstIndex(where: { $0.source == .askAI })!
-        try require(model.primaryLauncherAction?.title == "询问 AI" && model.secondaryActions.isEmpty,
+        try require(model.primaryLauncherAction?.title == "询问 AI" && model.secondaryActions.isEmpty && model.finderLauncherAction == nil,
                     "AI must have its own primary action and no empty More button")
         key(40, modifiers: .command)
         try require(!model.isActionsMenuPresented, "Cmd K must not open an empty menu")

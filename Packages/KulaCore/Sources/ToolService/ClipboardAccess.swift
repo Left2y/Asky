@@ -171,6 +171,15 @@ public enum ClipboardAccess {
         return nil
     }
 
+    /// Copy the actual file reference, including directories and app bundles, for Finder paste.
+    /// Check availability first so stale search results leave the clipboard intact.
+    @discardableResult
+    public static func copyFile(at url: URL, to pasteboard: NSPasteboard = .general) -> Bool {
+        guard url.isFileURL, FileManager.default.fileExists(atPath: url.path) else { return false }
+        pasteboard.clearContents()
+        return pasteboard.writeObjects([url as NSURL])
+    }
+
     private static let historyRestoreType = NSPasteboard.PasteboardType("app.asky.clipboard-history-restore")
 
     private static func markRestored(_ item: ClipboardItem, on pasteboard: NSPasteboard, success: Bool) -> Bool {

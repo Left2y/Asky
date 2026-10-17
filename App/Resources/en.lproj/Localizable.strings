@@ -596,6 +596,9 @@
 "关闭 Asky？" = "Quit Asky?";
 "关闭后，Asky 将退出。你可以随时重新打开应用。" = "Asky will quit. You can reopen the app at any time.";
 
+"无法拷贝文件" = "Unable to copy file";
+"已拷贝" = "Copied";
+
 /* Command settings search */
 "搜索指令或名称" = "Search commands or names";
 "未找到匹配的指令" = "No matching commands";

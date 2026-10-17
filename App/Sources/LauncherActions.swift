@@ -3,7 +3,7 @@ import Contracts
 import Theme
 
 struct LauncherAction {
-    enum Kind { case result(ResultAction), copyPath }
+    enum Kind { case result(ResultAction), copyPath, copyFile }
     let title: String
     let icon: String
     let shortcut: String?
@@ -43,10 +43,16 @@ struct LauncherActionBar: View {
                 }
                 .buttonStyle(LauncherActionButtonStyle())
             }
+            if let finder = model.finderLauncherAction {
+                Button { model.performLauncherAction(finder) } label: {
+                    actionLabel(finder.title, icon: finder.icon, shortcut: finder.shortcut)
+                }
+                .buttonStyle(LauncherActionButtonStyle())
+            }
             Spacer(minLength: 12)
             if !model.secondaryActions.isEmpty {
                 Button { model.toggleActionsMenu() } label: {
-                    actionLabel("更多", icon: "ellipsis.circle", shortcut: "⌘ K")
+                    actionLabel("更多", shortcut: "⌘ K")
                 }
                 .buttonStyle(LauncherActionButtonStyle())
                 .accessibilityValue(model.isActionsMenuPresented ? "On" : "Off")
@@ -57,9 +63,9 @@ struct LauncherActionBar: View {
         .frame(height: LauncherLayout.actionBarHeight, alignment: .bottom)
     }
 
-    private func actionLabel(_ title: String, icon: String, shortcut: String?) -> some View {
+    private func actionLabel(_ title: String, icon: String? = nil, shortcut: String?) -> some View {
         HStack(spacing: 8) {
-            Image(mingCute: icon, size: 14)
+            if let icon { Image(mingCute: icon, size: 14) }
             Text(NSLocalizedString(title, tableName: "Launcher", comment: "Launcher action"))
             if let shortcut { LauncherActionKeyCap(value: shortcut) }
         }

@@ -79,7 +79,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示用户提供的红底白色电源图标，与橙底白色书签、蓝底白色链接图标配套，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
 
-结果底部提供悬浮操作区：左侧按选中项展示常用操作，无可用动作时隐藏；右侧「更多 ⌘K」只在有附加动作时显示。应用和文件可在更多中选择「在访达中显示」「复制路径」，链接和标签页可复制链接。`⌘K` 打开/关闭更多菜单，`↑` / `↓` 选择菜单动作、`Return` 执行，`Escape` 关闭菜单；关闭后保留搜索词与结果选择，方向键继续选择结果。列表在悬浮控件下方渐隐，滚动末尾保留操作区空间。
+结果底部提供悬浮操作区：左侧按选中项展示常用操作，无可用动作时隐藏；右侧「更多 ⌘K」只在有附加动作时显示。应用和文件在左侧直接展示「在访达中显示」，更多菜单提供「拷贝」（`⌘C`）和「复制路径」，拷贝将文件或 App 本体放入剪贴板，可在访达粘贴；输入框选中文字时，`⌘C` 仍复制文字。链接和标签页可复制链接。`⌘K` 打开/关闭更多菜单，`↑` / `↓` 选择菜单动作、`Return` 执行，`Escape` 关闭菜单；关闭后保留搜索词与结果选择，方向键继续选择结果。列表在悬浮控件下方渐隐，滚动末尾保留操作区空间。
 
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。“在 Dock 栏显示”默认关闭，打开设置也不会显示 Dock 图标；开启后即使关闭所有窗口也保留 Dock 图标，点击图标可重新打开入口，主动退出应用后结束常驻。
@@ -218,7 +218,7 @@ The launcher is 720 pt wide and opens 18% down the screen’s usable area. The r
 
 Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with the supplied white power symbol on red, paired with the white bookmark on orange and white link on blue, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
 
-A floating action area overlays the bottom of the results. The left side shows the selected item's primary action and hides when none is available; “More ⌘K” appears on the right only when secondary actions exist. Apps and files offer Reveal in Finder and Copy path; links and tabs offer Copy link. Press `⌘K` to toggle More, `↑` / `↓` to choose an action, `Return` to execute, or `Escape` to dismiss. Closing the menu preserves the query and result selection, and arrow keys resume navigating results. Rows fade beneath the floating controls, with extra clearance at the end of the scrollable content.
+A floating action area overlays the bottom of the results. The left side shows the selected item's primary action and hides when none is available; “More ⌘K” appears on the right only when secondary actions exist. Apps and files show Reveal in Finder directly on the left; More offers Copy (`⌘C`) and Copy path. Copy places the file or app bundle on the clipboard for pasting in Finder; when text is selected in the search field, `⌘C` copies that text. Links and tabs offer Copy link. Press `⌘K` to toggle More, `↑` / `↓` to choose an action, `Return` to execute, or `Escape` to dismiss. Closing the menu preserves the query and result selection, and arrow keys resume navigating results. Rows fade beneath the floating controls, with extra clearance at the end of the scrollable content.
 
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden. “Show in Dock” is off by default, and opening Settings does not show the Dock icon. When enabled, the Dock icon stays visible after all windows close; click it to reopen the launcher. Quit the app to end its running session.

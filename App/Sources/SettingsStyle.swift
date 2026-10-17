@@ -123,19 +123,24 @@ struct SettingsSecureField: View {
     }
 }
 
-private extension View {
+extension View {
     func settingsInputSurface(scheme: ColorScheme, focused: Bool) -> some View {
         // Match the 24pt height of the native regular push buttons and pop-ups beside them.
         padding(.horizontal, 8).frame(height: 24)
-            .background(scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme)
-                        : SettingsPalette.surface(scheme), in: RoundedRectangle(cornerRadius: 6))
+            .settingsInputChrome(scheme: scheme, focused: focused)
+            .alignmentGuide(.settingsInput) { $0[VerticalAlignment.center] }
+    }
+
+    /// Low-contrast translucent field fill with a focus ring, shared by fields of any height.
+    func settingsInputChrome(scheme: ColorScheme, focused: Bool, cornerRadius: CGFloat = 6) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius)
+        return background(scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme)
+                            : SettingsPalette.surface(scheme), in: shape)
             .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(focused ? Color.accentColor : ThemeColor.kBorder.color(for: scheme),
-                                  lineWidth: focused ? 2 : 1)
+                shape.strokeBorder(focused ? Color.accentColor : ThemeColor.kBorder.color(for: scheme),
+                                   lineWidth: focused ? 2 : 1)
                     .allowsHitTesting(false)
             }
-            .alignmentGuide(.settingsInput) { $0[VerticalAlignment.center] }
     }
 }
 
@@ -184,14 +189,17 @@ struct SettingsMoreMenu<Content: View>: View {
         Menu {
             content
         } label: {
-            Image(mingCute: "ellipsis.vertical", size: 15)
+            // Pad the glyph into the hit target itself; the borderless menu only accepts
+            // clicks on the label's image, not on a surrounding frame.
+            Image(nsImage: MingCute.image("ellipsis.vertical", size: 15, canvas: 28))
+                .renderingMode(.template)
                 .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .frame(width: 28, height: 28)
+        .contentShape(RoundedRectangle(cornerRadius: 6))
         .background {
             RoundedRectangle(cornerRadius: 6)
                 .fill(ThemeColor.kInteractionHover)

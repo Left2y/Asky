@@ -604,6 +604,5 @@
 "搜索指令" = "Search commands";
 "搜索链接" = "Search links";
 "AI 搜索" = "AI search";
-"输入指令后按空格进入对应模式，回车执行。" = "Type a command followed by a space to enter its mode, then press Return to execute.";
 "指令不能为空或包含空格。" = "Commands cannot be empty or contain whitespace.";
 "该指令与已有指令或别名重名。" = "This command conflicts with an existing command or alias.";

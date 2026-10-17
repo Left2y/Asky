@@ -77,13 +77,22 @@ enum MingCute {
         "video": "MingCute-video",
     ]
 
-    static func image(_ symbol: String, size: CGFloat = 16) -> NSImage {
+    static func image(_ symbol: String, size: CGFloat = 16, canvas: CGFloat? = nil) -> NSImage {
         guard let asset = assets[symbol], let image = NSImage(named: asset)?.copy() as? NSImage else {
             preconditionFailure("Missing MingCute icon: \(symbol)")
         }
         image.size = NSSize(width: size, height: size)
         image.isTemplate = true
-        return image
+        guard let canvas, canvas > size else { return image }
+        // Menus size their clickable label to the image itself, so a padded canvas is what
+        // gives the glyph a full-size hit area instead of only the strokes.
+        let inset = (canvas - size) / 2
+        let boxed = NSImage(size: NSSize(width: canvas, height: canvas), flipped: false) { _ in
+            image.draw(in: NSRect(x: inset, y: inset, width: size, height: size))
+            return true
+        }
+        boxed.isTemplate = true
+        return boxed
     }
 }
 

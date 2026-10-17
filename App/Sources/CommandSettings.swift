@@ -4,6 +4,8 @@ import DirectActions
 struct CommandSettings: View {
     @Bindable var app: AppModel
     @State private var query = ""
+    @Environment(\.colorScheme) private var scheme
+    @FocusState private var searchFocused: Bool
 
     private var filteredCommands: [KeywordCommand] {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -30,8 +32,6 @@ struct CommandSettings: View {
                 }
             } header: {
                 Text(NSLocalizedString("搜索指令", comment: ""))
-            } footer: {
-                Text(NSLocalizedString("输入指令后按空格进入对应模式，回车执行。", comment: ""))
             }
             Section {
                 if filteredCommands.isEmpty {
@@ -67,6 +67,7 @@ struct CommandSettings: View {
                             .accessibilityHidden(true)
                         TextField(NSLocalizedString("搜索指令或名称", comment: ""), text: $query)
                             .textFieldStyle(.plain)
+                            .focused($searchFocused)
                             .accessibilityIdentifier("command-search")
                         if !query.isEmpty {
                             Button {
@@ -80,7 +81,7 @@ struct CommandSettings: View {
                     }
                     .font(.system(size: 14))
                     .padding(8)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                    .settingsInputChrome(scheme: scheme, focused: searchFocused, cornerRadius: 8)
                 }
             }
         }
@@ -92,38 +93,57 @@ private struct CommandKeywordEditor: View {
     let id: String
     @State private var draft = ""
     @State private var error: String?
+    @Environment(\.colorScheme) private var scheme
+    @FocusState private var focused: Bool
+
+    private var isCustomized: Bool { app.preferences.commandKeywords[id] != nil }
+
+    private var defaultValue: String {
+        AppModel.searchCommands.first { $0.0 == id }?.2 ?? id
+    }
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 TextField(NSLocalizedString("触发指令", comment: ""), text: $draft)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
                     .font(.system(.body, design: .monospaced))
+                    .focused($focused)
+                    .settingsInputSurface(scheme: scheme, focused: focused)
                     .frame(width: 90)
                     .accessibilityIdentifier("command-keyword-" + id)
                     .onSubmit(save)
-                SettingsButton(NSLocalizedString("保存", comment: ""), action: save)
-                    .disabled(draft == app.commandKeyword(id))
-                SettingsButton(NSLocalizedString("恢复默认", comment: "")) {
-                    let value = AppModel.searchCommands.first { $0.0 == id }?.2 ?? id
-                    if let problem = app.commandKeywordProblem(value, id: id) { error = problem; return }
-                    app.preferences.commandKeywords.removeValue(forKey: id)
-                    draft = value
-                    error = nil
+                if isCustomized {
+                    Button(action: reset) {
+                        Image(mingCute: "arrow.clockwise", size: 13)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22, height: 22)
+                            .contentShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .help(NSLocalizedString("恢复默认", comment: ""))
+                    .accessibilityLabel(NSLocalizedString("恢复默认", comment: ""))
                 }
-                .disabled(app.preferences.commandKeywords[id] == nil)
             }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
         .onAppear { draft = app.commandKeyword(id) }
+        .onChange(of: focused) { _, isFocused in if !isFocused { save() } }
         .onChange(of: draft) { _, _ in error = nil }
     }
 
     private func save() {
         let value = draft.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if let problem = app.commandKeywordProblem(value, id: id) { error = problem; return }
-        app.preferences.commandKeywords[id] = value
+        if value == defaultValue { app.preferences.commandKeywords.removeValue(forKey: id) }
+        else { app.preferences.commandKeywords[id] = value }
         draft = value
+        error = nil
+    }
+
+    private func reset() {
+        app.preferences.commandKeywords.removeValue(forKey: id)
+        draft = defaultValue
         error = nil
     }
 }

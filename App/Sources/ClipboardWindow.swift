@@ -617,11 +617,12 @@ private struct ClipboardListView: View {
         HStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
-                    LazyVStack(spacing: 4) {
+                    LazyVStack(spacing: LauncherLayout.rowSpacing) {
                         ForEach(controller.items) { item in
                             ClipboardHistoryRow(item: item, controller: controller).id(item.id)
                         }
-                    }.padding(12)
+                    }.padding(.horizontal, LauncherLayout.listHorizontalPadding)
+                        .padding(.vertical, LauncherLayout.listBottomPadding)
                 }
                 .onChange(of: controller.selection) { _, _ in
                     if let item = controller.selectedItem { proxy.scrollTo(item.id, anchor: .center) }
@@ -642,6 +643,7 @@ private struct ClipboardListView: View {
 private struct ClipboardHistoryRow: View {
     let item: ClipboardItem
     let controller: ClipboardController
+    @State private var hovering = false
     private var selected: Bool { controller.selectedItem?.id == item.id }
     private var title: String {
         if item.kind == .image { return NSLocalizedString("图片", comment: "") }
@@ -654,9 +656,9 @@ private struct ClipboardHistoryRow: View {
                 if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                     Image(nsImage: image).resizable().scaledToFill()
                 } else if item.kind == .text {
-                    Image(mingCute: "doc.on.clipboard", size: 16)
+                    Image(mingCute: "doc.on.clipboard", size: 22)
                         .foregroundStyle(ThemeColor.kIconSubtle)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 32, height: 32)
                         .background(ThemeColor.kBackgroundNeutral, in: RoundedRectangle(cornerRadius: 6))
                 } else if let icon = ClipboardAccess.fileIcon(for: item) {
                     Image(nsImage: icon).resizable().scaledToFit()
@@ -665,25 +667,28 @@ private struct ClipboardHistoryRow: View {
                         .foregroundStyle(ThemeColor.kIconSubtle)
                 }
             }
-            .frame(width: 24, height: 24).clipShape(RoundedRectangle(cornerRadius: 6))
-            .frame(width: 32, height: 32)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title.replacingOccurrences(of: "\n", with: " ")).textStyle(.resultPrimary).lineLimit(1)
+            .frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title.replacingOccurrences(of: "\n", with: " "))
+                    .font(.system(size: 14)).foregroundStyle(ThemeColor.kText).lineLimit(1)
+                    .truncationMode(.tail).frame(height: 22, alignment: .leading)
                 Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
-                    .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
+                    .font(.system(size: 12)).foregroundStyle(ThemeColor.kTextSubtlest).lineLimit(1)
+                    .truncationMode(.tail).frame(height: 20, alignment: .leading)
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
             if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle) }
         }
-        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background { if selected { RoundedRectangle(cornerRadius: 16).fill(ThemeColor.kBorder) } }
-        .overlay {
-            if selected { RoundedRectangle(cornerRadius: 16).strokeBorder(ThemeColor.kBorderIntense, lineWidth: 1) }
-        }
+        .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
+        .frame(height: LauncherLayout.rowHeight)
+        .background(hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
+                        selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
+                    in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
+        .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .overlay(ClipboardCardMouseSurface(
-            copy: { controller.select(item) }, hover: { _, _ in },
+            copy: { controller.select(item) }, hover: { _, inside in hovering = inside },
             drag: { view, event in controller.select(item); controller.beginDrag(item, from: view, event: event) }
-        ).clipShape(RoundedRectangle(cornerRadius: 16)))
+        ).clipShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius)))
         .contextMenu {
             Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
             Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }

@@ -67,7 +67,8 @@
     "accessibility": "wheelchair",
     "bell.badge": "notification_newdot",
     "externaldrive.badge.checkmark": "storage",
-    "bookmark": "bookmark"
+    "bookmark": "bookmark",
+    "warning": "warning"
   },
   "assets": {
     "Bookmark": "bookmark",

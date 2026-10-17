@@ -461,7 +461,7 @@ private struct ChatBubble: View {
         case .notice:
             Text(item.text).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
         case .error:
-            Label { Text(item.text) } icon: { Image(mingCute: "exclamationmark.triangle") }.textStyle(.secondary).foregroundStyle(ThemeColor.kTextNegative)
+            Label { Text(item.text) } icon: { Image(mingCute: "warning", size: 16) }.textStyle(.secondary).foregroundStyle(ThemeColor.kTextNegative)
         }
     }
 
@@ -748,7 +748,7 @@ private struct ToolCallRow: View {
                     if status == nil {
                         ProgressView().controlSize(.small)
                     } else if status == .failed {
-                        Image(mingCute: "xmark.circle")
+                        Image(mingCute: "warning", size: 16)
                             .accessibilityLabel(AgentModel.statusLabel(.failed))
                     } else if let pluginIcon {
                         Image(nsImage: pluginIcon).resizable().scaledToFit()
@@ -760,7 +760,7 @@ private struct ToolCallRow: View {
                         Image(mingCute: item.toolSymbol)
                     }
                 }
-                .frame(width: 20, height: 20)
+                .frame(width: 16, height: 16)
                 Text(item.text).textSelection(.enabled)
                 if let status, status != .completed, status != .failed {
                     Text(AgentModel.statusLabel(status))
@@ -777,7 +777,7 @@ private struct ToolCallRow: View {
             }
             if expanded, let error = item.toolError {
                 Text(error).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 28)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 24)
             }
         }
         .textStyle(AgentLayout.message)

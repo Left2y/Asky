@@ -92,9 +92,9 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
 
 脚本生成 `build/releases/0.1.0/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
 
-### 短信日程交接回归
+### 短信日程配置回归
 
-执行 `cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter CalendarHandoffTests`，检查交给日历的 ICS 时间、文本转义和 UTF-8 折行。卡片内的“创建日程”直接打开 macOS 日历完成添加，旧的 Asky 编辑器与预览脚本已移除。
+先按 README 完成 Debug 构建，再执行 `python3 App/Tests/run-calendar-editor-regression.py`。默认检查标题、时间、日历选择和字段传递；`--preview` 打开实际分组弹窗，使用示例日历且不写入真实日程；另加 `--preview-error` 模拟首次冲突，检查窗口保留输入并允许重试。日期行展开月历与数字小时、分钟下拉框，创建直接经 ToolService 保存，不再交接 ICS 或打开日历应用。
 
 ### 通知预览
 
@@ -192,9 +192,9 @@ Development and future packages default to the persistent `Asky Local Signing` s
 
 The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.1.0/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
 
-### Message Calendar Handoff Regression
+### Message Calendar Editor Regression
 
-Run `cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter CalendarHandoffTests` to check ICS dates, text escaping, and UTF-8 line folding. The card’s Create event action opens macOS Calendar to complete adding the event; the Asky editor and its preview script have been removed.
+After the README Debug build, run `python3 App/Tests/run-calendar-editor-regression.py` to check title, date, calendar selection, and field forwarding. Add `--preview` to open the actual grouped editor with sample calendars and no real event writes; also add `--preview-error` to simulate an initial conflict and check editing and retrying. The date row opens a calendar with numeric hour and minute menus. Creation saves through ToolService without ICS handoff or launching Calendar.
 
 ### Notification Preview
 

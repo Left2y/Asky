@@ -74,7 +74,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。“在 Dock 栏显示”默认关闭；开启后即使关闭所有窗口也保留 Dock 图标，点击图标可重新打开入口，主动退出应用后结束常驻。
 
-主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前黑白应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。开启后台 AI、短信读取并授权后，可从短信/iMessage 中提取明确预约，在卡片中点击“创建日程”，直接打开 macOS「日历」并带入标题、起止时间和地点，在日历中完成添加；截止事项仍作为提醒建议。
+主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前黑白应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。开启后台 AI、短信读取并授权后，可从短信/iMessage 中提取明确预约，在卡片中点击“创建日程”，在 Asky 的分组圆角弹窗中修改标题、起止时间、地点、目标日历和备注，点击“创建”后直接保存，无需打开日历应用；截止事项仍作为提醒建议。
 
 ### 配置与隐私
 
@@ -112,6 +112,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
+请求确认全量预览：Debug 构建后运行 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`；每个场景依次选择“确认执行”和“不执行”，只测试界面与返回结果，不执行真实工具。
+
 服务商预设回归：先执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`，再运行 `build/model-provider-regression`。
 
 Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only`（先完成 Debug 构建）。
@@ -119,6 +121,8 @@ Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer py
 聊天图片剪贴板回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images`（先完成 Debug 构建）。
 
 复制提示条回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces`（先完成 Debug 构建），检查深浅色圆角表面并生成截图。
+
+日程配置回归：Debug 构建后执行 `python3 App/Tests/run-calendar-editor-regression.py`；加 `--preview` 查看无真实写入的示例，另加 `--preview-error` 检查冲突后修改重试。
 
 原生回归、通知预览与 `scripts/package-release.py` 打包流程见[开发与发布指南](docs/development.md)。打包前提交源码并保持工作区干净；使用固定的 `Asky Local Signing` 证书，生成 DMG、更新 ZIP 与校验文件。检查结果写入 `docs/validation/`。
 
@@ -183,7 +187,7 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden. “Show in Dock” is off by default. When enabled, the Dock icon stays visible after all windows close; click it to reopen the launcher. Quit the app to end its running session.
 
-Proactive reminders use Asky’s own top-right cards with the current monochrome app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake. With background AI, message reading, and the required access enabled, explicit appointments in SMS/iMessage can offer a Create event action. This opens macOS Calendar with the title, start/end times, and location for you to add there; deadlines remain reminder suggestions.
+Proactive reminders use Asky’s own top-right cards with the current monochrome app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake. With background AI, message reading, and the required access enabled, explicit appointments in SMS/iMessage can offer a Create event action. Edit the title, start/end times, location, destination calendar, and notes in Asky’s compact dialog, then click Create to save without opening Calendar; deadlines remain reminder suggestions.
 
 ### Configuration and Privacy
 
@@ -221,6 +225,8 @@ Common checks (build MCP Bridge before testing the core package):
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
+Full confirmation preview: after building Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`. Choose Confirm, then Decline, for each scenario; this checks UI and response handling without executing real tools.
+
 Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
 
 Dock visibility regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only` (build Debug first).
@@ -228,6 +234,8 @@ Dock visibility regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Deve
 Chat-image clipboard regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images` (build Debug first).
 
 Copy-toast regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --toast-surfaces` (build Debug first) checks rounded surfaces in light and dark appearances and captures snapshots.
+
+Calendar editor regression: after the Debug build, run `python3 App/Tests/run-calendar-editor-regression.py`; add `--preview` for a sample without calendar writes, and `--preview-error` to check editing and retrying after a conflict.
 
 See the [development and release guide](docs/development.md) for native regressions, notification previews, and the `scripts/package-release.py` workflow. Commit source changes and keep the working tree clean before packaging. Use the persistent `Asky Local Signing` certificate to produce a DMG, updater ZIP, and checksums. Record checks in `docs/validation/`.
 

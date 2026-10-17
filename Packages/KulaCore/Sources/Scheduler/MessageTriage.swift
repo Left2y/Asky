@@ -8,12 +8,17 @@ public struct MessageCalendarDraft: Sendable, Hashable, Codable {
     /// Missing end times are shown as an explicit one-hour proposal in the editor.
     public var end: Date?
     public var location: String?
+    public var calendar: String?
+    public var notes: String?
 
-    public init(title: String, start: Date, end: Date? = nil, location: String? = nil) {
+    public init(title: String, start: Date, end: Date? = nil, location: String? = nil,
+                calendar: String? = nil, notes: String? = nil) {
         self.title = title
         self.start = start
         self.end = end
         self.location = location
+        self.calendar = calendar
+        self.notes = notes
     }
 
     public var proposedEnd: Date { end ?? start.addingTimeInterval(3600) }
@@ -37,6 +42,10 @@ public struct MessageCalendarDraft: Sendable, Hashable, Codable {
         ]
         if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             values["location"] = .string(location.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        if let calendar, !calendar.isEmpty { values["calendar"] = .string(calendar) }
+        if let notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            values["notes"] = .string(notes)
         }
         return .object(values)
     }

@@ -19,6 +19,7 @@ final class ProactiveReminders: NSObject {
     private var checkpoint: Timer?
     private var deliveryTimer: Timer?
     private var creatingCalendar: Set<String> = []
+    private let calendarCreation: MessageCalendarCreation
     private var bannerIDs: [String: UUID] = [:]
     private var pending: Task<Void, Never>?
     private var lastAdvisorCall: Date?
@@ -37,6 +38,7 @@ final class ProactiveReminders: NSObject {
 
     init(app: AppModel) {
         self.app = app
+        calendarCreation = MessageCalendarCreation(store: app.store)
         scheduler = ContextScheduler(store: ReminderStore(app.store))
         super.init()
     }
@@ -267,13 +269,39 @@ final class ProactiveReminders: NSObject {
             showCalendarError(NSLocalizedString("短信安排已变化或授权已关闭，请重新检查。", comment: ""))
             return
         }
-        do {
-            try await ToolService.openCalendarDraft(title: draft.title, start: draft.start,
-                end: draft.proposedEnd, location: draft.location, sourceID: note.id,
-                notes: note.summary)
-            // Calendar owns confirmation and saving. A successful handoff is not a saved event.
-        } catch {
-            showCalendarError(error.localizedDescription)
+        let tools = app.tools
+        let result: ExecutionResult?
+        if await calendarCreation.hasRequest(sourceID: note.id) {
+            result = await calendarCreation.submit(sourceID: note.id, draft: draft) { await tools.submit($0) }
+        } else {
+            let listed = await tools.submit(ActionRequest(tool: "calendar_list_calendars", arguments: [:],
+                                                         origin: .launcher, intent: .explicitRequest))
+            let calendars = MessageCalendarChoice.writableChoices(listed.output)
+            guard listed.status == .completed, !calendars.isEmpty else {
+                showCalendarError(listed.error?.message ?? NSLocalizedString("没有可写的日历，请先在系统日历中配置。", comment: ""))
+                return
+            }
+            result = await MessageCalendarEditor.present(draft, calendars: calendars, source: note.summary) { [weak self] edited in
+                guard let self, self.calendarNote(for: plan)?.calendarDraft == draft,
+                      self.app.settings.enabledSources.contains(.calendar), edited.isValid(at: Date()) else {
+                    return .failure(UUID().uuidString, .invalidArguments, "安排已变化或授权已关闭，请重新检查。")
+                }
+                return await self.calendarCreation.submit(sourceID: note.id, draft: edited) { await tools.submit($0) }
+            }
+        }
+        guard let result else { return }
+        if result.status == .completed {
+            try? scheduler.markHandled(plan.id)
+            if var state = app.store.codableSetting(Self.triageKey, as: MessageTriageState.self) {
+                state.notes.removeAll { $0.id == note.id }
+                app.store.setCodableSetting(Self.triageKey, state)
+            }
+            withdrawCard(plan.id)
+            schedule()
+        } else {
+            showCalendarError(result.status == .pendingVerification
+                ? NSLocalizedString("创建结果待核实，请勿重复创建。", comment: "")
+                : result.error?.message ?? NSLocalizedString("日程未创建，请重试。", comment: ""))
         }
     }
 

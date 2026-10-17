@@ -34,6 +34,24 @@ private actor CalendarWriter {
         #expect(requests[0].intent == .explicitRequest && requests[0].arguments["allowConflict"] == nil)
     }
 
+    @Test func editedCalendarAndNotesReachTheWriterAndLegacyDraftsStillDecode() async throws {
+        var edited = draft
+        edited.calendar = "writable-calendar-id"
+        edited.notes = "带上新版原型"
+        let store = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
+        let creation = MessageCalendarCreation(store: store)
+        let writer = CalendarWriter()
+        _ = await creation.submit(sourceID: "edited", draft: edited, now: now) { await writer.submit($0) }
+        let request = await writer.requests.first
+        #expect(request?.arguments["calendar"]?.stringValue == edited.calendar)
+        #expect(request?.arguments["notes"]?.stringValue == edited.notes)
+        var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(draft)) as! [String: Any]
+        legacy.removeValue(forKey: "calendar")
+        legacy.removeValue(forKey: "notes")
+        let decoded = try JSONDecoder().decode(MessageCalendarDraft.self, from: JSONSerialization.data(withJSONObject: legacy))
+        #expect(decoded.calendar == nil && decoded.notes == nil && decoded.title == draft.title)
+    }
+
     @Test func pendingAndCompletedRequestsKeepTheirIdentityAcrossRelaunches() async throws {
         for pending in [true, false] {
             let store = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)

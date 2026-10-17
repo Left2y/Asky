@@ -754,26 +754,32 @@ private struct ToolCallRow: View {
                         Image(nsImage: pluginIcon).resizable().scaledToFit()
                     } else if item.pluginID != nil {
                         Image("Plugin").resizable().scaledToFit()
-                    } else if let source = item.toolSource {
+                    } else if let source = item.toolSource, source != .web {
                         DataSourceIcon(source: source)
                     } else {
                         Image(mingCute: item.toolSymbol)
                     }
                 }
                 .frame(width: 16, height: 16)
-                Text(item.text).textSelection(.enabled)
+                if item.toolError != nil {
+                    Button { expanded.toggle() } label: {
+                        HStack(spacing: 4) {
+                            Text(item.text)
+                            Image(mingCute: expanded ? "chevron.down" : "chevron.right", size: 12)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(NSLocalizedString(expanded ? "收起错误详情" : "展开错误详情", comment: ""))
+                    .accessibilityValue(expanded ? "expanded" : "collapsed")
+                } else {
+                    Text(item.text).textSelection(.enabled)
+                }
                 if let status, status != .completed, status != .failed {
                     Text(AgentModel.statusLabel(status))
                 }
                 Spacer(minLength: 0)
-                if item.toolError != nil {
-                    Button { expanded.toggle() } label: {
-                        Image(mingCute: expanded ? "chevron.down" : "chevron.right", size: 12).frame(width: 28, height: 28)
-                    }
-                    .buttonStyle(AgentIconButtonStyle())
-                    .accessibilityLabel(NSLocalizedString(expanded ? "收起错误详情" : "展开错误详情", comment: ""))
-                    .accessibilityValue(expanded ? "expanded" : "collapsed")
-                }
             }
             if expanded, let error = item.toolError {
                 Text(error).textSelection(.enabled)

@@ -73,8 +73,17 @@ enum AgentReplyRegression {
             let toolID = try store.create(title: "工具调用样式")
             model.open(toolID)
             for (id, tool, status, error) in [
-                ("calendar", "calendar_list", ExecutionStatus.completed, Optional<String>.none),
+                ("calendar", "calendar_search_events", ExecutionStatus.completed, Optional<String>.none),
                 ("lark", "plugin_lark__help", .failed, "Error: unknown command \"message\" for \"lark-cli\"\n    at run (plugins/lark/index.mjs:21:5)"),
+                ("search", "web_search", .completed, nil),
+                ("notes", "notes_search", .completed, nil),
+                ("reminders", "reminders_list", .completed, nil),
+                ("contacts", "contacts_search", .completed, nil),
+                ("messages", "messages_search", .completed, nil),
+                ("chrome", "chrome_list_tabs", .completed, nil),
+                ("shortcuts", "shortcuts_list", .completed, nil),
+                ("memory", "memory_read", .completed, nil),
+                ("plugin", "plugin_orca__help", .completed, nil),
                 ("running", "notes_search", nil, nil)
             ] as [(String, String, ExecutionStatus?, String?)] {
                 model.handle(.toolCall(taskID: "tools", ActionRequest(requestID: id, tool: tool, arguments: .object([:]), origin: .agent(sessionID: toolID), intent: .explicitRequest)), conversationID: toolID)
@@ -82,6 +91,9 @@ enum AgentReplyRegression {
                     model.handle(.toolResult(taskID: "tools", ExecutionResult(requestID: id, status: status, error: error.map { ToolError(.invalidArguments, $0) })), conversationID: toolID)
                 }
             }
+            precondition(model.items.count == 12, "preview must include each tool family and execution state")
+            precondition(model.items.first { $0.id == "search" }?.toolSymbol == "magnifyingglass",
+                         "web search uses the MingCute search icon")
             precondition(!model.items[0].text.contains("已完成"))
             precondition(!model.items[1].text.contains("Error:"))
             precondition(model.items[1].toolError?.contains("unknown command") == true)

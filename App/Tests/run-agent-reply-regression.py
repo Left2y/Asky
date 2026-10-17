@@ -35,9 +35,11 @@ bundle = root / "build/AgentReplyRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)
 (bundle / "Resources").mkdir(exist_ok=True)
 executable = bundle / "MacOS/AgentReplyRegression"
+executable.unlink(missing_ok=True)
 shutil.copy2(binary, executable)
 shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
 with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "AgentReplyRegression", "CFBundleIdentifier": "app.asky.reply-regression",
                   "CFBundleName": "AgentReplyRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], check=True)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

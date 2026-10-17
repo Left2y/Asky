@@ -32,7 +32,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识、真实应用图标，以及启动器“打开链接”和“搜索书签”的原有彩色图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，插件工具调用统一使用 tool 图标，设置页的官方与已安装插件保留对应应用 Logo（优先使用插件声明的图标），失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
 
-应用图标与设置中的品牌图使用黑色石墨质感，轮廓源文件见 [Mark.svg](App/Branding/Mark.svg)；菜单栏使用同轮廓的单色模板图。
+应用图标与设置中的品牌图采用浅蓝磨砂小伙伴：无触角、歪头微笑、深蓝底与放大裁切。正式主图见 [Logo.png](App/Branding/Logo.png)，独立图标包见 [Asky.icns](App/Branding/Asky.icns)，菜单栏使用其简化单色轮廓 [Mark.svg](App/Branding/Mark.svg)。
 
 ### 核心能力
 
@@ -82,7 +82,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。“在 Dock 栏显示”默认关闭，打开设置也不会显示 Dock 图标；开启后即使关闭所有窗口也保留 Dock 图标，点击图标可重新打开入口，主动退出应用后结束常驻。
 
-主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前黑白应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。开启后台 AI、短信读取并授权后，可从短信/iMessage 中提取明确预约，在卡片中点击“创建日程”，在 Asky 的分组圆角弹窗中修改标题、起止时间、地点、目标日历和备注，点击“创建”后直接保存，无需打开日历应用；截止事项仍作为提醒建议。
+主动提醒使用 Asky 自绘的右上角提醒卡片，显示当前应用图标，默认无声且不抢焦点；无需系统通知权限，不进入通知中心。Asky 退出后不弹出提醒，重新启动或唤醒时校验计划。开启后台 AI、短信读取并授权后，可从短信/iMessage 中提取明确预约，在卡片中点击“创建日程”，在 Asky 的分组圆角弹窗中修改标题、起止时间、地点、目标日历和备注，点击“创建”后直接保存，无需打开日历应用；截止事项仍作为提醒建议。
 
 ### 配置与隐私
 
@@ -165,7 +165,7 @@ In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning win
 
 Functional icons use bundled MingCute vector templates; brand marks, real application icons, and the launcher’s original colored Open Link and Search Bookmarks icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, plugin tool calls share the tool icon, and failures use a circular exclamation mark. Official and installed plugins in Settings retain the corresponding app logo, preferring plugin-provided artwork when available. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
 
-The app icon and branding in Settings use a black graphite finish based on [Mark.svg](App/Branding/Mark.svg). The menu bar uses the same silhouette as a monochrome template.
+The app icon and branding in Settings feature a pale-blue frosted companion with a smooth hornless silhouette, tilted smile, dark navy background, and enlarged crop. The production master is [Logo.png](App/Branding/Logo.png), with a standalone [Asky.icns](App/Branding/Asky.icns) export; the menu bar uses its simplified monochrome silhouette in [Mark.svg](App/Branding/Mark.svg).
 
 ### Features
 
@@ -215,7 +215,7 @@ A floating action area overlays the bottom of the results. The left side shows t
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden. “Show in Dock” is off by default, and opening Settings does not show the Dock icon. When enabled, the Dock icon stays visible after all windows close; click it to reopen the launcher. Quit the app to end its running session.
 
-Proactive reminders use Asky’s own top-right cards with the current monochrome app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake. With background AI, message reading, and the required access enabled, explicit appointments in SMS/iMessage can offer a Create event action. Edit the title, start/end times, location, destination calendar, and notes in Asky’s compact dialog, then click Create to save without opening Calendar; deadlines remain reminder suggestions.
+Proactive reminders use Asky’s own top-right cards with the current app icon. They are silent and do not take focus, require no system notification permission, and do not enter Notification Center. No reminders appear after Asky quits; plans are revalidated on launch or wake. With background AI, message reading, and the required access enabled, explicit appointments in SMS/iMessage can offer a Create event action. Edit the title, start/end times, location, destination calendar, and notes in Asky’s compact dialog, then click Create to save without opening Calendar; deadlines remain reminder suggestions.
 
 ### Configuration and Privacy
 

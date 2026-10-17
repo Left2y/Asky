@@ -476,6 +476,7 @@
 "保存这条记忆？" = "Save this memory?";
 "修改这条记忆？" = "Update this memory?";
 "删除这条记忆？" = "Delete this memory?";
+"删除这一项？" = "Delete this item?";
 "标题" = "Title";
 "正文" = "Body";
 "路径" = "Path";

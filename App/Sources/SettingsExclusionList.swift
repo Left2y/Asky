@@ -22,6 +22,8 @@ struct SettingsEditableList: View {
     @Binding var items: [String]
     let choose: @MainActor () async -> String?
     @State private var choosing = false
+    @State private var pendingRemoval: String?
+    @State private var confirmingRemoval = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -33,7 +35,7 @@ struct SettingsEditableList: View {
                 if items.isEmpty {
                     Text(emptyText).foregroundStyle(.secondary)
                 }
-                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     HStack(spacing: 12) {
                         Group {
                             if let systemImage { Label { Text(item) } icon: { Image(mingCute: systemImage) } } else { Text(item) }
@@ -43,8 +45,9 @@ struct SettingsEditableList: View {
                         .help(item)
                         .textSelection(.enabled)
                         Spacer(minLength: 12)
-                        SettingsButton("", systemImage: "trash", isBordered: false) {
-                            items.remove(at: index)
+                        SettingsIconButton(systemImage: "trash") {
+                            pendingRemoval = item
+                            confirmingRemoval = true
                         }
                         .help(NSLocalizedString("删除", comment: ""))
                         .accessibilityLabel(NSLocalizedString("删除", comment: "") + " " + item)
@@ -54,6 +57,14 @@ struct SettingsEditableList: View {
         }
         .padding(.vertical, 4)
         .disabled(choosing)
+        .appDialog(NSLocalizedString("删除这一项？", comment: ""), isPresented: $confirmingRemoval,
+                   message: pendingRemoval ?? "",
+                   buttons: [NSLocalizedString("删除", comment: ""), NSLocalizedString("取消", comment: "")]) { response in
+            if response == 0, let item = pendingRemoval {
+                items.removeAll { $0 == item }
+            }
+            pendingRemoval = nil
+        }
     }
 
     private func add() {

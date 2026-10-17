@@ -200,13 +200,41 @@ struct SettingsMoreMenu<Content: View>: View {
         .fixedSize()
         .frame(width: 28, height: 28)
         .contentShape(RoundedRectangle(cornerRadius: 6))
-        .background {
+        .settingsRowHoverFill(hovered && enabled)
+        .onHover { hovered = $0 }
+    }
+}
+
+/// Borderless row action that mirrors `SettingsMoreMenu`'s glyph, hit target and hover fill.
+struct SettingsIconButton: View {
+    let systemImage: String
+    let action: () -> Void
+    @State private var hovered = false
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        Button(action: action) {
+            Image(nsImage: MingCute.image(systemImage, size: 15, canvas: 28))
+                .renderingMode(.template)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .frame(width: 28, height: 28)
+        .contentShape(RoundedRectangle(cornerRadius: 6))
+        .settingsRowHoverFill(hovered && enabled)
+        .onHover { hovered = $0 }
+    }
+}
+
+private extension View {
+    func settingsRowHoverFill(_ visible: Bool) -> some View {
+        background {
             RoundedRectangle(cornerRadius: 6)
                 .fill(ThemeColor.kInteractionHover)
-                .opacity(enabled && hovered ? 1 : 0)
+                .opacity(visible ? 1 : 0)
                 .allowsHitTesting(false)
         }
-        .onHover { hovered = $0 }
     }
 }
 

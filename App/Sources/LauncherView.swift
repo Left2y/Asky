@@ -750,6 +750,7 @@ private struct ResultList: View {
     let maxHeight: CGFloat
     var excludedCurrencyCode: String? = nil
     @State private var retainedHeight: CGFloat = 0
+    @State private var selectionFromPointer = false
 
     private struct LayoutRequest: Equatable {
         let query: String
@@ -815,6 +816,11 @@ private struct ResultList: View {
                                     .buttonStyle(.plain)
                                     .accessibilityLabel(r.title)
                                     .accessibilityAddTraits(i == model.selection ? .isSelected : [])
+                                    .onHover { inside in
+                                        guard inside, model.selection != i else { return }
+                                        selectionFromPointer = true
+                                        model.selection = i
+                                    }
                                     // Keep enough scrollable clearance for the final row
                                     // to move above the floating controls.
                                     .padding(.bottom, r.id == visibleResults.last?.id ? bottomPadding : 0)
@@ -856,6 +862,11 @@ private struct ResultList: View {
                 retainedHeight = target
             }
             .onChange(of: model.selection) { _, s in
+                // Hover must select the row without moving it away from the pointer.
+                if selectionFromPointer {
+                    selectionFromPointer = false
+                    return
+                }
                 guard model.results.indices.contains(s) else { return }
                 proxy.scrollTo(model.results[s].id, anchor: .center)
             }
@@ -864,7 +875,7 @@ private struct ResultList: View {
 
     private static func section(for result: SearchResult) -> String {
         if QuitAskyCommand.isResult(result) { return title(.app) }
-        if result.target.kind == "keyword-match" { return NSLocalizedString("别名匹配", comment: "") }
+        if ["keyword-match", "launcher-alias"].contains(result.target.kind) { return NSLocalizedString("别名匹配", comment: "") }
         switch result.source {
         case .app, .link, .bookmark: return title(.app)
         default: return title(result.source)
@@ -921,7 +932,6 @@ private struct ResultRow: View {
     let selected: Bool
     let keyword: String?
     var terminalIcon: NSImage?
-    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -952,11 +962,9 @@ private struct ResultRow: View {
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)
         .background(result.source == .currency ? AnyShapeStyle(.clear) :
-                        hovering ? AnyShapeStyle(ThemeColor.kInteractionHover) :
                         selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
-        .onHover { hovering = result.source != .currency && $0 }
     }
 
     private var typeLabel: String {

@@ -351,7 +351,7 @@ final class LauncherModel {
             if filter == .all, QuitAskyCommand.matches(text) { direct.append(QuitAskyCommand.result) }
             direct += app.keywords.commands.compactMap { command in
                 let exact = command.keyword.caseInsensitiveCompare(text.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
-                guard exact || command.urlTemplate.contains("{query}"),
+                guard exact || (filter != .all && command.urlTemplate.contains("{query}")),
                       let url = command.url(for: exact ? "" : text) else { return nil }
                 return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
                                     title: command.name, actions: [.openURL(url)], score: 0)
@@ -494,6 +494,16 @@ final class LauncherModel {
         merged = priority.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") }
             + priority.filter { $0.source == .shortcut }
             + order.flatMap { source in remaining.filter { $0.source == source } }
+        // An alias and its provider result open the same target. Keep the alias
+        // in its priority position instead of listing that application/shortcut twice.
+        let aliases = merged.filter { $0.target.kind == "launcher-alias" }
+        merged.removeAll { result in
+            guard [.app, .shortcut].contains(result.source) else { return false }
+            return aliases.contains { alias in
+                alias.target.identifier == result.target.identifier &&
+                    (result.source == .app ? alias.primaryAction == .open : alias.primaryAction == result.primaryAction)
+            }
+        }
         merged = merged.filter(QuitAskyCommand.isResult) + merged.filter { !QuitAskyCommand.isResult($0) }
         if isActionsMenuPresented, merged.indices.contains(selection), merged[selection] != actionMenuTarget {
             closeActionsMenu()

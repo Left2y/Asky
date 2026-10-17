@@ -38,7 +38,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--action-bar") {
+                    if CommandLine.arguments.contains("--alias-results") {
+                        try await checkAliasResults()
+                    } else if CommandLine.arguments.contains("--action-bar") {
                         try await checkActionBar()
                     } else if CommandLine.arguments.contains("--compact-results") {
                         try await checkCompactResults()
@@ -559,6 +561,62 @@ enum LauncherWindowRegression {
                 }
             }
         }
+    }
+
+    private static func checkAliasResults() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-alias-results-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let appearance = NSApp.appearance?.name ?? .aqua
+        let app = try AppModel(root: root)
+        app.preferences.appearance = appearance == .darkAqua ? "dark" : "light"
+        let target = "/System/Applications/Notes.app"
+        app.preferences.aliases = [LauncherAlias(alias: "codex", kind: "app", target: target)]
+        let model = LauncherModel(app: app, searchProviders: [CompactProvider(source: .app, results: [
+            SearchResult(source: .app, target: TargetRef(kind: "app", identifier: target),
+                         title: "Codex", actions: [.open, .revealInFinder]),
+            SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/System/Applications/Safari.app"),
+                         title: "Codex Helper", actions: [.open, .revealInFinder])
+        ])])
+        model.query = "codex"
+        let controller = LauncherController(model: model)
+        controller.show()
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
+              let content = panel.contentView else { throw NSError(domain: "AliasResults", code: 1) }
+        panel.onBlur = {}
+        defer { controller.hide() }
+        try await Task.sleep(for: .milliseconds(700))
+        try require(model.results.first?.target.kind == "launcher-alias", "alias must remain first")
+        try require(model.results.filter { $0.target.identifier == target }.count == 1,
+                    "alias target must appear only once after provider delivery")
+        try require(!model.results.contains { $0.source == .keyword && $0.target.kind == "url" },
+                    "plain search must not append unrelated search engines")
+        try require(model.results.count == 3 && model.results.last?.source == .askAI,
+                    "alias, distinct app, and AI must remain available")
+        guard let scroll = scrollView(in: content) else { throw NSError(domain: "AliasResults", code: 2) }
+        let before = scroll.contentView.bounds.origin
+        let oldPointer = CGEvent(source: nil)!.location
+        defer { CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: oldPointer,
+                        mouseButton: .left)?.post(tap: .cghidEventTap) }
+        // Second section: one header and row, then its own header and row.
+        let rect = panel.convertToScreen(scroll.convert(scroll.bounds, to: nil))
+        let point = CGPoint(x: rect.midX,
+                            y: NSScreen.screens[0].frame.maxY - rect.maxY + 2 * LauncherLayout.sectionHeaderHeight + 1.5 * LauncherLayout.rowHeight)
+        CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point,
+                mouseButton: .left)?.post(tap: .cghidEventTap)
+        try await Task.sleep(for: .milliseconds(300))
+        try require(model.selection == 1, "moving pointer down must select the distinct app row")
+        try require(scroll.contentView.bounds.origin == before, "hover must not scroll the row away")
+        model.move(1)
+        try await Task.sleep(for: .milliseconds(200))
+        try require(model.results[model.selection].source == .askAI, "keyboard must continue from hovered selection")
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                             "build/launcher-alias-results-\(appearance.rawValue).png"]
+        try capture.run()
+        capture.waitUntilExit()
+        try require(capture.terminationStatus == 0, "alias screenshot must succeed")
+        print("alias results: no generic engines, unique target, pointer selection and keyboard passed")
     }
 
     private static func checkAliasRouting() async throws {

@@ -126,6 +126,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 
 悬浮操作区回归：完成 Debug 构建后执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar`，检查菜单键盘路由、焦点、复制路径、结果选择恢复与深浅色实际窗口。
 
+别名结果回归：Debug 构建后运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --alias-results`，检查别名目标去重、通用搜索入口过滤、鼠标选择及键盘接续。
+
 退出搜索回归：完成 Debug 构建后，运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py`，检查排序、精确匹配、取消、确认和浅色/深色窗口。
 
 Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only`（先完成 Debug 构建）。
@@ -258,6 +260,8 @@ Full confirmation preview: after building Debug, run `open -n build/DerivedData/
 Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
 
 Floating action area regression: after the Debug build, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar` to check menu keyboard routing, focus, path copying, restored result navigation, and actual light/dark windows.
+
+Alias results regression: after the Debug build, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --alias-results` to check alias target deduplication, generic search action filtering, pointer selection, and subsequent keyboard navigation.
 
 Quit search regression: after building Debug, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py` to check ranking, exact matching, cancellation, confirmation, and light/dark windows.
 

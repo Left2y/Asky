@@ -358,6 +358,11 @@ private struct ReminderBannerCard: View {
         return item.source.hasPrefix(prefix) ? String(item.source.dropFirst(prefix.count)) : item.source
     }
 
+    /// Keep punctuation inside sentences, but omit Chinese full stops at the end of card copy.
+    private func displayText(_ text: String) -> String {
+        text.replacingOccurrences(of: #"。+(?=\s*$)"#, with: "", options: .regularExpression)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -366,12 +371,12 @@ private struct ReminderBannerCard: View {
                     .frame(width: 18, height: 18)
                     .accessibilityHidden(true)
                 if !sourceLabel.isEmpty {
-                    Text(sourceLabel)
+                    Text(displayText(sourceLabel))
                         .textStyle(.secondary)
                         .foregroundStyle(ThemeColor.kTextSubtle)
                 }
                 Spacer(minLength: 8)
-                Text(item.timeLabel)
+                Text(displayText(item.timeLabel))
                     .textStyle(.secondary)
                     .foregroundStyle(ThemeColor.kTextSubtle)
                     .opacity(hovering ? 0 : 1)
@@ -385,10 +390,10 @@ private struct ReminderBannerCard: View {
                     .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.title)
+                    Text(displayText(item.title))
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(ThemeColor.kText)
-                    Text(item.body)
+                    Text(displayText(item.body))
                         .textStyle(.resultPrimary)
                         .foregroundStyle(ThemeColor.kTextSubtle)
                         .fixedSize(horizontal: false, vertical: true)
@@ -405,7 +410,7 @@ private struct ReminderBannerCard: View {
                             action.handler()
                             if action.dismissesCard { onDismiss() }
                         } label: {
-                            Text(action.title).frame(minWidth: 56)
+                            Text(displayText(action.title)).frame(minWidth: 56)
                         }
                         .buttonStyle(BannerButtonStyle(prominent: action.prominent))
                     }

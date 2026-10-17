@@ -108,6 +108,17 @@ enum AgentReplyRegression {
             controller.show()
             runPreview(controller, application: application)
         }
+        if CommandLine.arguments.contains("--scroll-preview") {
+            let scrollID = try store.create(title: "回到底部按钮验证")
+            for index in 1...24 {
+                try store.append(conversationID: scrollID, role: index.isMultiple(of: 2) ? "assistant" : "user",
+                                 text: "第 \(index) 条消息：用于检查向上滚动后的回到底部按钮。")
+            }
+            model.open(scrollID)
+            let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+            controller.show()
+            runPreview(controller, application: application)
+        }
         if CommandLine.arguments.contains("--preview") {
             let previewID = try store.create(title: "澄清回复回归")
             model.open(previewID)

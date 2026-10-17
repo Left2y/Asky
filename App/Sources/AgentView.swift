@@ -329,6 +329,10 @@ struct AgentIconButtonStyle: ButtonStyle {
 
 private struct Transcript: View {
     let model: AgentModel
+    @State private var isAtBottom = true
+    @State private var scrollPosition = ScrollPosition()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // Value snapshots let an outgoing transcript finish fading after model.open
     // clears/replaces the active conversation. The live model still owns actions.
     private let items: [ChatItem]
@@ -349,7 +353,7 @@ private struct Transcript: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
+        Group {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if hasOlder {
@@ -382,9 +386,37 @@ private struct Transcript: View {
                 }
                 .padding(.horizontal, 32).padding(.vertical, 12)
             }
-            .onAppear { proxy.scrollTo("bottom") }
-            .onChange(of: items.count) { proxy.scrollTo("bottom") }
-            .onChange(of: streaming) { proxy.scrollTo("bottom") }
+            .scrollPosition($scrollPosition)
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height
+                    >= geometry.contentSize.height + geometry.contentInsets.bottom - 1
+            } action: { _, atBottom in
+                isAtBottom = atBottom
+            }
+            .overlay(alignment: .bottom) {
+                if !isAtBottom {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                            scrollPosition.scrollTo(edge: .bottom)
+                        }
+                    } label: {
+                        Image(mingCute: "arrow.up", size: 20)
+                            .rotationEffect(.degrees(180))
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
+                    .accessibilityLabel(NSLocalizedString("回到底部", comment: ""))
+                    .help(NSLocalizedString("回到底部", comment: ""))
+                    .padding(.bottom, 8)
+                }
+            }
+            .onChange(of: items.count) {
+                if isAtBottom { scrollPosition.scrollTo(edge: .bottom) }
+            }
+            .onChange(of: streaming) {
+                if isAtBottom { scrollPosition.scrollTo(edge: .bottom) }
+            }
         }
     }
 

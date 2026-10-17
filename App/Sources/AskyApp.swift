@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var settingsWindow: NSWindow?
     private var pressure: MemoryPressureMonitor?
     private let termination = ApplicationTermination()
+    private let dockVisibility = DockVisibilityController()
     private let windowPresentation = WindowPresentation()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -87,6 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             return
         }
         model.onOpenSettings = { [weak self] in self?.openSettings() }
+        dockVisibility.showDockIcon = model.preferences.showDockIcon
+        model.onDockIconVisibilityChange = { [weak self] visible in
+            self?.dockVisibility.showDockIcon = visible
+        }
         EditMenu.install()
         launcherModel = LauncherModel(app: model)
         launcher = LauncherController(model: launcherModel)
@@ -341,7 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func windowWillClose(_ notification: Notification) {
         guard notification.object as? NSWindow === settingsWindow else { return }
-        NSApp.setActivationPolicy(.accessory)
+        dockVisibility.settingsOpen = false
     }
 
     @objc private func openSettings() {
@@ -356,7 +361,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         launcher.hide()
         clipboardWindow.hide()
-        NSApp.setActivationPolicy(.regular)
+        dockVisibility.settingsOpen = true
         // Updates replace the bundle in place, so the Dock may still hold the old cached icon.
         if let icon = Bundle.main.image(forResource: "AppIcon") { NSApp.applicationIconImage = icon }
         if let settingsWindow { windowPresentation.show(settingsWindow) }

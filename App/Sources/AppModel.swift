@@ -88,10 +88,14 @@ final class AppModel {
     @ObservationIgnored var onClipboardHotKeyChange: ((UInt32, UInt32) -> Bool)?
     @ObservationIgnored var onAgentHotKeyChange: ((UInt32, UInt32) -> Bool)?
     @ObservationIgnored var onMenuBarIconVisibilityChange: ((Bool) -> Void)?
+    @ObservationIgnored var onDockIconVisibilityChange: ((Bool) -> Void)?
     var preferences: SettingsPreferences {
         didSet {
             if preferences.showMenuBarIcon != oldValue.showMenuBarIcon {
                 onMenuBarIconVisibilityChange?(preferences.showMenuBarIcon)
+            }
+            if preferences.showDockIcon != oldValue.showDockIcon {
+                onDockIconVisibilityChange?(preferences.showDockIcon)
             }
             if preferences.liquidGlass != oldValue.liquidGlass {
                 SurfaceCompatibility.state.liquidGlassEnabled = preferences.liquidGlass

@@ -45,6 +45,48 @@ enum SettingsRegression {
                     KeywordCommand(keyword: "go", name: "Custom", urlTemplate: "https://example.com"),
                 ]))
                 let model = try AppModel(root: root)
+                if CommandLine.arguments.contains("--dock-only") {
+                    let legacy = try JSONDecoder().decode(SettingsPreferences.self,
+                        from: Data(#"{"appearance":"dark","showMenuBarIcon":false}"#.utf8))
+                    precondition(!legacy.showDockIcon && legacy.appearance == "dark" && !legacy.showMenuBarIcon)
+                    precondition(!model.preferences.showDockIcon)
+                    let dock = DockVisibilityController()
+                    model.onDockIconVisibilityChange = { dock.showDockIcon = $0 }
+                    dock.showDockIcon = model.preferences.showDockIcon
+                    precondition(application.activationPolicy() == .accessory)
+                    let window = SettingsWindow.make(app: model)
+                    dock.settingsOpen = true
+                    window.makeKeyAndOrderFront(nil)
+                    try await Task.sleep(for: .milliseconds(600))
+                    if let view = window.contentView,
+                       let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])?.write(
+                            to: URL(fileURLWithPath: "build/dock-settings.png"))
+                    }
+                    model.preferences.showDockIcon = true
+                    let enabled = try AppModel(root: root).preferences.showDockIcon
+                    precondition(enabled)
+                    window.close()
+                    dock.settingsOpen = false
+                    precondition(application.activationPolicy() == .regular)
+                    dock.settingsOpen = true
+                    window.makeKeyAndOrderFront(nil)
+                    model.preferences.showDockIcon = false
+                    precondition(application.activationPolicy() == .regular)
+                    window.close()
+                    dock.settingsOpen = false
+                    precondition(application.activationPolicy() == .accessory)
+                    let disabled = try AppModel(root: root).preferences.showDockIcon
+                    precondition(!disabled)
+                    // Simulate launch with the saved enabled preference and no windows.
+                    model.preferences.showDockIcon = true
+                    let relaunched = DockVisibilityController()
+                    relaunched.showDockIcon = try AppModel(root: root).preferences.showDockIcon
+                    precondition(application.activationPolicy() == .regular)
+                    print("Dock visibility: legacy defaults, persistence, live changes, window close and relaunch passed")
+                    exit(0)
+                }
                 guard model.keywords.commands == KeywordCommand.builtIn,
                       model.keywords.match("go hello")?.0.urlTemplate.contains("google.com") == true,
                       model.keywords.match("chat hello")?.0.url(for: "hello")?.host == "chatgpt.com",

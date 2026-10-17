@@ -6,6 +6,7 @@ import ToolService
 struct SettingsPreferences: Codable, Equatable, Sendable {
     var appearance = "system"
     var showMenuBarIcon = true
+    var showDockIcon = false
     var liquidGlass = true
     var automaticUpdates = true
     var language = ApplicationLanguage.system
@@ -35,6 +36,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         let d = SettingsPreferences()
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         showMenuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? d.showMenuBarIcon
+        showDockIcon = try c.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? d.showDockIcon
         liquidGlass = try c.decodeIfPresent(Bool.self, forKey: .liquidGlass) ?? d.liquidGlass
         automaticUpdates = try c.decodeIfPresent(Bool.self, forKey: .automaticUpdates) ?? d.automaticUpdates
         let savedLanguage = try c.decodeIfPresent(String.self, forKey: .language)

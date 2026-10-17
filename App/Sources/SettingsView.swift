@@ -211,6 +211,7 @@ private struct GeneralSettings: View {
         SettingsForm {
             Section(NSLocalizedString("启动", comment: "")) {
                 Toggle(NSLocalizedString("显示菜单栏图标", comment: ""), isOn: $app.preferences.showMenuBarIcon)
+                Toggle(NSLocalizedString("在 Dock 栏显示", comment: ""), isOn: $app.preferences.showDockIcon)
                 Toggle(NSLocalizedString("登录时启动", comment: ""), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
                         do { on ? try SMAppService.mainApp.register() : try SMAppService.mainApp.unregister(); loginError = nil }

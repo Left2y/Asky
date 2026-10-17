@@ -29,7 +29,7 @@ enum MingCute {
         "arrow.up.right": "MingCute-arrow_right_up",
         "arrow.up.forward.app": "MingCute-external_link",
         "arrow.down.to.line": "MingCute-download",
-        "arrow.left.arrow.right": "MingCute-transfer_horizontal",
+        "arrow.left.arrow.right": "MingCute-transfer",
         "line.3.horizontal.decrease": "MingCute-filter_2",
         "list.bullet": "MingCute-history",
         "pencil": "MingCute-edit",

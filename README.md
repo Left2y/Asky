@@ -112,8 +112,6 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
-请求确认全量预览：Debug 构建后运行 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`；每个场景依次选择“确认执行”和“不执行”，只测试界面与返回结果，不执行真实工具。
-
 服务商预设回归：先执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`，再运行 `build/model-provider-regression`。
 
 Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only`（先完成 Debug 构建）。
@@ -224,8 +222,6 @@ Common checks (build MCP Bridge before testing the core package):
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
-
-Full confirmation preview: after building Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`. Choose Confirm, then Decline, for each scenario; this checks UI and response handling without executing real tools.
 
 Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
 

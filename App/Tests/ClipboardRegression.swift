@@ -329,6 +329,29 @@ enum ClipboardRegression {
                     @MainActor func descendants<T: NSView>(_ view: NSView, of type: T.Type) -> [T] {
                         (view as? T).map { [$0] } ?? view.subviews.flatMap { descendants($0, of: type) }
                     }
+                    controller.selection = controller.items.firstIndex { $0.contentHash == "long" }!
+                    try await Task.sleep(for: .milliseconds(300))
+                    let detailScroll = descendants(panel().contentView!, of: NSScrollView.self)
+                        .first { $0.bounds.width > 300 }!
+                    let viewport = detailScroll.convert(detailScroll.bounds, to: panel().contentView!)
+                    precondition(abs(viewport.maxX - panel().contentView!.bounds.maxX) < 1,
+                                 "text scroll viewport must reach the right pane edge")
+                    let document = detailScroll.documentView!
+                    precondition(document.bounds.height > detailScroll.contentSize.height,
+                                 "long text must remain scrollable")
+                    detailScroll.flashScrollers()
+                    try await Task.sleep(for: .milliseconds(120))
+                    try snapshot(panel(), "layout-list-long-text-scroller")
+                    let scrollerCapture = Process()
+                    scrollerCapture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                    scrollerCapture.arguments = ["-x", "-l", String(panel().windowNumber),
+                                                "build/clipboard-layout-list-long-text-native.png"]
+                    try scrollerCapture.run()
+                    scrollerCapture.waitUntilExit()
+                    precondition(scrollerCapture.terminationStatus == 0)
+                    detailScroll.contentView.scroll(to: NSPoint(x: 0, y: 120))
+                    detailScroll.reflectScrolledClipView(detailScroll.contentView)
+                    precondition(detailScroll.contentView.bounds.minY > 0, "long text must scroll")
                     let rows = descendants(panel().contentView!, of: ClipboardCardMouseView.self)
                     precondition(!rows.isEmpty)
                     controller.status = nil

@@ -728,9 +728,11 @@ private struct ClipboardListDetail: View {
                     Image(nsImage: image).resizable().scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 24)
                 } else if let url = ClipboardAccess.videoPreviewURL(for: item) {
                     ClipboardVideoPreview(url: url).id(url)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 24)
                 } else if item.kind == .file, let icon = ClipboardAccess.fileIcon(for: item) {
                     VStack(spacing: 16) {
                         Image(nsImage: icon).resizable().scaledToFit()
@@ -740,19 +742,21 @@ private struct ClipboardListDetail: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 24)
                 } else {
                     ScrollView {
                         Text(item.text ?? (item.kind == .image ? NSLocalizedString("原始图片已不可用", comment: "") : item.filePaths.joined(separator: "\n")))
                             .textStyle(.resultPrimary).textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(.trailing, 16)
+                            .padding(.horizontal, 24)
                     }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
-            ClipboardInformation(item: item)
+            Rectangle().fill(ThemeColor.kBorder).frame(height: 1).padding(.horizontal, 24)
+            ClipboardInformation(item: item).padding(.horizontal, 24)
         }
-        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Inset the content, not the scroll viewport, so the native scroller stays at the pane edge.
+        .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

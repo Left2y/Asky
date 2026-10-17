@@ -13,4 +13,12 @@
 - 原有聊天图片格式、临时图片删除、多文件、视频预览 URL、文件复制与拖放、敏感剪贴板测试通过。
 - 系统输出包含 `sandbox_extension_consume failed` 日志，未造成测试失败。
 
-本次仅修改核心包，不涉及 App 源码；未构建或替换已安装应用，未进行访达真实复制及窗口验收。
+## 运行版本与实际窗口复验
+
+- 执行 `xcodegen generate`，再执行 README 的 Debug `xcodebuild` 命令，结果 `BUILD SUCCEEDED`。
+- 终止旧 Debug 进程 PID 3119，重新启动同一路径的新构建 `build/DerivedData/Build/Products/Debug/Asky.app`，新进程 PID 5846；签名时间为 2026-10-17 17:05:23。
+- 通过 Orca computer-use 在访达中分别选中并按 Command-C 复制 `文件分类验证.md`、`视频分类验证.mp4`，通过 Control-Shift-C 打开实际应用的剪贴板列表。
+- 检查实际窗口截图：左侧分别显示完整的 `文件分类验证.md`、`视频分类验证.mp4`；视频右侧显示原生播放器及测试视频画面，不再显示“图片”。只读检查历史中这两条记录均为 `kind=file`，保存真实文件路径。
+- 截图证据保存在本机 `/tmp/asky-clipboard-ui.json` 与 `/tmp/asky-video-ui2.json` 所指向的 Orca 临时截图路径，不纳入 Git。
+- 检查来自访达的两条旧图片记录：均没有文本或原文件路径，无法可靠迁移；保留记录，需要用户重新复制原文件。
+- 测试文件位于已忽略的 `build/clipboard-classification-check/`，保留以便重复验证。

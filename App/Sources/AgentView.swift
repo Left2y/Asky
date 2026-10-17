@@ -477,33 +477,39 @@ private struct ResponseGroupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if group.isRunning || group.workSeconds != nil || !group.tools.isEmpty {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let seconds = group.startedAt.map { max(0, Int(context.date.timeIntervalSince($0))) } ?? group.workSeconds ?? 0
-                    Button {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("Work for \(seconds)s")
-                            Image(mingCute: "chevron.right", size: 12)
-                                .rotationEffect(.degrees(expanded ? 90 : 0))
-                                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let seconds = group.startedAt.map { max(0, Int(context.date.timeIntervalSince($0))) } ?? group.workSeconds ?? 0
+                        Button {
+                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Work for \(seconds)s")
+                                Image(mingCute: "chevron.right", size: 12)
+                                    .rotationEffect(.degrees(expanded ? 90 : 0))
+                                    .accessibilityHidden(true)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(ToolErrorDisclosureButtonStyle())
+                        .textStyle(.secondary)
+                        .foregroundStyle(ThemeColor.kTextSubtlest)
+                        .accessibilityLabel("Work for \(seconds)s")
+                        .accessibilityValue(expanded ? "expanded" : "collapsed")
+                        .accessibilityHint(NSLocalizedString(expanded ? "收起工具调用" : "展开工具调用", comment: ""))
                     }
-                    .buttonStyle(ToolErrorDisclosureButtonStyle())
-                    .textStyle(.secondary)
-                    .foregroundStyle(ThemeColor.kTextSubtlest)
-                    .accessibilityLabel("Work for \(seconds)s")
-                    .accessibilityValue(expanded ? "expanded" : "collapsed")
-                    .accessibilityHint(NSLocalizedString(expanded ? "收起工具调用" : "展开工具调用", comment: ""))
-                }
-                if expanded {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(format: NSLocalizedString("%d 次工具调用", comment: ""), group.tools.count))
                             .textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                         ForEach(group.tools) { item in message(item) }
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
+                    .frame(height: expanded ? nil : 0, alignment: .top)
+                    .opacity(expanded ? 1 : 0)
+                    .clipped()
+                    .allowsHitTesting(expanded)
+                    .accessibilityHidden(!expanded)
                 }
             }
             ForEach(group.content) { item in message(item) }

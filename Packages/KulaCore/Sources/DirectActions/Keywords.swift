@@ -45,6 +45,7 @@ public struct KeywordCommand: Sendable, Codable, Hashable, Identifiable {
 
     public static let websitePresets: [KeywordCommand] = [
         KeywordCommand(keyword: "chat", name: "ChatGPT", urlTemplate: "https://chatgpt.com"),
+        KeywordCommand(keyword: "ds", name: "DeepSeek", urlTemplate: "https://chat.deepseek.com/?q={query}"),
     ]
 
     public static let builtIn: [KeywordCommand] = [

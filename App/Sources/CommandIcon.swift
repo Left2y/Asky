@@ -4,7 +4,7 @@ import SwiftUI
 /// Shared artwork and geometry for command settings, scope icons and results.
 struct CommandIcon: View {
     enum Brand: String, CaseIterable {
-        case google = "go", chatGPT = "chat", youtube = "yt", douyin = "dy"
+        case google = "go", chatGPT = "chat", deepSeek = "ds", youtube = "yt", douyin = "dy"
         case taobao = "tb", jd = "jd", bilibili = "bl", github = "gh"
 
         case baidu = "bd", huaban = "hb", zhihu = "zh", xiaohongshu = "xhs", weibo = "wb"
@@ -13,6 +13,7 @@ struct CommandIcon: View {
             switch self {
             case .google: "CommandGoogle"
             case .chatGPT: "CommandChatGPT"
+            case .deepSeek: "CommandDeepSeek"
             case .youtube: "CommandYouTube"
             case .douyin: "CommandDouyin"
             case .taobao: "CommandTaobao"
@@ -37,8 +38,8 @@ struct CommandIcon: View {
     init(keyword: String) {
         if let brand = Brand(rawValue: keyword.lowercased()) {
             image = Image(brand.asset).renderingMode(brand == .github ? .template : .original)
-            // The official ChatGPT app artwork includes its own transparent inset.
-            artworkSize = brand == .chatGPT ? Self.size : 20
+            // Official ChatGPT and DeepSeek artwork includes its own inset.
+            artworkSize = [.chatGPT, .deepSeek].contains(brand) ? Self.size : 20
         } else {
             image = Image(mingCute: "globe")
             artworkSize = 18

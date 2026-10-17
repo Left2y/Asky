@@ -128,7 +128,7 @@ import Foundation
         registry.addMissingWebsitePresets(excluding: ["gemini"])
         #expect(registry == upgraded)
         #expect(KeywordRegistry().commands.map(\.keyword) == [
-            "go", "chat", "yt", "dy", "tb", "jd", "bl", "gh", "bd", "hb", "zh", "xhs", "wb",
+            "go", "chat", "ds", "yt", "dy", "tb", "jd", "bl", "gh", "bd", "hb", "zh", "xhs", "wb",
         ])
     }
 
@@ -141,6 +141,16 @@ import Foundation
         #expect(url.absoluteString.contains("%2B"))
         #expect(command.url(for: "")?.query == nil)
         #expect(KeywordCommand.websitePresets.allSatisfy { $0.supportsQuery })
+    }
+
+    @Test func deepSeekCarriesQueryAndPreservesSpecialCharacters() throws {
+        let (command, query) = try #require(KeywordRegistry().match("ds 中文 & + # / ?"))
+        #expect(command.name == "DeepSeek" && command.supportsQuery)
+        let url = try #require(command.url(for: query))
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(url.host == "chat.deepseek.com")
+        #expect(components.queryItems?.first { $0.name == "q" }?.value == query)
+        #expect(url.absoluteString.contains("%2B"))
     }
 
     @Test func migratesRetiredDefaultsAndShortKeyword() {

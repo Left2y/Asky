@@ -653,14 +653,20 @@ private struct ClipboardHistoryRow: View {
             Group {
                 if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                     Image(nsImage: image).resizable().scaledToFill()
-                } else if let icon = item.kind == .file ? ClipboardAccess.fileIcon(for: item) : ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
+                } else if item.kind == .text {
+                    Image(mingCute: "doc.on.clipboard", size: 16)
+                        .foregroundStyle(ThemeColor.kIconSubtle)
+                        .frame(width: 24, height: 24)
+                        .background(ThemeColor.kBackgroundNeutral, in: RoundedRectangle(cornerRadius: 6))
+                } else if let icon = ClipboardAccess.fileIcon(for: item) {
                     Image(nsImage: icon).resizable().scaledToFit()
                 } else {
                     Image(mingCute: item.kind == .file ? "doc" : "text.document", size: 22)
                         .foregroundStyle(ThemeColor.kIconSubtle)
                 }
             }
-            .frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(width: 24, height: 24).clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title.replacingOccurrences(of: "\n", with: " ")).textStyle(.resultPrimary).lineLimit(1)
                 Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))
@@ -702,6 +708,15 @@ private struct ClipboardListDetail: View {
                 } else if let url = ClipboardAccess.videoPreviewURL(for: item) {
                     ClipboardVideoPreview(url: url).id(url)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else if item.kind == .file, let icon = ClipboardAccess.fileIcon(for: item) {
+                    VStack(spacing: 16) {
+                        Image(nsImage: icon).resizable().scaledToFit()
+                            .frame(width: 256, height: 256)
+                        Text(item.filePaths.map { URL(filePath: $0).lastPathComponent }.joined(separator: "\n"))
+                            .textStyle(.resultPrimary).textSelection(.enabled)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
                         Text(item.text ?? (item.kind == .image ? NSLocalizedString("原始图片已不可用", comment: "") : item.filePaths.joined(separator: "\n")))

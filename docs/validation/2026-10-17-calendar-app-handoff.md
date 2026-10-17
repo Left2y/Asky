@@ -10,3 +10,10 @@
 - 提醒卡片到日历的完整真实短信链路未触发；验证覆盖实际交接 API、日历窗口和调用点代码审查。
 - README 中英文及开发文档已同步。AGENTS.md 规则与模块边界保持有效，无需调整。
 - 测试产物使用已有 build/ 忽略规则；临时预览程序位于 /tmp，未进入版本库。
+
+## 主窗口打开修正
+
+- 发现只打开 ICS 时，日历可能仅显示导入对话框。交接前先调用 `NSWorkspace.openApplication` 发送应用重开请求，再打开 ICS。
+- 新构建后调用实际 ToolService API，确认日历主窗口出现（1140 × 598），并截取到完整月历；未确认导入示例。
+- 重新执行 `xcodegen generate`、README Debug 构建与 KulaCore `swift test`，均通过。
+- README 与 AGENTS.md 无需更新：仍是既有的系统日历交接流程与 ToolService 边界。

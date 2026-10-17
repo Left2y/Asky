@@ -21,6 +21,8 @@ extension ToolService {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         do {
+            // Reopen Calendar first so its main window exists behind the import dialog.
+            _ = try await NSWorkspace.shared.openApplication(at: calendar, configuration: configuration)
             _ = try await NSWorkspace.shared.open([file], withApplicationAt: calendar, configuration: configuration)
         } catch {
             try? FileManager.default.removeItem(at: directory)

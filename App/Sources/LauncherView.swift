@@ -751,6 +751,7 @@ private struct ResultList: View {
     var excludedCurrencyCode: String? = nil
     @State private var retainedHeight: CGFloat = 0
     @State private var selectionFromPointer = false
+    @State private var lastSelectionPointerLocation = NSEvent.mouseLocation
 
     private struct LayoutRequest: Equatable {
         let query: String
@@ -817,7 +818,13 @@ private struct ResultList: View {
                                     .accessibilityLabel(r.title)
                                     .accessibilityAddTraits(i == model.selection ? .isSelected : [])
                                     .onHover { inside in
-                                        guard inside, model.selection != i else { return }
+                                        guard inside else { return }
+                                        let location = NSEvent.mouseLocation
+                                        // Keyboard scrolling moves rows under a stationary pointer.
+                                        // Only a moved pointer may take over the selection.
+                                        guard location != lastSelectionPointerLocation else { return }
+                                        lastSelectionPointerLocation = location
+                                        guard model.selection != i else { return }
                                         selectionFromPointer = true
                                         model.selection = i
                                     }

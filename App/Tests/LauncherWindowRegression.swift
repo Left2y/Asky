@@ -577,21 +577,24 @@ enum LauncherWindowRegression {
             SearchResult(source: .app, target: TargetRef(kind: "app", identifier: "/System/Applications/Safari.app"),
                          title: "Codex Helper", actions: [.open, .revealInFinder])
         ])])
-        model.query = "codex"
         let controller = LauncherController(model: model)
         controller.show()
         guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
               let content = panel.contentView else { throw NSError(domain: "AliasResults", code: 1) }
         panel.onBlur = {}
         defer { controller.hide() }
+        model.query = "codex"
         try await Task.sleep(for: .milliseconds(700))
-        try require(model.results.first?.target.kind == "launcher-alias", "alias must remain first")
+        try require(model.results.first?.target.kind == "launcher-alias", "alias must remain first: query=\(model.query), rows=\(model.results.map { $0.target.kind })")
         try require(model.results.filter { $0.target.identifier == target }.count == 1,
                     "alias target must appear only once after provider delivery")
-        try require(!model.results.contains { $0.source == .keyword && $0.target.kind == "url" },
-                    "plain search must not append unrelated search engines")
-        try require(model.results.count == 3 && model.results.last?.source == .askAI,
-                    "alias, distinct app, and AI must remain available")
+        let commands = model.results.filter { $0.source == .keyword && $0.target.kind == "url" }
+        let expectedURLs = app.keywords.commands.filter { $0.urlTemplate.contains("{query}") }
+            .compactMap { $0.url(for: "codex")?.absoluteString }
+        try require(!expectedURLs.isEmpty && commands.map(\.target.identifier) == expectedURLs,
+                    "all query-capable search commands must remain available with the current query")
+        try require(model.results.count == commands.count + 3 && model.results.last?.source == .askAI,
+                    "alias, distinct app, search commands, and AI must remain available")
         guard let scroll = scrollView(in: content) else { throw NSError(domain: "AliasResults", code: 2) }
         let before = scroll.contentView.bounds.origin
         let oldPointer = CGEvent(source: nil)!.location
@@ -608,7 +611,9 @@ enum LauncherWindowRegression {
         try require(scroll.contentView.bounds.origin == before, "hover must not scroll the row away")
         model.move(1)
         try await Task.sleep(for: .milliseconds(200))
-        try require(model.results[model.selection].source == .askAI, "keyboard must continue from hovered selection")
+        try require(model.results[model.selection].target.kind == "url" &&
+                    model.results[model.selection].source == .keyword,
+                    "keyboard must continue from hovered application into the default search commands")
         let capture = Process()
         capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         capture.arguments = ["-x", "-l", String(panel.windowNumber),
@@ -616,7 +621,14 @@ enum LauncherWindowRegression {
         try capture.run()
         capture.waitUntilExit()
         try require(capture.terminationStatus == 0, "alias screenshot must succeed")
-        print("alias results: no generic engines, unique target, pointer selection and keyboard passed")
+        model.move(model.results.count)
+        try await Task.sleep(for: .milliseconds(300))
+        try require(model.results[model.selection].source == .askAI && scroll.contentView.bounds.origin.y > before.y,
+                    "keyboard must reveal results below the search commands")
+        guard let document = scroll.documentView else { throw NSError(domain: "AliasResults", code: 3) }
+        try require(abs(document.bounds.maxY - scroll.contentView.bounds.maxY) <= 1,
+                    "last row must retain clearance above the floating action bar")
+        print("alias results: search commands retained with current query, unique target, pointer/keyboard selection and bottom clearance passed")
     }
 
     private static func checkAliasRouting() async throws {

@@ -351,7 +351,7 @@ final class LauncherModel {
             if filter == .all, QuitAskyCommand.matches(text) { direct.append(QuitAskyCommand.result) }
             direct += app.keywords.commands.compactMap { command in
                 let exact = command.keyword.caseInsensitiveCompare(text.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
-                guard exact || (filter != .all && command.urlTemplate.contains("{query}")),
+                guard exact || command.urlTemplate.contains("{query}"),
                       let url = command.url(for: exact ? "" : text) else { return nil }
                 return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
                                     title: command.name, actions: [.openURL(url)], score: 0)

@@ -888,13 +888,27 @@ private struct ResultList: View {
     }
 }
 
-/// Supplied square artwork shares the app icons' visible tile size and inset.
+/// Normalize the supplied glyphs before applying the shared tile geometry.
 private struct LauncherFunctionIcon: View {
     let asset: String
+
+    private var artwork: (scale: CGFloat, offset: CGSize, background: Color) {
+        switch asset {
+        case "Bookmark":
+            (60 / 68, CGSize(width: 0.1, height: -0.15), Color(.sRGB, red: 1, green: 154 / 255, blue: 2 / 255, opacity: 1))
+        case "Link":
+            (60 / 62, CGSize(width: -0.1, height: 0.1), Color(.sRGB, red: 45 / 255, green: 104 / 255, blue: 1, opacity: 1))
+        default:
+            (60 / 66, CGSize(width: -0.1, height: -0.25), Color(.sRGB, red: 1, green: 0, blue: 0, opacity: 1))
+        }
+    }
 
     var body: some View {
         Image(asset).renderingMode(.original).resizable().scaledToFit()
             .frame(width: 20, height: 20)
+            .scaleEffect(artwork.scale)
+            .offset(artwork.offset)
+            .background(artwork.background)
             .clipShape(RoundedRectangle(cornerRadius: 4.5, style: .continuous))
             .frame(width: LauncherLayout.rowIconSize, height: LauncherLayout.rowIconSize)
     }

@@ -5,6 +5,32 @@ import DirectActions
 @Suite struct LauncherInputStateTests {
     let keywords = KeywordRegistry()
 
+    @Test func customSearchScopesRequireSpaceAndCanBeExited() {
+        var state = LauncherInputState()
+        state.bookmarkToken = "saved"
+        state.linkToken = "url"
+        state.aiToken = "ask"
+        for (token, expected) in [("saved", 0), ("url", 1), ("ask", 2)] {
+            state.replaceRawQuery(token, keywords: keywords)
+            #expect(!state.hasScope)
+            state.replaceRawQuery(token.uppercased() + " hello", keywords: keywords)
+            #expect(state.text == "hello")
+            #expect(state.bookmarks == (expected == 0))
+            #expect(state.links == (expected == 1))
+            #expect(state.ai == (expected == 2))
+            #expect(state.rawQuery == token + " hello")
+            state.edit("", keywords: keywords)
+            let exited = state.backspaceOnEmptyText()
+            #expect(exited)
+            #expect(!state.hasScope)
+        }
+        state.replaceRawQuery("bm hello", keywords: keywords)
+        #expect(!state.hasScope)
+        state.replaceRawQuery("saved hello", keywords: keywords, bookmarksEnabled: false)
+        #expect(!state.hasScope)
+    }
+
+
     @Test func terminalPrefixRequiresSpaceAndKeepsShellSyntax() {
         var state = LauncherInputState()
         state.edit(">", keywords: keywords)

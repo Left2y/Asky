@@ -2,7 +2,7 @@ import DirectActions
 
 /// The displayed query and the consumed command token have separate lifetimes.
 public struct LauncherInputState: Equatable {
-    /// Built-in scope keyword: `bm ` searches Chrome bookmarks only.
+    /// Default scope keyword: `bm ` searches Chrome bookmarks only.
     public static let bookmarkKeyword = "bm"
     /// Default token that enters terminal mode; users may customise it.
     public static let defaultTerminalKeyword = ">"
@@ -11,15 +11,22 @@ public struct LauncherInputState: Equatable {
     public private(set) var command: KeywordCommand?
     public private(set) var bookmarks = false
     public private(set) var terminal = false
+    public private(set) var links = false
+    public private(set) var ai = false
+    public var bookmarkToken = Self.bookmarkKeyword
+    public var linkToken = "link"
+    public var aiToken = "ai"
     public var terminalKeyword = Self.defaultTerminalKeyword
 
     public init() {}
 
-    public var hasScope: Bool { command != nil || bookmarks || terminal }
+    public var hasScope: Bool { command != nil || bookmarks || terminal || links || ai }
 
     public var rawQuery: String {
         if terminal { return terminalKeyword + " " + text }
-        if bookmarks { return Self.bookmarkKeyword + " " + text }
+        if bookmarks { return bookmarkToken + " " + text }
+        if links { return linkToken + " " + text }
+        if ai { return aiToken + " " + text }
         return command.map { $0.keyword + " " + text } ?? text
     }
 
@@ -27,8 +34,14 @@ public struct LauncherInputState: Equatable {
         if !hasScope, let query = Self.matchTerminal(value, keyword: terminalKeyword) {
             terminal = true
             text = query
-        } else if bookmarksEnabled, !hasScope, let query = Self.matchBookmarks(value) {
+        } else if bookmarksEnabled, !hasScope, let query = Self.matchTerminal(value, keyword: bookmarkToken) {
             bookmarks = true
+            text = query
+        } else if !hasScope, let query = Self.matchTerminal(value, keyword: linkToken) {
+            links = true
+            text = query
+        } else if !hasScope, let query = Self.matchTerminal(value, keyword: aiToken) {
+            ai = true
             text = query
         } else if !hasScope, let (matched, query) = keywords.matchInput(value) {
             command = matched
@@ -45,8 +58,7 @@ public struct LauncherInputState: Equatable {
 
     /// Enters bookmark search with `query` already typed.
     public mutating func enterBookmarks(_ query: String) {
-        command = nil
-        terminal = false
+        leaveCommand()
         bookmarks = true
         text = query
     }
@@ -55,6 +67,8 @@ public struct LauncherInputState: Equatable {
         command = nil
         bookmarks = false
         terminal = false
+        links = false
+        ai = false
     }
 
     /// Native text editing calls this even when the field has no characters to delete.
@@ -66,7 +80,7 @@ public struct LauncherInputState: Equatable {
 
     /// Like keyword commands, the terminal token is committed only by a following space.
     static func matchTerminal(_ input: String, keyword: String = defaultTerminalKeyword) -> String? {
-        let keyword = isValidTerminalKeyword(keyword) ? keyword : defaultTerminalKeyword
+        guard !keyword.isEmpty else { return nil }
         let trimmed = input.drop(while: { $0.isWhitespace })
         guard let space = trimmed.firstIndex(where: { $0.isWhitespace }),
               trimmed[..<space].caseInsensitiveCompare(keyword) == .orderedSame else { return nil }
@@ -79,10 +93,4 @@ public struct LauncherInputState: Equatable {
             && keyword.caseInsensitiveCompare(bookmarkKeyword) != .orderedSame
     }
 
-    private static func matchBookmarks(_ input: String) -> String? {
-        let trimmed = input.drop(while: { $0.isWhitespace })
-        guard let space = trimmed.firstIndex(where: { $0.isWhitespace }),
-              trimmed[..<space].caseInsensitiveCompare(bookmarkKeyword) == .orderedSame else { return nil }
-        return String(trimmed[trimmed.index(after: space)...])
-    }
 }

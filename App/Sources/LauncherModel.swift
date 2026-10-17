@@ -96,6 +96,9 @@ final class LauncherModel {
         get {
             var state = storedInputState
             state.terminalKeyword = app.settings.terminalCommandKeyword
+            state.bookmarkToken = app.commandKeyword("bookmark")
+            state.linkToken = app.commandKeyword("link")
+            state.aiToken = app.commandKeyword("ai")
             return state
         }
         set { storedInputState = newValue }
@@ -289,6 +292,8 @@ final class LauncherModel {
     var isTerminalScope: Bool { inputState.terminal }
     private var canSearchBookmarks: Bool { chromeBookmarkAccessAllowed && app.settings.enabledSources.contains(.chrome) }
     var isBookmarkScope: Bool { inputState.bookmarks }
+    var isLinkScope: Bool { inputState.links }
+    var isAIScope: Bool { inputState.ai }
     var hasScope: Bool { inputState.hasScope }
 
     var inputText: String {
@@ -315,9 +320,12 @@ final class LauncherModel {
     func keyword(for result: SearchResult) -> String? {
         guard result.source == .keyword else { return nil }
         if result.target.kind == "keyword-match" {
-            return app.keywords.commands.first { $0.url(for: "")?.absoluteString == result.target.identifier }?.keyword
+            return KeywordCommand.builtIn.first { $0.url(for: "")?.absoluteString == result.target.identifier }?.keyword
         }
-        return commandInput?.command.keyword ?? app.keywords.commands.first {
+        if let command = commandInput?.command {
+            return KeywordCommand.builtIn.first { $0.urlTemplate == command.urlTemplate }?.keyword
+        }
+        return KeywordCommand.builtIn.first {
             $0.url(for: query.trimmingCharacters(in: .whitespacesAndNewlines))?.absoluteString == result.target.identifier
         }?.keyword
     }
@@ -335,6 +343,21 @@ final class LauncherModel {
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
         currencyTask?.cancel()
+        if inputState.ai || inputState.links {
+            batches = []
+            isSearching = false
+            remainingSearchProviders = 0
+            direct = []
+            if inputState.ai {
+                direct = router.askAIResult(for: inputState.text).map { [$0] } ?? []
+            } else if let url = LauncherWebURL.parse(inputState.text) {
+                direct = [SearchResult(source: .link, target: TargetRef(kind: "url", identifier: url.absoluteString),
+                                       title: "打开链接", subtitle: url.absoluteString,
+                                       actions: [.openURL(url), .copy(url.absoluteString)], score: 100)]
+            }
+            publish()
+            return
+        }
         if inputState.bookmarks {
             searchBookmarks(inputState.text)
             return
@@ -487,7 +510,7 @@ final class LauncherModel {
            (!isSearching || !merged.isEmpty),
            let ask = router.askAIResult(for: query) { merged.append(ask) }
         merged = merged.filter { filter.includes($0.source) &&
-            (![.link, .bookmark].contains($0.source) || canSearchBookmarks) }
+            (![.link, .bookmark].contains($0.source) || canSearchBookmarks || (inputState.links && $0.source == .link)) }
         let order: [SearchSource] = [.app, .link, .bookmark, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]
         let priority = merged.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") || $0.source == .shortcut }
         let remaining = merged.filter { $0.target.kind != "keyword-match" && $0.target.kind != "launcher-alias" && $0.source != .shortcut }
@@ -555,7 +578,7 @@ final class LauncherModel {
         if isActionsMenuPresented { performHighlightedAction(); return }
         switch kind {
         case .submitToAI:
-            let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = (isAIScope ? inputText : query).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return }
             onAskAI(text)
         case .executeSelection:

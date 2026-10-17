@@ -149,11 +149,35 @@ final class AppModel {
     @ObservationIgnored var onSettingsChange: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationFinished: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationStarted: (() -> Void)?
-    /// Launcher commands are fixed presets, independent of legacy saved keyword settings.
+    /// Stable preset identities keep enablement independent of custom trigger tokens.
     var keywords: KeywordRegistry {
         KeywordRegistry(commands: KeywordCommand.builtIn.filter {
             !preferences.disabledBuiltInCommands.contains($0.keyword)
+        }.map { preset in
+            var command = preset
+            command.keyword = commandKeyword(preset.keyword)
+            return command
         })
+    }
+
+    static let searchCommands = [("bookmark", "搜索书签", "bm"), ("link", "搜索链接", "link"), ("ai", "AI 搜索", "ai")]
+
+    func commandKeyword(_ id: String) -> String {
+        preferences.commandKeywords[id]
+            ?? Self.searchCommands.first(where: { $0.0 == id })?.2 ?? id
+    }
+
+    func commandKeywordProblem(_ value: String, id: String) -> String? {
+        guard !value.isEmpty, !value.contains(where: \.isWhitespace) else {
+            return NSLocalizedString("指令不能为空或包含空格。", comment: "")
+        }
+        let ids = KeywordCommand.builtIn.map(\.keyword) + Self.searchCommands.map { $0.0 }
+        if value.caseInsensitiveCompare(settings.terminalCommandKeyword) == .orderedSame
+            || ids.contains(where: { $0 != id && commandKeyword($0).caseInsensitiveCompare(value) == .orderedSame })
+            || preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(value) == .orderedSame }) {
+            return NSLocalizedString("该指令与已有指令或别名重名。", comment: "")
+        }
+        return nil
     }
 
     init(root: URL = LocalStore.defaultRoot) throws {

@@ -37,6 +37,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 ### 核心能力
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。内置网页指令包括 `go`、`chat`、`ds`（DeepSeek）、`yt`、`dy`、`tb`、`jd`、`bl`、`gh`、`bd`（百度）、`hb`（花瓣）、`zh`（知乎）、`xhs`（小红书）、`wb`（微博），使用随应用打包的品牌 Logo。“设置 › 指令”顶部支持按指令缩写或名称即时搜索，清除搜索可恢复完整列表。默认全部开启，可用左侧复选框逐项关闭；关闭后不再匹配指令或显示对应搜索候选，重启后保留。
+“设置 › 指令”还提供书签搜索（`bm 空格`）、链接搜索（`link 空格`）与 AI 搜索（`ai 空格`）入口；这些入口和网页指令均可修改触发词、保存并恢复默认，拒绝空白或重名指令。AI 模式输入问题后按回车提交，输入期间不调用模型；链接模式接受网址或域名，书签仍需 Chrome 数据源与读取授权。
+
 - **剪贴板**：保存文本、图片和文件历史，支持固定、复制与原生拖放。搜索框旁的筛选按钮默认选择“全部”，可切换图片、视频、文本、文件，并与关键词搜索组合使用。文档和视频复制时附带的图标或缩略图不会替代原文件记录。列表式的文档预览居中显示系统文件图标及下方文件名，左侧使用紧凑图标；纯文本使用带中性圆角背景的剪贴板图标。单个本地视频文件支持在列表详情和卡片悬停区域中使用原生播放器预览，点击播放；原文件须仍可读取，格式支持取决于系统。默认使用卡片式，可在“设置 › 通用 › 剪贴板 › 显示方式”中切换为左侧历史列表、右侧内容预览的列表式；历史列表项沿用搜索结果的行高、图标尺寸、文字层级及悬停与选中背景，采用 38 pt 单行布局与 24 pt 图标，不显示时间副标题，切换保留搜索与选中项。列表式支持点击记录或按回车复制当前选中内容，显示“已复制”提示并保持窗口打开；方向键切换预览。列表式窗口为 720 × 560 pt，左右区域保持原有比例（左侧 272 pt）。右侧预览下方的信息区逐行显示来源、类型、像素尺寸、大小与复制时间；不适用或无法读取的值显示为“—”。文件搜索排除目录和剪贴板排除应用在设置中逐项添加、编辑和删除；添加或编辑时使用系统选择面板，目录自动取目录名，应用自动取 Bundle ID。
 - **AI 助手**：OpenAI 兼容接口、附件、对话历史和免额外 Key 的联网搜索。每轮工作时长显示在回复上方，有工具调用时可点击箭头查看详情，完成后默认收起；不显示调用次数，没有工具调用时只显示时长。回复左下方为复制按钮和完成时间：不足 1 分钟显示“刚刚”，1 小时内显示分钟前，24 小时内显示小时前，3 天内显示天前，之后显示精确到秒的日期时间；悬停可查看完整时间。向上浏览对话时，输入框上方 8pt 显示圆形玻璃向下按钮，点击回到底部。
 - **个人记忆**：`MEMORY.md` 索引与按需读取的主题文件，支持明确保存、纠正、忘记及自动提炼与整理。
@@ -130,6 +132,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 
 退出搜索回归：完成 Debug 构建后，运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py`，检查排序、精确匹配、取消、确认和浅色/深色窗口。
 
+搜索指令回归：Debug 构建后运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --search-commands`，检查触发词迁移、冲突、持久化、AI/链接路由与深浅色设置窗口。
+
 Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only`（先完成 Debug 构建）。
 
 聊天图片剪贴板回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --chat-images`（先完成 Debug 构建）。
@@ -172,6 +176,8 @@ The app icon and branding in Settings feature a pale-blue frosted companion with
 ### Features
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion. Built-in web commands include `go`, `chat`, `ds` (DeepSeek), `yt`, `dy`, `tb`, `jd`, `bl`, `gh`, `bd` (Baidu), `hb` (Huaban), `zh` (Zhihu), `xhs` (Xiaohongshu), and `wb` (Weibo), with bundled brand logos. Search by command keyword or name at the top of Settings › Commands; clear the search to restore the full list. All are enabled by default. Use the checkboxes on the left to disable individual commands; disabled commands no longer match input or appear as search suggestions, and the setting persists across restarts.
+Settings › Commands also includes bookmark search (`bm Space`), link search (`link Space`), and AI search (`ai Space`). Customize, save, or reset these triggers and the web command triggers; empty, whitespace-containing, and conflicting tokens are rejected. Press Return to submit in AI mode; typing makes no model call. Link mode accepts URLs or domains, and bookmarks still require the Chrome source and read permission.
+
 - **Clipboard**: text, image, and file history with pinning, copying, and native drag and drop. Icons or thumbnails accompanying copied documents and videos do not replace the original file records. List details center system file icons with filenames underneath for documents, with compact icons on the left; plain text uses a clipboard icon on a rounded neutral background. Single local video files use the native video player in list details and card hover previews; click to play. The original file must remain readable, and format support depends on macOS. Cards are the default; Settings › General › Clipboard › Display Style switches to a history list with a content preview on the right, preserving the query and selection. History rows share search results’ row height, icon size, typography, and hover and selection backgrounds; rows use a 38 pt single-line layout with 24 pt icons and no time subtitle. In list mode, clicking a row or pressing Return copies the selected content, shows a copy toast, and keeps the window open; arrow keys switch the preview. The list window measures 720 × 560 pt and preserves the original pane proportions (272 pt on the left). Information below the preview lists source, type, pixel dimensions, size, and copy time in aligned rows; unavailable or inapplicable values show “—”. Settings provide individual add, edit, and delete controls for excluded search directories and clipboard apps. Adding or editing opens a system picker; folder names and app bundle IDs are extracted automatically. The filter button beside search defaults to All and offers Images, Videos, Text, and Files; type filters combine with the search query.
 - **AI assistant**: OpenAI-compatible providers, attachments, conversation history, and web search without an extra API key. Each turn shows its work duration above the reply; when tools were called, click the arrow for details. Calls collapse when the task finishes. Call counts are hidden; turns without tool calls show only the duration. Copy and completion time appear at the lower left: just now under a minute, minutes under an hour, hours under 24 hours, days under three days, then a date and time including seconds. Hover for the exact timestamp. While browsing earlier messages, a circular glass down-arrow button appears 8pt above the composer; click it to return to the bottom.
 - **Personal memory**: a `MEMORY.md` index and topic files read on demand, with explicit saves, corrections, forgetting, automatic extraction, and consolidation.
@@ -264,6 +270,8 @@ Floating action area regression: after the Debug build, run `DEVELOPER_DIR=/Appl
 Alias results regression: after the Debug build, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --alias-results` to check alias target deduplication, preserved default search commands and query forwarding, pointer selection, and subsequent keyboard navigation.
 
 Quit search regression: after building Debug, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py` to check ranking, exact matching, cancellation, confirmation, and light/dark windows.
+
+Search command regression: after building Debug, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --search-commands` to check trigger migration, conflicts, persistence, AI/link routing, and light/dark settings windows.
 
 Dock visibility regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only` (build Debug first).
 

@@ -126,6 +126,62 @@ enum SettingsRegression {
                 let allEnabled = try AppModel(root: root)
                 precondition(allEnabled.keywords.commands == KeywordCommand.builtIn)
                 print("Built-in command defaults, disable/enable routing, suggestions and persistence passed")
+                precondition(legacyCommands.commandKeywords.isEmpty)
+                precondition(model.commandKeywordProblem("GO", id: "ai") != nil)
+                precondition(model.commandKeywordProblem(">", id: "link") != nil)
+                precondition(model.commandKeywordProblem("a b", id: "ai") != nil)
+                model.preferences.commandKeywords = ["ai": "ask", "link": "url", "bookmark": "saved", "go": "web"]
+                let savedCommands = try AppModel(root: root)
+                precondition(savedCommands.commandKeyword("ai") == "ask")
+                precondition(savedCommands.keywords.match("web hello")?.0.name == "Google 搜索")
+                precondition(savedCommands.keywords.match("go hello") == nil)
+                var aiPrompts: [String] = []
+                launcher.onAskAI = { aiPrompts.append($0) }
+                launcher.query = "ask 1 + 2"
+                precondition(launcher.isAIScope && launcher.inputText == "1 + 2")
+                precondition(launcher.results.count == 1 && launcher.results[0].primaryAction == .askAI(prompt: "1 + 2"))
+                precondition(aiPrompts.isEmpty)
+                launcher.submit(.executeSelection)
+                launcher.submit(.submitToAI)
+                precondition(aiPrompts == ["1 + 2", "1 + 2"])
+                launcher.leaveCommand()
+                precondition(!launcher.hasScope)
+                launcher.query = "url example.com"
+                precondition(launcher.isLinkScope && launcher.results.count == 1)
+                precondition(launcher.results[0].primaryAction == .openURL(URL(string: "https://example.com")!))
+                launcher.query = "url "
+                precondition(launcher.hasScope && launcher.results.isEmpty)
+                precondition(launcher.backspaceOnEmptyInput() && !launcher.hasScope)
+                launcher.query = "web hello"
+                precondition(launcher.commandInput?.command.keyword == "web")
+                precondition(launcher.keyword(for: launcher.results[0]) == "go")
+                model.preferences.commandKeywords = [:]
+                launcher.query = "ai hello"
+                precondition(launcher.isAIScope && launcher.results.count == 1)
+                launcher.query = ""
+                print("Custom search commands: migration, collision validation, persistence, AI/link routing, exit and brand identity passed")
+                if CommandLine.arguments.contains("--search-commands") {
+                    model.settingsTab = "keywords"
+                    let window = SettingsWindow.make(app: model)
+                    window.makeKeyAndOrderFront(nil)
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(400))
+                        window.contentView?.layoutSubtreeIfNeeded()
+                        guard let view = window.contentView,
+                              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing commands view") }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/search-commands-\(appearance).png"))
+                    }
+                    window.setContentSize(SettingsWindow.minimumSize)
+                    try await Task.sleep(for: .milliseconds(400))
+                    window.contentView?.layoutSubtreeIfNeeded()
+                    if let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/search-commands-minimum.png"))
+                    }
+                    exit(0)
+                }
                 model.settings.notesFolders = [NotesFolder(account: "Fixture", folder: "Parent / Child")]
                 model.settings.notesFolders = [NotesFolder(account: "Fixture", folder: "Parent / Child", folderID: "fixture-id")]
                 guard try AppModel(root: root).settings.notesFolders.first?.folderID == "fixture-id" else {

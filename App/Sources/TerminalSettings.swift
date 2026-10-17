@@ -52,7 +52,8 @@ struct TerminalSettings: View {
             return String(format: NSLocalizedString("指令不能为空、包含空格或使用 bm，当前仍使用 %@。", comment: ""),
                           LauncherInputState.defaultTerminalKeyword)
         }
-        let clashes = app.keywords.commands.contains { $0.keyword.caseInsensitiveCompare(value) == .orderedSame }
+        let clashes = AppModel.searchCommands.contains { app.commandKeyword($0.0).caseInsensitiveCompare(value) == .orderedSame }
+            || app.keywords.commands.contains { $0.keyword.caseInsensitiveCompare(value) == .orderedSame }
             || app.preferences.aliases.contains { $0.alias.caseInsensitiveCompare(value) == .orderedSame }
         return clashes ? NSLocalizedString("该指令与已有指令或别名重名，输入时将优先进入终端。", comment: "") : nil
     }

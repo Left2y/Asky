@@ -462,7 +462,7 @@ struct LauncherView: View {
                 if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
-                        .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.commandInput?.command.name ?? NSLocalizedString("关键词命令", comment: ""))
+                        .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.isAIScope ? NSLocalizedString("AI 搜索", comment: "") : model.isLinkScope ? NSLocalizedString("搜索链接", comment: "") : model.commandInput?.command.name ?? NSLocalizedString("关键词命令", comment: ""))
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -543,8 +543,12 @@ struct LauncherView: View {
             CommandIcon(terminalIcon: model.terminalIcon)
         } else if model.isBookmarkScope {
             LauncherFunctionIcon(asset: "Bookmark")
+        } else if model.isAIScope {
+            LauncherFunctionIcon(asset: "Agent")
+        } else if model.isLinkScope {
+            LauncherFunctionIcon(asset: "Link")
         } else if let command = model.commandInput?.command {
-            CommandIcon(keyword: command.keyword)
+            CommandIcon(keyword: KeywordCommand.builtIn.first { $0.urlTemplate == command.urlTemplate }?.keyword ?? command.keyword)
         } else {
             Image(mingCute: "globe", size: 20).foregroundStyle(ThemeColor.kIcon)
         }
@@ -907,7 +911,7 @@ private struct ResultList: View {
 }
 
 /// Normalize the supplied glyphs before applying the shared tile geometry.
-private struct LauncherFunctionIcon: View {
+struct LauncherFunctionIcon: View {
     let asset: String
 
     private var artwork: (scale: CGFloat, offset: CGSize, background: Color) {

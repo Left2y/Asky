@@ -221,8 +221,8 @@ private struct AliasEditor: View {
         guard !name.isEmpty else { return nil }
         let terminalKeyword = app.settings.terminalCommandKeyword
         if name.contains(where: \.isWhitespace) || name.caseInsensitiveCompare(terminalKeyword) == .orderedSame
-            || name.lowercased() == "bm" {
-            return String(format: label("别名不能为空、包含空格，或使用保留命令 bm、%@。"), terminalKeyword)
+            || AppModel.searchCommands.contains(where: { app.commandKeyword($0.0).caseInsensitiveCompare(name) == .orderedSame }) {
+            return label("该指令与已有指令或别名重名。")
         }
         if app.preferences.aliases.contains(where: { $0.id != draft.id && $0.alias.caseInsensitiveCompare(name) == .orderedSame })
             || app.keywords.commands.contains(where: { $0.keyword.caseInsensitiveCompare(name) == .orderedSame }) {

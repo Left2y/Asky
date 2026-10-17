@@ -591,7 +591,14 @@ private struct ClipboardListDetail: View {
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
             Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
             VStack(alignment: .leading, spacing: 8) {
-                Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: "")).textStyle(.resultPrimary)
+                HStack(spacing: 8) {
+                    if let icon = ClipboardAccess.sourceIcon(bundleID: item.sourceBundleID, name: item.sourceApp) {
+                        Image(nsImage: icon).resizable().frame(width: 28, height: 28)
+                    } else {
+                        Image(mingCute: "doc.on.clipboard").frame(width: 28, height: 28)
+                    }
+                    Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: "")).textStyle(.resultPrimary)
+                }
                 HStack {
                     Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
                     Spacer()

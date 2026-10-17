@@ -53,7 +53,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
 /// The app and regression harness share the same AppKit window and sidebar chrome.
 @MainActor
 enum SettingsWindow {
-    static let initialSize = NSSize(width: 900, height: 800)
+    static let initialSize = NSSize(width: 900, height: 640)
     static let minimumSize = NSSize(width: 820, height: 560)
 
     static func make(app: AppModel) -> NSWindow {

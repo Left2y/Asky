@@ -41,16 +41,14 @@ struct LauncherActionBar: View {
                 Button { model.performLauncherAction(primary) } label: {
                     actionLabel(primary.title, icon: primary.icon, shortcut: primary.shortcut)
                 }
-                .buttonStyle(.plain)
-                .nativeGlassBackground(in: Capsule(), interactive: true)
+                .buttonStyle(LauncherActionButtonStyle())
             }
             Spacer(minLength: 12)
             if !model.secondaryActions.isEmpty {
                 Button { model.toggleActionsMenu() } label: {
                     actionLabel("更多", icon: "ellipsis.circle", shortcut: "⌘ K")
                 }
-                .buttonStyle(.plain)
-                .nativeGlassBackground(in: Capsule(), interactive: true)
+                .buttonStyle(LauncherActionButtonStyle())
                 .accessibilityValue(model.isActionsMenuPresented ? "On" : "Off")
             }
         }
@@ -70,6 +68,29 @@ struct LauncherActionBar: View {
         .padding(.horizontal, 12)
         .frame(height: 32)
         .contentShape(Capsule())
+    }
+}
+
+private struct LauncherActionButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .nativeGlassBackground(in: Capsule(), interactive: true)
+            .overlay {
+                Capsule()
+                    .fill(ThemeColor.kInteractionHover.color(for: colorScheme))
+                    .opacity(isEnabled ? (configuration.isPressed ? 1 : isHovered ? 0.6 : 0) : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(.interaction, Capsule())
+            .onHover { isHovered = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 

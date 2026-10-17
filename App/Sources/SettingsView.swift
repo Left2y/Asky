@@ -420,9 +420,17 @@ private struct SourceSettings: View {
 
     @ViewBuilder private func sourceIcon(_ source: DataSourceID) -> some View {
         DataSourceIcon(source: source)
-            // White icon plates make these marks look smaller beside the filled system icons.
-            // Keep the shared layout slot while correcting their apparent size in this list.
-            .scaleEffect(source == .chrome || source == .memory ? 1.125 : 1)
+            .overlay {
+                if source == .chrome || source == .memory {
+                    // Preserve the native plate and shadow. Enlarge only the central
+                    // mark, whose white inset is much larger than the filled app tiles.
+                    DataSourceIcon(source: source)
+                        .frame(width: 24, height: 24)
+                        .scaleEffect(source == .chrome ? 1.14 : 1.4)
+                        .frame(width: 18, height: 18)
+                        .clipShape(Circle())
+                }
+            }
     }
 }
 

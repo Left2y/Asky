@@ -139,6 +139,8 @@ final class LauncherModel {
     private var searchTask: Task<Void, Never>?
     private var currencyTask: Task<Void, Never>?
     private var terminalTask: Task<Void, Never>?
+    private(set) var isConfirmingQuit = false
+    var onQuit: () -> Void = { NSApp.terminate(nil) }
     var onHide: () -> Void = {}
     var onAskAI: (String) -> Void = { _ in }
 
@@ -339,6 +341,7 @@ final class LauncherModel {
         remainingSearchProviders = isSearching ? searchProviderCount : 0
         direct = router.directResults(for: route)
         if case .search(let text) = route {
+            if filter == .all, QuitAskyCommand.matches(text) { direct.append(QuitAskyCommand.result) }
             direct += app.keywords.commands.compactMap { command in
                 let exact = command.keyword.caseInsensitiveCompare(text.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
                 guard exact || command.urlTemplate.contains("{query}"),
@@ -467,7 +470,7 @@ final class LauncherModel {
         // concrete target falls back to AI regardless of its wording.
         if filter == .all, !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
-                ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias")) && $0.source != .askAI && $0.target.kind != "bookmark-search"
+                ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias" || QuitAskyCommand.isResult($0))) && $0.source != .askAI && $0.target.kind != "bookmark-search"
             }
             if !hasLocalMatch { merged = [] }
         }
@@ -484,6 +487,7 @@ final class LauncherModel {
         merged = priority.filter { ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias") }
             + priority.filter { $0.source == .shortcut }
             + order.flatMap { source in remaining.filter { $0.source == source } }
+        merged = merged.filter(QuitAskyCommand.isResult) + merged.filter { !QuitAskyCommand.isResult($0) }
         results = merged
         selection = min(selection, max(0, results.count - 1))
     }
@@ -543,6 +547,10 @@ final class LauncherModel {
             update()
             return
         }
+        if QuitAskyCommand.isResult(r) {
+            confirmQuit()
+            return
+        }
         try? ActivityStore(app.store).append(kind: "launcher", sourceID: "launcher", text: r.title)
         switch action {
         case .open:
@@ -580,6 +588,20 @@ final class LauncherModel {
             runShortcut(name)
         case .askAI(let prompt):
             onAskAI(prompt)
+        }
+    }
+
+    private func confirmQuit() {
+        guard !isConfirmingQuit else { return }
+        isConfirmingQuit = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.isConfirmingQuit = false }
+            let alert = QuitAskyCommand.makeAlert()
+            NSApp.activate()
+            let response = await AppDialog.present(alert)
+            alert.window.orderOut(nil)
+            if response == .alertFirstButtonReturn { self.onQuit() }
         }
     }
 

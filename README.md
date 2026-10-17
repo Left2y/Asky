@@ -73,6 +73,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 | 网页与终端 | `go 关键词`、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
+在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示白底红色 Logo，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
+
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。“在 Dock 栏显示”默认关闭，打开设置也不会显示 Dock 图标；开启后即使关闭所有窗口也保留 Dock 图标，点击图标可重新打开入口，主动退出应用后结束常驻。
 
@@ -117,6 +119,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 请求确认全量预览：Debug 构建后运行 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`；每个场景依次选择“确认执行”和“不执行”，只测试界面与返回结果，不执行真实工具。
 
 服务商预设回归：先执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`，再运行 `build/model-provider-regression`。
+
+退出搜索回归：完成 Debug 构建后，运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py`，检查排序、精确匹配、取消、确认和浅色/深色窗口。
 
 Dock 常驻回归：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only`（先完成 Debug 构建）。
 
@@ -196,6 +200,8 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 | Web and terminal | `go keyword`, `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
+Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with a red logo on white, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
+
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden. “Show in Dock” is off by default, and opening Settings does not show the Dock icon. When enabled, the Dock icon stays visible after all windows close; click it to reopen the launcher. Quit the app to end its running session.
 
@@ -240,6 +246,8 @@ Common checks (build MCP Bridge before testing the core package):
 Full confirmation preview: after building Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`. Choose Confirm, then Decline, for each scenario; this checks UI and response handling without executing real tools.
 
 Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
+
+Quit search regression: after building Debug, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py` to check ranking, exact matching, cancellation, confirmation, and light/dark windows.
 
 Dock visibility regression: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --dock-only` (build Debug first).
 

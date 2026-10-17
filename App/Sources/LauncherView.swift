@@ -152,7 +152,7 @@ final class LauncherController {
         panel.onBlur = { [weak self] in
             guard let self else { return }
             self.model.isFilterMenuPresented = false
-            guard !self.model.isPinned else { return }
+            guard !self.model.isPinned, !self.model.isConfirmingQuit else { return }
             self.hide()
         }
         panel.onKeyChange = { [weak self] keyed in
@@ -808,6 +808,7 @@ private struct ResultList: View {
     }
 
     private static func section(for result: SearchResult) -> String {
+        if QuitAskyCommand.isResult(result) { return title(.app) }
         if result.target.kind == "keyword-match" { return NSLocalizedString("别名匹配", comment: "") }
         switch result.source {
         case .app, .link, .bookmark: return title(.app)
@@ -879,6 +880,14 @@ private struct ResultRow: View {
     }
 
     @ViewBuilder private var icon: some View {
+        if QuitAskyCommand.isResult(result) {
+            Image("QuitAsky").resizable().scaledToFit()
+        } else {
+            sourceIcon
+        }
+    }
+
+    @ViewBuilder private var sourceIcon: some View {
         switch result.source {
         case .app, .file:
             Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()

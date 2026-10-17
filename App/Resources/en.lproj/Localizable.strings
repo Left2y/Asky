@@ -585,3 +585,8 @@
 "显示方式" = "Display Style";
 "卡片式" = "Cards";
 "列表式" = "List";
+
+/* Launcher quit confirmation */
+"关闭 Asky" = "Quit Asky";
+"关闭 Asky？" = "Quit Asky?";
+"关闭后，Asky 将退出。你可以随时重新打开应用。" = "Asky will quit. You can reopen the app at any time.";

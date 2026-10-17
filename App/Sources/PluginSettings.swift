@@ -30,7 +30,7 @@ struct PluginSettings: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca")
                             Text(label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务"))
-                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         if plugins.contains(where: { $0.repository == source }) {
@@ -70,7 +70,7 @@ struct PluginSettings: View {
         }
         .task { await reload() }
         .appDialog(label("安装可信插件"), isPresented: $confirmInstall,
-                   message: label("此仓库的插件将能够在本机执行代码。安装表示你信任该来源。") + "\n\n" + pendingRepository,
+                   message: label("此仓库的插件将能够在本机执行代码。安装表示你信任该来源") + "\n\n" + pendingRepository,
                    buttons: [label("安装"), label("取消")]) { response in
             if response == 0 { perform("安装插件") { try await manager.install(repository: pendingRepository) } }
         }
@@ -88,7 +88,6 @@ struct PluginSettings: View {
                 .foregroundStyle(.secondary)
             if plugin.needsConfiguration { Text(label("需要配置")).foregroundStyle(.orange) }
         }
-        .font(.system(size: 12))
         .help(plugin.isOfficial ? "" : plugin.repository)
     }
     private func pluginMenu(_ plugin: InstalledPlugin) -> some View {

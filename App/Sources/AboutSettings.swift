@@ -45,15 +45,15 @@ struct AboutSettings: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("自动更新", comment: ""))
-                        Text(NSLocalizedString("在后台下载并校验新版本，在你不使用 Asky 时静默重启完成更新，旧版本会被删除。", comment: ""))
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text(NSLocalizedString("在后台下载并校验新版本，在你不使用 Asky 时静默重启完成更新，旧版本会被删除", comment: ""))
+                            .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
         }
         .appDialog(NSLocalizedString("立即重启以完成更新？", comment: ""), isPresented: $confirmingInstall,
-                   message: NSLocalizedString("Asky 将退出，用新版本替换当前版本，然后重新打开。", comment: ""),
+                   message: NSLocalizedString("Asky 将退出，用新版本替换当前版本，然后重新打开", comment: ""),
                    buttons: [NSLocalizedString("重启并更新", comment: ""), NSLocalizedString("取消", comment: "")]) { response in
             if response == 0 { updater.restartToInstall() }
         }
@@ -72,7 +72,7 @@ struct AboutSettings: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(format: NSLocalizedString("新版本 %@ 已就绪", comment: ""), staged.release.version))
                 Text(NSLocalizedString("将在你不使用 Asky 时自动完成更新", comment: ""))
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         case .installing: HStack(spacing: 8) { ProgressView().controlSize(.small); Text(NSLocalizedString("正在安装…", comment: "")) }

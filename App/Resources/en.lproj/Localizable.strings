@@ -106,7 +106,7 @@
 "应用与快捷指令别名" = "Application and Shortcut Aliases";
 "应用主题" = "App theme";
 "液态玻璃" = "Liquid Glass";
-"关闭后使用背景模糊与描边。" = "When off, surfaces use a background blur with a border.";
+"关闭后使用背景模糊与描边" = "When off, surfaces use a background blur with a border.";
 "应用已移动或无法打开，请更新别名。" = "The app moved or couldn't be opened. Update the alias.";
 "应用语言" = "App language";
 "建议" = "Suggestion";
@@ -225,7 +225,7 @@
 "设置…" = "Settings…";
 "设置页面" = "Settings page";
 "语言" = "Language";
-"语言更改将在下次启动应用时生效。跟随系统会使用 macOS 的首选语言。" = "Language changes take effect the next time you open the app. Follow System uses the preferred macOS language.";
+"语言更改将在下次启动应用时生效。跟随系统会使用 macOS 的首选语言" = "Language changes take effect the next time you open the app. Follow System uses the preferred macOS language.";
 "请先保存 API Key。" = "Save an API key first.";
 "请包含 ⌘、⌥ 或 ⌃" = "Include ⌘, ⌥, or ⌃";
 "请填写 API Key；留空只会保留已保存的 Key。" = "Enter an API key. Leaving it blank only keeps an existing saved key.";
@@ -339,13 +339,13 @@
 "正在校验…" = "Verifying…";
 "正在安装…" = "Installing…";
 "自动更新" = "Automatic Updates";
-"在后台下载并校验新版本，在你不使用 Asky 时静默重启完成更新，旧版本会被删除。" = "Downloads and verifies new versions in the background, then silently restarts to finish updating while you're not using Asky. The old version is removed.";
+"在后台下载并校验新版本，在你不使用 Asky 时静默重启完成更新，旧版本会被删除" ="Downloads and verifies new versions in the background, then silently restarts to finish updating while you're not using Asky. The old version is removed.";
 "新版本 %@ 已就绪" = "Version %@ is ready";
 "将在你不使用 Asky 时自动完成更新" = "Installs automatically while you're not using Asky";
 "下载更新" = "Download Update";
 "立即重启" = "Restart Now";
 "立即重启以完成更新？" = "Restart now to finish updating?";
-"Asky 将退出，用新版本替换当前版本，然后重新打开。" = "Asky will quit, replace the current version with the new one, then reopen.";
+"Asky 将退出，用新版本替换当前版本，然后重新打开" ="Asky will quit, replace the current version with the new one, then reopen.";
 "重启并更新" = "Restart and Update";
 "无法连接 GitHub：%@" = "Couldn't reach GitHub: %@";
 "GitHub 上还没有可用的发布版本。" = "No release is available on GitHub yet.";
@@ -389,7 +389,7 @@
 "卸载" = "Uninstall";
 "正在处理插件…" = "Processing plugin…";
 "安装可信插件" = "Install Trusted Plugin";
-"此仓库的插件将能够在本机执行代码。安装表示你信任该来源。" = "This plugin can execute code on this computer. Installing it means you trust its source.";
+"此仓库的插件将能够在本机执行代码。安装表示你信任该来源" = "This plugin can execute code on this computer. Installing it means you trust its source.";
 "更新插件" = "Updating plugin";
 "回退插件" = "Rolling back plugin";
 "卸载插件" = "Uninstalling plugin";
@@ -523,7 +523,7 @@
 
 
 
-"填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。" = "Enter an OpenAI-compatible base URL without /chat/completions and the exact model ID from your provider.";
+"填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致" = "Enter an OpenAI-compatible base URL without /chat/completions and the exact model ID from your provider.";
 
 "已保存，留空不变" = "Saved — leave blank to keep";
 "输入 API Key" = "Enter API key";
@@ -545,7 +545,6 @@
 
 "在访达中显示" = "Reveal in Finder";
 "复制文件路径" = "Copy file path";
-"点击组合键即可修改。在访达中显示和复制文件路径仅在启动器选中文件或应用时生效。" = "Click a shortcut to change it. Reveal in Finder and Copy file path work when a file or app is selected in the launcher.";
 "包含的文件夹" = "Included Folders";
 "允许访问的文件夹" = "Allowed Folders";
 "刷新" = "Refresh";

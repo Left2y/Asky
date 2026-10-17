@@ -20,12 +20,12 @@ struct StarRepositoryRow: View {
                 .background(ThemeColor.kBackgroundNeutral,
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(starred ? NSLocalizedString("已点亮 Star，感谢支持！", comment: "")
                              : NSLocalizedString("喜欢 Asky？去 GitHub 点个 Star", comment: ""))
-                Text(starred ? NSLocalizedString("你的支持是持续更新的动力。", comment: "")
-                             : NSLocalizedString("Star 能让更多人发现这个项目。", comment: ""))
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(starred ? NSLocalizedString("你的支持是持续更新的动力", comment: "")
+                             : NSLocalizedString("Star 能让更多人发现这个项目", comment: ""))
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 12)
             SettingsButton(starred ? NSLocalizedString("查看仓库", comment: "")

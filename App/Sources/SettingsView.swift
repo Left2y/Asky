@@ -64,8 +64,6 @@ private struct HotKeySettings: View {
                     let d = LauncherActionShortcut.copyPath
                     return setLocal(d.code, d.modifiers, d.label, keyPath: \.copyPathHotKey)
                 }
-            } footer: {
-                Text(NSLocalizedString("点击组合键即可修改。在访达中显示和复制文件路径仅在启动器选中文件或应用时生效。", comment: ""))
             }
         }.formStyle(.grouped)
     }
@@ -233,8 +231,8 @@ private struct GeneralSettings: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("液态玻璃", comment: ""))
-                            Text(NSLocalizedString("关闭后使用背景模糊与描边。", comment: ""))
-                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                            Text(NSLocalizedString("关闭后使用背景模糊与描边", comment: ""))
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -247,8 +245,8 @@ private struct GeneralSettings: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("应用语言", comment: ""))
-                        Text(NSLocalizedString("语言更改将在下次启动应用时生效。跟随系统会使用 macOS 的首选语言。", comment: ""))
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text(NSLocalizedString("语言更改将在下次启动应用时生效。跟随系统会使用 macOS 的首选语言", comment: ""))
+                            .foregroundStyle(.secondary)
                     }
                 }
                 if app.preferences.language != app.launchLanguage {
@@ -488,8 +486,8 @@ private struct ModelSettingsView: View {
             } else {
                 SettingsTextField(NSLocalizedString("API 地址", comment: ""), text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
                 SettingsTextField(NSLocalizedString("模型名", comment: ""), text: $draft.model)
-                Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致。", comment: ""))
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(NSLocalizedString("填写 OpenAI 兼容的基础地址，不要包含 /chat/completions；模型名需与服务商提供的名称一致", comment: ""))
+                    .foregroundStyle(.secondary)
             }
             SettingsSecureField(NSLocalizedString("API Key", comment: ""), text: $key,
                                 prompt: Text(NSLocalizedString(canReuseKey ? "已保存，留空不变" : "输入 API Key", comment: "")))
@@ -627,11 +625,7 @@ private struct MemorySettings: View {
                 LabeledContent {
                     Image(mingCute: "arrow.up.forward.app").foregroundStyle(.secondary)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("记忆文件", comment: ""))
-                        Text(NSLocalizedString("在访达中显示 MEMORY.md", comment: ""))
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
-                    }
+                    Text(NSLocalizedString("记忆文件", comment: ""))
                 }
                 .contentShape(Rectangle())
             }

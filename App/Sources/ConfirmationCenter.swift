@@ -141,6 +141,7 @@ final class ConfirmationCenter {
             body += "以上时间均按\(name)显示。"
         }
         if remaining > 0 { body += "另外还有\(remaining)项操作需要你确认。" }
+        if body.hasSuffix("。") { body.removeLast() }
         return body
     }
 

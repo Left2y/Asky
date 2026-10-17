@@ -20,7 +20,7 @@ struct AliasSettings: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(AliasDraft.displayName(kind: item.kind, target: item.target)).lineLimit(1)
                             Text(label(item.kind == "app" ? "应用" : "快捷指令"))
-                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 12)
                         AliasChip(text: item.alias)
@@ -132,17 +132,14 @@ private struct AliasEditor: View {
                     LabeledContent(label("类型")) { AliasKindPicker(selection: $draft.kind) }
                         .onChange(of: draft.kind) { _, _ in draft.target = "" }
                     if draft.kind == "app" { appPicker } else { shortcutPicker }
-                    SettingsTextField(label("别名"), text: $draft.alias, prompt: Text(verbatim: "fig"))
+                    SettingsTextField(label("别名"), text: $draft.alias,
+                                      prompt: Text(verbatim: label("不能包含空格，不区分大小写。")))
                         .onSubmit(save)
                 }
-                Group {
-                    if let error = validationError {
-                        Text(error).foregroundStyle(ThemeColor.kTextNegative)
-                    } else {
-                        Text(label("不能包含空格，不区分大小写。")).foregroundStyle(ThemeColor.kTextSubtlest)
-                    }
+                if let error = validationError {
+                    Text(error).foregroundStyle(ThemeColor.kTextNegative)
+                        .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
                 Spacer()

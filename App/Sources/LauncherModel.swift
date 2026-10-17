@@ -497,8 +497,13 @@ final class LauncherModel {
     func copySelectedPath() -> Bool {
         guard currencyConversion == nil, results.indices.contains(selection),
               results[selection].actions.contains(.revealInFinder) else { return false }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(results[selection].target.identifier, forType: .string)
+        return copyPath(of: results[selection])
+    }
+
+    @discardableResult
+    func copyPath(of result: SearchResult) -> Bool {
+        guard result.actions.contains(.revealInFinder),
+              ToolService.copyLauncherText(result.target.identifier) else { return false }
         showToast(NSLocalizedString("已拷贝路径", comment: ""))
         return true
     }
@@ -559,17 +564,16 @@ final class LauncherModel {
                 if ToolService.openLauncherApplication(url) { onHide() }
                 else { status = NSLocalizedString("应用已移动或无法打开，请更新别名。", comment: "") }
             } else {
-                NSWorkspace.shared.open(url)
+                ToolService.openLauncherFile(url)
                 onHide()
             }
         case .revealInFinder:
-            NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: r.target.identifier)])
+            ToolService.revealLauncherTarget(r.target.identifier)
             onHide()
         case .switchTo:
             switchChromeTab(r)
         case .copy(let s):
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(s, forType: .string)
+            ToolService.copyLauncherText(s)
             onHide()
         case .openURL(let url):
             if ToolService.openLauncherURL(url) { onHide() }

@@ -740,7 +740,6 @@ private struct ClipboardInformation: View {
     var body: some View {
         let info = ClipboardAccess.information(for: item)
         VStack(alignment: .leading, spacing: 12) {
-            Text(label("信息")).textStyle(.resultPrimary)
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 12) {
                 GridRow {
                     Text(label("来源"))

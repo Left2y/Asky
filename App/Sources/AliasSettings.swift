@@ -43,7 +43,7 @@ struct AliasSettings: View {
         .overlay {
             if let draft = editor {
                 ZStack {
-                    Color.black.opacity(0.18).ignoresSafeArea()
+                    Color.clear.ignoresSafeArea()
                         .contentShape(Rectangle()).onTapGesture {}
                         .accessibilityHidden(true)
                     AliasEditor(app: app, draft: draft) { editor = nil }

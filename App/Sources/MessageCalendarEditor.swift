@@ -29,7 +29,6 @@ final class MessageCalendarEditorModel {
     var notes: String
     var calendarID: String
     let calendars: [MessageCalendarChoice]
-    let proposedDuration: Bool
     var saving = false
     var uncertain = false
     var error: String?
@@ -43,7 +42,6 @@ final class MessageCalendarEditorModel {
         self.calendars = calendars
         calendarID = calendars.first { $0.id == draft.calendar }?.id
             ?? calendars.first { $0.isDefault }?.id ?? calendars.first?.id ?? ""
-        proposedDuration = draft.end == nil
     }
 
     var draft: MessageCalendarDraft {
@@ -187,10 +185,6 @@ private struct MessageCalendarEditorView: View {
                                         ForEach(0..<60) { Text(String(format: "%02d", $0)).tag($0) }
                                     }.labelsHidden().frame(width: 68)
                                 }.pickerStyle(.menu).controlSize(.regular)
-                                if model.proposedDuration {
-                                    Text("结束时间暂按 1 小时预填，可修改")
-                                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                                }
                             }.frame(width: 280).padding(16).fixedSize()
                         }
                     }
@@ -202,12 +196,8 @@ private struct MessageCalendarEditorView: View {
                         .accessibilityLabel("地点").padding(14).editorRow()
                     HStack(spacing: 10) {
                         Circle().fill(Color.accentColor).frame(width: 10, height: 10)
-                        Picker("目标日历", selection: $model.calendarID) {
-                            ForEach(model.calendars) { calendar in
-                                Text(calendar.account.isEmpty ? calendar.name : "\(calendar.name) · \(calendar.account)")
-                                    .tag(calendar.id)
-                            }
-                        }.labelsHidden().pickerStyle(.menu).frame(maxWidth: .infinity)
+                        CalendarDestinationPicker(selection: $model.calendarID, calendars: model.calendars)
+                            .frame(maxWidth: .infinity).frame(height: 24)
                     }.padding(12).editorRow()
                     TextField("添加备注", text: $model.notes, axis: .vertical)
                         .lineLimit(3...5).accessibilityLabel("备注")
@@ -253,5 +243,40 @@ private struct MessageCalendarEditorView: View {
 private extension View {
     func editorRow() -> some View {
         background(ThemeColor.kBackgroundNeutral.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct CalendarDestinationPicker: NSViewRepresentable {
+    @Binding var selection: String
+    let calendars: [MessageCalendarChoice]
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let select = NSPopUpButton(frame: .zero, pullsDown: false)
+        select.isBordered = false
+        select.alignment = .left
+        select.font = .systemFont(ofSize: 14)
+        select.controlSize = .regular
+        select.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        select.setAccessibilityLabel(NSLocalizedString("目标日历", comment: ""))
+        select.addItems(withTitles: calendars.map { $0.account.isEmpty ? $0.name : "\($0.name) · \($0.account)" })
+        select.target = context.coordinator
+        select.action = #selector(Coordinator.changed(_:))
+        return select
+    }
+
+    func updateNSView(_ select: NSPopUpButton, context: Context) {
+        context.coordinator.parent = self
+        if let index = calendars.firstIndex(where: { $0.id == selection }) { select.selectItem(at: index) }
+    }
+
+    @MainActor final class Coordinator: NSObject {
+        var parent: CalendarDestinationPicker
+        init(_ parent: CalendarDestinationPicker) { self.parent = parent }
+        @objc func changed(_ select: NSPopUpButton) {
+            let index = select.indexOfSelectedItem
+            if parent.calendars.indices.contains(index) { parent.selection = parent.calendars[index].id }
+        }
     }
 }

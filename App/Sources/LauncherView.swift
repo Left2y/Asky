@@ -898,8 +898,10 @@ private struct LauncherFunctionIcon: View {
             (60 / 68, CGSize(width: 0.1, height: -0.15), Color(.sRGB, red: 1, green: 154 / 255, blue: 2 / 255, opacity: 1))
         case "Link":
             (60 / 62, CGSize(width: -0.1, height: 0.1), Color(.sRGB, red: 45 / 255, green: 104 / 255, blue: 1, opacity: 1))
-        default:
+        case "QuitAsky":
             (60 / 66, CGSize(width: -0.1, height: -0.25), Color(.sRGB, red: 1, green: 0, blue: 0, opacity: 1))
+        default:
+            (1, .zero, .clear)
         }
     }
 
@@ -1006,11 +1008,10 @@ private struct ResultRow: View {
             }
         case .link:
             LauncherFunctionIcon(asset: "Link")
-        case .calculator, .askAI:
-            Image(result.source == .calculator ? "Calculator" : "Agent").resizable().scaledToFit()
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .shadow(color: .black.opacity(0.16), radius: 1, x: 0, y: 1)
-                .padding(3)
+        case .calculator:
+            Image(mingCute: "equal.square", size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
+        case .askAI:
+            LauncherFunctionIcon(asset: "Agent")
         case .bookmark, .keyword:
             if result.source == .keyword, let keyword, CommandIcon.Brand(rawValue: keyword) != nil {
                 CommandIcon(keyword: keyword)

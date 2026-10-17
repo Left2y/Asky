@@ -150,7 +150,11 @@ final class AppModel {
     @ObservationIgnored var onModelAuthenticationFinished: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationStarted: (() -> Void)?
     /// Launcher commands are fixed presets, independent of legacy saved keyword settings.
-    let keywords = KeywordRegistry()
+    var keywords: KeywordRegistry {
+        KeywordRegistry(commands: KeywordCommand.builtIn.filter {
+            !preferences.disabledBuiltInCommands.contains($0.keyword)
+        })
+    }
 
     init(root: URL = LocalStore.defaultRoot) throws {
         let store = try LocalStore(root: root)

@@ -100,6 +100,32 @@ enum SettingsRegression {
                       SettingsPage.resolve("keywords") == .keywords else {
                     fatalError("legacy settings changed fixed presets or command settings are missing")
                 }
+                let legacyCommands = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
+                precondition(legacyCommands.disabledBuiltInCommands.isEmpty)
+                let launcher = LauncherModel(app: model, searchProviders: [])
+                for command in KeywordCommand.builtIn {
+                    model.preferences.disabledBuiltInCommands.insert(command.keyword)
+                    precondition(model.keywords.matchInput(command.keyword + " ") == nil)
+                    launcher.query = command.keyword + " hello"
+                    precondition(launcher.commandInput == nil && launcher.inputText == command.keyword + " hello")
+                    precondition(!launcher.results.contains { $0.source == .keyword && $0.title == command.name })
+                    launcher.query = command.keyword
+                    precondition(!launcher.results.contains { $0.target.kind == "keyword-match" })
+                    let restored = try AppModel(root: root)
+                    precondition(restored.preferences.disabledBuiltInCommands.contains(command.keyword))
+                    precondition(restored.keywords.matchInput(command.keyword + " hello") == nil)
+                    model.preferences.disabledBuiltInCommands.remove(command.keyword)
+                    launcher.query = command.keyword + " hello"
+                    precondition(launcher.commandInput?.command.keyword == command.keyword)
+                    launcher.query = ""
+                }
+                model.preferences.disabledBuiltInCommands = Set(KeywordCommand.builtIn.map(\.keyword))
+                let allDisabled = try AppModel(root: root)
+                precondition(allDisabled.keywords.commands.isEmpty)
+                model.preferences.disabledBuiltInCommands = []
+                let allEnabled = try AppModel(root: root)
+                precondition(allEnabled.keywords.commands == KeywordCommand.builtIn)
+                print("Built-in command defaults, disable/enable routing, suggestions and persistence passed")
                 model.settings.notesFolders = [NotesFolder(account: "Fixture", folder: "Parent / Child")]
                 model.settings.notesFolders = [NotesFolder(account: "Fixture", folder: "Parent / Child", folderID: "fixture-id")]
                 guard try AppModel(root: root).settings.notesFolders.first?.folderID == "fixture-id" else {

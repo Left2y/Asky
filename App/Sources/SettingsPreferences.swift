@@ -26,6 +26,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var revealInFinderHotKey = LauncherActionShortcut.revealInFinder
     var copyPathHotKey = LauncherActionShortcut.copyPath
     var aliases: [LauncherAlias] = []
+    var disabledBuiltInCommands: Set<String> = []
     static let key = "app.preferences.v1"
     static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | shiftKey), label: "⌃⇧ C")
 
@@ -58,6 +59,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         revealInFinderHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .revealInFinderHotKey) ?? d.revealInFinderHotKey
         copyPathHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .copyPathHotKey) ?? d.copyPathHotKey
         aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
+        disabledBuiltInCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledBuiltInCommands) ?? []
     }
 }
 

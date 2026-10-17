@@ -607,8 +607,6 @@ private struct ApprovalModePicker: View {
     @Bindable var model: AgentModel
     @State private var showing = false
 
-    private static let fullAccessColor = Color.orange
-
     var body: some View {
         let mode = model.approvalMode
         Button { showing.toggle() } label: {
@@ -616,7 +614,7 @@ private struct ApprovalModePicker: View {
                 Image(mingCute: Self.icon(mode), size: 13)
                 Text(Self.shortTitle(mode)).font(.system(size: 13))
             }
-            .foregroundStyle(mode == .fullAccess ? AnyShapeStyle(Self.fullAccessColor) : AnyShapeStyle(ThemeColor.kTextSubtle))
+            .foregroundStyle(mode == .fullAccess ? AnyShapeStyle(ThemeColor.kTextNegative) : AnyShapeStyle(ThemeColor.kTextSubtle))
             .padding(.horizontal, 10).frame(height: 32)
         }
         .buttonStyle(AgentIconButtonStyle(cornerRadius: 16))
@@ -663,7 +661,7 @@ private struct ApprovalModeRow: View {
     @State private var hovering = false
 
     var body: some View {
-        let tint = option == .fullAccess ? AnyShapeStyle(Color.orange) : AnyShapeStyle(ThemeColor.kText)
+        let tint = option == .fullAccess ? AnyShapeStyle(ThemeColor.kTextNegative) : AnyShapeStyle(ThemeColor.kText)
         Button(action: action) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 10) {

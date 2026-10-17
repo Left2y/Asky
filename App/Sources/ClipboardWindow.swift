@@ -767,7 +767,7 @@ private struct ClipboardInformation: View {
                     Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
                 }
             }
-            .textStyle(.secondary)
+            .font(.system(size: 14))
             .foregroundStyle(ThemeColor.kTextSubtlest)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

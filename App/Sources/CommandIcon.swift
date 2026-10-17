@@ -37,9 +37,10 @@ struct CommandIcon: View {
 
     init(keyword: String) {
         if let brand = Brand(rawValue: keyword.lowercased()) {
-            image = Image(brand.asset).renderingMode(brand == .github ? .template : .original)
-            artworkSize = brand == .chatGPT ? Self.size : 20
-            hasSquareTile = ![.google, .chatGPT, .youtube, .github].contains(brand)
+            // User-supplied square canvases already contain the intended logo spacing.
+            image = Image(brand.asset).renderingMode(.original)
+            artworkSize = 20
+            hasSquareTile = true
         } else {
             image = Image(mingCute: "globe")
             artworkSize = 18

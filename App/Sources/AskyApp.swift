@@ -380,8 +380,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         launcher.hide()
         clipboardWindow.hide()
-        // Updates replace the bundle in place, so the Dock may still hold the old cached icon.
-        if let icon = Bundle.main.image(forResource: "AppIcon") { NSApp.applicationIconImage = icon }
         if let settingsWindow { windowPresentation.show(settingsWindow) }
     }
 }

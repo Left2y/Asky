@@ -32,7 +32,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 功能图标统一使用本地打包的 MingCute 矢量模板，保留品牌标识、真实应用图标，以及启动器“打开链接”和“搜索书签”的原有彩色图标。AI 工具调用图标槽统一为 16×16 pt，记忆调用使用 brain 图标，插件工具调用统一使用 tool 图标，设置页的官方与已安装插件保留对应应用 Logo（优先使用插件声明的图标），失败使用圆形感叹号；点击工具调用文字及其后方箭头展开/收起错误详情，详情高度与透明度平滑过渡，箭头同步旋转；开启系统“减少动态效果”时立即切换。映射与固定上游版本见 [图标清单](scripts/mingcute-icons.json)；更新资源使用 `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`，传入清单记录版本的上游 checkout。
 
-应用图标与设置中的品牌图采用浅蓝磨砂小伙伴：无触角、歪头微笑、深蓝底与放大裁切。正式主图见 [Logo.png](App/Branding/Logo.png)，独立图标包见 [Asky.icns](App/Branding/Asky.icns)，菜单栏使用其简化单色轮廓 [Mark.svg](App/Branding/Mark.svg)。
+应用图标与设置中的品牌图采用浅蓝磨砂小伙伴：无触角、歪头微笑、深蓝底与放大裁切。正式分层源文件为 [AskyNative.icon](App/Branding/AskyNative.icon/icon.json)，由 Icon Composer 创建并通过 Xcode 编译：深蓝背景填充与透明小伙伴前景独立，关闭前景玻璃效果、分组高光、透光及额外投影。系统负责图标遮罩，不再嵌套带留白的圆角底板。静态导出为 [Logo.png](App/Branding/Logo.png) 和 [Asky.icns](App/Branding/Asky.icns)；菜单栏使用简化单色轮廓 [Mark.svg](App/Branding/Mark.svg)。
 
 ### 核心能力
 
@@ -165,7 +165,7 @@ In-app dialogs and alerts use native macOS `NSAlert`: a sheet when an owning win
 
 Functional icons use bundled MingCute vector templates; brand marks, real application icons, and the launcher’s original colored Open Link and Search Bookmarks icons retain their original artwork. AI tool-call icon slots are 16×16 pt. Memory calls use a brain icon, plugin tool calls share the tool icon, and failures use a circular exclamation mark. Official and installed plugins in Settings retain the corresponding app logo, preferring plugin-provided artwork when available. Click a failed call’s label and trailing arrow to expand or collapse its error details, with animated height, opacity, and arrow rotation. When Reduce Motion is enabled, the state changes immediately. See the [icon manifest](scripts/mingcute-icons.json) for mappings and the pinned upstream revision. Refresh assets with `python3 scripts/import-mingcute-icons.py /path/to/mingcute-icons`, using an upstream checkout at the recorded revision.
 
-The app icon and branding in Settings feature a pale-blue frosted companion with a smooth hornless silhouette, tilted smile, dark navy background, and enlarged crop. The production master is [Logo.png](App/Branding/Logo.png), with a standalone [Asky.icns](App/Branding/Asky.icns) export; the menu bar uses its simplified monochrome silhouette in [Mark.svg](App/Branding/Mark.svg).
+The app icon and branding in Settings feature a pale-blue frosted companion with a smooth hornless silhouette, tilted smile, dark navy background, and enlarged crop. The production source is [AskyNative.icon](App/Branding/AskyNative.icon/icon.json), created in Icon Composer and compiled by Xcode, with a separate navy background fill and transparent companion foreground. Foreground glass effects, group specular highlights, translucency, and additional shadows are disabled. The system applies the icon mask without nesting a padded rounded tile. Static exports are [Logo.png](App/Branding/Logo.png) and [Asky.icns](App/Branding/Asky.icns); the menu bar uses the simplified monochrome silhouette in [Mark.svg](App/Branding/Mark.svg).
 
 ### Features
 

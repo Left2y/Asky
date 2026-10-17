@@ -28,8 +28,6 @@ struct CommandSettings: View {
                         }
                     }
                 }
-                Text(NSLocalizedString("输入指令后按空格，再输入内容。内置指令固定，无需添加或修改。", comment: ""))
-                    .foregroundStyle(.secondary)
             }
         }
     }

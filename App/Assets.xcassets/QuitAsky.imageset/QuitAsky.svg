@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<defs>
-<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#FAFBFD"/></linearGradient>
-<linearGradient id="symbol" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#F47777"/><stop offset="1" stop-color="#D94B52"/></linearGradient>
-</defs>
-<rect x="2" y="2" width="20" height="20" rx="4.5" fill="url(#tile)" stroke="#E6EBF1" stroke-width="0.3"/>
-<g fill="none" stroke="#9D343C" stroke-width="1.7" opacity="0.14" transform="translate(0 0.3)"><path d="M12 6.3v5.4m-3.4-4a5.7 5.7 0 1 0 6.8 0" stroke-linecap="round"/></g>
-<g fill="none" stroke="url(#symbol)" stroke-width="1.6"><path d="M12 6.3v5.4m-3.4-4a5.7 5.7 0 1 0 6.8 0" stroke-linecap="round"/></g>
-</svg>

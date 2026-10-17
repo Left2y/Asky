@@ -75,7 +75,7 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 启动器总宽为 720 pt，初始顶部位于屏幕可用高度的 18%；结果列表最高 380 pt（含分组标题），并按屏幕底部空间收缩。搜索采用紧凑单行结果：左侧显示 24 pt 图标与名称，右侧显示应用、文件格式或来源类型，不显示路径；文件路径仍可用快捷键复制。
 
-在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示白色圆角底板上的红色电源图标，与蓝色书签、链接图标统一，并带轻微渐变质感，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
+在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示用户提供的红底白色电源图标，与橙底白色书签、蓝底白色链接图标配套，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
 
 结果底部提供悬浮操作区：左侧按选中项展示常用操作，无可用动作时隐藏；右侧「更多 ⌘K」只在有附加动作时显示。应用和文件可在更多中选择「在访达中显示」「复制路径」，链接和标签页可复制链接。`⌘K` 打开/关闭更多菜单，`↑` / `↓` 选择菜单动作、`Return` 执行，`Escape` 关闭菜单；关闭后保留搜索词与结果选择，方向键继续选择结果。列表在悬浮控件下方渐隐，滚动末尾保留操作区空间。
 
@@ -208,7 +208,7 @@ Start with the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/do
 
 The launcher is 720 pt wide and opens 18% down the screen’s usable area. The result list is capped at 380 pt including section headers, shrinking as needed to fit above the screen’s bottom edge. Search uses compact single-line results with a 24 pt icon and name on the left and the application, file format, or source type on the right. Paths are hidden from rows and remain available through the Copy file path shortcut.
 
-Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with a red power symbol on a white rounded tile, matching the blue bookmark and link icons with subtle gradient depth, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
+Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with the supplied white power symbol on red, paired with the white bookmark on orange and white link on blue, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
 
 A floating action area overlays the bottom of the results. The left side shows the selected item's primary action and hides when none is available; “More ⌘K” appears on the right only when secondary actions exist. Apps and files offer Reveal in Finder and Copy path; links and tabs offer Copy link. Press `⌘K` to toggle More, `↑` / `↓` to choose an action, `Return` to execute, or `Escape` to dismiss. Closing the menu preserves the query and result selection, and arrow keys resume navigating results. Rows fade beneath the floating controls, with extra clearance at the end of the scrollable content.
 

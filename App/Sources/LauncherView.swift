@@ -542,7 +542,7 @@ struct LauncherView: View {
         if model.isTerminalScope {
             CommandIcon(terminalIcon: model.terminalIcon)
         } else if model.isBookmarkScope {
-            Image("Bookmark").resizable().scaledToFit()
+            LauncherFunctionIcon(asset: "Bookmark")
         } else if let command = model.commandInput?.command {
             CommandIcon(keyword: command.keyword)
         } else {
@@ -888,6 +888,18 @@ private struct ResultList: View {
     }
 }
 
+/// Supplied square artwork shares the app icons' visible tile size and inset.
+private struct LauncherFunctionIcon: View {
+    let asset: String
+
+    var body: some View {
+        Image(asset).renderingMode(.original).resizable().scaledToFit()
+            .frame(width: 20, height: 20)
+            .clipShape(RoundedRectangle(cornerRadius: 4.5, style: .continuous))
+            .frame(width: LauncherLayout.rowIconSize, height: LauncherLayout.rowIconSize)
+    }
+}
+
 private struct ResultRow: View {
     let result: SearchResult
     let selected: Bool
@@ -955,7 +967,7 @@ private struct ResultRow: View {
 
     @ViewBuilder private var icon: some View {
         if QuitAskyCommand.isResult(result) {
-            Image("QuitAsky").resizable().scaledToFit()
+            LauncherFunctionIcon(asset: "QuitAsky")
         } else {
             sourceIcon
         }
@@ -979,7 +991,7 @@ private struct ResultRow: View {
                 Image(mingCute: Self.symbol(.currency), size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
             }
         case .link:
-            Image("Link").resizable().scaledToFit()
+            LauncherFunctionIcon(asset: "Link")
         case .calculator, .askAI:
             Image(result.source == .calculator ? "Calculator" : "Agent").resizable().scaledToFit()
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -993,7 +1005,7 @@ private struct ResultRow: View {
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
                 DataSourceIcon(source: .shortcuts)
             } else if result.target.kind == "bookmark-search" {
-                Image("Bookmark").resizable().scaledToFit()
+                LauncherFunctionIcon(asset: "Bookmark")
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()
             } else {

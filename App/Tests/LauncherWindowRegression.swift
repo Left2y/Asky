@@ -251,7 +251,7 @@ enum LauncherWindowRegression {
         try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
                     "empty shell must yield accessory space: \(panel.frame.width)")
         let footprint = accessories.reduce(panel.frame) { $0.union($1.frame) }
-        try require(abs(footprint.width - LauncherLayout.toolbarWidth) <= 1, "toolbar must retain the original 720 pt width")
+        try require(abs(footprint.width - 720) <= 1, "toolbar must retain the requested 720 pt width")
         try require(abs(panel.frame.height - 52) <= 1, "empty shell window must be exactly the 52 pt field: \(panel.frame.height)")
         try require(panel.hasShadow && accessories.allSatisfy(\.hasShadow), "every surface uses the native window shadow")
         if WindowSurface.usesNativeGlass {
@@ -820,12 +820,23 @@ enum LauncherWindowRegression {
         let baseline = panel.frame
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let visibleFrame = screen?.visibleFrame {
-            let availableHeight = floor(visibleFrame.height * 0.88 - 24)
-            // 52 pt field + 1 pt divider + 304 pt list; the window is exactly the shell.
-            let expectedHeight = min(357, availableHeight)
+            try require(abs(baseline.width - 720) <= 1, "expanded launcher must be 720 pt wide")
+            let expectedTop = visibleFrame.maxY - visibleFrame.height * 0.18
+            try require(abs(baseline.maxY - expectedTop) <= 1, "launcher must open at the lowered screen anchor")
+            let availableHeight = floor(visibleFrame.height * 0.82 - 24)
+            // 52 pt field + 1 pt divider + 380 pt list; the window is exactly the shell.
+            let expectedHeight = min(433, availableHeight)
             try require(abs(baseline.height - expectedHeight) <= 1,
-                        "long results must use the compact 304 pt list budget within screen bounds")
+                        "long results must use the 380 pt list budget within screen bounds")
         }
+        print("launcherFrame=\(baseline)")
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                             "build/launcher-sizing-\(NSApp.appearance!.name.rawValue).png"]
+        try capture.run()
+        capture.waitUntilExit()
+        try require(capture.terminationStatus == 0, "launcher sizing screenshot must succeed")
         if !CommandLine.arguments.contains("--bottom-clearance") {
             try await checkSystemDelivery(controller: controller, panel: panel, content: content)
         }

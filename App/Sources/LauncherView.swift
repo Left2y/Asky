@@ -8,7 +8,7 @@ import ToolService
 
 enum LauncherLayout {
     // Keep empty and populated fields aligned to the populated search layout.
-    static let topInsetFraction: CGFloat = 0.12
+    static let topInsetFraction: CGFloat = 0.18
     static let bottomClearance: CGFloat = 24
     static let inputHeight: CGFloat = 52
     static let accessorySpacing: CGFloat = 12
@@ -27,7 +27,7 @@ enum LauncherLayout {
     static let currencyCardHeight: CGFloat = 146
     static let rowHeight: CGFloat = 38
     static let rowIconSize: CGFloat = 24
-    static let maxVisibleResults = 8
+    static let maxVisibleResults = 10
     static let sectionHeaderHeight: CGFloat = 30
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 13
@@ -741,7 +741,7 @@ private struct ResultList: View {
     private var height: CGFloat {
         let rows = CGFloat(visibleResults.count) * LauncherLayout.rowHeight
         let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
-        // Headers share the eight-row budget. Short result lists still size to their content.
+        // Headers share the ten-row budget. Short result lists still size to their content.
         let listHeightLimit = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
         return min(rows + headers + LauncherLayout.listBottomPadding, listHeightLimit, maxHeight)
     }

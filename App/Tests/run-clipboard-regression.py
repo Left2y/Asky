@@ -26,12 +26,13 @@ for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
 command += [str(root / "App/Tests/ClipboardRegression.swift")]
 command += [str(path) for path in sorted(products.glob("*.o"))]
-binary = root / "build/clipboard-regression"
+video_test = "--video-preview" in sys.argv
+binary = root / ("build/clipboard-video-regression" if video_test else "build/clipboard-regression")
 command += ["-lsqlite3", "-o", str(binary)]
 environment = os.environ.copy()
 environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 subprocess.run(command, env=environment, cwd=root, check=True)
-bundle = root / "build/ClipboardRegression.app/Contents"
+bundle = root / ("build/ClipboardVideoRegression.app/Contents" if video_test else "build/ClipboardRegression.app/Contents")
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)
 (bundle / "Resources").mkdir(exist_ok=True)
 executable = bundle / "MacOS/ClipboardRegression"
@@ -41,4 +42,10 @@ with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "ClipboardRegression", "CFBundleIdentifier": "app.asky.clipboard-regression",
                   "CFBundleName": "ClipboardRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], env=environment, cwd=root, check=True)
+if "--video-preview" in sys.argv:
+    fixture = root / "build/clipboard-video-fixture.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "testsrc2=size=640x360:rate=24", "-t", "3", "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p", str(fixture)], check=True)
+    environment["ASKY_CLIPBOARD_VIDEO_FIXTURE"] = str(fixture)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

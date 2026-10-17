@@ -47,6 +47,28 @@ struct ClipboardAccessTests {
         #expect(ClipboardAccess.snapshot(from: pb).text == nil)
     }
 
+    @Test func moviePreviewRejectsMissingFilesFoldersAndMultipleSelections() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let movie = root.appending(path: "视频.mp4")
+        try Data([0]).write(to: movie)
+        func item(_ paths: [String], kind: ClipboardKind = .file) -> ClipboardItem {
+            ClipboardItem(kind: kind, filePath: paths.first, filePaths: paths, byteSize: 1, contentHash: UUID().uuidString)
+        }
+        #expect(ClipboardAccess.videoPreviewURL(for: item([movie.path])) == movie)
+        #expect(ClipboardAccess.videoPreviewURL(for: item([movie.path, movie.path])) == nil)
+        #expect(ClipboardAccess.videoPreviewURL(for: item([movie.path], kind: .text)) == nil)
+        let folder = root.appending(path: "folder.mov")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        #expect(ClipboardAccess.videoPreviewURL(for: item([folder.path])) == nil)
+        let text = root.appending(path: "file.txt")
+        try Data("text".utf8).write(to: text)
+        #expect(ClipboardAccess.videoPreviewURL(for: item([text.path])) == nil)
+        try FileManager.default.removeItem(at: movie)
+        #expect(ClipboardAccess.videoPreviewURL(for: item([movie.path])) == nil)
+    }
+
     @Test func fileSelectionRoundTripsWithoutDeletingOriginals() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

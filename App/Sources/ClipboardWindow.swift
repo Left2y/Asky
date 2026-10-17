@@ -3,6 +3,7 @@ import SwiftUI
 import LocalStore
 import ToolService
 import Theme
+import AVKit
 
 private final class ClipboardPanel: NSPanel {
     var dismiss: () -> Void = {}
@@ -317,6 +318,8 @@ final class ClipboardController {
         let contentHeight: CGFloat
         if let image {
             contentHeight = (width - 2 * inset) * image.size.height / max(1, image.size.width)
+        } else if ClipboardAccess.videoPreviewURL(for: item) != nil {
+            contentHeight = (width - 2 * inset) * 9 / 16
         } else {
             let text = NSAttributedString(string: item.text ?? NSLocalizedString("原始图片已不可用", comment: ""), attributes: [.font: NSFont.systemFont(ofSize: 14)])
             contentHeight = text.boundingRect(with: NSSize(width: width - 2 * ClipboardFullPreview.textInset, height: .greatestFiniteMagnitude),
@@ -581,6 +584,9 @@ private struct ClipboardListDetail: View {
                     Image(nsImage: image).resizable().scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else if let url = ClipboardAccess.videoPreviewURL(for: item) {
+                    ClipboardVideoPreview(url: url).id(url)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                 } else {
                     ScrollView {
                         Text(item.text ?? (item.kind == .image ? NSLocalizedString("原始图片已不可用", comment: "") : item.filePaths.joined(separator: "\n")))
@@ -624,6 +630,10 @@ private struct ClipboardFullPreview: View {
                 Image(nsImage: image).resizable().scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: Self.radius - Self.inset))
                     .padding(Self.inset)
+            } else if let url = ClipboardAccess.videoPreviewURL(for: item) {
+                ClipboardVideoPreview(url: url).id(url)
+                    .clipShape(RoundedRectangle(cornerRadius: Self.radius - Self.inset))
+                    .padding(Self.inset)
             } else {
                 ScrollView {
                     Text(item.text ?? NSLocalizedString("原始图片已不可用", comment: "")).textStyle(.resultPrimary)
@@ -635,6 +645,27 @@ private struct ClipboardFullPreview: View {
         .foregroundStyle(ThemeColor.kText)
         .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.radius))
         .clipShape(RoundedRectangle(cornerRadius: Self.radius))
+    }
+}
+
+/// Keep playback local to the visible preview and release its asset when removed.
+private struct ClipboardVideoPreview: NSViewRepresentable {
+    let url: URL
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.controlsStyle = .floating
+        view.videoGravity = .resizeAspect
+        view.player = AVPlayer(url: url)
+        return view
+    }
+
+    func updateNSView(_ view: AVPlayerView, context: Context) {}
+
+    static func dismantleNSView(_ view: AVPlayerView, coordinator: ()) {
+        view.player?.pause()
+        view.player?.replaceCurrentItem(with: nil)
+        view.player = nil
     }
 }
 

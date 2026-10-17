@@ -82,6 +82,16 @@ public enum ClipboardAccess {
         return urls
     }
 
+    /// Resolve one readable movie for native preview without loading the video into history.
+    public static func videoPreviewURL(for item: ClipboardItem) -> URL? {
+        guard item.kind == .file, item.filePaths.count == 1,
+              let url = availableFiles(for: item)?.first,
+              let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .contentTypeKey]),
+              values.isRegularFile == true,
+              values.contentType?.conforms(to: .movie) == true else { return nil }
+        return url
+    }
+
     public static func fileIcon(for item: ClipboardItem) -> NSImage? {
         guard item.kind == .file, let path = item.filePaths.first else { return nil }
         return NSWorkspace.shared.icon(forFile: path)

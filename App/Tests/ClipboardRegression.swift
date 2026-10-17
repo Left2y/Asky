@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import LocalStore
 import ToolService
+import AVKit
 
 @main @MainActor
 enum ClipboardRegression {
@@ -118,11 +119,74 @@ enum ClipboardRegression {
                 @MainActor func panel() -> NSWindow { application.windows.first { $0.title == "剪贴板历史" }! }
                 @MainActor func shellFrame() -> NSRect { panel().frame }
                 @MainActor func snapshot(_ window: NSWindow, _ name: String) throws {
+                    if CommandLine.arguments.contains("--video-preview") {
+                        // AVPlayer renders in a composited layer, absent from cacheDisplay bitmaps.
+                        let capture = Process()
+                        capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                        capture.arguments = ["-x", "-l", String(window.windowNumber), "build/clipboard-\(name).png"]
+                        try capture.run()
+                        capture.waitUntilExit()
+                        precondition(capture.terminationStatus == 0)
+                        return
+                    }
                     let view = window.contentView!
                     view.layoutSubtreeIfNeeded()
                     let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
                     view.cacheDisplay(in: view.bounds, to: bitmap)
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-\(name).png"))
+                }
+                if CommandLine.arguments.contains("--video-preview") {
+                    let url = URL(filePath: ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_VIDEO_FIXTURE"]!)
+                    let movie = ClipboardItem(kind: .file, text: url.lastPathComponent, filePath: url.path,
+                        filePaths: [url.path], byteSize: 220, sourceApp: "微信", contentHash: "movie")
+                    try store.insert(movie)
+                    controller.query = url.lastPathComponent
+                    precondition(controller.selectedItem?.id == movie.id)
+                    func previews(in view: NSView) -> [AVPlayerView] {
+                        (view as? AVPlayerView).map { [$0] } ?? view.subviews.flatMap { previews(in: $0) }
+                    }
+                    app.preferences.clipboardLayout = .list
+                    controller.updateLayout()
+                    try await Task.sleep(for: .seconds(3))
+                    let listPreview = previews(in: panel().contentView!)
+                    precondition(listPreview.count == 1 && (listPreview[0].player?.currentItem?.asset as? AVURLAsset)?.url == url)
+                    let player = listPreview[0].player!
+                    precondition(player.currentItem?.status == .readyToPlay && player.rate == 0)
+                    player.play()
+                    try await Task.sleep(for: .milliseconds(600))
+                    precondition(player.currentTime().seconds > 0.1, "video playback must advance")
+                    player.pause()
+                    precondition(listPreview[0].bounds.height > 100)
+                    try snapshot(panel(), "video-list")
+                    controller.query = "Another"
+                    try await Task.sleep(for: .milliseconds(300))
+                    precondition(previews(in: panel().contentView!).isEmpty && player.currentItem == nil,
+                        "switching selection removes movie preview and releases its asset")
+                    controller.query = url.lastPathComponent
+                    app.preferences.clipboardLayout = .cards
+                    controller.updateLayout()
+                    let pointer = NSEvent.mouseLocation
+                    let screenTop = NSScreen.screens[0].frame.maxY
+                    defer { CGWarpMouseCursorPosition(CGPoint(x: pointer.x, y: screenTop - pointer.y)) }
+                    // Keep real tracking exits from cancelling the hover under test.
+                    CGWarpMouseCursorPosition(CGPoint(x: panel().frame.minX + 100,
+                        y: screenTop - (panel().frame.minY + 100)))
+                    controller.hover(movie, frame: panel().frame, inside: true)
+                    try await Task.sleep(for: .seconds(3))
+                    let hover = application.windows.first { $0.title == "剪贴板完整预览" && $0.isVisible }!
+                    let hoverPreview = previews(in: hover.contentView!)
+                    precondition(hoverPreview.count == 1 && (hoverPreview[0].player?.currentItem?.asset as? AVURLAsset)?.url == url)
+                    precondition(hoverPreview[0].player?.currentItem?.status == .readyToPlay)
+                    precondition(hover.frame.height > 200, "video hover must have room for playback")
+                    try snapshot(hover, "video-hover")
+                    controller.dismissPreview()
+                    precondition(!hover.isVisible && hover.contentView == nil)
+                    controller.copySelection()
+                    precondition(ClipboardAccess.snapshot().fileURLs == [url], "video copies as original file")
+                    controller.hide()
+                    print("Video list and hover previews, selection switching, dismissal and original-file copy passed")
+                    application.terminate(nil)
+                    return
                 }
                 if CommandLine.arguments.contains("--layouts") {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))

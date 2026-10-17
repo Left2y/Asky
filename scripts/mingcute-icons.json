@@ -74,10 +74,8 @@
     "video": "video"
   },
   "assets": {
-    "Bookmark": "bookmark",
     "Agent": "ai",
     "Calculator": "counter_2",
-    "Link": "link",
     "Plugin": "tool",
     "ChatCopy": "custom/copy",
     "Settings-advanced": "settings_3",

@@ -111,7 +111,12 @@ final class LauncherModel {
     private(set) var results: [SearchResult] = []
     private(set) var isSearching = false
     private(set) var currencyConversion: CurrencyResult?
-    var selection = 0
+    var selection = 0 {
+        didSet { if selection != oldValue { closeActionsMenu() } }
+    }
+    private(set) var isActionsMenuPresented = false
+    var actionSelection = 0
+    private var actionMenuTarget: SearchResult?
     private(set) var terminal: TerminalSession?
     private(set) var status: String?
     /// Transient feedback shown above the shell, like the clipboard panel's toast.
@@ -236,6 +241,7 @@ final class LauncherModel {
 
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
+        closeActionsMenu()
         isPinned = false
         isFilterMenuPresented = false
         filter = .all
@@ -317,6 +323,7 @@ final class LauncherModel {
     }
 
     private func update() {
+        closeActionsMenu()
         if inputState.bookmarks && !canSearchBookmarks {
             let rawQuery = inputState.rawQuery
             inputState.replaceRawQuery(rawQuery, keywords: app.keywords, bookmarksEnabled: false)
@@ -488,11 +495,19 @@ final class LauncherModel {
             + priority.filter { $0.source == .shortcut }
             + order.flatMap { source in remaining.filter { $0.source == source } }
         merged = merged.filter(QuitAskyCommand.isResult) + merged.filter { !QuitAskyCommand.isResult($0) }
+        if isActionsMenuPresented, merged.indices.contains(selection), merged[selection] != actionMenuTarget {
+            closeActionsMenu()
+        }
+        if merged.isEmpty { closeActionsMenu() }
         results = merged
         selection = min(selection, max(0, results.count - 1))
     }
 
     func move(_ delta: Int) {
+        if isActionsMenuPresented {
+            actionSelection = min(max(actionSelection + delta, 0), max(0, secondaryActions.count - 1))
+            return
+        }
         guard currencyConversion == nil, !results.isEmpty else { return }
         selection = min(max(selection + delta, 0), results.count - 1)
     }
@@ -527,6 +542,7 @@ final class LauncherModel {
 
     /// Return executes the selection; ⌘Return explicitly submits to AI.
     func submit(_ kind: SubmitKind) {
+        if isActionsMenuPresented { performHighlightedAction(); return }
         switch kind {
         case .submitToAI:
             let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -539,6 +555,7 @@ final class LauncherModel {
     }
 
     func execute(_ r: SearchResult, action: ResultAction?) {
+        closeActionsMenu()
         guard let action else { return }
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
         if r.target.kind == Self.bookmarkSearchKind {
@@ -647,4 +664,101 @@ final class LauncherModel {
     }
 
     func stopTerminal() { app.terminal.stop() }
+}
+
+extension LauncherModel {
+    /// Intercept before the field editor, including while a child surface is open.
+    func handleActionKey(_ event: NSEvent) -> Bool {
+        if event.type == .leftMouseDown, event.locationInWindow.y > LauncherLayout.actionBarHeight {
+            closeActionsMenu()
+            return false
+        }
+        guard event.type == .keyDown,
+              (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }
+        let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        if event.keyCode == 40, modifiers == .command {
+            // Reserve ⌘K consistently, even for results without secondary actions.
+            if !event.isARepeat { toggleActionsMenu() }
+            return true
+        }
+        guard isActionsMenuPresented else { return false }
+        if modifiers.isEmpty {
+            switch event.keyCode {
+            case 125: move(1); return true
+            case 126: move(-1); return true
+            case 36, 76: performHighlightedAction(); return true
+            case 53: closeActionsMenu(); return true
+            default: break
+            }
+        }
+        // Typing resumes search; editing is still handled by the native field editor.
+        if event.characters?.isEmpty == false { closeActionsMenu() }
+        return false
+    }
+
+    var selectedActionResult: SearchResult? {
+        guard currencyConversion == nil, terminal == nil, results.indices.contains(selection) else { return nil }
+        return results[selection]
+    }
+
+    var primaryLauncherAction: LauncherAction? {
+        guard let result = selectedActionResult, let action = result.primaryAction else { return nil }
+        if QuitAskyCommand.isResult(result) {
+            return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: "↵", kind: .result(action))
+        }
+        if result.target.kind == Self.bookmarkSearchKind {
+            return LauncherAction(title: "搜索书签", icon: "bookmark", shortcut: "↵", kind: .result(action))
+        }
+        return LauncherAction(action: action, source: result.source, shortcut: "↵")
+    }
+
+    var secondaryActions: [LauncherAction] {
+        guard let result = selectedActionResult, result.primaryAction != nil else { return [] }
+        var actions = result.actions.dropFirst().map {
+            LauncherAction(action: $0, source: result.source,
+                           shortcut: $0 == .revealInFinder ? actionPreferences.revealInFinderHotKey.label : nil)
+        }
+        if result.actions.contains(.revealInFinder) {
+            actions.append(LauncherAction(title: "复制路径", icon: "doc.on.clipboard",
+                                          shortcut: actionPreferences.copyPathHotKey.label, kind: .copyPath))
+        }
+        let link = result.source == .chromeTab ? result.subtitle : result.target.identifier
+        if [.link, .bookmark, .chromeTab].contains(result.source), LauncherWebURL.parse(link) != nil {
+            actions.append(LauncherAction(title: "复制链接", icon: "link", shortcut: nil, kind: .result(.copy(link))))
+        }
+        return actions
+    }
+
+    @discardableResult
+    func toggleActionsMenu() -> Bool {
+        if isActionsMenuPresented { closeActionsMenu(); return true }
+        guard !secondaryActions.isEmpty else { return false }
+        isFilterMenuPresented = false
+        actionSelection = 0
+        actionMenuTarget = selectedActionResult
+        isActionsMenuPresented = true
+        return true
+    }
+
+    func closeActionsMenu() {
+        isActionsMenuPresented = false
+        actionMenuTarget = nil
+        actionSelection = 0
+    }
+
+    func performHighlightedAction() {
+        guard isActionsMenuPresented, selectedActionResult == actionMenuTarget,
+              secondaryActions.indices.contains(actionSelection) else { closeActionsMenu(); return }
+        performLauncherAction(secondaryActions[actionSelection])
+    }
+
+    func performLauncherAction(_ action: LauncherAction) {
+        let result = selectedActionResult
+        closeActionsMenu()
+        switch action.kind {
+        case .copyPath: _ = copySelectedPath()
+        case .result(let value):
+            if let result { execute(result, action: value) }
+        }
+    }
 }

@@ -31,6 +31,8 @@ enum LauncherLayout {
     static let sectionHeaderHeight: CGFloat = 30
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 13
+    static let actionBarHeight: CGFloat = 56
+    static let actionsMenuWidth: CGFloat = 280
     static let listBottomPadding: CGFloat = 12
     static let rowHorizontalPadding: CGFloat = 16
     static let rowCornerRadius = CGFloat(Radius.values["radius16"] ?? 16)
@@ -42,6 +44,7 @@ final class LauncherPanel: NSPanel {
     var onBlur: () -> Void = {}
     var onKeyChange: (Bool) -> Void = { _ in }
     var onOpenSettings: () -> Void = {}
+    var onActionKey: (NSEvent) -> Bool = { _ in false }
     var onCopyPath: () -> Bool = { false }
     var onRevealInFinder: () -> Bool = { false }
     var actionPreferences: () -> SettingsPreferences = { SettingsPreferences() }
@@ -64,6 +67,7 @@ final class LauncherPanel: NSPanel {
     }
 
     override func sendEvent(_ event: NSEvent) {
+        if onActionKey(event) { return }
         if SettingsShortcut.matches(event) { onOpenSettings(); return }
         // Intercept before SwiftUI/field editor routing so ⌥⌘C never degrades to ⌘C.
         if actionPreferences().copyPathHotKey.matches(event),
@@ -114,6 +118,7 @@ final class LauncherPanel: NSPanel {
 struct LauncherChrome: Equatable {
     var accessories = false
     var filterMenu = false
+    var actionsMenu = false
     var toast: String?
 }
 
@@ -127,6 +132,7 @@ final class LauncherController {
     private let panel = LauncherPanel()
     private let accessoryPanels = [SurfacePanel(), SurfacePanel()]
     private let filterPanel = SurfacePanel()
+    private let actionsPanel = SurfacePanel()
     private let toastPanel = SurfacePanel()
     private let surfaces = LauncherSurfaceState()
     private let reveal = SurfaceSpring()
@@ -146,18 +152,24 @@ final class LauncherController {
         self.model = model
         panel.onEscape = { [weak self] in
             guard let self else { return }
-            if self.model.isFilterMenuPresented { self.model.isFilterMenuPresented = false }
+            if self.model.isActionsMenuPresented { self.model.closeActionsMenu() }
+            else if self.model.isFilterMenuPresented { self.model.isFilterMenuPresented = false }
             else if self.model.hasScope { self.model.leaveCommand() }
             else { self.hide() }
         }
         panel.onBlur = { [weak self] in
             guard let self else { return }
+            self.model.closeActionsMenu()
             self.model.isFilterMenuPresented = false
             guard !self.model.isPinned, !self.model.isConfirmingQuit else { return }
             self.hide()
         }
         panel.onKeyChange = { [weak self] keyed in
             self?.updateGlassAppearance(keyed: keyed)
+        }
+        panel.onActionKey = { [weak model] event in
+            guard let model else { return false }
+            return model.handleActionKey(event)
         }
         panel.actionPreferences = { [weak model] in model?.actionPreferences ?? SettingsPreferences() }
         panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
@@ -248,7 +260,7 @@ final class LauncherController {
     /// the dimmer inactive material. Match them to the shell while it is key.
     private func updateGlassAppearance(keyed: Bool) {
         let matches = keyed && WindowSurface.usesNativeGlass
-        for surface in accessoryPanels + [filterPanel] {
+        for surface in accessoryPanels + [filterPanel, actionsPanel] {
             surface.matchesActiveAppearance = matches
         }
     }
@@ -257,7 +269,7 @@ final class LauncherController {
         guard panel.isVisible, !model.isPinned else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel]
+            let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel, self.actionsPanel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
     }
@@ -274,6 +286,7 @@ final class LauncherController {
             else { reveal.animate(to: 0, response: 0.18, damping: 1, in: panel) }
         }
         if next.filterMenu != previous.filterMenu { setFilterMenu(visible: next.filterMenu) }
+        if next.actionsMenu != previous.actionsMenu { setActionsMenu(visible: next.actionsMenu) }
         if next.toast != previous.toast { setToast(next.toast) }
         layoutSurfaces()
     }
@@ -306,6 +319,17 @@ final class LauncherController {
                 }
             })
         }
+    }
+
+    private func setActionsMenu(visible: Bool) {
+        guard visible else { actionsPanel.remove(); return }
+        let view = LauncherActionsMenu(model: model)
+        actionsPanel.setSurface(view,
+                                size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.actionsMenuWidth),
+                                cornerRadius: 18)
+        updateGlassAppearance(keyed: panel.isKeyWindow)
+        layoutSurfaces()
+        panel.addChildWindow(actionsPanel, ordered: .above)
     }
 
     private func setToast(_ message: String?) {
@@ -351,6 +375,11 @@ final class LauncherController {
             filterPanel.setFrameTopLeftPoint(NSPoint(x: right - filterPanel.frame.width,
                                                      y: origin.y - side - LauncherLayout.accessorySpacing))
         }
+        if actionsPanel.isVisible {
+            // Bottom-right anchor above More; the menu overlays the result rows.
+            actionsPanel.setFrameOrigin(NSPoint(x: frame.maxX - actionsPanel.frame.width - 14,
+                                                y: frame.minY + LauncherLayout.actionBarHeight + 4))
+        }
         if toastPanel.isVisible {
             let size = toastPanel.frame.size
             toastPanel.setFrameOrigin(NSPoint(x: frame.midX - size.width / 2, y: frame.maxY + 12))
@@ -372,7 +401,7 @@ final class LauncherController {
         defer { hiding = false }
         outsideClickDismissal.hide()
         reveal.stop()
-        for surface in accessoryPanels + [filterPanel, toastPanel] { surface.remove() }
+        for surface in accessoryPanels + [filterPanel, actionsPanel, toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
@@ -405,12 +434,15 @@ struct LauncherView: View {
     private var chrome: LauncherChrome {
         LauncherChrome(accessories: accessoriesVisible && !hasInput,
                        filterMenu: model.isFilterMenuPresented && !hasInput,
+                       actionsMenu: model.isActionsMenuPresented,
                        toast: model.toast)
     }
 
     var body: some View {
         searchShell
-            .simultaneousGesture(TapGesture().onEnded { model.isFilterMenuPresented = false })
+            .simultaneousGesture(TapGesture().onEnded {
+                model.isFilterMenuPresented = false
+            })
             .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
             .onChange(of: hasInput) { _, searching in
                 if searching { model.isFilterMenuPresented = false }
@@ -462,6 +494,8 @@ struct LauncherView: View {
                 inputDivider
                 CalculationView(expression: calculation.expression, result: calculation.result)
                     .frame(height: LauncherLayout.currencyCardHeight)
+                    .padding(.bottom, LauncherLayout.actionBarHeight)
+                    .overlay(alignment: .bottom) { LauncherActionBar(model: model) }
             } else if case .converted(let value, _, _, _, let query) = model.currencyConversion {
                 inputDivider
                 CurrencyConversionView(query: query, value: value)
@@ -738,12 +772,15 @@ private struct ResultList: View {
         return !model.hasScope && resultSections.count > 1
     }
 
+    private var footerHeight: CGFloat { model.primaryLauncherAction == nil ? 0 : LauncherLayout.actionBarHeight }
+    private var bottomPadding: CGFloat { LauncherLayout.listBottomPadding + footerHeight }
+
     private var height: CGFloat {
         let rows = CGFloat(visibleResults.count) * LauncherLayout.rowHeight
         let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
         // Headers share the ten-row budget. Short result lists still size to their content.
         let listHeightLimit = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
-        return min(rows + headers + LauncherLayout.listBottomPadding, listHeightLimit, maxHeight)
+        return min(rows + headers + bottomPadding, listHeightLimit, maxHeight)
     }
 
     var body: some View {
@@ -766,7 +803,7 @@ private struct ResultList: View {
                                 if r.source == .currency {
                                     ResultRow(result: r, selected: false, keyword: nil)
                                         .accessibilityLabel(r.title)
-                                        .padding(.bottom, r.id == visibleResults.last?.id ? LauncherLayout.listBottomPadding : 0)
+                                        .padding(.bottom, r.id == visibleResults.last?.id ? bottomPadding : 0)
                                         .id(r.id)
                                 } else {
                                     Button {
@@ -778,9 +815,9 @@ private struct ResultList: View {
                                     .buttonStyle(.plain)
                                     .accessibilityLabel(r.title)
                                     .accessibilityAddTraits(i == model.selection ? .isSelected : [])
-                                    // Keep clearance inside the final row's scroll target,
-                                    // so every selection uses the same minimal reveal.
-                                    .padding(.bottom, r.id == visibleResults.last?.id ? LauncherLayout.listBottomPadding : 0)
+                                    // Keep enough scrollable clearance for the final row
+                                    // to move above the floating controls.
+                                    .padding(.bottom, r.id == visibleResults.last?.id ? bottomPadding : 0)
                                     .id(r.id)
                                 }
                             }
@@ -790,6 +827,20 @@ private struct ResultList: View {
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
             }
             .scrollIndicators(.hidden)
+            .mask(alignment: .bottom) {
+                GeometryReader { geometry in
+                    let fade = footerHeight / max(1, geometry.size.height)
+                    LinearGradient(stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: max(0, 1 - fade - 0.06)),
+                        .init(color: .clear, location: max(0, 1 - fade * 0.35)),
+                        .init(color: .clear, location: 1)
+                    ], startPoint: .top, endPoint: .bottom)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if footerHeight > 0 { LauncherActionBar(model: model) }
+            }
             .frame(height: min(maxHeight, max(height, retainedHeight)))
             .task(id: LayoutRequest(query: model.query, height: height, isSearching: model.isSearching)) {
                 let target = height
@@ -806,7 +857,7 @@ private struct ResultList: View {
             }
             .onChange(of: model.selection) { _, s in
                 guard model.results.indices.contains(s) else { return }
-                proxy.scrollTo(model.results[s].id)
+                proxy.scrollTo(model.results[s].id, anchor: .center)
             }
         }
     }

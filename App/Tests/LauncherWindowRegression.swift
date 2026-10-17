@@ -38,7 +38,9 @@ enum LauncherWindowRegression {
             do {
                 for appearance in [NSAppearance.Name.aqua, .darkAqua] {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--compact-results") {
+                    if CommandLine.arguments.contains("--action-bar") {
+                        try await checkActionBar()
+                    } else if CommandLine.arguments.contains("--compact-results") {
                         try await checkCompactResults()
                     } else if CommandLine.arguments.contains("--bookmarks") {
                         try await checkBookmarks()
@@ -78,6 +80,126 @@ enum LauncherWindowRegression {
         let source: SearchSource
         let results: [SearchResult]
         func search(_ query: String, limit: Int) async -> [SearchResult] { Array(results.prefix(limit)) }
+    }
+
+    private static func checkActionBar() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-actions-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fixture = root.appending(path: "Design reference.md")
+        try Data("Action menu regression".utf8).write(to: fixture)
+        let app = try AppModel(root: root.appending(path: "store"))
+        var rows: [SearchResult] = []
+        for index in 0..<15 {
+            let path = index == 0 ? fixture.path : root.appending(path: "Design \(index).pdf").path
+            let title = index == 0 ? "Design reference.md" : "Design \(index).pdf"
+            rows.append(SearchResult(source: .file, target: TargetRef(kind: "file", identifier: path),
+                                     title: title, actions: [.open, .revealInFinder], score: Double(100 - index)))
+        }
+        let provider = CompactProvider(source: .file, results: rows)
+        let model = LauncherModel(app: app, searchProviders: [provider])
+        let controller = LauncherController(model: model)
+        model.query = "Design"
+        controller.show()
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
+            throw NSError(domain: "ActionBar", code: 1)
+        }
+        panel.onBlur = {}
+        defer { controller.hide() }
+        for _ in 0..<80 {
+            if !model.results.isEmpty && !model.isSearching { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try require(!model.results.isEmpty, "action fixtures must finish loading: query=\(model.query), searching=\(model.isSearching)")
+        try await Task.sleep(for: .milliseconds(400))
+        let responder = panel.firstResponder
+        let resultID = model.results[model.selection].id
+        let input = model.inputText
+        let frame = panel.frame
+        func key(_ code: UInt16, modifiers: NSEvent.ModifierFlags = [], repeatKey: Bool = false) {
+            let character: String = switch code {
+            case 40: "k"
+            case 125: "\u{F701}"
+            case 126: "\u{F700}"
+            case 36: "\r"
+            case 53: "\u{1B}"
+            default: ""
+            }
+            let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+                                        timestamp: 0, windowNumber: panel.windowNumber, context: nil,
+                                        characters: character, charactersIgnoringModifiers: character,
+                                        isARepeat: repeatKey, keyCode: code)!
+            panel.sendEvent(event)
+        }
+        func capture(_ name: String, window: NSWindow? = nil) throws {
+            let window = window ?? panel
+            let process = Process()
+            process.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            process.arguments = ["-x", "-l", String(window.windowNumber),
+                                 "build/launcher-actions-\(NSApp.appearance!.name.rawValue)-\(name).png"]
+            try process.run()
+            process.waitUntilExit()
+            try require(process.terminationStatus == 0, "action screenshot must succeed")
+        }
+        try require(model.primaryLauncherAction?.title == "打开", "file primary action must be Open")
+        try require(model.secondaryActions.count == 2, "file menu must offer reveal and path copy")
+        try capture("closed")
+        key(40, modifiers: .command)
+        try await Task.sleep(for: .milliseconds(200))
+        try require(model.isActionsMenuPresented && model.actionSelection == 0, "Cmd K must open on first action")
+        key(40, modifiers: .command, repeatKey: true)
+        try require(model.isActionsMenuPresented, "held Cmd K must not flicker")
+        key(125)
+        try require(model.actionSelection == 1 && model.results[model.selection].id == resultID, "Down must navigate menu only")
+        key(126)
+        try require(model.actionSelection == 0, "Up must navigate menu")
+        try require(panel.firstResponder === responder && model.inputText == input, "menu must retain native editor and query")
+        try require(panel.frame == frame, "menu must overlay without resizing launcher")
+        let menu = panel.childWindows?.first { $0.isVisible && abs($0.frame.width - LauncherLayout.actionsMenuWidth) < 2 }
+        try require(menu != nil && menu?.canBecomeKey == false && menu?.hasShadow == true, "menu must use a non-key glass child surface")
+        try capture("open")
+        if let menu { try capture("menu", window: menu) }
+        key(40, modifiers: .command)
+        try await Task.sleep(for: .milliseconds(100))
+        try require(!model.isActionsMenuPresented && menu?.isVisible == false, "second Cmd K must dismiss menu")
+        key(125)
+        try require(model.selection == 1, "Down must resume result navigation")
+        model.selection = 0
+        key(40, modifiers: .command)
+        key(125)
+        key(36)
+        try require(!model.isActionsMenuPresented && NSPasteboard.general.string(forType: .string) == fixture.path,
+                    "Return on Copy path must execute the selected menu action")
+        try require(controller.isVisible, "Copy path must retain launcher")
+        key(40, modifiers: .command)
+        key(53)
+        try require(!model.isActionsMenuPresented && controller.isVisible, "Escape must close only menu")
+        key(40, modifiers: .command)
+        model.inputText = "Design new"
+        try require(!model.isActionsMenuPresented, "query changes must dismiss stale actions")
+        try await Task.sleep(for: .milliseconds(400))
+        guard let lastFile = model.results.lastIndex(where: { $0.source == .file }) else {
+            throw NSError(domain: "ActionBar", code: 2)
+        }
+        model.selection = lastFile
+        try await Task.sleep(for: .milliseconds(300))
+        try capture("last-row")
+        model.selection = model.results.firstIndex(where: { $0.source == .askAI })!
+        try require(model.primaryLauncherAction?.title == "询问 AI" && model.secondaryActions.isEmpty,
+                    "AI must have its own primary action and no empty More button")
+        key(40, modifiers: .command)
+        try require(!model.isActionsMenuPresented, "Cmd K must not open an empty menu")
+        try await Task.sleep(for: .milliseconds(200))
+        try capture("ai")
+        model.query = "1+2"
+        try await Task.sleep(for: .milliseconds(400))
+        try require(model.primaryLauncherAction?.title == "复制结果", "calculator must offer Copy result")
+        try capture("calculation")
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(400))
+        try require(abs(panel.frame.height - 52) <= 1 && !model.isActionsMenuPresented,
+                    "clearing search must remove action surfaces and restore compact input")
+        print("action bar: keyboard toggle/navigation, focus, path execution, query dismissal, final row, AI/calculation passed")
     }
 
     private static func checkCompactResults() async throws {

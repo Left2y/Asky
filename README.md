@@ -77,6 +77,8 @@ Asky 是用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。搜索和剪
 
 在默认搜索中输入 `asky`（不区分大小写），首项为“关闭 Asky”，显示白底红色 Logo，应用结果仍保留。点击或按回车后弹出原生确认 Alert；取消继续使用，确认后退出应用。
 
+结果底部提供悬浮操作区：左侧按选中项展示常用操作，无可用动作时隐藏；右侧「更多 ⌘K」只在有附加动作时显示。应用和文件可在更多中选择「在访达中显示」「复制路径」，链接和标签页可复制链接。`⌘K` 打开/关闭更多菜单，`↑` / `↓` 选择菜单动作、`Return` 执行，`Escape` 关闭菜单；关闭后保留搜索词与结果选择，方向键继续选择结果。列表在悬浮控件下方渐隐，滚动末尾保留操作区空间。
+
 在“设置 › 触发快捷键”的统一列表中修改快捷键或逐项恢复默认，包括启动器、剪贴板、AI 对话，以及启动器内的“在访达中显示”（`⌘F`）和“复制文件路径”（`⌥⌘C`）。后两项需要选中文件或应用。Chrome 搜索与系统工具需要相应授权。
 “设置 › 通用 › 启动”中的“显示菜单栏图标”开关立即生效并保存，默认开启；隐藏图标后仍可通过快捷键唤起应用。“在 Dock 栏显示”默认关闭，打开设置也不会显示 Dock 图标；开启后即使关闭所有窗口也保留 Dock 图标，点击图标可重新打开入口，主动退出应用后结束常驻。
 
@@ -121,6 +123,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 请求确认全量预览：Debug 构建后运行 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`；每个场景依次选择“确认执行”和“不执行”，只测试界面与返回结果，不执行真实工具。
 
 服务商预设回归：先执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`，再运行 `build/model-provider-regression`。
+
+悬浮操作区回归：完成 Debug 构建后执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar`，检查菜单键盘路由、焦点、复制路径、结果选择恢复与深浅色实际窗口。
 
 退出搜索回归：完成 Debug 构建后，运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py`，检查排序、精确匹配、取消、确认和浅色/深色窗口。
 
@@ -206,6 +210,8 @@ The launcher is 720 pt wide and opens 18% down the screen’s usable area. The r
 
 Type `asky` (case-insensitive) in the default search to see “Quit Asky” first with a red logo on white, followed by app results. Clicking it or pressing Return opens a native confirmation alert; cancel to keep using Asky, or confirm to quit.
 
+A floating action area overlays the bottom of the results. The left side shows the selected item's primary action and hides when none is available; “More ⌘K” appears on the right only when secondary actions exist. Apps and files offer Reveal in Finder and Copy path; links and tabs offer Copy link. Press `⌘K` to toggle More, `↑` / `↓` to choose an action, `Return` to execute, or `Escape` to dismiss. Closing the menu preserves the query and result selection, and arrow keys resume navigating results. Rows fade beneath the floating controls, with extra clearance at the end of the scrollable content.
+
 Settings › Keyboard Shortcuts provides one list with editable shortcuts and per-row resets for the launcher, clipboard, AI chat, and the launcher actions Reveal in Finder (`⌘F`) and Copy file path (`⌥⌘C`). The last two require a selected file or app. Chrome search and system tools require the relevant permissions.
 The “Show menu bar icon” switch in Settings › General › Startup takes effect immediately and persists, with the icon shown by default. Keyboard shortcuts remain available when the icon is hidden. “Show in Dock” is off by default, and opening Settings does not show the Dock icon. When enabled, the Dock icon stays visible after all windows close; click it to reopen the launcher. Quit the app to end its running session.
 
@@ -250,6 +256,8 @@ Common checks (build MCP Bridge before testing the core package):
 Full confirmation preview: after building Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`. Choose Confirm, then Decline, for each scenario; this checks UI and response handling without executing real tools.
 
 Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
+
+Floating action area regression: after the Debug build, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar` to check menu keyboard routing, focus, path copying, restored result navigation, and actual light/dark windows.
 
 Quit search regression: after building Debug, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-quit-asky-regression.py` to check ranking, exact matching, cancellation, confirmation, and light/dark windows.
 

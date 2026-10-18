@@ -379,6 +379,20 @@ final class LauncherModel {
         isSearching = router.includesSearch(route) && searchProviderCount > 0
         remainingSearchProviders = isSearching ? searchProviderCount : 0
         direct = router.directResults(for: route)
+        // Core routing keeps stable command names; presentation uses the app's bundle.
+        if case .keyword(let command, let text) = route {
+            let name = NSLocalizedString(command.name, comment: "Built-in website command")
+            direct = direct.map { result in
+                var result = result
+                result.title = command.supportsQuery
+                    ? String(format: NSLocalizedString("%@：%@", comment: "Website search result"), name, text)
+                    : String(format: NSLocalizedString("打开 %@", comment: "Open website"), name)
+                if !command.supportsQuery {
+                    result.subtitle = NSLocalizedString("仅打开网页，问题不会传递到网站", comment: "Website command limitation")
+                }
+                return result
+            }
+        }
         if case .search(let text) = route {
             if filter == .all, QuitAskyCommand.matches(text) { direct.append(QuitAskyCommand.result) }
             direct += app.keywords.commands.compactMap { command in
@@ -386,7 +400,7 @@ final class LauncherModel {
                 guard exact || command.urlTemplate.contains("{query}"),
                       let url = command.url(for: exact ? "" : text) else { return nil }
                 return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
-                                    title: command.name, actions: [.openURL(url)], score: 0)
+                                    title: NSLocalizedString(command.name, comment: "Built-in website command"), actions: [.openURL(url)], score: 0)
             }
             let aliasQuery = text.trimmingCharacters(in: .whitespacesAndNewlines)
             direct += app.preferences.aliases.compactMap { item in

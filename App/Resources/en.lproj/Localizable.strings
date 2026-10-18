@@ -611,3 +611,7 @@
 "该指令与已有指令或别名重名。" = "This command conflicts with an existing command or alias.";
 
 "搜索开启的标签页" = "Search Open Tabs";
+
+"打开 %@" = "Open %@";
+"%@：%@" = "%@: %@";
+"仅打开网页，问题不会传递到网站" = "Opens the website only; your question is not sent to it";

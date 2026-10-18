@@ -39,13 +39,13 @@ struct LauncherActionBar: View {
         HStack {
             if let primary = model.primaryLauncherAction {
                 Button { model.performLauncherAction(primary) } label: {
-                    actionLabel(primary.title, icon: primary.icon, shortcut: primary.shortcut)
+                    actionLabel(primary.title, shortcut: primary.shortcut)
                 }
                 .buttonStyle(LauncherActionButtonStyle())
             }
             if let finder = model.finderLauncherAction {
                 Button { model.performLauncherAction(finder) } label: {
-                    actionLabel(finder.title, icon: finder.icon, shortcut: finder.shortcut)
+                    actionLabel(finder.title, shortcut: finder.shortcut)
                 }
                 .buttonStyle(LauncherActionButtonStyle())
             }
@@ -63,9 +63,8 @@ struct LauncherActionBar: View {
         .frame(height: LauncherLayout.actionBarHeight, alignment: .bottom)
     }
 
-    private func actionLabel(_ title: String, icon: String? = nil, shortcut: String?) -> some View {
+    private func actionLabel(_ title: String, shortcut: String?) -> some View {
         HStack(spacing: 8) {
-            if let icon { Image(mingCute: icon, size: 14) }
             Text(NSLocalizedString(title, tableName: "Launcher", comment: "Launcher action"))
             if let shortcut { LauncherActionKeyCap(value: shortcut) }
         }

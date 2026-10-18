@@ -428,16 +428,33 @@ final class ClipboardController {
             entry.setDraggingFrame(view.bounds.offsetBy(dx: CGFloat(index) * 4, dy: CGFloat(index) * 4), contents: preview)
             return entry
         }
-        dragSource.active = true
+        dragSource.beginTracking()
         // The outside-click shields are real windows and would intercept the destination's drop.
         outsideClickDismissal.hide()
-        dragSource.onEnd = { [weak self] operation in
+        dragSource.onEnd = { [weak self] operation, point, wasReleased in
             #if DEBUG
             if CommandLine.arguments.contains("--test-clipboard") {
                 NSLog("Clipboard drag ended: operation %lu", operation.rawValue)
             }
             #endif
             guard let self else { return }
+            if operation == [], wasReleased, let target = ClipboardDropTarget.capture(at: point) {
+                guard ClipboardAccess.copy(item) else {
+                    self.status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
+                    self.updateOutsideClickDismissal()
+                    return
+                }
+                let changeCount = ClipboardAccess.changeCount
+                if !self.pinned { self.hide() }
+                else { self.updateOutsideClickDismissal() }
+                self.pasteTask?.cancel()
+                self.pasteTask = Task { @MainActor [weak self] in
+                    let result = await target.paste(expectedChangeCount: changeCount)
+                    guard !Task.isCancelled else { return }
+                    self?.showPasteFallback(result)
+                }
+                return
+            }
             if operation != [], !self.pinned { self.hide() }
             else { self.updateOutsideClickDismissal() }
         }
@@ -627,7 +644,7 @@ private struct ClipboardActionBar: View {
                 if controller.hasPasteTarget {
                     label("粘贴到光标位置", shortcut: "↩")
                 } else {
-                    label("复制到剪贴板", icon: "ChatCopy", shortcut: "⌘ ↩")
+                    label("复制到剪贴板", shortcut: "⌘ ↩")
                 }
             }
             .buttonStyle(LauncherActionButtonStyle())
@@ -644,9 +661,8 @@ private struct ClipboardActionBar: View {
         .frame(height: LauncherLayout.actionBarHeight, alignment: .bottom)
     }
 
-    private func label(_ title: String, icon: String? = nil, shortcut: String) -> some View {
+    private func label(_ title: String, shortcut: String) -> some View {
         HStack(spacing: 8) {
-            if let icon { Image(icon).resizable().renderingMode(.template).scaledToFit().frame(width: 14, height: 14) }
             Text(NSLocalizedString(title, tableName: "Clipboard", comment: "Clipboard action"))
             LauncherActionKeyCap(value: shortcut)
         }
@@ -1171,7 +1187,34 @@ private struct ClipboardVideoPreview: NSViewRepresentable {
 @MainActor
 final class ClipboardDragSource: NSObject, NSDraggingSource {
     var active = false
-    var onEnd: (NSDragOperation) -> Void = { _ in }
+    var onEnd: (NSDragOperation, NSPoint, Bool) -> Void = { _, _, _ in }
+    private var monitors: [Any] = []
+    private var cancelled = false
+    private var releasePoint: NSPoint?
+
+    func beginTracking() {
+        removeMonitors()
+        active = true
+        cancelled = false
+        releasePoint = nil
+        let observe: @MainActor (NSEvent) -> Void = { [weak self] event in
+            guard let self else { return }
+            if event.type == .keyDown, event.keyCode == 53 { self.cancelled = true }
+            if event.type == .leftMouseUp { self.releasePoint = NSEvent.mouseLocation }
+        }
+        if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp, .keyDown], handler: { event in
+            MainActor.assumeIsolated { observe(event) }
+            return event
+        }) { monitors.append(monitor) }
+        if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .keyDown], handler: { event in
+            MainActor.assumeIsolated { observe(event) }
+        }) { monitors.append(monitor) }
+    }
+
+    private func removeMonitors() {
+        for monitor in monitors { NSEvent.removeMonitor(monitor) }
+        monitors = []
+    }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
@@ -1181,7 +1224,10 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         active = false
-        onEnd(operation)
+        let wasReleased = !cancelled && (releasePoint != nil || NSApp.currentEvent?.type == .leftMouseUp)
+        let point = releasePoint ?? NSEvent.mouseLocation
+        removeMonitors()
+        onEnd(operation, point, wasReleased)
     }
 
     /// The mouse surface draws no content, so capture the card's area from the window instead.

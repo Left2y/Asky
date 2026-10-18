@@ -23,3 +23,11 @@
 - 本地构建、截图和回归应用使用现有 `.gitignore` 的 `build/` 规则，不提交二进制或截图。
 
 README 中英文已同步交互变化；AGENTS.md 无架构、模块边界或开发命令变化，保持不变。
+
+## 复制按钮图标调整
+
+- “复制到剪贴板”底栏按钮复用 `ChatCopy` 模板资产（`copy_2_line`，源文件 `App/Artwork/copy.svg`），保持 14 pt 图形大小。
+- 已重新执行 `xcodegen generate` 和 README 的 Debug 构建命令，均通过。
+- 已重新执行 KulaCore `swift test`：仍仅 `nativeWorkerRoundTripAndPolicy` 因缺少 plugin-runner 产物出现四个断言失败。
+- README 无使用方式变化，保持不变；AGENTS.md 无持续开发规则变化，保持不变。
+- 图标调整后重新运行 `run-clipboard-regression.py --layouts`：通过；已检查新生成的 `build/clipboard-layout-actions-footer.png`，底栏显示 `copy_2_line`。截图仍由既有 `build/` 规则忽略。

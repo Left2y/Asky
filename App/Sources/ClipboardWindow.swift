@@ -576,7 +576,7 @@ private struct ClipboardActionBar: View {
     var body: some View {
         HStack {
             Button { controller.copySelection() } label: {
-                label("复制到剪贴板", icon: "doc.on.clipboard", shortcut: "↩")
+                label("复制到剪贴板", icon: "ChatCopy", shortcut: "↩")
             }
             .buttonStyle(LauncherActionButtonStyle())
             Spacer(minLength: 12)
@@ -594,7 +594,7 @@ private struct ClipboardActionBar: View {
 
     private func label(_ title: String, icon: String? = nil, shortcut: String) -> some View {
         HStack(spacing: 8) {
-            if let icon { Image(mingCute: icon, size: 14) }
+            if let icon { Image(icon).resizable().renderingMode(.template).scaledToFit().frame(width: 14, height: 14) }
             Text(NSLocalizedString(title, tableName: "Clipboard", comment: "Clipboard action"))
             LauncherActionKeyCap(value: shortcut)
         }

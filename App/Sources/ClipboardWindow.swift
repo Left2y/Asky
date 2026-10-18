@@ -590,7 +590,6 @@ private struct ClipboardHistoryView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if controller.layout == .list {
                 ClipboardListView(controller: controller)
-                ClipboardActionBar(controller: controller)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
@@ -842,7 +841,8 @@ private struct ClipboardListView: View {
                             ClipboardHistoryRow(item: item, controller: controller).id(item.id)
                         }
                     }.padding(.horizontal, LauncherLayout.listHorizontalPadding)
-                        .padding(.vertical, LauncherLayout.listBottomPadding)
+                        .padding(.top, LauncherLayout.listBottomPadding)
+                        .padding(.bottom, LauncherLayout.listBottomPadding + LauncherLayout.actionBarHeight)
                 }
                 .onChange(of: controller.selection) { _, _ in
                     if let item = controller.selectedItem { proxy.scrollTo(item.id, anchor: .center) }
@@ -855,7 +855,23 @@ private struct ClipboardListView: View {
             Rectangle().fill(ThemeColor.kBorder).frame(width: 1)
             if let item = controller.selectedItem {
                 ClipboardListDetail(item: item).id(item.id)
+                    .padding(.bottom, LauncherLayout.actionBarHeight)
             }
+        }
+        // Match search: content continues beneath floating actions and fades away.
+        .mask {
+            GeometryReader { geometry in
+                let fade = LauncherLayout.actionBarHeight / max(1, geometry.size.height)
+                LinearGradient(stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: max(0, 1 - fade - 0.06)),
+                    .init(color: .clear, location: max(0, 1 - fade * 0.35)),
+                    .init(color: .clear, location: 1)
+                ], startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            ClipboardActionBar(controller: controller)
         }
     }
 }

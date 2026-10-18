@@ -353,6 +353,41 @@ enum ClipboardRegression {
                     application.terminate(nil)
                     return
                 }
+                if CommandLine.arguments.contains("--floating-actions") {
+                    for index in 0..<24 {
+                        try store.insert(ClipboardItem(kind: .text, text: "Floating actions row \(index + 1)",
+                            byteSize: 24, contentHash: "floating-\(index)",
+                            createdAt: Date().addingTimeInterval(Double(100 - index))))
+                    }
+                    controller.refresh()
+                    app.preferences.clipboardLayout = .list
+                    controller.updateLayout()
+                    controller.pinned = true
+                    panel().makeFirstResponder(nil)
+                    panel().ignoresMouseEvents = true
+                    for appearance in ["light", "dark"] {
+                        app.preferences.appearance = appearance
+                        controller.selection = 0
+                        try await Task.sleep(for: .milliseconds(400))
+                        for position in ["top", "last"] {
+                            if position == "last" {
+                                controller.moveSelection(controller.items.count - 1)
+                                try await Task.sleep(for: .milliseconds(400))
+                            }
+                            let capture = Process()
+                            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                            capture.arguments = ["-x", "-l", String(panel().windowNumber),
+                                "build/clipboard-floating-\(appearance)-\(position).png"]
+                            try capture.run()
+                            capture.waitUntilExit()
+                            precondition(capture.terminationStatus == 0)
+                        }
+                    }
+                    print("Floating clipboard actions captured in light/dark at the top and final selection")
+                    controller.hide()
+                    application.terminate(nil)
+                    return
+                }
                 if CommandLine.arguments.contains("--layouts") {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
                     precondition(legacy.clipboardLayout == .cards)

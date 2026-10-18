@@ -135,6 +135,7 @@ final class LauncherModel {
     var selection = 0 {
         didSet { if selection != oldValue { closeActionsMenu() } }
     }
+    @ObservationIgnored var actionsMenuFrame = CGRect.zero
     private(set) var isActionsMenuPresented = false
     var actionSelection = 0
     private var actionMenuTarget: SearchResult?
@@ -914,9 +915,10 @@ final class LauncherModel {
 extension LauncherModel {
     /// Intercept before the field editor, including while a child surface is open.
     func handleActionKey(_ event: NSEvent) -> Bool {
-        if event.type == .leftMouseDown, event.locationInWindow.y > LauncherLayout.actionBarHeight {
-            closeActionsMenu()
-            return false
+        if isActionsMenuPresented {
+            if event.type == .leftMouseDown, !actionsMenuFrame.contains(event.locationInWindow) {
+                closeActionsMenu()
+            }
         }
         guard event.type == .keyDown,
               (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }

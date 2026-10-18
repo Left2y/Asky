@@ -39,23 +39,22 @@ struct LauncherActionBar: View {
         HStack {
             if let primary = model.primaryLauncherAction {
                 Button { model.performLauncherAction(primary) } label: {
-                    actionLabel(primary.title, shortcut: primary.shortcut)
+                    LauncherActionLabel(title: primary.title, shortcut: primary.shortcut)
                 }
                 .buttonStyle(LauncherActionButtonStyle())
             }
             if let finder = model.finderLauncherAction {
                 Button { model.performLauncherAction(finder) } label: {
-                    actionLabel(finder.title, shortcut: finder.shortcut)
+                    LauncherActionLabel(title: finder.title, shortcut: finder.shortcut)
                 }
                 .buttonStyle(LauncherActionButtonStyle())
             }
             Spacer(minLength: 12)
             if !model.secondaryActions.isEmpty {
-                Button { model.toggleActionsMenu() } label: {
-                    actionLabel("更多", shortcut: "⌘ K")
-                }
-                .buttonStyle(LauncherActionButtonStyle())
-                .accessibilityValue(model.isActionsMenuPresented ? "On" : "Off")
+                LauncherActionLabel(title: "更多", shortcut: "⌘ K")
+                    .hidden()
+                    .accessibilityHidden(true)
+                    .anchorPreference(key: LauncherMoreAnchorKey.self, value: .bounds) { $0 }
             }
         }
         .padding(.horizontal, 14)
@@ -63,7 +62,13 @@ struct LauncherActionBar: View {
         .frame(height: LauncherLayout.actionBarHeight, alignment: .bottom)
     }
 
-    private func actionLabel(_ title: String, shortcut: String?) -> some View {
+}
+
+struct LauncherActionLabel: View {
+    let title: String
+    let shortcut: String?
+
+    var body: some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString(title, tableName: "Launcher", comment: "Launcher action"))
             if let shortcut { LauncherActionKeyCap(value: shortcut) }
@@ -112,7 +117,7 @@ struct LauncherActionKeyCap: View {
     }
 }
 
-/// A non-key child surface: keyboard input stays in the search field.
+/// Menu content shares the launcher window and leaves the native editor focused.
 struct LauncherActionsMenu: View {
     @Bindable var model: LauncherModel
     @Environment(\.colorScheme) private var colorScheme
@@ -132,15 +137,99 @@ struct LauncherActionsMenu: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .focusable(false)
                 .background(model.actionSelection == index ? ThemeColor.kInteractionHover.color(for: colorScheme) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 10))
                 .onHover { if $0 { model.actionSelection = index } }
                 .accessibilityAddTraits(model.actionSelection == index ? .isSelected : [])
+                .id(index)
+                .accessibilityIdentifier("launcher-action-\(index)")
             }
         }
         .padding(8)
         .frame(width: LauncherLayout.actionsMenuWidth)
         .foregroundStyle(ThemeColor.kText)
-        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: 18))
+        .accessibilityIdentifier("launcher-actions-menu")
+    }
+}
+
+/// The footer contributes only its anchor; the shell draws the transforming surface
+/// above all result rows, without clipping it to the footer's 32-point height.
+struct LauncherMoreAnchorKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? { nil }
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
+    }
+}
+
+struct LauncherMorphingActions: View {
+    @Bindable var model: LauncherModel
+    let availableHeight: CGFloat
+    @Namespace private var glassNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    nonisolated static func menuHeight(actionCount: Int) -> CGFloat {
+        CGFloat(actionCount * 36 + max(0, actionCount - 1) * 4 + 16)
+    }
+
+    var body: some View {
+        Group {
+            if #available(macOS 26, *), !SurfaceCompatibility.useLegacyMaterial {
+                GlassEffectContainer {
+                    ZStack(alignment: .bottomTrailing) {
+                        if model.isActionsMenuPresented {
+                            menu
+                                .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 18))
+                                .glassEffectID("more", in: glassNamespace)
+                                .glassEffectTransition(.matchedGeometry)
+                        } else {
+                            button
+                                .glassEffectID("more", in: glassNamespace)
+                                .glassEffectTransition(.matchedGeometry)
+                        }
+                    }
+                }
+            } else {
+                ZStack(alignment: .bottomTrailing) {
+                    if model.isActionsMenuPresented {
+                        menu.nativeGlassBackground(in: RoundedRectangle(cornerRadius: 18))
+                    } else {
+                        button
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.18), value: model.isActionsMenuPresented)
+    }
+
+    private var button: some View {
+        Button { model.toggleActionsMenu() } label: {
+            LauncherActionLabel(title: "更多", shortcut: "⌘ K")
+        }
+        .buttonStyle(LauncherActionButtonStyle())
+        .fixedSize()
+        .focusable(false)
+        .accessibilityIdentifier("launcher-more-button")
+        .accessibilityValue("Off")
+    }
+
+    @ViewBuilder private var menu: some View {
+        let height = Self.menuHeight(actionCount: model.secondaryActions.count)
+        if height <= availableHeight {
+            LauncherActionsMenu(model: model)
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LauncherActionsMenu(model: model)
+                }
+                .scrollIndicators(.hidden)
+                .focusable(false)
+                .onChange(of: model.actionSelection) { _, selection in
+                    proxy.scrollTo(selection, anchor: .center)
+                }
+            }
+            .frame(width: LauncherLayout.actionsMenuWidth, height: availableHeight)
+        }
     }
 }

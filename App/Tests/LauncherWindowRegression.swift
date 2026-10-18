@@ -28,6 +28,9 @@ private struct WindowSearchProvider: SearchProvider {
 @MainActor
 enum LauncherWindowRegression {
     static func main() {
+        // Launch Services starts app bundles with a different working directory.
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        _ = FileManager.default.changeCurrentDirectoryPath(root.path)
         let application = NSApplication.shared
         if CommandLine.arguments.contains("--scroll-background") {
             runScrollBackground()
@@ -164,6 +167,14 @@ enum LauncherWindowRegression {
         try require(model.secondaryActions.count == 2 && !model.secondaryActions.contains {
             if case .result(.revealInFinder) = $0.kind { return true }; return false
         }, "file menu must contain only file copy and path copy")
+        if CommandLine.arguments.contains("--more-inspect") {
+            NSApp.activate(ignoringOtherApps: true)
+            panel.makeKeyAndOrderFront(nil)
+            print("More inspection ready")
+            fflush(stdout)
+            try await Task.sleep(for: .seconds(45))
+            return
+        }
         try capture("closed")
         key(40, modifiers: .command)
         try await Task.sleep(for: .milliseconds(200))
@@ -176,13 +187,37 @@ enum LauncherWindowRegression {
         try require(model.actionSelection == 0, "Up must navigate menu")
         try require(panel.firstResponder === responder && model.inputText == input, "menu must retain native editor and query")
         try require(panel.frame == frame, "menu must overlay without resizing launcher")
-        let menu = panel.childWindows?.first { $0.isVisible && abs($0.frame.width - LauncherLayout.actionsMenuWidth) < 2 }
-        try require(menu != nil && menu?.canBecomeKey == false && menu?.hasShadow == true, "menu must use a non-key glass child surface")
+        try require(panel.childWindows?.contains { $0.isVisible && abs($0.frame.width - LauncherLayout.actionsMenuWidth) < 2 } != true,
+                    "More must transform inside the shell instead of opening a child window")
+        try require(model.actionsMenuFrame.width == LauncherLayout.actionsMenuWidth &&
+                    abs(model.actionsMenuFrame.minY - 12) <= 1 &&
+                    model.actionsMenuFrame.maxY < panel.frame.height,
+                    "menu must grow upward from the original footer button within the shell")
         try capture("open")
-        if let menu { try capture("menu", window: menu) }
         key(40, modifiers: .command)
         try await Task.sleep(for: .milliseconds(100))
-        try require(!model.isActionsMenuPresented && menu?.isVisible == false, "second Cmd K must dismiss menu")
+        try require(!model.isActionsMenuPresented, "second Cmd K must dismiss menu")
+        if CommandLine.arguments.contains("--more-motion") {
+            let recording = Process()
+            recording.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            let recordingPath = "build/launcher-more-morph-\(NSApp.appearance!.name.rawValue)-\(UUID()).mov"
+            recording.arguments = ["-x", "-v", "-V", "4", "-l", String(panel.windowNumber), recordingPath]
+            try recording.run()
+            try await Task.sleep(for: .milliseconds(700))
+            key(40, modifiers: .command)
+            try await Task.sleep(for: .milliseconds(900))
+            key(53)
+            try await Task.sleep(for: .milliseconds(900))
+            key(40, modifiers: .command)
+            try await Task.sleep(for: .milliseconds(900))
+            key(53)
+            while recording.isRunning { try await Task.sleep(for: .milliseconds(100)) }
+            try require(recording.terminationStatus == 0, "morph recording must succeed")
+            print("More morph recording: \(recordingPath)")
+            // The system recording UI can temporarily take key status from this fixture.
+            panel.makeKeyAndOrderFront(nil)
+            panel.makeFirstResponder(responder)
+        }
         key(125)
         try require(model.selection == 1, "Down must resume result navigation")
         model.selection = 0

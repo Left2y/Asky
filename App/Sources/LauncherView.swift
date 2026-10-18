@@ -44,6 +44,7 @@ final class LauncherPanel: NSPanel {
     var onKeyChange: (Bool) -> Void = { _ in }
     var onOpenSettings: () -> Void = {}
     var onActionKey: (NSEvent) -> Bool = { _ in false }
+    var actionMenuContainsPoint: (NSPoint) -> Bool = { _ in false }
     var onCopyPath: () -> Bool = { false }
     var onRevealInFinder: () -> Bool = { false }
     var actionPreferences: () -> SettingsPreferences = { SettingsPreferences() }
@@ -75,7 +76,7 @@ final class LauncherPanel: NSPanel {
         if actionPreferences().revealInFinderHotKey.matches(event),
            (firstResponder as? NSTextView)?.hasMarkedText() != true,
            onRevealInFinder() { return }
-        if event.type == .scrollWheel,
+        if event.type == .scrollWheel, !actionMenuContainsPoint(event.locationInWindow),
            routeScrollWheel(event, at: event.locationInWindow) { return }
         super.sendEvent(event)
     }
@@ -115,14 +116,12 @@ final class LauncherPanel: NSPanel {
 
 /// Transient surfaces outside the single launcher shell.
 struct LauncherChrome: Equatable {
-    var actionsMenu = false
     var toast: String?
 }
 
 @MainActor
 final class LauncherController {
     private let panel = LauncherPanel()
-    private let actionsPanel = SurfacePanel()
     private let toastPanel = SurfacePanel()
     private let resultReveal = SurfaceSpring()
     private let outsideClickDismissal = OutsideClickDismissal()
@@ -152,12 +151,13 @@ final class LauncherController {
             guard !self.model.isConfirmingQuit else { return }
             self.hide()
         }
-        panel.onKeyChange = { [weak self] keyed in
-            self?.updateGlassAppearance(keyed: keyed)
-        }
         panel.onActionKey = { [weak model] event in
             guard let model else { return false }
             return model.handleActionKey(event)
+        }
+        panel.actionMenuContainsPoint = { [weak model] point in
+            guard let model, model.isActionsMenuPresented else { return false }
+            return model.actionsMenuFrame.contains(point)
         }
         panel.actionPreferences = { [weak model] in model?.actionPreferences ?? SettingsPreferences() }
         panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
@@ -236,28 +236,17 @@ final class LauncherController {
             panel.setContentSize(size)
             panel.contentView = WindowSurface.glassContentView(container, cornerRadius: LauncherLayout.shellCornerRadius)
             hosting = view
-            updateGlassAppearance(keyed: panel.isKeyWindow)
         }
         layoutSurfaces()
         panel.makeKeyAndOrderFront(nil)
-        updateGlassAppearance(keyed: true)
         updateOutsideClickDismissal()
-    }
-
-    /// Child surfaces can never be key, so the system draws their glass with
-    /// the dimmer inactive material. Match them to the shell while it is key.
-    private func updateGlassAppearance(keyed: Bool) {
-        let matches = keyed && WindowSurface.usesNativeGlass
-        for surface in [actionsPanel] {
-            surface.matchesActiveAppearance = matches
-        }
     }
 
     private func updateOutsideClickDismissal() {
         guard panel.isVisible else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            let surfaces = [self.panel, self.actionsPanel]
+            let surfaces = [self.panel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
     }
@@ -265,20 +254,8 @@ final class LauncherController {
     private func update(_ next: LauncherChrome) {
         let previous = chrome
         chrome = next
-        if next.actionsMenu != previous.actionsMenu { setActionsMenu(visible: next.actionsMenu) }
         if next.toast != previous.toast { setToast(next.toast) }
         layoutSurfaces()
-    }
-
-    private func setActionsMenu(visible: Bool) {
-        guard visible else { actionsPanel.remove(); return }
-        let view = LauncherActionsMenu(model: model)
-        actionsPanel.setSurface(view,
-                                size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.actionsMenuWidth),
-                                cornerRadius: 18)
-        updateGlassAppearance(keyed: panel.isKeyWindow)
-        layoutSurfaces()
-        panel.addChildWindow(actionsPanel, ordered: .above)
     }
 
     private func setToast(_ message: String?) {
@@ -309,11 +286,6 @@ final class LauncherController {
             WindowSurface.updateCorners(of: surface,
                 radius: LauncherLayout.shellCornerRadius, circular: true)
         }
-        if actionsPanel.isVisible {
-            // Bottom-right anchor above More; the menu overlays the result rows.
-            actionsPanel.setFrameOrigin(NSPoint(x: frame.maxX - actionsPanel.frame.width - 14,
-                                                y: frame.minY + LauncherLayout.actionBarHeight + 4))
-        }
         if toastPanel.isVisible {
             let size = toastPanel.frame.size
             toastPanel.setFrameOrigin(NSPoint(x: frame.midX - size.width / 2, y: frame.maxY + 12))
@@ -342,7 +314,7 @@ final class LauncherController {
         defer { hiding = false }
         outsideClickDismissal.hide()
         resultReveal.stop()
-        for surface in [actionsPanel, toastPanel] { surface.remove() }
+        for surface in [toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
@@ -369,12 +341,29 @@ struct LauncherView: View {
 
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
     private var chrome: LauncherChrome {
-        LauncherChrome(actionsMenu: model.isActionsMenuPresented,
-                       toast: model.toast)
+        LauncherChrome(toast: model.toast)
     }
 
     var body: some View {
         searchShell
+            .overlayPreferenceValue(LauncherMoreAnchorKey.self) { anchor in
+                GeometryReader { geometry in
+                    if let anchor {
+                        let rect = geometry[anchor]
+                        let availableHeight = max(32, rect.maxY - 12)
+                        let height = min(availableHeight, LauncherMorphingActions.menuHeight(actionCount: model.secondaryActions.count))
+                        let hitRect = CGRect(x: rect.maxX - LauncherLayout.actionsMenuWidth,
+                                             y: geometry.size.height - rect.maxY,
+                                             width: LauncherLayout.actionsMenuWidth, height: height)
+                        let surfaceWidth = model.isActionsMenuPresented ? LauncherLayout.actionsMenuWidth : rect.width
+                        let surfaceHeight = model.isActionsMenuPresented ? height : rect.height
+                        LauncherMorphingActions(model: model, availableHeight: availableHeight)
+                            .frame(width: surfaceWidth, height: surfaceHeight, alignment: .bottomTrailing)
+                            .position(x: rect.maxX - surfaceWidth / 2, y: rect.maxY - surfaceHeight / 2)
+                            .onChange(of: hitRect, initial: true) { _, frame in model.actionsMenuFrame = frame }
+                    }
+                }
+            }
             .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
             .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
     }
@@ -665,7 +654,7 @@ private struct ResultList: View {
                                     .accessibilityLabel(r.title)
                                     .accessibilityAddTraits(i == model.selection ? .isSelected : [])
                                     .onHover { inside in
-                                        guard inside else { return }
+                                        guard inside, !model.isActionsMenuPresented else { return }
                                         let location = NSEvent.mouseLocation
                                         // Keyboard scrolling moves rows under a stationary pointer.
                                         // Only a moved pointer may take over the selection.
@@ -724,6 +713,10 @@ private struct ResultList: View {
                 guard model.results.indices.contains(s) else { return }
                 proxy.scrollTo(model.results[s].id, anchor: .center)
             }
+        }
+        .onChange(of: model.isActionsMenuPresented) { _, _ in
+            // Revealing a row under the transforming surface is not pointer movement.
+            lastSelectionPointerLocation = NSEvent.mouseLocation
         }
         // Only reveal the list on insertion. Provider batches, typing and
         // keyboard selection must not restart the entrance or animate rows.

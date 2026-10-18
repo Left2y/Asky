@@ -510,7 +510,9 @@ struct LauncherView: View {
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, LauncherLayout.inputLeadingPadding)
-                    .padding(.trailing, LauncherLayout.inputTrailingPadding).padding(.vertical, 8)
+                    .padding(.trailing, LauncherLayout.inputTrailingPadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
             }
         }

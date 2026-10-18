@@ -50,7 +50,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
-文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。
+文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。“全部”每个来源最多显示 8 条；选择应用、文件、快捷方式或快捷指令分类后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
 
 空输入时，搜索框右侧显示固定与筛选按钮，共用搜索框玻璃；输入后隐藏，让出文字空间。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
 
@@ -88,6 +88,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-s
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --file-search
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
@@ -144,7 +145,7 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
-File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches.
+File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. All shows up to 8 hits per source; selecting Applications, Files, Quick Links, or Shortcuts reruns the current query for up to 200 results in that category, accessible by scrolling.
 
 When the input is empty, pin and filter buttons appear inside the search field and share its glass surface. Typing hides them to make room for text. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
 
@@ -182,6 +183,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-s
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --file-search
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```

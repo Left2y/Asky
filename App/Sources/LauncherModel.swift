@@ -32,6 +32,9 @@ final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
 enum LauncherFilter: String, CaseIterable, Identifiable {
     case all, applications, files, quickLinks, shortcuts
     var id: String { rawValue }
+    /// All sources stay compact; choosing a category requests a larger searchable list.
+    var providerLimit: Int { self == .all ? 8 : 200 }
+    var displayLimit: Int { self == .all ? 40 : 200 }
     var title: String {
         switch self {
         case .all: "全部"
@@ -220,7 +223,7 @@ final class LauncherModel {
             let marks = searchProviders.filter { $0.source == .bookmark && chromeBookmarkAccessAllowed }
             searchProviderCount = general.count
             searchSources = Set(general.map(\.source))
-            coordinator = SearchCoordinator(providers: general)
+            coordinator = SearchCoordinator(providers: general, perProviderLimit: filter.providerLimit)
             bookmarkCoordinator = marks.isEmpty ? nil : SearchCoordinator(providers: marks)
             return
         }
@@ -251,7 +254,7 @@ final class LauncherModel {
         providers = providers.filter { filter.includes($0.source) }
         searchProviderCount = providers.count
         searchSources = Set(providers.map(\.source))
-        coordinator = SearchCoordinator(providers: providers)
+        coordinator = SearchCoordinator(providers: providers, perProviderLimit: filter.providerLimit)
     }
 
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
@@ -633,7 +636,7 @@ final class LauncherModel {
     }
 
     private func publish() {
-        var merged = direct + ResultMerger.merge(batches, limit: 40)
+        var merged = direct + ResultMerger.merge(batches, limit: filter.displayLimit)
         // Generic search shortcuts are not local matches. Plain text with no
         // concrete target falls back to AI regardless of its wording.
         if filter == .all, !hasScope, case .search = router.route(query) {
@@ -677,6 +680,7 @@ final class LauncherModel {
             closeActionsMenu()
         }
         if merged.isEmpty { closeActionsMenu() }
+        if filter != .all { merged = Array(merged.prefix(filter.displayLimit)) }
         results = merged
         selection = min(selection, max(0, results.count - 1))
     }

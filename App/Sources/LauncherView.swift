@@ -506,7 +506,7 @@ struct LauncherView: View {
                            - inputHeight - LauncherLayout.dividerHeight - statusHeight)
             }
             if let s = model.status {
-                Text(s).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtle)
+                Text(s).font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, LauncherLayout.inputLeadingPadding)

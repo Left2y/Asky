@@ -71,7 +71,9 @@
     "bookmark": "bookmark",
     "warning": "warning",
     "tool": "tool",
-    "video": "video"
+    "video": "video",
+    "power": "power",
+    "web": "web"
   },
   "assets": {
     "Calculator": "counter_2",

@@ -39,7 +39,7 @@ struct CommandIcon: View {
         if let brand = Brand(rawValue: keyword.lowercased()) {
             // User-supplied square canvases already contain the intended logo spacing.
             image = Image(brand.asset).renderingMode(.original)
-            artworkSize = 20
+            artworkSize = LauncherIconTile.size
             hasSquareTile = true
         } else {
             image = Image(mingCute: "globe")
@@ -65,7 +65,7 @@ struct CommandIcon: View {
     @ViewBuilder private var artwork: some View {
         if hasSquareTile {
             originalArtwork
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .circular))
+                .launcherIconTile()
         } else {
             originalArtwork
         }

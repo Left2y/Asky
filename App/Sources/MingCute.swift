@@ -75,6 +75,8 @@ enum MingCute {
         "warning": "MingCute-warning",
         "tool": "MingCute-tool",
         "video": "MingCute-video",
+        "power": "MingCute-power",
+        "web": "MingCute-web",
     ]
 
     static func image(_ symbol: String, size: CGFloat = 16, canvas: CGFloat? = nil) -> NSImage {

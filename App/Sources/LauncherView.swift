@@ -542,13 +542,13 @@ struct LauncherView: View {
         if model.isTerminalScope {
             CommandIcon(terminalIcon: model.terminalIcon)
         } else if model.isTabScope {
-            LauncherFunctionIcon(asset: "Tabs")
+            LauncherFunctionIcon(kind: .tabs)
         } else if model.isBookmarkScope {
-            LauncherFunctionIcon(asset: "Bookmark")
+            LauncherFunctionIcon(kind: .bookmark)
         } else if model.isAIScope {
-            LauncherFunctionIcon(asset: "Agent")
+            LauncherFunctionIcon(kind: .ai)
         } else if model.isLinkScope {
-            LauncherFunctionIcon(asset: "Link")
+            LauncherFunctionIcon(kind: .link)
         } else if let command = model.commandInput?.command {
             CommandIcon(keyword: KeywordCommand.builtIn.first { $0.urlTemplate == command.urlTemplate }?.keyword ?? command.keyword)
         } else {
@@ -913,36 +913,6 @@ private struct ResultList: View {
     }
 }
 
-/// Normalize the supplied glyphs before applying the shared tile geometry.
-struct LauncherFunctionIcon: View {
-    let asset: String
-
-    private var artwork: (scale: CGFloat, offset: CGSize, background: Color) {
-        switch asset {
-        case "Bookmark":
-            (60 / 68, CGSize(width: 0.1, height: -0.15), Color(.sRGB, red: 1, green: 154 / 255, blue: 2 / 255, opacity: 1))
-        case "Link":
-            (60 / 62, CGSize(width: -0.1, height: 0.1), Color(.sRGB, red: 45 / 255, green: 104 / 255, blue: 1, opacity: 1))
-        case "QuitAsky":
-            (60 / 66, CGSize(width: -0.1, height: -0.25), Color(.sRGB, red: 1, green: 0, blue: 0, opacity: 1))
-        case "Conversion":
-            (60 / 52, .zero, Color(.sRGB, red: 0, green: 145 / 255, blue: 1, opacity: 1))
-        default:
-            (1, .zero, .clear)
-        }
-    }
-
-    var body: some View {
-        Image(asset).renderingMode(.original).resizable().scaledToFit()
-            .frame(width: 20, height: 20)
-            .scaleEffect(artwork.scale)
-            .offset(artwork.offset)
-            .background(artwork.background)
-            .clipShape(RoundedRectangle(cornerRadius: 4.5, style: .continuous))
-            .frame(width: LauncherLayout.rowIconSize, height: LauncherLayout.rowIconSize)
-    }
-}
-
 private struct ResultRow: View {
     let result: SearchResult
     let selected: Bool
@@ -969,7 +939,7 @@ private struct ResultRow: View {
             Spacer(minLength: 12)
             Text(typeLabel)
                 .font(.system(size: 12))
-                .foregroundStyle(ThemeColor.kTextSubtle)
+                .foregroundStyle(ThemeColor.kTextSubtlest)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: 160, alignment: .trailing)
@@ -1007,9 +977,9 @@ private struct ResultRow: View {
 
     @ViewBuilder private var icon: some View {
         if result.target.kind == "search-command" {
-            LauncherFunctionIcon(asset: result.target.identifier == "tabs" ? "Tabs" : result.target.identifier == "bookmark" ? "Bookmark" : result.target.identifier == "link" ? "Link" : "Agent")
+            LauncherFunctionIcon(kind: result.target.identifier == "tabs" ? .tabs : result.target.identifier == "bookmark" ? .bookmark : result.target.identifier == "link" ? .link : .ai)
         } else if QuitAskyCommand.isResult(result) {
-            LauncherFunctionIcon(asset: "QuitAsky")
+            LauncherFunctionIcon(kind: .quit)
         } else {
             sourceIcon
         }
@@ -1022,7 +992,7 @@ private struct ResultRow: View {
         case .shortcut:
             DataSourceIcon(source: .shortcuts)
         case .chromeTab:
-            LauncherFunctionIcon(asset: "Tabs")
+            LauncherFunctionIcon(kind: .tabs)
         case .terminal:
             CommandIcon(terminalIcon: terminalIcon)
         case .currency:
@@ -1033,13 +1003,13 @@ private struct ResultRow: View {
                 Image(mingCute: Self.symbol(.currency), size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
             }
         case .link:
-            LauncherFunctionIcon(asset: "Link")
+            LauncherFunctionIcon(kind: .link)
         case .calculator:
-            Image(mingCute: "equal.square", size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
+            LauncherFunctionIcon(kind: .calculator)
         case .conversion:
-            LauncherFunctionIcon(asset: "Conversion")
+            LauncherFunctionIcon(kind: .conversion)
         case .askAI:
-            LauncherFunctionIcon(asset: "Agent")
+            LauncherFunctionIcon(kind: .ai)
         case .bookmark, .keyword:
             if result.source == .keyword, let keyword, CommandIcon.Brand(rawValue: keyword) != nil {
                 CommandIcon(keyword: keyword)
@@ -1048,7 +1018,7 @@ private struct ResultRow: View {
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
                 DataSourceIcon(source: .shortcuts)
             } else if result.target.kind == "bookmark-search" {
-                LauncherFunctionIcon(asset: "Bookmark")
+                LauncherFunctionIcon(kind: .bookmark)
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
                 Image(nsImage: icon).resizable().scaledToFit()
             } else {

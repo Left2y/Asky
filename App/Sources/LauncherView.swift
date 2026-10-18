@@ -17,6 +17,8 @@ enum LauncherLayout {
     static let inputLeadingPadding: CGFloat = 28
     static let inputTrailingPadding: CGFloat = 28
     static let inputSpacing: CGFloat = 12
+    static let folderScopeMaxWidth: CGFloat = 180
+    static let folderScopeHeight: CGFloat = 24
     static let accessoryIconSize: CGFloat = 17
     static let filterMenuWidth: CGFloat = 220
     static let filterMenuCornerRadius: CGFloat = 24
@@ -436,9 +438,10 @@ struct LauncherView: View {
                             .resizable().frame(width: 24, height: 24)
                         Text(folder.lastPathComponent)
                             .font(.system(size: 14, weight: .medium))
-                            .lineLimit(1).truncationMode(.middle)
+                            .lineLimit(1).truncationMode(.tail)
                     }
-                    .frame(maxWidth: 180, alignment: .leading)
+                    .frame(maxWidth: LauncherLayout.folderScopeMaxWidth, alignment: .leading)
+                    .frame(height: LauncherLayout.folderScopeHeight)
                     .fixedSize(horizontal: true, vertical: false)
                     .help(folder.path)
                     .accessibilityLabel(folder.path)

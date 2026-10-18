@@ -63,3 +63,25 @@
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --reveal-open
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --reveal-motion
 ```
+
+## 后续修复：按钮退场被外壳右缘切开
+
+### 原因
+
+上一节的入场方案让两个圆形按钮始终位于外壳窗口下一层。但打字消失时，外壳向右展开，它的圆角右缘会从按钮上方扫过：逐帧录屏可见左侧“固定”按钮先被切掉一块，再透过玻璃隐约残留，随后才淡出，看起来像卡顿和生硬裁切。入场时按钮从外壳下方滑出是期望效果，退场时同一个遮挡关系则相反。
+
+### 修改
+
+`App/Sources/LauncherView.swift`：
+
+- `syncAccessoryStacking(above:)` 增加层级参数；原生玻璃下按钮默认仍在外壳下一层。
+- `update(_:)` 在按钮由显示转为隐藏时，先把按钮窗口提到外壳**上一层**（`order(.above, relativeTo:)`），淡出不再被外壳圆角切割；重新显示时再放回下一层，保留“外壳收缩露出按钮”的入场效果。
+- 旧版兼容材质仍使用子窗口 + 淡入淡出，不变。
+
+### 实际检查
+
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild ... -skipPackageUpdates build`：`BUILD SUCCEEDED`
+- `run-launcher-window-regression.py --accessories-preview --reveal-motion`：浅色、深色均通过；逐帧查看退场，左侧按钮完整圆形淡出，不再被外壳边缘切掉。
+- `run-launcher-window-regression.py --accessories`：浅色、深色均通过。
+- `cd Packages/KulaCore && swift test`：37 个测试通过。
+- `run-launcher-window-regression.py` 默认窗口检查在繁忙机器上仍在 `model=afari` 的首字符断言处失败（既有已知偶发问题，与本次层级修改无关）。

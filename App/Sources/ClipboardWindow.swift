@@ -201,7 +201,7 @@ final class ClipboardController {
     func show() {
         pasteTask?.cancel()
         pasteTarget = pasteTargetProvider()
-        hasPasteTarget = pasteTarget?.hasInputFocus == true
+        hasPasteTarget = pasteTarget?.canPaste == true
         filter = .all
         query = ""
         status = nil

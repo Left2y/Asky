@@ -23,6 +23,10 @@ enum ClipboardRegression {
                     try await verifyPasteTarget()
                     exit(0)
                 }
+                if CommandLine.arguments.contains("--external-paste") {
+                    try await verifyExternalPaste()
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--toast-surfaces") {
                     try await verifyToastSurfaces()
                     exit(0)
@@ -882,6 +886,9 @@ enum ClipboardRegression {
         text.string = "LeftRight"
         text.setSelectedRange(NSRange(location: 4, length: 0))
         window.contentView!.addSubview(text)
+        let button = NSButton(title: "Non-input focus", target: nil, action: nil)
+        button.frame = NSRect(x: 20, y: 10, width: 160, height: 32)
+        window.contentView!.addSubview(button)
         window.makeFirstResponder(text)
         window.makeKeyAndOrderFront(nil)
         application.activate()
@@ -892,7 +899,7 @@ enum ClipboardRegression {
                 let control = (try? String(contentsOf: root.appending(path: "control"), encoding: .utf8)) ?? ""
                 if control != previous {
                     previous = control
-                    if control == "blur" { window.makeFirstResponder(nil) }
+                    if control == "blur" { window.makeFirstResponder(button) }
                     if control == "focus" { window.makeFirstResponder(text) }
                     if control == "quit" { exit(0) }
                 }
@@ -930,7 +937,7 @@ enum ClipboardRegression {
         precondition(NSWorkspace.shared.frontmostApplication?.processIdentifier == receiver.processIdentifier,
                      "receiver must be the frontmost app")
         let target = ClipboardPasteTarget.capture()
-        precondition(target.hasInputFocus, "must detect the receiver's native text input (requires Accessibility)")
+        precondition(target.canPaste, "must detect the receiver's native text input (requires Accessibility)")
         let app = try AppModel(root: root.appending(path: "model"))
         let item = ClipboardItem(kind: .text, text: "PASTE", byteSize: 5, contentHash: "paste")
         try ClipboardStore(app.store).insert(item)
@@ -993,6 +1000,48 @@ enum ClipboardRegression {
         precondition(NSPasteboard.general.string(forType: .string) == "PASTE" && controller.isVisible)
         controller.hide()
         print("Clipboard paste passed: external cursor insertion, dynamic actions, copy-only, no input, clipboard race")
+    }
+
+    /// Opt-in live app check: only inserts a unique draft string; never sends Return to the receiver.
+    private static func verifyExternalPaste() async throws {
+        guard let bundle = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TARGET_BUNDLE"],
+              let target = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else {
+            throw NSError(domain: "ClipboardExternalPaste", code: 1)
+        }
+        let original = NSPasteboard.general.pasteboardItems?.map { item in
+            item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }
+        } ?? []
+        defer {
+            let items = original.map { values in
+                let item = NSPasteboardItem()
+                for (type, data) in values { item.setData(data, forType: type) }
+                return item
+            }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects(items)
+        }
+        target.activate(options: [.activateIgnoringOtherApps])
+        for _ in 0..<100 {
+            if target.isActive { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        precondition(target.isActive, "live app must be active before capture")
+        let captured = ClipboardPasteTarget.capture()
+        print("External paste target:", bundle, "focus:", captured.focusState, "canPaste:", captured.canPaste)
+        precondition(captured.canPaste)
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-live-paste-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        try ClipboardStore(app.store).insert(ClipboardItem(kind: .text, text: "AskyPasteProbe", byteSize: 14, contentHash: "live-paste"))
+        let controller = ClipboardController(app: app)
+        controller.show()
+        controller.pinned = true
+        try await Task.sleep(for: .milliseconds(250))
+        precondition(controller.hasPasteTarget)
+        controller.submitSelection(copyOnly: false)
+        try await Task.sleep(for: .seconds(10))
+        precondition(!controller.isVisible && controller.status == nil, "paste dispatch must finish without fallback")
+        print("External paste dispatched. Verify AskyPasteProbe in the receiver before claiming insertion success.")
     }
 
     private static func verifyToastSurfaces() async throws {

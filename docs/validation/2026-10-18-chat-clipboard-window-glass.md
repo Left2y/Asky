@@ -22,3 +22,10 @@
 - 桌面合成使用 `screencapture -R`；单窗口 `-l` 或视图缓存截图不包含真实背景，不能用于判断透明度。
 - 已观察到背景颜色透入原生玻璃；大面积 Regular 玻璃仍呈强磨砂。没有调节系统私有模糊参数，没有证明同一背景下与搜索框逐像素一致，也没有将“同一实现”当作视觉一致的验收。
 - README 中英文已同步背景实现；AGENTS.md 未变，现有原生窗口玻璃规则继续适用。
+
+## 17:21 Debug 重建供用户测试
+
+- 源码 `bcf7199`；重新执行 `xcodegen generate` 和上述 Debug 构建命令，结果 `BUILD SUCCEEDED`，日志 `build/debug-rebuild.log`。
+- `codesign --verify --deep --strict --verbose=2 build/DerivedData/Build/Products/Debug/Asky.app`：通过。
+- 已通过 `open build/DerivedData/Build/Products/Debug/Asky.app` 启动；回读进程 PID `79243`，可执行文件为该 Debug 产物。
+- 本次仅重建和启动，没有重跑功能测试；等待用户检查玻璃观感。

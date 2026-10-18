@@ -27,7 +27,7 @@ struct AboutSettings: View {
                             .textSelection(.enabled)
                     }
                     Spacer(minLength: 12)
-                    SettingsButton("GitHub", assetImage: "CommandGitHub") {
+                    SettingsButton("GitHub", assetImage: "GitHubMark") {
                         _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
                     }
                 }

@@ -36,7 +36,9 @@ enum LauncherWindowRegression {
         application.setActivationPolicy(.accessory)
         Task { @MainActor in
             do {
-                for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+                let appearances: [NSAppearance.Name] = CommandLine.arguments.contains("--dark-only")
+                    ? [.darkAqua] : [.aqua, .darkAqua]
+                for appearance in appearances {
                     application.appearance = NSAppearance(named: appearance)
                     if CommandLine.arguments.contains("--alias-results") {
                         try await checkAliasResults()
@@ -438,7 +440,7 @@ enum LauncherWindowRegression {
             capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
             let screenHeight = NSScreen.screens[0].frame.maxY
             let side = LauncherLayout.inputHeight
-            let surfaceRight = panel.frame.maxX + LauncherLayout.accessoryReserve
+            let surfaceRight = panel.frame.maxX
             let region = "\(Int(surfaceRight - 2 * side - 20)),\(Int(screenHeight - panel.frame.maxY - 10)),\(Int(2 * side + 60)),\(Int(side + 30))"
             let recording = "build/reveal-motion-\(NSApp.appearance!.name.rawValue).mov"
             if FileManager.default.fileExists(atPath: recording) {
@@ -521,51 +523,25 @@ enum LauncherWindowRegression {
         panel.onBlur()
         try require(controller.isVisible, "pin must preserve panel on blur")
         try await Task.sleep(for: .milliseconds(1300))
-        let accessories = NSApp.windows.compactMap { $0 as? SurfacePanel }
-            .filter { $0.isVisible && $0.alphaValue > 0.99 && $0.frame.height == LauncherLayout.inputHeight }
-        try require(accessories.count == 2, "pin and filter must be separate surface windows: \(NSApp.windows.compactMap { $0 as? SurfacePanel }.map { "\($0.isVisible) \($0.alphaValue) \($0.frame)" })")
-        try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
-                    "empty shell must yield accessory space: \(panel.frame.width)")
-        let footprint = accessories.reduce(panel.frame) { $0.union($1.frame) }
-        try require(abs(footprint.width - 640) <= 1, "toolbar must retain the requested 640 pt width")
-        try require(abs(panel.frame.height - 52) <= 1, "empty shell window must be exactly the 52 pt field: \(panel.frame.height)")
-        try require(panel.hasShadow && accessories.allSatisfy(\.hasShadow), "every surface uses the native window shadow")
-        if WindowSurface.usesNativeGlass {
-            // Child surfaces never become key, so their glass needs the
-            // active-window highlight to match the key shell.
-            try require(accessories.allSatisfy { $0.matchesActiveAppearance == panel.isKeyWindow },
-                        "accessory glass must follow the shell's key appearance")
-            panel.onKeyChange(true)
-            try require(accessories.allSatisfy { $0.matchesActiveAppearance == true },
-                        "accessory glass must match the key shell's appearance")
-            panel.onKeyChange(false)
-            try require(accessories.allSatisfy { $0.matchesActiveAppearance == false },
-                        "accessory glass must dim with the shell when it resigns key")
-            panel.onKeyChange(panel.isKeyWindow)
-        }
+        try require(!NSApp.windows.contains { $0 is SurfacePanel && $0.isVisible },
+                    "inline controls must not create separate visible surface windows")
+        try require(abs(panel.frame.width - 640) <= 1 && abs(panel.frame.height - 52) <= 1,
+                    "empty launcher must be a single 640 × 52 pt shell")
+        try require(panel.hasShadow, "shell must retain its native shadow")
         let field = searchField(in: panel.contentView!)!
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         let emptyFieldWidth = field.frame.width
-        // Menu/Dock requests may show an already visible launcher. Its child
-        // surfaces must retain their reveal instead of becoming transparent.
         controller.show()
-        try await Task.sleep(for: .milliseconds(400))
-        try require(accessories.allSatisfy { $0.isVisible && $0.alphaValue > 0.99 },
-                    "showing a visible launcher must preserve both accessory windows")
-        try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
-                    "showing a visible launcher must preserve the revealed shell width")
+        try await Task.sleep(for: .milliseconds(100))
+        try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1,
+                    "showing a visible launcher must preserve its full width")
         model.inputText = "Safari"
         try await Task.sleep(for: .milliseconds(300))
-        try require(field.frame.width >= emptyFieldWidth + 125, "typing must return accessory space to the search field")
+        try require(field.frame.width >= emptyFieldWidth + 60, "typing must return accessory space to the search field")
         try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
-        // The shell's rounded corners are transparent, so the buttons must be
-        // hidden by alpha rather than relying on the shell to cover them.
-        try require(accessories.allSatisfy { $0.alphaValue < 0.05 },
-                    "typing must hide the accessory surfaces")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(220))
         try require(abs(panel.frame.height - 52) <= 1, "clearing must collapse the result window promptly")
-        // The reveal spring may still be in its ~2% overshoot here; the settled check follows.
         try require(abs(field.frame.width - emptyFieldWidth) <= 4, "clearing must restore the empty field width promptly: \(field.frame.width) vs \(emptyFieldWidth)")
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing input must restore accessories within original width")
@@ -608,11 +584,10 @@ enum LauncherWindowRegression {
             try await Task.sleep(for: .milliseconds(cycle.isMultiple(of: 2) ? 30 : 120))
             controller.show()
             try await Task.sleep(for: .milliseconds(650))
-            let buttons = NSApp.windows.filter { $0 is SurfacePanel && $0.frame.height == LauncherLayout.inputHeight }
-            try require(buttons.count == 2 && buttons.allSatisfy { $0.isVisible && $0.alphaValue > 0.99 && $0.contentView != nil },
-                        "reopen cycle \(cycle) must retain both rendered accessory surfaces")
-            try require(buttons.allSatisfy { $0.frame.size == NSSize(width: 52, height: 52) && $0.hasShadow },
-                        "both accessory surfaces must use identical geometry and shadow settings")
+            try require(!NSApp.windows.contains { $0 is SurfacePanel && $0.isVisible },
+                        "reopen cycle \(cycle) must not create accessory windows")
+            try require(panel.frame.size == NSSize(width: 640, height: 52) && panel.hasShadow,
+                        "reopening must preserve the single shell geometry and shadow")
             controller.hide()
         }
         print("accessories: filter isolation, input position, menu canvas, pin/blur/Escape and repeated show passed")

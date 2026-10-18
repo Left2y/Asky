@@ -60,7 +60,7 @@ enum WindowSurface {
 }
 
 /// System glass in a non-key window renders with the dimmer inactive
-/// material. Child surfaces (launcher buttons, menus) can never be key, so
+/// material. Child menu surfaces can never be key, so
 /// next to the key shell they read as a darker material even over the same
 /// backdrop. `matchesActiveAppearance` restores the highlight the system adds
 /// to the active window's glass.

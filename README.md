@@ -47,6 +47,8 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
+空输入时，搜索框右侧显示固定与筛选按钮，共用搜索框玻璃；输入后隐藏，让出文字空间。
+
 网站指令仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
 
 快捷键可在设置中修改；Chrome 搜索与系统工具需要相应授权。完整操作见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
@@ -77,6 +79,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
 
@@ -129,6 +132,8 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
+When the input is empty, pin and filter buttons appear inside the search field and share its glass surface. Typing hides them to make room for text.
+
 Website commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
 
 Customize shortcuts in Settings. Chrome search and system tools require the relevant permissions. See the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs) for full instructions.
@@ -159,6 +164,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
 

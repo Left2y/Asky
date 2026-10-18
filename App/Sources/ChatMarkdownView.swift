@@ -302,7 +302,7 @@ private struct ChatCodeBlock: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(configuration.language.flatMap { $0.isEmpty ? nil : $0 } ?? "Code")
+                Text(configuration.language.flatMap { $0.isEmpty ? nil : $0 } ?? NSLocalizedString("代码", comment: "Code block language fallback"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(ThemeColor.kTextSubtle)
                 Spacer()

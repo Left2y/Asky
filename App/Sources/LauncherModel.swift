@@ -358,10 +358,14 @@ final class LauncherModel {
             remainingSearchProviders = 0
             direct = []
             if inputState.ai {
-                direct = router.askAIResult(for: inputState.text).map { [$0] } ?? []
+                direct = router.askAIResult(for: inputState.text).map { result in
+                    var result = result
+                    result.title = String(format: NSLocalizedString("询问 AI：%@", comment: ""), inputState.text)
+                    return [result]
+                } ?? []
             } else if let url = LauncherWebURL.parse(inputState.text) {
                 direct = [SearchResult(source: .link, target: TargetRef(kind: "url", identifier: url.absoluteString),
-                                       title: "打开链接", subtitle: url.absoluteString,
+                                       title: NSLocalizedString("打开链接", comment: ""), subtitle: url.absoluteString,
                                        actions: [.openURL(url), .copy(url.absoluteString)], score: 100)]
             }
             publish()
@@ -390,6 +394,28 @@ final class LauncherModel {
                 if !command.supportsQuery {
                     result.subtitle = NSLocalizedString("仅打开网页，问题不会传递到网站", comment: "Website command limitation")
                 }
+                return result
+            }
+        }
+        if case .conversation(let prompt) = route {
+            direct = direct.map { result in
+                var result = result
+                result.title = String(format: NSLocalizedString("询问 AI：%@", comment: ""), prompt)
+                return result
+            }
+        }
+        if case .terminal(let command) = route {
+            direct = direct.map { result in
+                var result = result
+                result.title = String(format: NSLocalizedString("运行：%@", comment: ""), command)
+                result.subtitle = NSLocalizedString("↩ 在终端中运行", comment: "")
+                return result
+            }
+        }
+        if case .conversion(let conversion) = route {
+            direct = direct.map { result in
+                var result = result
+                result.subtitle = String(format: NSLocalizedString("%@ · ↩ 复制", comment: ""), conversion.display)
                 return result
             }
         }
@@ -545,7 +571,10 @@ final class LauncherModel {
         // Defer the AI-only fallback so the list never briefly opens with just AI.
         if filter == .all, !hasScope, !merged.contains(where: { $0.source == .askAI }),
            (!isSearching || !merged.isEmpty),
-           let ask = router.askAIResult(for: query) { merged.append(ask) }
+           var ask = router.askAIResult(for: query) {
+            ask.title = String(format: NSLocalizedString("询问 AI：%@", comment: ""), query)
+            merged.append(ask)
+        }
         merged = merged.filter { filter.includes($0.source) &&
             (![.link, .bookmark].contains($0.source) || canSearchBookmarks || (inputState.links && $0.source == .link)) }
         let order: [SearchSource] = [.app, .link, .bookmark, .file, .chromeTab, .shortcut, .keyword, .calculator, .conversion, .currency, .terminal, .askAI]

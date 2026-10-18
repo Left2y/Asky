@@ -481,7 +481,7 @@ private struct ResponseGroupView: View {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
                         let seconds = group.startedAt.map { max(0, Int(context.date.timeIntervalSince($0))) } ?? group.workSeconds ?? 0
                         if group.tools.isEmpty {
-                            Text("Work for \(seconds)s")
+                            Text(String(format: NSLocalizedString("Work for %ds", comment: "Tool execution duration"), seconds))
                                 .textStyle(AgentLayout.message)
                                 .foregroundStyle(ThemeColor.kTextSubtlest)
                         } else {
@@ -489,7 +489,7 @@ private struct ResponseGroupView: View {
                                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
                             } label: {
                                 HStack(spacing: 4) {
-                                    Text("Work for \(seconds)s")
+                                    Text(String(format: NSLocalizedString("Work for %ds", comment: "Tool execution duration"), seconds))
                                     Image(mingCute: "chevron.right", size: 12)
                                         .rotationEffect(.degrees(expanded ? 90 : 0))
                                         .accessibilityHidden(true)
@@ -499,7 +499,7 @@ private struct ResponseGroupView: View {
                             .buttonStyle(ToolErrorDisclosureButtonStyle())
                             .textStyle(AgentLayout.message)
                             .foregroundStyle(ThemeColor.kTextSubtlest)
-                            .accessibilityLabel("Work for \(seconds)s")
+                            .accessibilityLabel(String(format: NSLocalizedString("Work for %ds", comment: "Tool execution duration"), seconds))
                             .accessibilityValue(expanded ? "expanded" : "collapsed")
                             .accessibilityHint(NSLocalizedString(expanded ? "收起工具调用" : "展开工具调用", comment: ""))
                         }

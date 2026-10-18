@@ -284,7 +284,7 @@ final class ProactiveReminders: NSObject {
             result = await MessageCalendarEditor.present(draft, calendars: calendars, source: note.summary) { [weak self] edited in
                 guard let self, self.calendarNote(for: plan)?.calendarDraft == draft,
                       self.app.settings.enabledSources.contains(.calendar), edited.isValid(at: Date()) else {
-                    return .failure(UUID().uuidString, .invalidArguments, "安排已变化或授权已关闭，请重新检查。")
+                    return .failure(UUID().uuidString, .invalidArguments, NSLocalizedString("安排已变化或授权已关闭，请重新检查。", comment: ""))
                 }
                 return await self.calendarCreation.submit(sourceID: note.id, draft: edited) { await tools.submit($0) }
             }

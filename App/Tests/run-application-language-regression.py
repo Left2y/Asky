@@ -9,6 +9,7 @@ import plistlib
 import shutil
 
 root = Path(__file__).resolve().parents[2]
+subprocess.run([sys.executable, str(root / "App/Tests/check-localization.py")], check=True)
 derived_data = Path(os.environ.get("ASKY_DERIVED_DATA", os.environ.get("KULAHERE_DERIVED_DATA", root / "build/DerivedData")))
 products = derived_data / "Build/Products/Debug"
 if not (products / "Search.o").exists():

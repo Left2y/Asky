@@ -4,6 +4,8 @@ import ToolService
 import Contracts
 import Search
 import DirectActions
+import AgentHost
+import Scheduler
 
 private struct LanguageBrowserProvider: SearchProvider {
     let source: SearchSource
@@ -12,6 +14,88 @@ private struct LanguageBrowserProvider: SearchProvider {
 
 @main @MainActor
 enum ApplicationLanguageRegression {
+    private static func snapshot(_ window: NSWindow, name: String) throws {
+        guard let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+            fatalError("missing native snapshot")
+        }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/\(name).png"))
+    }
+
+    private static func checkOtherInterfaces(english: Bool) async throws {
+        let language = english ? "en" : "zh-Hans"
+        let runtime = AgentHostError.handshakeFailed("raw service detail").localizedDescription
+        precondition(runtime.contains("raw service detail"))
+        precondition(runtime.hasPrefix(english ? "AI runtime connection failed:" : "AI 运行时连接失败："))
+        for status in [401, 402, 403, 429, 500] {
+            let report = await ModelCapabilityCheck.run(baseURL: URL(string: "https://example.invalid/v1")!, model: "test", apiKey: "private-key") { request in
+                let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+                return (Data(#"{"error":{"message":"raw service detail private-key"}}"#.utf8), response)
+            }
+            precondition(report.failures.count == 3)
+            for failure in report.failures {
+                precondition(!failure.contains("private-key") && failure.contains("[redacted]"))
+                if english { precondition(!failure.contains { $0.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) } }) }
+            }
+        }
+        let requests: [(String, String, [String], String?)] = [
+            ("calendar_create_event", "苹果日历 ·「Work」", ["新建「Review」", "2026-10-18T14:00:00+08:00 – 2026-10-18T15:00:00+08:00", "地点：Room 3"], "与 1 个日程时间重叠"),
+            ("calendar_update_event", "日程「Review」", ["开始：2026-10-18T14:00:00+08:00 → 2026-10-18T16:00:00+08:00"], "重复日程：仅修改本次"),
+            ("calendar_delete_event", "日程「Review」", ["删除 2026-10-18T14:00:00+08:00 的这次日程"], "重复日程：仅删除本次"),
+            ("notes_create", "Notes「Work」", ["新建「Plan」", "preserve A → B and https://example.com"], nil),
+            ("notes_append", "备忘录「Plan」（Work）", ["追加：preserve A → B"], nil),
+            ("reminders_create", "提醒列表「Work」", ["新建提醒「Report」", "到期：2026-10-18T18:00:00+08:00"], nil),
+            ("messages_prepare_draft", "Messages：Alex", ["草稿：Meet at 3"], "只会打开草稿，需要你在 Messages 中手动发送"),
+            ("shortcuts_run", "快捷指令「Inbox」", ["无输入"], "快捷指令可能执行其自身定义的任意操作"),
+            ("chrome_activate_tab", "Chrome 标签页", ["切换到「Project」", "https://example.com"], nil),
+            ("memory_save", "记忆 MEMORY.md", ["添加：Afternoon meetings"], nil),
+            ("memory_correct", "记忆「Morning meetings」", ["改为：Afternoon meetings"], nil),
+            ("memory_forget", "记忆「Morning meetings」", ["删除这一行"], nil),
+        ]
+        for (tool, target, changes, note) in requests {
+            let request = ConfirmationRequest(requestID: UUID().uuidString, tool: tool, target: target, changes: changes,
+                note: note, argumentsDigest: "test", origin: .mcp(instanceID: "test"))
+            let body = ConfirmationCenter.message(for: request, remaining: 2)
+            precondition(body.hasPrefix(english ? "An external app" : "外部应用"))
+            if english { precondition(!body.contains { $0.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) } }, body) }
+        }
+        let preserved = ConfirmationRequest(requestID: "preserve", tool: "notes_append", target: "备忘录「中文标题」",
+            changes: ["追加：中文内容：A → B"], argumentsDigest: "test", origin: .launcher)
+        let body = ConfirmationCenter.message(for: preserved, remaining: 0)
+        precondition(body.contains("中文标题") && body.contains("中文内容：A → B"))
+        let calendarModel = MessageCalendarEditorModel(.init(title: "Review", start: Date().addingTimeInterval(86400)),
+            calendars: [.init(id: "work", name: "Work", account: "iCloud", isDefault: true)], source: "Bring prototype")
+        for saving in [false, true] {
+            calendarModel.saving = saving
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 480), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = NSHostingView(rootView: MessageCalendarEditorView(model: calendarModel, cancel: {}, create: {}))
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            try await Task.sleep(for: .milliseconds(200))
+            try snapshot(window, name: "calendar-\(saving ? "saving" : "ready")-\(language)")
+            window.close()
+        }
+        let owner = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480), styleMask: [.titled], backing: .buffered, defer: false)
+        owner.isReleasedWhenClosed = false
+        owner.center()
+        owner.makeKeyAndOrderFront(nil)
+        let center = ConfirmationCenter()
+        let task = Task { await center.present(preserved) }
+        for _ in 0..<30 {
+            if owner.attachedSheet?.isVisible == true { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        guard let alert = owner.attachedSheet, alert.isVisible else {
+            fatalError("missing confirmation window")
+        }
+        try snapshot(alert, name: "confirmation-\(language)")
+        center.rejectAll()
+        _ = await task.value
+        owner.close()
+        print("PASS: model HTTP errors and redaction, runtime errors, all built-in confirmation bodies, user content preservation, calendar and confirmation native snapshots")
+    }
+
     static func main() {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
@@ -42,6 +126,7 @@ enum ApplicationLanguageRegression {
                       NSLocalizedString("退出 Asky", comment: "") == (english ? "Quit Asky" : "退出 Asky") else {
                     fatalError("native bundle localization mismatch")
                 }
+                try await checkOtherInterfaces(english: english)
                 let launcher = LauncherModel(app: model, searchProviders: [LanguageBrowserProvider(source: .chromeTab), LanguageBrowserProvider(source: .bookmark)], chromeBookmarkAccessAllowed: true)
                 for (trigger, expected) in [("st", "Search Open Tabs"), ("bm", "Search bookmarks"), ("link", "Search links"), ("ai", "AI search")] {
                     launcher.query = trigger
@@ -104,6 +189,7 @@ enum ApplicationLanguageRegression {
                     try await Task.sleep(for: .milliseconds(100))
                     let suffix = english ? "Asky Settings" : "Asky 设置"
                     guard window.title == "\(page.title) — \(suffix)" else { fatalError("window title didn't localize") }
+                    try snapshot(window, name: "settings-\(page.rawValue)-\(english ? "en" : "zh-Hans")")
                 }
                 model.settingsTab = SettingsPage.general.rawValue
                 try await Task.sleep(for: .milliseconds(300))

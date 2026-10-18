@@ -73,6 +73,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
+python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 ```
 
@@ -149,6 +150,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
+python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 ```
 

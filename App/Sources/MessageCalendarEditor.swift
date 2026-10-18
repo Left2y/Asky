@@ -126,7 +126,7 @@ private final class EditorPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-private struct MessageCalendarEditorView: View {
+struct MessageCalendarEditorView: View {
     @Bindable var model: MessageCalendarEditorModel
     var cancel: () -> Void
     var create: () -> Void
@@ -211,7 +211,7 @@ private struct MessageCalendarEditorView: View {
                 Spacer()
                 if model.saving { ProgressView().controlSize(.small) }
                 Button("取消", action: cancel).keyboardShortcut(.cancelAction).disabled(model.saving)
-                Button(model.saving ? "创建中…" : "创建", action: create)
+                Button(NSLocalizedString(model.saving ? "创建中…" : "创建", comment: ""), action: create)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.isValid || model.saving || model.uncertain)
                     .buttonStyle(.borderedProminent)

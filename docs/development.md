@@ -31,6 +31,7 @@ python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-launcher-window-regression.py --bookmarks
 python3 App/Tests/run-clipboard-regression.py
+python3 App/Tests/run-clipboard-regression.py --paste-target
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --hover-mouse
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
@@ -144,6 +145,7 @@ python3 App/Tests/run-launcher-window-regression.py --system-app-names
 python3 App/Tests/run-launcher-window-regression.py --alias-routing
 python3 App/Tests/run-launcher-window-regression.py --bookmarks
 python3 App/Tests/run-clipboard-regression.py
+python3 App/Tests/run-clipboard-regression.py --paste-target
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --hover-mouse
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut

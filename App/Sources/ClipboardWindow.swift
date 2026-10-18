@@ -70,6 +70,8 @@ enum ClipboardFilter: String, CaseIterable, Identifiable {
     }
 }
 
+enum ClipboardHistoryAction { case copy, pin, delete }
+
 @MainActor @Observable
 final class ClipboardController {
     private let app: AppModel
@@ -89,6 +91,11 @@ final class ClipboardController {
         didSet { updateActionsMenu(); updateOutsideClickDismissal() }
     }
     private var hiding = false
+    private var pasteTarget: ClipboardPasteTarget?
+    private var pasteTask: Task<Void, Never>?
+    private let pasteTargetProvider: @MainActor () -> ClipboardPasteTarget
+    private(set) var hasPasteTarget = false
+    var actionKinds: [ClipboardHistoryAction] { hasPasteTarget ? [.copy, .pin, .delete] : [.pin, .delete] }
     var layout: ClipboardLayout { app.preferences.clipboardLayout }
 
     func updateLayout() {
@@ -141,8 +148,9 @@ final class ClipboardController {
         }
     }
 
-    init(app: AppModel) {
+    init(app: AppModel, pasteTargetProvider: @escaping @MainActor () -> ClipboardPasteTarget = ClipboardPasteTarget.capture) {
         self.app = app
+        self.pasteTargetProvider = pasteTargetProvider
         panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 900, height: 244),
                                styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         preview = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
@@ -191,6 +199,9 @@ final class ClipboardController {
     func toggle() { panel.isVisible ? hide() : show() }
 
     func show() {
+        pasteTask?.cancel()
+        pasteTarget = pasteTargetProvider()
+        hasPasteTarget = pasteTarget?.hasInputFocus == true
         filter = .all
         query = ""
         status = nil
@@ -248,12 +259,17 @@ final class ClipboardController {
 
     /// The status toast is its own opaque surface centered 12 pt above the shell.
     private func updateToast() {
-        guard panel.isVisible, let status else { toastPanel.remove(); return }
+        guard let status else { toastPanel.remove(); return }
         let view = ClipboardStatusToast(message: status)
         let size = SurfacePanel.fittingSize(of: view, maxWidth: shellFrame.width - 48)
         toastPanel.setSurface(view, size: size, cornerRadius: ClipboardStatusToast.cornerRadius, glass: false)
         toastPanel.setFrameOrigin(NSPoint(x: shellFrame.midX - size.width / 2, y: shellFrame.maxY + 12))
-        if toastPanel.parent == nil { panel.addChildWindow(toastPanel, ordered: .above) }
+        if panel.isVisible {
+            if toastPanel.parent == nil { panel.addChildWindow(toastPanel, ordered: .above) }
+        } else {
+            if let parent = toastPanel.parent { parent.removeChildWindow(toastPanel) }
+            toastPanel.orderFrontRegardless()
+        }
     }
 
     func toggleFilterMenu() { isActionsMenuPresented = false; isFilterMenuPresented.toggle(); dismissPreview() }
@@ -268,24 +284,34 @@ final class ClipboardController {
     func performSelectedAction(_ index: Int) {
         guard let item = selectedItem else { isActionsMenuPresented = false; return }
         isActionsMenuPresented = false
-        if index == 0 { pinItem(item); select(items.first { $0.id == item.id } ?? item) }
-        else if index == 1 { delete(item) }
+        guard actionKinds.indices.contains(index) else { return }
+        switch actionKinds[index] {
+        case .copy: copy(item)
+        case .pin: pinItem(item); select(items.first { $0.id == item.id } ?? item)
+        case .delete: delete(item)
+        }
     }
 
     func handleActionKey(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         if event.keyCode == 35, modifiers == [.option, .command] {
-            if !event.isARepeat { performSelectedAction(0) }
+            if !event.isARepeat, let index = actionKinds.firstIndex(of: .pin) { performSelectedAction(index) }
             return true
         }
         if event.keyCode == 40, modifiers == .command, layout == .list {
             toggleActionsMenu()
             return true
         }
+        if [36, 76].contains(event.keyCode), modifiers == .command {
+            isActionsMenuPresented = false
+            isFilterMenuPresented = false
+            if !event.isARepeat { submitSelection(copyOnly: true) }
+            return true
+        }
         guard isActionsMenuPresented else { return false }
         switch event.keyCode {
         case 53: isActionsMenuPresented = false
-        case 125: actionSelection = min(1, actionSelection + 1)
+        case 125: actionSelection = min(actionKinds.count - 1, actionSelection + 1)
         case 126: actionSelection = max(0, actionSelection - 1)
         case 36, 76: performSelectedAction(actionSelection)
         default: return false
@@ -339,15 +365,35 @@ final class ClipboardController {
         copy(items[selection])
     }
 
+    func submitSelection(copyOnly: Bool) {
+        if copyOnly { copySelection() } else if hasPasteTarget { pasteSelection() }
+    }
+
     /// Return: copy the selected card, close the panel and paste into the app that was in front.
     func pasteSelection() {
         guard items.indices.contains(selection) else { return }
         guard ClipboardAccess.copy(items[selection]) else { status = NSLocalizedString("无法复制：原始内容已不可用", comment: ""); return }
+        guard let pasteTarget else { showPasteFallback(.unavailable); return }
+        let ready = pasteTarget.prepare()
+        guard ready == .posted else { showPasteFallback(ready); return }
+        let changeCount = ClipboardAccess.changeCount
         hide()
-        // The panel never activates Asky, so the previous app is still frontmost and receives ⌘V.
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(80))
-            _ = ClipboardAccess.pasteIntoFrontmostApp()
+        pasteTask = Task { @MainActor [weak self] in
+            let result = await pasteTarget.paste(expectedChangeCount: changeCount)
+            guard !Task.isCancelled else { return }
+            self?.showPasteFallback(result)
+        }
+    }
+
+    private func showPasteFallback(_ result: ClipboardPasteTarget.Result) {
+        switch result {
+        case .posted: break
+        case .noInputFocus:
+            status = NSLocalizedString("已复制；未找到输入位置，请手动粘贴", comment: "")
+        case .accessibilityRequired:
+            status = NSLocalizedString("已复制；自动粘贴需要辅助功能权限", comment: "")
+        case .unavailable:
+            status = NSLocalizedString("未能自动粘贴，请使用剪贴板手动粘贴", comment: "")
         }
     }
 
@@ -514,10 +560,7 @@ private struct ClipboardHistoryView: View {
                                         placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
                                         backspaceOnEmpty: { false }, move: controller.moveSelection,
                                         moveHorizontal: controller.moveSelection,
-                                        submit: { _ in
-                                            if controller.layout == .list { controller.copySelection() }
-                                            else { controller.pasteSelection() }
-                                        })
+                                        submit: { controller.submitSelection(copyOnly: $0) })
                         .frame(height: 24)
                 }
                 .padding(.horizontal, 16).frame(height: 36)
@@ -579,8 +622,12 @@ private struct ClipboardActionBar: View {
 
     var body: some View {
         HStack {
-            Button { controller.copySelection() } label: {
-                label("复制到剪贴板", icon: "ChatCopy", shortcut: "↩")
+            Button { controller.hasPasteTarget ? controller.pasteSelection() : controller.copySelection() } label: {
+                if controller.hasPasteTarget {
+                    label("粘贴到光标位置", shortcut: "↩")
+                } else {
+                    label("复制到剪贴板", icon: "ChatCopy", shortcut: "⌘ ↩")
+                }
             }
             .buttonStyle(LauncherActionButtonStyle())
             Spacer(minLength: 12)
@@ -615,13 +662,16 @@ private struct ClipboardActionsMenu: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            ForEach(0..<2) { index in
+            ForEach(controller.actionKinds.indices, id: \.self) { index in
                 Button { controller.performSelectedAction(index) } label: {
                     HStack(spacing: 10) {
-                        Image(mingCute: index == 0 ? "pin" : "trash", size: 16).frame(width: 20)
-                        Text(NSLocalizedString(index == 0 ? (controller.selectedItem?.pinned == true ? "Unpin" : "Pin") : "删除记录", tableName: "Clipboard", comment: "Clipboard action"))
+                        let kind = controller.actionKinds[index]
+                        Image(mingCute: kind == .copy ? "doc.on.clipboard" : (kind == .pin ? "pin" : "trash"), size: 16).frame(width: 20)
+                        Text(NSLocalizedString(kind == .copy ? "复制到剪贴板" : (kind == .pin ? (controller.selectedItem?.pinned == true ? "Unpin" : "Pin") : "删除记录"), tableName: "Clipboard", comment: "Clipboard action"))
                         Spacer(minLength: 8)
-                        if index == 0 {
+                        if kind == .copy {
+                            Text("⌘↩").foregroundStyle(ThemeColor.kTextSubtle)
+                        } else if kind == .pin {
                             Text("⌥⌘P").foregroundStyle(ThemeColor.kTextSubtle)
                         }
                     }

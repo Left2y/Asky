@@ -44,6 +44,15 @@ with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "ClipboardRegression", "CFBundleIdentifier": "app.asky.clipboard-regression",
                   "CFBundleName": "ClipboardRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], env=environment, cwd=root, check=True)
+if "--paste-target" in sys.argv:
+    receiver = root / "build/ClipboardPasteReceiver.app/Contents"
+    (receiver / "MacOS").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(binary, receiver / "MacOS/ClipboardRegression")
+    with (receiver / "Info.plist").open("wb") as output:
+        plistlib.dump({"CFBundleExecutable": "ClipboardRegression", "CFBundleIdentifier": "app.asky.paste-receiver",
+                      "CFBundleName": "ClipboardPasteReceiver", "CFBundlePackageType": "APPL"}, output)
+    subprocess.run(["codesign", "--force", "--sign", "-", str(receiver.parent)], check=True)
+    environment["ASKY_CLIPBOARD_RECEIVER"] = str(receiver / "MacOS/ClipboardRegression")
 if "--video-preview" in sys.argv:
     fixture = root / "build/clipboard-video-fixture.mp4"
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",

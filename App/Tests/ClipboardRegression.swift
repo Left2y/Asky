@@ -6,11 +6,23 @@ import AVKit
 
 @main @MainActor
 enum ClipboardRegression {
+    static var receiverWindow: NSWindow?
+    static var receiverTimer: Timer?
+
     static func main() {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
+        if let index = CommandLine.arguments.firstIndex(of: "--paste-receiver") {
+            startPasteReceiver(at: URL(filePath: CommandLine.arguments[index + 1]))
+            application.run()
+            return
+        }
         Task { @MainActor in
             do {
+                if CommandLine.arguments.contains("--paste-target") {
+                    try await verifyPasteTarget()
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--toast-surfaces") {
                     try await verifyToastSurfaces()
                     exit(0)
@@ -109,7 +121,7 @@ enum ClipboardRegression {
                         afterRestore.sourceApp == recorded.sourceApp && afterRestore.sourceBundleID == recorded.sourceBundleID,
                         "restoring history must not overwrite source metadata or reorder the card")
                 }
-                let controller = ClipboardController(app: app)
+                let controller = ClipboardController(app: app, pasteTargetProvider: { .unavailable })
                 let dragPreview = CommandLine.arguments.contains("--drag-preview")
                 let dragTest = CommandLine.arguments.contains("--drag") || fileTest
                 if CommandLine.arguments.contains("--preview") || CommandLine.arguments.contains("--layouts") || dragPreview || dragTest { controller.pinned = true }
@@ -467,12 +479,16 @@ enum ClipboardRegression {
                     NSPasteboard.general.clearContents()
                     let field = descendants(panel().contentView!, of: CompletionTextField.self).first!
                     let delegate = field.delegate as! LauncherSearchField.Coordinator
+                    // There is no external input in this harness; only Cmd Return should copy.
                     precondition(delegate.control(field, textView: NSTextView(),
                         doCommandBy: #selector(NSResponder.insertNewline(_:))))
-                    precondition(NSPasteboard.general.string(forType: .string) == "Another clipboard card",
-                                 "Return must copy the selected list row")
+                    precondition(NSPasteboard.general.string(forType: .string) == nil,
+                                 "Return without an input must leave the clipboard untouched")
+                    precondition(controller.status == nil && controller.isVisible && !controller.hasPasteTarget,
+                                 "Return without a target must leave the list open without pasting")
+                    key(36, .command)
                     precondition(controller.status == NSLocalizedString("已复制", comment: "") && controller.isVisible,
-                                 "Return must show copy feedback and keep the list open")
+                                 "Cmd Return must only copy and keep the list open")
                     try await Task.sleep(for: .milliseconds(200))
                     let toast = panel().childWindows!.first { $0.isVisible && $0.frame.minY > panel().frame.maxY }
                     precondition(toast != nil, "copy toast must be visible above the list")
@@ -501,6 +517,12 @@ enum ClipboardRegression {
                     card.mouseDown(with: down)
                     card.mouseUp(with: up)
                     precondition(NSPasteboard.general.changeCount > beforeCardClick, "card still copies on single click")
+                    key(36, .command)
+                    precondition(controller.status == NSLocalizedString("已复制", comment: "") && controller.isVisible,
+                                 "card layout also supports copy-only Cmd Return")
+                    controller.submitSelection(copyOnly: false)
+                    precondition(controller.status != nil && controller.isVisible,
+                                 "card Return without an external input also falls back safely")
                     try snapshot(panel(), "layout-cards")
                     app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
                     controller.updateLayout()
@@ -812,6 +834,130 @@ enum ClipboardRegression {
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func startPasteReceiver(at root: URL) {
+        let application = NSApplication.shared
+        application.setActivationPolicy(.regular)
+        EditMenu.install()
+        let window = NSWindow(contentRect: NSRect(x: 120, y: 160, width: 440, height: 220),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Asky paste receiver"
+        let text = NSTextView(frame: NSRect(x: 20, y: 60, width: 400, height: 140))
+        text.string = "LeftRight"
+        text.setSelectedRange(NSRange(location: 4, length: 0))
+        window.contentView!.addSubview(text)
+        window.makeFirstResponder(text)
+        window.makeKeyAndOrderFront(nil)
+        application.activate()
+        receiverWindow = window
+        var previous = ""
+        receiverTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                let control = (try? String(contentsOf: root.appending(path: "control"), encoding: .utf8)) ?? ""
+                if control != previous {
+                    previous = control
+                    if control == "blur" { window.makeFirstResponder(nil) }
+                    if control == "focus" { window.makeFirstResponder(text) }
+                    if control == "quit" { exit(0) }
+                }
+                try? text.string.write(to: root.appending(path: "text"), atomically: true, encoding: .utf8)
+                try? control.write(to: root.appending(path: "ack"), atomically: true, encoding: .utf8)
+            }
+        }
+        try? "ready".write(to: root.appending(path: "ready"), atomically: true, encoding: .utf8)
+    }
+
+    private static func verifyPasteTarget() async throws {
+        func descendants<T: NSView>(_ view: NSView, of type: T.Type) -> [T] {
+            (view as? T).map { [$0] } ?? view.subviews.flatMap { descendants($0, of: type) }
+        }
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-paste-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let receiver = Process()
+        receiver.executableURL = URL(filePath: ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_RECEIVER"]!)
+        receiver.arguments = ["--paste-receiver", root.path]
+        try receiver.run()
+        defer {
+            receiver.terminate()
+            try? FileManager.default.removeItem(at: root)
+        }
+        for _ in 0..<100 {
+            if FileManager.default.fileExists(atPath: root.appending(path: "ready").path) { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        let targetApp = NSRunningApplication(processIdentifier: receiver.processIdentifier)!
+        targetApp.activate(options: [.activateIgnoringOtherApps])
+        for _ in 0..<100 {
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier == receiver.processIdentifier { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        precondition(NSWorkspace.shared.frontmostApplication?.processIdentifier == receiver.processIdentifier,
+                     "receiver must be the frontmost app")
+        let target = ClipboardPasteTarget.capture()
+        precondition(target.hasInputFocus, "must detect the receiver's native text input (requires Accessibility)")
+        let app = try AppModel(root: root.appending(path: "model"))
+        let item = ClipboardItem(kind: .text, text: "PASTE", byteSize: 5, contentHash: "paste")
+        try ClipboardStore(app.store).insert(item)
+        let controller = ClipboardController(app: app)
+        app.preferences.clipboardLayout = .list
+        controller.show()
+        controller.pinned = true
+        try await Task.sleep(for: .milliseconds(150))
+        precondition(controller.hasPasteTarget && controller.actionKinds.first == .copy)
+        controller.toggleActionsMenu()
+        precondition(controller.isActionsMenuPresented)
+        let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
+        if let bitmap = panel.contentView!.bitmapImageRepForCachingDisplay(in: panel.contentView!.bounds) {
+            panel.contentView!.cacheDisplay(in: panel.contentView!.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-focused-footer.png"))
+        }
+        controller.performSelectedAction(0)
+        try await Task.sleep(for: .milliseconds(120))
+        let afterCopy = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
+        precondition(afterCopy == "LeftRight",
+                     "copy in More must not insert text")
+        controller.toggleActionsMenu()
+        controller.actionSelection = 2
+        let copyKey = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+            timestamp: 0, windowNumber: panel.windowNumber, context: nil, characters: "\r",
+            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+        precondition(controller.handleActionKey(copyKey))
+        precondition(controller.items.count == 1 && !controller.isActionsMenuPresented,
+                     "Cmd Return must copy even when Delete is highlighted in More")
+        let field = descendants(panel.contentView!, of: CompletionTextField.self).first!
+        let delegate = field.delegate as! LauncherSearchField.Coordinator
+        precondition(delegate.control(field, textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        for _ in 0..<100 {
+            if (try? String(contentsOf: root.appending(path: "text"), encoding: .utf8)) == "LeftPASTERight" { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        let afterPaste = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
+        precondition(afterPaste == "LeftPASTERight",
+                     "Return must insert at the original cursor in another process")
+        precondition(!controller.isVisible)
+        // A clipboard change between copy and dispatch must prevent an unrelated paste.
+        let stale = ClipboardAccess.changeCount
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("OTHER", forType: .string)
+        let staleResult = await target.paste(expectedChangeCount: stale)
+        precondition(staleResult == .unavailable)
+        try "blur".write(to: root.appending(path: "control"), atomically: true, encoding: .utf8)
+        for _ in 0..<100 {
+            if (try? String(contentsOf: root.appending(path: "ack"), encoding: .utf8)) == "blur" { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        controller.show()
+        precondition(!controller.hasPasteTarget && !controller.actionKinds.contains(.copy),
+                     "no input must offer copy as the primary action instead of in More")
+        let before = ClipboardAccess.changeCount
+        controller.submitSelection(copyOnly: false)
+        precondition(ClipboardAccess.changeCount == before && controller.isVisible)
+        controller.submitSelection(copyOnly: true)
+        precondition(NSPasteboard.general.string(forType: .string) == "PASTE" && controller.isVisible)
+        controller.hide()
+        print("Clipboard paste passed: external cursor insertion, dynamic actions, copy-only, no input, clipboard race")
     }
 
     private static func verifyToastSurfaces() async throws {

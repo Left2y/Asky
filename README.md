@@ -31,7 +31,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共用无染色的 AppKit 原生 Regular 玻璃；关闭液态玻璃或启用辅助功能显示选项时保留对应回退。
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
-- **剪贴板**：文本、图片和文件历史，支持搜索、分类筛选、固定、预览与拖放，可切换卡片或列表视图。列表单击选中、双击或回车复制；底栏“更多”（`⌘K`）可固定或删除记录，`⌥⌘P` 切换所选记录的固定状态。卡片保持单击复制，悬停时右上角显示更多操作按钮；右键不打开菜单。
+- **剪贴板**：文本、图片和文件历史，支持搜索、分类筛选、固定、预览与拖放，可切换卡片或列表视图。两种视图在识别到唤起前的输入焦点时按回车粘贴，`⌘ Return` 始终仅复制并保留面板。列表底栏有输入焦点时显示回车粘贴，复制操作收进更多菜单；无输入焦点时显示 `⌘ Return` 复制，普通回车不执行。焦点检测及自动粘贴需要辅助功能权限；粘贴时若目标失效，保留复制结果并提示手动粘贴。列表单击选中、双击复制；底栏“更多”（`⌘K`）可固定或删除记录，`⌥⌘P` 切换所选记录的固定状态。卡片保持单击复制，悬停时右上角显示更多操作按钮；右键不打开菜单。
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
 
@@ -86,6 +86,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
@@ -128,7 +129,7 @@ Asky is built with SwiftUI and AppKit. Search and clipboard history work indepen
 With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window backgrounds share untinted native AppKit Regular glass. Disabling Liquid Glass or enabling accessibility display options retains the corresponding fallbacks.
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
-- **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view. In list view, click to select and double-click or press Return to copy; use More (`⌘K`) in the footer to pin or delete a record; `⌥⌘P` toggles pinning for the selected record. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
+- **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view. In both views, Return pastes when an input was detected before opening history; `⌘ Return` always only copies and keeps the panel open. With an input, the list footer offers Return to paste and moves Copy into More; without an input, it offers `⌘ Return` to copy and plain Return does nothing. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to pin or delete a record; `⌥⌘P` toggles pinning for the selected record. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 
@@ -183,6 +184,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories

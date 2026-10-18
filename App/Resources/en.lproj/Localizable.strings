@@ -95,6 +95,9 @@
 "已固定" = "Pinned";
 "已处理" = "Handled";
 "已复制" = "Copied";
+"已复制；未找到输入位置，请手动粘贴" = "Copied; no input found. Paste manually.";
+"已复制；自动粘贴需要辅助功能权限" = "Copied; automatic paste requires Accessibility access.";
+"未能自动粘贴，请使用剪贴板手动粘贴" = "Could not paste automatically. Paste manually from the clipboard.";
 "已完成" = "Completed";
 "已授权" = "Authorized";
 "已注册" = "Registered";

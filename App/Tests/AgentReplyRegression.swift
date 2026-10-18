@@ -67,6 +67,39 @@ enum AgentReplyRegression {
             print("Chat native Regular glass, untinted surface, light/dark capture and resizing passed")
             return
         }
+        if CommandLine.arguments.contains("--compaction-preview") {
+            let store = ConversationStore(app.store)
+            let cid = try store.create(title: "上下文压缩")
+            try store.append(conversationID: cid, role: "user", text: "继续刚才的对话")
+            model.open(cid)
+            model.beginResponse(taskID: "compaction")
+            model.handle(.taskState(taskID: "compaction", .compacting), conversationID: cid)
+            precondition(model.state == .compacting && model.isRunning)
+            for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+                application.appearance = NSAppearance(named: appearance)
+                let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+                controller.show()
+                let window = application.windows.first { $0.title == "Asky AI" }!
+                defer { window.close() }
+                window.appearance = NSAppearance(named: appearance)
+                try await Task.sleep(for: .milliseconds(600))
+                let capture = Process()
+                capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-o", "-l", String(window.windowNumber),
+                    "build/agent-compaction-\(appearance.rawValue).png"]
+                try capture.run()
+                capture.waitUntilExit()
+                precondition(capture.terminationStatus == 0)
+            }
+            model.handle(.taskState(taskID: "compaction", .running), conversationID: cid)
+            precondition(model.state == .running && model.isRunning)
+            model.handle(.taskState(taskID: "compaction", .compacting), conversationID: cid)
+            model.handle(.taskState(taskID: "compaction", .cancelled), conversationID: cid)
+            model.finishTask(conversationID: cid)
+            precondition(!model.isRunning && model.state == .cancelled)
+            print("Compaction UI: light/dark captures, resume and cancellation passed")
+            return
+        }
         let store = ConversationStore(app.store)
         let cid = try store.create(title: "回复回归")
         model.open(cid)

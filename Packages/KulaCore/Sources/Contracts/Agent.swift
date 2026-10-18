@@ -82,7 +82,7 @@ public struct ContextSnippet: Sendable, Hashable, Codable {
 }
 
 public enum AgentTaskState: String, Sendable, Codable {
-    case starting, running, awaitingInput, awaitingConfirmation, completed, cancelled, failed, pendingVerification
+    case starting, running, compacting, awaitingInput, awaitingConfirmation, completed, cancelled, failed, pendingVerification
 
     public var isTerminal: Bool {
         switch self {

@@ -430,6 +430,7 @@ private struct Transcript: View {
         switch s {
         case .starting: NSLocalizedString("正在启动…", comment: "")
         case .running: NSLocalizedString("处理中…", comment: "")
+        case .compacting: NSLocalizedString("正在压缩上下文…", comment: "")
         case .awaitingInput: NSLocalizedString("等待你的回答", comment: "")
         case .awaitingConfirmation: NSLocalizedString("等待确认", comment: "")
         case .completed: NSLocalizedString("已完成", comment: "")
@@ -524,7 +525,16 @@ private struct ResponseGroupView: View {
                 ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: group.streaming))
             }
             if group.isRunning, let state = group.state {
-                Text(Transcript.label(state)).textStyle(AgentLayout.message).foregroundStyle(ThemeColor.kTextSubtlest)
+                HStack(spacing: 8) {
+                    if state == .compacting {
+                        ProgressView().controlSize(.small)
+                            .tint(ThemeColor.kTextSubtlest)
+                            .accessibilityHidden(true)
+                    }
+                    Text(Transcript.label(state))
+                }
+                .textStyle(AgentLayout.message)
+                .foregroundStyle(ThemeColor.kTextSubtlest)
             }
         }
         .onChange(of: group.isRunning) { _, running in

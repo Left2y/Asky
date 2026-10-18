@@ -294,3 +294,32 @@ test("Messages search reaches native host and result returns to model", async ()
     assert.equal(await p.exit, 0);
   } finally { p.child.kill("SIGKILL"); mock.server.close(); }
 });
+
+test("automatic compaction reports loading and resumes the running task", async () => {
+  const mock = await startMock([
+    () => textReply("好的"),
+    () => sse([
+      { ...base, choices: [{ index: 0, delta: { role: "assistant", content: "已记录" } }] },
+      { ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 120000, completion_tokens: 3, total_tokens: 120003 } },
+    ]),
+    () => textReply("对话摘要：用户提供了一段较长的资料"),
+  ]);
+  const p = launch(mkdtempSync(join(tmpdir(), "kula-compact-")));
+  try {
+    await handshake(p, mock);
+    p.send({ type: "prompt", request: request("warmup", "我们开始吧") });
+    await p.next((f) => f.type === "taskState" && f.taskID === "warmup" && f.state === "completed");
+    p.send({ type: "prompt", request: request("compact", "资料内容。".repeat(20000)) });
+    await p.next((f) => f.type === "taskState" && f.state === "compacting");
+    await p.next((f) => f.type === "taskState" && f.taskID === "compact" && f.state === "completed");
+    const states = p.frames.filter((f) => f.type === "taskState" && f.taskID === "compact").map((f) => f.state);
+    const start = states.indexOf("compacting");
+    assert.equal(states[start + 1], "running");
+    assert.equal(states.at(-1), "completed");
+    assert.ok(mock.requests.length >= 3, "the SDK must actually request a compaction summary");
+  } finally {
+    p.send({ type: "shutdown" });
+    await p.exit;
+    mock.server.close();
+  }
+});

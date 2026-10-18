@@ -196,7 +196,11 @@ export class Runtime {
     session.subscribe((ev) => {
       const taskID = slot.taskID;
       if (!taskID) return;
-      if (ev.type === "message_update" && ev.assistantMessageEvent.type === "text_delta") {
+      if (ev.type === "compaction_start") {
+        this.send({ type: "taskState", taskID, state: "compacting" });
+      } else if (ev.type === "compaction_end") {
+        this.send({ type: "taskState", taskID, state: "running" });
+      } else if (ev.type === "message_update" && ev.assistantMessageEvent.type === "text_delta") {
         this.send({ type: "textDelta", taskID, text: ev.assistantMessageEvent.delta });
       } else if (ev.type === "message_end" && ev.message.role === "assistant") {
         const msg = ev.message as { content?: { type: string; text?: string }[]; stopReason?: string; errorMessage?: string };

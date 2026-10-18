@@ -55,7 +55,7 @@ export type HostMessage =
   | { type: "shutdown" };
 
 export type TaskState =
-  | "starting" | "running" | "awaitingInput" | "awaitingConfirmation"
+  | "starting" | "running" | "compacting" | "awaitingInput" | "awaitingConfirmation"
   | "completed" | "cancelled" | "failed" | "pendingVerification";
 
 export type RuntimeMessage =

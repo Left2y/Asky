@@ -103,18 +103,44 @@ final class GlassSurfaceView: NSGlassEffectView {
     }
 }
 
+/// The measured lift between inactive and active light glass over a bright
+/// backdrop. `.plusLighter` adds the layer instead of compositing it, which is
+/// the only way to brighten the glass next to white without washing it out.
+private struct AdditiveWhiteLift: View {
+    var body: some View {
+        Color.white.opacity(0.05).blendMode(.plusLighter)
+    }
+}
+
+/// Hosts the additive fill without taking clicks from the button above it.
+private final class PassiveHostingView<Content: View>: NSHostingView<Content> {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 /// Sits between the glass and its content and redraws what the active
 /// material has over the inactive one: a uniform fill lift plus the specular
 /// rim, which is strongest on the horizontal edges and faint on the sides.
 /// The alphas are measured from screenshots of active vs inactive glass.
+///
+/// The light fill is additive rather than a translucent white layer. Over a
+/// bright backdrop the inactive material is about 12 levels darker than the
+/// active one; a normal white overlay saturates near white and adds nothing,
+/// while an additive layer lifts one constant amount. Dark mode keeps the
+/// alpha fill, which tracks the darker material.
 private final class InactiveGlassTintView: NSView {
     var cornerRadius: CGFloat = 0 {
         didSet { needsDisplay = true }
     }
 
+    private let lightFill = PassiveHostingView(rootView: AdditiveWhiteLift())
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+        lightFill.frame = bounds
+        lightFill.autoresizingMask = [.width, .height]
+        addSubview(lightFill)
+        updateFill()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -124,16 +150,28 @@ private final class InactiveGlassTintView: NSView {
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
+        updateFill()
+    }
+
+    private var isDark: Bool {
+        effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
+    private func updateFill() {
+        // The additive layer replaces the alpha fill over bright backdrops.
+        lightFill.isHidden = isDark
         needsDisplay = true
     }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext,
               bounds.width > 0, bounds.height > 0 else { return }
-        let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        // Uniform difference between the active and inactive materials.
-        ctx.setFillColor(white(dark ? 0.05 : 0.015))
-        ctx.fill(bounds)
+        let dark = isDark
+        if dark {
+            // Uniform difference between the active and inactive materials.
+            ctx.setFillColor(white(0.05))
+            ctx.fill(bounds)
+        }
         // Rim bands: centre inset, width and edge alpha of each ring.
         let bands: [(inset: CGFloat, width: CGFloat, alpha: CGFloat)] = dark
             ? [(0.5, 1, 0.24), (1.5, 1, 0.055), (3.25, 2.5, 0.022)]

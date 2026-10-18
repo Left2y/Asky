@@ -468,9 +468,19 @@ final class ClipboardController {
                     return
                 }
                 let changeCount = ClipboardAccess.changeCount
-                if !self.pinned { self.hide() }
-                else { self.updateOutsideClickDismissal() }
+                let restorePinnedPanel = self.pinned
+                // A nonactivating panel can hold keyboard focus while the destination app
+                // is already frontmost. Release it before Cmd V, even when the panel is pinned.
+                if restorePinnedPanel { self.panel.orderOut(nil) }
+                else { self.hide() }
                 let result = await target.paste(expectedChangeCount: changeCount)
+                // Posting is asynchronous: restoring the panel immediately can blur a web
+                // editor before WindowServer delivers Cmd V.
+                if restorePinnedPanel { try? await Task.sleep(for: .milliseconds(150)) }
+                if restorePinnedPanel, !Task.isCancelled {
+                    self.panel.orderFrontRegardless()
+                    self.updateOutsideClickDismissal()
+                }
                 if CommandLine.arguments.contains("--drag-paste-target") || CommandLine.arguments.contains("--test-clipboard") {
                     NSLog("Drop paste result: %@", String(describing: result))
                 }
@@ -1212,20 +1222,18 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
     private var gesture: ClipboardDragGesture?
     private(set) var nativeTextDropTarget: ClipboardDropTarget?
     private var verifyNativeTextDrop = false
-    private var nextTargetObservation = Date.distantPast
 
     func beginTracking(verifyNativeTextDrop: Bool) {
         active = true
         nativeTextDropTarget = nil
         self.verifyNativeTextDrop = verifyNativeTextDrop
-        nextTargetObservation = .distantPast
         gesture = ClipboardDragGesture()
     }
 
     func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
-        guard verifyNativeTextDrop, nativeTextDropTarget == nil, Date.now >= nextTargetObservation else { return }
-        nextTargetObservation = .now.addingTimeInterval(0.15)
-        if let target = ClipboardDropTarget.capture(at: screenPoint), target.canVerifyNativeTextDrop {
+        guard verifyNativeTextDrop, nativeTextDropTarget == nil else { return }
+        // A collapsed chat editor can be crossed in less than one throttle interval.
+        if let target = ClipboardDropTarget.captureNativeTextDrop(at: screenPoint), target.canVerifyNativeTextDrop {
             nativeTextDropTarget = target
         }
     }

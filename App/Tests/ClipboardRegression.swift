@@ -1067,7 +1067,7 @@ enum ClipboardRegression {
             .split(separator: ",").map { Double($0)! }
         let buttonPoint = NSPoint(x: buttonCoordinates[0], y: buttonCoordinates[1])
         let app = try AppModel(root: root.appending(path: "model"))
-        app.preferences.clipboardLayout = .cards
+        app.preferences.clipboardLayout = CommandLine.arguments.contains("--list-drag") ? .list : .cards
         let item = ClipboardItem(kind: .text, text: "DROP", byteSize: 4, contentHash: "drop")
         try ClipboardStore(app.store).insert(item)
         let controller = ClipboardController(app: app)
@@ -1086,9 +1086,10 @@ enum ClipboardRegression {
             controller.show()
             try await Task.sleep(for: .milliseconds(300))
             let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
-            panel.level = .popUpMenu
             panel.makeKeyAndOrderFront(nil)
-            controller.pinned = false
+            controller.pinned = CommandLine.arguments.contains("--pinned-drag")
+            // Becoming key applies the production floating level; raise the fixture after it.
+            panel.level = .popUpMenu
             func surfaces(_ view: NSView) -> [ClipboardCardMouseView] {
                 (view as? ClipboardCardMouseView).map { [$0] } ?? view.subviews.flatMap(surfaces)
             }
@@ -1126,13 +1127,16 @@ enum ClipboardRegression {
                 precondition(value.isEmpty && ClipboardAccess.changeCount == before,
                              "cancelled drops and drops on buttons must not paste or rewrite the clipboard")
             } else {
+                let pinned = CommandLine.arguments.contains("--pinned-drag")
                 for _ in 0..<100 {
-                    if (try? String(contentsOf: root.appending(path: "text"), encoding: .utf8)) == "DROP" { break }
+                    if (try? String(contentsOf: root.appending(path: "text"), encoding: .utf8)) == "DROP",
+                       controller.isVisible == pinned { break }
                     try await Task.sleep(for: .milliseconds(30))
                 }
                 let value = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
                 precondition(value == "DROP", "a rejected native drop must paste once into the editor under the release point")
-                precondition(!controller.isVisible && NSPasteboard.general.string(forType: .string) == "DROP")
+                precondition(controller.isVisible == pinned && NSPasteboard.general.string(forType: .string) == "DROP")
+                if pinned { precondition(!panel.isKeyWindow, "a retained panel must release keyboard focus to the receiver") }
             }
             controller.hide()
         }
@@ -1156,7 +1160,7 @@ enum ClipboardRegression {
         let root = FileManager.default.temporaryDirectory.appending(path: "Asky-live-drag-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
-        app.preferences.clipboardLayout = .cards
+        app.preferences.clipboardLayout = CommandLine.arguments.contains("--list-drag") ? .list : .cards
         try ClipboardStore(app.store).insert(ClipboardItem(kind: .text, text: "AskyDragProbe", byteSize: 13, contentHash: "live-drag"))
         let controller = ClipboardController(app: app)
         controller.pinned = true

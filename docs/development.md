@@ -33,6 +33,7 @@ python3 App/Tests/run-launcher-window-regression.py --bookmarks
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --paste-target
 python3 App/Tests/run-clipboard-regression.py --drag-paste-target
+python3 App/Tests/run-clipboard-regression.py --drag-paste-target --list-drag --pinned-drag
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --hover-mouse
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
@@ -148,6 +149,7 @@ python3 App/Tests/run-launcher-window-regression.py --bookmarks
 python3 App/Tests/run-clipboard-regression.py
 python3 App/Tests/run-clipboard-regression.py --paste-target
 python3 App/Tests/run-clipboard-regression.py --drag-paste-target
+python3 App/Tests/run-clipboard-regression.py --drag-paste-target --list-drag --pinned-drag
 python3 App/Tests/run-clipboard-regression.py --hover-delay
 python3 App/Tests/run-clipboard-regression.py --hover-mouse
 python3 App/Tests/run-clipboard-regression.py --settings-shortcut
@@ -231,3 +233,7 @@ In Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --
 `--drag-paste-target` uses a separate-process editor that rejects native drops, reads back the pasted result, and checks that Escape cancellation and non-input drops leave the clipboard unchanged.
 
 `--external-drag` uses a single `AskyDragProbe` record. Set `ASKY_CLIPBOARD_TARGET_BUNDLE` to an already running app and `ASKY_CLIPBOARD_DROP_POINT=x,y` to the editor’s Quartz screen coordinates. It only inserts a draft; read back and remove that text in the destination before claiming success.
+
+拖放回归的 `--list-drag` 使用左侧列表条目作为源；`--pinned-drag` 额外检查固定窗口补粘贴后仍显示且不持有键盘焦点。真实应用验收应包括空输入框，不能只用被图片或长文本撑高的编辑器。
+
+For drag regressions, `--list-drag` uses a left-hand list row; `--pinned-drag` additionally checks that the retained panel stays visible without keeping keyboard focus. Live acceptance must include an empty composer, rather than only editors expanded by an image or long draft.

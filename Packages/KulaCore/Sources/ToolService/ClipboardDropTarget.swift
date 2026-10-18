@@ -24,6 +24,15 @@ public struct ClipboardDropTarget {
 
     /// AppKit screen coordinates (bottom-left origin), as used by a dragging session.
     public static func capture(at screenPoint: CGPoint) -> Self? {
+        capture(at: screenPoint, nativeTextOnly: false)
+    }
+
+    /// Fast, per-move observation for Feishu's narrow editor; skip our own windows and other apps early.
+    public static func captureNativeTextDrop(at screenPoint: CGPoint) -> Self? {
+        capture(at: screenPoint, nativeTextOnly: true)
+    }
+
+    private static func capture(at screenPoint: CGPoint, nativeTextOnly: Bool) -> Self? {
         guard AXIsProcessTrusted(), let screen = NSScreen.screens.first else { return nil }
         let point = CGPoint(x: screenPoint.x, y: screen.frame.maxY - screenPoint.y)
         var hit: AXUIElement?
@@ -38,13 +47,14 @@ public struct ClipboardDropTarget {
             NSLog("Clipboard drop hit: %.0f,%.0f pid=%d role=%@", point.x, point.y, hitPID, (value(hit, kAXRoleAttribute) as? String) ?? "unknown")
         }
         #endif
-        guard let input = inputAncestor(of: hit) ?? terminalInput(near: hit, point: point),
-              contains(input, point: point) else { return nil }
         var pid: pid_t = 0
-        guard AXUIElementGetPid(input, &pid) == .success,
+        guard AXUIElementGetPid(hit, &pid) == .success,
               pid != ProcessInfo.processInfo.processIdentifier,
               let application = NSRunningApplication(processIdentifier: pid), !application.isTerminated,
-              application.bundleIdentifier != Bundle.main.bundleIdentifier else { return nil }
+              application.bundleIdentifier != Bundle.main.bundleIdentifier,
+              !nativeTextOnly || application.bundleIdentifier == "com.bytedance.macos.feishu" else { return nil }
+        guard let input = inputAncestor(of: hit) ?? customInput(near: hit, point: point),
+              contains(input, point: point) else { return nil }
         #if DEBUG
         if CommandLine.arguments.contains("--test-clipboard") {
             NSLog("Clipboard drop target: %@", application.bundleIdentifier ?? "unknown")
@@ -135,6 +145,13 @@ public struct ClipboardDropTarget {
     private static func contains(_ element: AXUIElement, point: CGPoint) -> Bool {
         guard let own = frame(element) else { return false }
         if let region = terminalRegion(of: element, own: own) { return region.contains(point) }
+        if (value(element, kAXRoleAttribute) as? String) == kAXTextAreaRole {
+            var pid: pid_t = 0
+            if AXUIElementGetPid(element, &pid) == .success,
+               NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.bytedance.macos.feishu" {
+                return feishuEditorBounds(input: own, ancestors: parentFrames(of: element)).contains(point)
+            }
+        }
         return own.contains(point)
     }
 
@@ -142,6 +159,10 @@ public struct ClipboardDropTarget {
     /// terminal pane is the drop surface; expanding arbitrary small text fields is unsafe.
     private static func terminalRegion(of element: AXUIElement, own: CGRect) -> CGRect? {
         guard (value(element, kAXDescriptionAttribute) as? String) == "Terminal input" else { return nil }
+        return terminalBounds(input: own, ancestors: parentFrames(of: element))
+    }
+
+    private static func parentFrames(of element: AXUIElement) -> [CGRect] {
         var parents: [CGRect] = []
         var current = element
         for _ in 0..<3 {
@@ -149,7 +170,22 @@ public struct ClipboardDropTarget {
             current = parent as! AXUIElement
             if let rect = frame(current) { parents.append(rect) }
         }
-        return terminalBounds(input: own, ancestors: parents)
+        return parents
+    }
+
+    /// The empty composer exposes only a 22 pt text line. Include its nearby vertical padding,
+    /// keeping the text wrapper's width so Send and the adjacent controls remain excluded.
+    static func feishuEditorBounds(input: CGRect, ancestors: [CGRect]) -> CGRect {
+        guard input.height <= 48,
+              let wrapper = ancestors.first(where: {
+                  $0.contains(input) && $0.width <= input.width + 32 && $0.height <= input.height + 32
+              }) else { return input }
+        let container = ancestors.first {
+            $0.contains(wrapper) && $0.height > wrapper.height && $0.height <= input.height + 48
+        } ?? wrapper
+        let top = max(container.minY, input.minY - 16)
+        let bottom = min(container.maxY, input.maxY + 16)
+        return CGRect(x: wrapper.minX, y: top, width: wrapper.width, height: max(0, bottom - top))
     }
 
     static func terminalBounds(input: CGRect, ancestors: [CGRect]) -> CGRect {
@@ -157,16 +193,22 @@ public struct ClipboardDropTarget {
         return ancestors.first { $0.width >= 80 && $0.height >= 40 && $0.contains(input) } ?? input
     }
 
-    private static func terminalInput(near hit: AXUIElement, point: CGPoint) -> AXUIElement? {
+    private static func customInput(near hit: AXUIElement, point: CGPoint) -> AXUIElement? {
         var pid: pid_t = 0
+        AXUIElementGetPid(hit, &pid)
+        let feishu = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.bytedance.macos.feishu"
+        func matches(_ node: AXUIElement) -> Bool {
+            let recognized = (value(node, kAXDescriptionAttribute) as? String) == "Terminal input"
+                || (feishu && (value(node, kAXRoleAttribute) as? String) == kAXTextAreaRole)
+            return recognized && (value(node, kAXEnabledAttribute) as? Bool) != false && contains(node, point: point)
+        }
         if AXUIElementGetPid(hit, &pid) == .success {
             let app = AXUIElementCreateApplication(pid)
             AXUIElementSetMessagingTimeout(app, 0.05)
             if let focused = value(app, kAXFocusedUIElementAttribute), CFGetTypeID(focused) == AXUIElementGetTypeID() {
                 let input = focused as! AXUIElement
                 AXUIElementSetMessagingTimeout(input, 0.05)
-                if (value(input, kAXDescriptionAttribute) as? String) == "Terminal input",
-                   contains(input, point: point) { return input }
+                if matches(input) { return input }
             }
         }
         let deadline = ContinuousClock.now.advanced(by: .milliseconds(150))
@@ -178,9 +220,7 @@ public struct ClipboardDropTarget {
                 let (node, depth) = queue.removeFirst()
                 visited += 1
                 AXUIElementSetMessagingTimeout(node, 0.03)
-                if (value(node, kAXDescriptionAttribute) as? String) == "Terminal input",
-                   (value(node, kAXEnabledAttribute) as? Bool) != false,
-                   contains(node, point: point) { return node }
+                if matches(node) { return node }
                 if depth < 5, let children = value(node, kAXChildrenAttribute) as? [AXUIElement] {
                     queue += children.map { ($0, depth + 1) }
                 }

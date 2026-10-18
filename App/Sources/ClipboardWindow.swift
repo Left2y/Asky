@@ -750,7 +750,6 @@ private struct ClipboardHistoryCard: View {
                 .padding(.trailing, 16)
         }
         .onHover { hovering = $0 }
-        .contextMenu { cardActions }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.kind == .image ? "\(NSLocalizedString("图片", comment: "")), \(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))" : String((item.text ?? "").prefix(200)))
         .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }

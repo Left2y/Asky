@@ -5,7 +5,7 @@
 - 列表底部复用搜索的玻璃按钮、快捷键样式：左侧“复制到剪贴板 ↩”，右侧“更多 ⌘K”。
 - 更多菜单提供 Pin / Unpin、删除记录，支持方向键、回车、Esc；搜索、切换记录、布局和关闭窗口时收起菜单。
 - 列表单击只选中，双击或回车复制，移除行右键菜单。
-- 卡片保持单击复制、拖放和现有右键菜单；悬停时右上角显示设置同款 `SettingsMoreMenu` dots 按钮，点击打开复制、固定／取消固定、删除菜单。
+- 卡片保持单击复制与拖放，禁用右键菜单；悬停时右上角显示设置同款 `SettingsMoreMenu` dots 按钮，点击打开复制、固定／取消固定、删除菜单。
 
 ## 已执行检查
 
@@ -31,3 +31,10 @@ README 中英文已同步交互变化；AGENTS.md 无架构、模块边界或开
 - 已重新执行 KulaCore `swift test`：仍仅 `nativeWorkerRoundTripAndPolicy` 因缺少 plugin-runner 产物出现四个断言失败。
 - README 无使用方式变化，保持不变；AGENTS.md 无持续开发规则变化，保持不变。
 - 图标调整后重新运行 `run-clipboard-regression.py --layouts`：通过；已检查新生成的 `build/clipboard-layout-actions-footer.png`，底栏显示 `copy_2_line`。截图仍由既有 `build/` 规则忽略。
+
+## 禁用卡片右键菜单
+
+- 移除卡片的 `.contextMenu`，卡片操作菜单仅由悬停 dots 按钮中的 `SettingsMoreMenu` 打开，继续复用 `cardActions`。
+- 重新执行 `xcodegen generate`、README 的 Debug `xcodebuild`、`check-localization.py` 与 `git diff --check`：通过；源码检查确认剪贴板窗口已无 `.contextMenu`。
+- 重新执行 KulaCore `swift test`：仍为缺少 plugin-runner 产物引起的同一项插件测试失败，四个断言；未新增运行级鼠标检查。
+- README 中英文同步说明右键不打开菜单；AGENTS.md 无开发约定变化，保持不变。

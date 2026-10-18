@@ -550,22 +550,18 @@ private struct ClipboardHistoryView: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                HStack(spacing: 12) {
-                    Image(mingCute: "magnifyingglass").foregroundStyle(ThemeColor.kIconSubtle)
-                    LauncherSearchField(text: $controller.query, fontSize: 16,
-                                        textColor: NSColor(ThemeColor.kText.color(for: scheme)),
-                                        accessibilityLabel: NSLocalizedString("搜索剪贴板历史", comment: ""),
-                                        placeholder: NSLocalizedString("搜索剪贴板内容", comment: ""),
-                                        placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
-                                        backspaceOnEmpty: { false }, move: controller.moveSelection,
-                                        moveHorizontal: controller.moveSelection,
-                                        submit: { controller.submitSelection(copyOnly: $0) })
-                        .frame(height: 24)
-                }
-                .padding(.horizontal, 16).frame(height: 36)
-                .nativeGlassBackground(in: Capsule())
-                HStack(spacing: 12) {
+            HStack(spacing: LauncherLayout.inputSpacing) {
+                LauncherSearchField(text: $controller.query, fontSize: 16,
+                                    textColor: NSColor(ThemeColor.kText.color(for: scheme)),
+                                    accessibilityLabel: NSLocalizedString("搜索剪贴板历史", comment: ""),
+                                    placeholder: NSLocalizedString("搜索剪贴板内容", comment: ""),
+                                    placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
+                                    backspaceOnEmpty: { false }, move: controller.moveSelection,
+                                    moveHorizontal: controller.moveSelection,
+                                    submit: { controller.submitSelection(copyOnly: $0) })
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 26)
+                HStack(spacing: LauncherLayout.inputSpacing) {
                     ClipboardHeaderButton(symbol: "line.3.horizontal.decrease",
                                           title: NSLocalizedString("筛选剪贴板", tableName: "Clipboard", comment: ""),
                                           action: controller.toggleFilterMenu,
@@ -577,12 +573,16 @@ private struct ClipboardHistoryView: View {
                         .accessibilityValue(controller.pinned ? NSLocalizedString("已固定", comment: "") : NSLocalizedString("未固定", comment: ""))
                 }
             }
-            .padding(12)
+            .padding(.leading, LauncherLayout.inputLeadingPadding)
+            .padding(.trailing, LauncherLayout.inputTrailingPadding)
+            .frame(height: LauncherLayout.inputHeight)
             // The header gaps drag the panel, like the agent window's title bar.
             .contentShape(Rectangle())
             .gesture(WindowDragGesture())
             .allowsWindowActivationEvents()
-            Rectangle().fill(ThemeColor.kBorder).frame(height: 1)
+            Rectangle().fill(ThemeColor.kBorder)
+                .frame(height: LauncherLayout.dividerHeight)
+                .padding(.horizontal, 28)
             if controller.items.isEmpty {
                 VStack(spacing: 8) {
                     Text(controller.query.isEmpty && controller.filter == .all ? NSLocalizedString("暂无剪贴板历史", comment: "") : NSLocalizedString("没有匹配的内容", comment: ""))

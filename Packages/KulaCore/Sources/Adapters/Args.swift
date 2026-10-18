@@ -31,7 +31,7 @@ public enum Args {
 
     public static func string(_ v: JSONValue?, _ name: String, required: Bool = true) throws -> String? {
         if let s = v?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty { return s }
-        if required { throw ToolError(.invalidArguments, "缺少参数 \(name)") }
+        if required { throw ToolError(.invalidArguments, CoreLocalization.format("缺少参数 %@", String(describing: name))) }
         return nil
     }
 
@@ -40,7 +40,7 @@ public enum Args {
     }
 
     public static func requiredDate(_ args: JSONValue, _ name: String) throws -> Date {
-        guard let d = date(args[name]) else { throw ToolError(.invalidArguments, "参数 \(name) 不是有效日期时间") }
+        guard let d = date(args[name]) else { throw ToolError(.invalidArguments, CoreLocalization.format("参数 %@ 不是有效日期时间", String(describing: name))) }
         return d
     }
 
@@ -55,7 +55,7 @@ public enum Args {
          "additionalProperties": false]
     }
 
-    public static let isoDateProp: JSONValue = ["type": "string", "description": "ISO 8601；无时区偏移时按用户当前时区解释"]
+    public static let isoDateProp: JSONValue = ["type": "string", "description": .string(CoreLocalization.text("ISO 8601；无时区偏移时按用户当前时区解释"))]
     public static let stringProp: JSONValue = ["type": "string"]
     public static let intProp: JSONValue = ["type": "integer"]
 }

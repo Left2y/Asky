@@ -1,6 +1,7 @@
 import AppKit
 import CryptoKit
 import Foundation
+import Contracts
 
 /// A published GitHub release that carries an installable Asky ZIP.
 public struct AppRelease: Sendable, Equatable {
@@ -32,16 +33,16 @@ public enum AppUpdateError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .network(let detail):
-            String(format: NSLocalizedString("无法连接 GitHub：%@", comment: ""), detail)
-        case .noRelease: NSLocalizedString("GitHub 上还没有可用的发布版本。", comment: "")
-        case .missingArchive: NSLocalizedString("最新发布版本中没有适用于 macOS 的安装包。", comment: "")
-        case .checksumMismatch: NSLocalizedString("安装包校验失败，已停止安装。", comment: "")
-        case .invalidBundle: NSLocalizedString("安装包中没有有效的 Asky.app。", comment: "")
-        case .translocated: NSLocalizedString("请先将 Asky.app 移到“应用程序”文件夹并重新打开，再安装更新。", comment: "")
+            String(format: CoreLocalization.text("无法连接 GitHub：%@"), detail)
+        case .noRelease: CoreLocalization.text("GitHub 上还没有可用的发布版本。")
+        case .missingArchive: CoreLocalization.text("最新发布版本中没有适用于 macOS 的安装包。")
+        case .checksumMismatch: CoreLocalization.text("安装包校验失败，已停止安装。")
+        case .invalidBundle: CoreLocalization.text("安装包中没有有效的 Asky.app。")
+        case .translocated: CoreLocalization.text("请先将 Asky.app 移到“应用程序”文件夹并重新打开，再安装更新。")
         case .notWritable(let path):
-            String(format: NSLocalizedString("没有权限写入 %@，无法替换旧版本。", comment: ""), path)
+            String(format: CoreLocalization.text("没有权限写入 %@，无法替换旧版本。"), path)
         case .installFailed(let detail):
-            String(format: NSLocalizedString("安装失败：%@", comment: ""), detail)
+            String(format: CoreLocalization.text("安装失败：%@"), detail)
         }
     }
 }
@@ -259,7 +260,7 @@ extension ToolService {
         let work = try AppUpdate.stagingRoot().appending(path: UUID().uuidString)
         try fileManager.createDirectory(at: work, withIntermediateDirectories: true)
         do {
-            await progress(NSLocalizedString("正在下载…", comment: ""))
+            await progress(CoreLocalization.text("正在下载…"))
             let archive = work.appending(path: release.archiveURL.lastPathComponent)
             do {
                 let (downloaded, response) = try await URLSession.shared.download(for: AppUpdate.request(release.archiveURL))
@@ -270,14 +271,14 @@ extension ToolService {
             } catch let error as AppUpdateError { throw error }
             catch { throw AppUpdateError.network(error.localizedDescription) }
 
-            await progress(NSLocalizedString("正在校验…", comment: ""))
+            await progress(CoreLocalization.text("正在校验…"))
             if let checksumURL = release.checksumURL {
                 let (data, _) = try await URLSession.shared.data(for: AppUpdate.request(checksumURL))
                 guard let expected = AppUpdate.parseChecksum(String(decoding: data, as: UTF8.self)),
                       try AppUpdate.sha256(of: archive) == expected else { throw AppUpdateError.checksumMismatch }
             }
 
-            await progress(NSLocalizedString("正在安装…", comment: ""))
+            await progress(CoreLocalization.text("正在安装…"))
             let extracted = work.appending(path: "extracted")
             try AppUpdate.run("/usr/bin/ditto", ["-x", "-k", archive.path, extracted.path])
             let candidates = (try? fileManager.contentsOfDirectory(at: extracted, includingPropertiesForKeys: nil)) ?? []

@@ -1,4 +1,5 @@
 import Foundation
+import Contracts
 
 /// ECB daily reference rates, EUR-based. Daily reference conversion, not trading quotes.
 public struct ExchangeRates: Sendable, Codable, Equatable {
@@ -167,7 +168,7 @@ public actor ExchangeRateService {
 
     public func conversions(_ q: CurrencyQuery, allowNetwork: Bool = true) async -> [CurrencyResult] {
         guard let (snapshot, fromCache) = await rates(allowNetwork: allowNetwork) else {
-            return [.unavailable(reason: "无可用汇率缓存，且无法连接 ECB")]
+            return [.unavailable(reason: CoreLocalization.text("无可用汇率缓存，且无法连接 ECB"))]
         }
         let targets = q.showsAllCurrencies ? CurrencyPresentation.targetCodes(from: q.from) : [q.to]
         let results: [CurrencyResult] = targets.compactMap { target in
@@ -176,15 +177,15 @@ public actor ExchangeRateService {
             let query = CurrencyQuery(amount: q.amount, from: q.from, to: target)
             return .converted(value: value, rate: rate, rateDate: snapshot.date, fromCache: fromCache, query: query)
         }
-        return results.isEmpty ? [.unavailable(reason: "ECB 参考汇率不含该币种")] : results
+        return results.isEmpty ? [.unavailable(reason: CoreLocalization.text("ECB 参考汇率不含该币种"))] : results
     }
 
     public func convert(_ q: CurrencyQuery, allowNetwork: Bool = true) async -> CurrencyResult {
         guard let (rates, fromCache) = await rates(allowNetwork: allowNetwork) else {
-            return .unavailable(reason: "无可用汇率缓存，且无法连接 ECB")
+            return .unavailable(reason: CoreLocalization.text("无可用汇率缓存，且无法连接 ECB"))
         }
         guard let (v, r) = rates.convert(q.amount, from: q.from, to: q.to) else {
-            return .unavailable(reason: "ECB 参考汇率不含 \(q.from) 或 \(q.to)")
+            return .unavailable(reason: CoreLocalization.format("ECB 参考汇率不含 %@ 或 %@", String(describing: q.from), String(describing: q.to)))
         }
         return .converted(value: v, rate: r, rateDate: rates.date, fromCache: fromCache, query: q)
     }

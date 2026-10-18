@@ -39,7 +39,7 @@ public enum ComposerAttachmentService {
         }
         let folder = directory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("粘贴图片.png")
+        let url = folder.appendingPathComponent(CoreLocalization.text("粘贴图片.png"))
         guard let output = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
             throw CocoaError(.fileWriteUnknown)
         }

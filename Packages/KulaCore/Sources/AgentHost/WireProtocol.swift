@@ -64,14 +64,14 @@ public enum RuntimeMessage: Sendable, Equatable {
     public static func decode(_ line: Data) throws -> RuntimeMessage {
         let v = try JSONDecoder().decode(JSONValue.self, from: line)
         func s(_ k: String) throws -> String {
-            guard let x = v[k]?.stringValue else { throw FrameError.malformed("missing \(k)") }
+            guard let x = v[k]?.stringValue else { throw FrameError.malformed(CoreLocalization.format("缺少字段：%@", k)) }
             return x
         }
         switch v["type"]?.stringValue {
         case "ready":
             return .ready(protocolVersion: Int(v["protocol"]?.numberValue ?? -1), runtimeVersion: v["runtime"]?.stringValue ?? "")
         case "taskState":
-            guard let st = AgentTaskState(rawValue: try s("state")) else { throw FrameError.malformed("state") }
+            guard let st = AgentTaskState(rawValue: try s("state")) else { throw FrameError.malformed(CoreLocalization.text("任务状态无效")) }
             return .taskState(taskID: try s("taskID"), st, sessionFile: v["sessionFile"]?.stringValue)
         case "textDelta": return .textDelta(taskID: try s("taskID"), try s("text"))
         case "message": return .message(taskID: try s("taskID"), try s("text"))
@@ -81,15 +81,23 @@ public enum RuntimeMessage: Sendable, Equatable {
             return .toolCall(taskID: try s("taskID"), callID: try s("callID"), tool: try s("tool"),
                              arguments: v["arguments"] ?? .object([:]), intent: intent)
         case "clarification": return .clarification(taskID: try s("taskID"), question: try s("question"))
-        case "error": return .error(taskID: v["taskID"]?.stringValue, v["message"]?.stringValue ?? "unknown error")
-        default: throw FrameError.malformed("unknown type")
+        case "error": return .error(taskID: v["taskID"]?.stringValue, v["message"]?.stringValue ?? CoreLocalization.text("未知错误"))
+        default: throw FrameError.malformed(CoreLocalization.text("未知消息类型"))
         }
     }
 }
 
-public enum FrameError: Error, Equatable {
+public enum FrameError: LocalizedError, Equatable, CustomStringConvertible {
     case oversized(Int)
     case malformed(String)
+
+    public var errorDescription: String? { description }
+    public var description: String {
+        switch self {
+        case .oversized(let size): CoreLocalization.format("消息帧超过大小上限（%d 字节）", size)
+        case .malformed(let reason): CoreLocalization.format("消息帧格式无效：%@", reason)
+        }
+    }
 }
 
 /// Splits a byte stream into newline-delimited frames, bounding memory per frame.

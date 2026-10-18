@@ -71,14 +71,14 @@ public struct ReminderRules: Sendable {
                 if b.start >= a.end.addingTimeInterval(3 * 3600) { break }
                 var evidence: [String] = []
                 if b.start < a.end {
-                    evidence = ["「\(a.title)」与「\(b.title)」时间重叠"]
+                    evidence = [CoreLocalization.format("「%@」与「%@」时间重叠", String(describing: a.title), String(describing: b.title))]
                 } else if let eta = etaBetween(a, b), b.start.timeIntervalSince(a.end) < eta {
                     let gap = Int(b.start.timeIntervalSince(a.end) / 60), need = Int(eta / 60)
-                    evidence = ["「\(a.title)」结束后仅 \(gap) 分钟开始「\(b.title)」，路线约需 \(need) 分钟"]
+                    evidence = [CoreLocalization.format("「%@」结束后仅 %@ 分钟开始「%@」，路线约需 %@ 分钟", String(describing: a.title), String(describing: gap), String(describing: b.title), String(describing: need))]
                 }
                 guard !evidence.isEmpty else { continue }
-                plans.append(ReminderPlan(eventID: b.id, reason: .conflict, title: "日程可能冲突",
-                                          body: evidence[0] + "。是否需要调整？（不会自动移动原日程）",
+                plans.append(ReminderPlan(eventID: b.id, reason: .conflict, title: CoreLocalization.text("日程可能冲突"),
+                                          body: evidence[0] + CoreLocalization.text("。是否需要调整？（不会自动移动原日程）"),
                                           evidence: ["event:\(a.id)", "event:\(b.id)"] + evidence,
                                           fireDate: max(now, a.start.addingTimeInterval(-settings.conflictLead)),
                                           eventFingerprint: a.fingerprint + "#" + b.fingerprint))
@@ -93,13 +93,13 @@ public struct ReminderRules: Sendable {
         if let eta {
             let leave = event.start.addingTimeInterval(-eta - settings.travelBuffer)
             let fmt = Self.timeFormatter(calendar)
-            return ReminderPlan(eventID: event.id, reason: .travel, title: "准备出发：\(event.title)",
-                                body: "建议 \(fmt.string(from: leave)) 前出发前往 \(loc)（路线约 \(Int(eta / 60)) 分钟，含 \(Int(settings.travelBuffer / 60)) 分钟缓冲）",
+            return ReminderPlan(eventID: event.id, reason: .travel, title: CoreLocalization.format("准备出发：%@", String(describing: event.title)),
+                                body: CoreLocalization.format("建议 %@ 前出发前往 %@（路线约 %@ 分钟，含 %@ 分钟缓冲）", String(describing: fmt.string(from: leave)), String(describing: loc), String(describing: Int(eta / 60)), String(describing: Int(settings.travelBuffer / 60))),
                                 evidence: ["event:\(event.id)", "eta:\(Int(eta))"],
                                 fireDate: max(now, leave.addingTimeInterval(-15 * 60)), eventFingerprint: event.fingerprint)
         }
-        return ReminderPlan(eventID: event.id, reason: .travel, title: "检查路线：\(event.title)",
-                            body: "日程地点为 \(loc)，暂无可用路线时间，请提前检查路线。",
+        return ReminderPlan(eventID: event.id, reason: .travel, title: CoreLocalization.format("检查路线：%@", String(describing: event.title)),
+                            body: CoreLocalization.format("日程地点为 %@，暂无可用路线时间，请提前检查路线。", String(describing: loc)),
                             evidence: ["event:\(event.id)", "eta:unavailable"],
                             fireDate: max(now, event.start.addingTimeInterval(-settings.routeCheckLead)),
                             eventFingerprint: event.fingerprint)
@@ -109,7 +109,7 @@ public struct ReminderRules: Sendable {
         guard !d.evidence.isEmpty, d.date > now else { return nil }
         let fire = d.date.addingTimeInterval(-settings.importantDateLead)
         return ReminderPlan(eventID: d.id, reason: .importantDate, title: d.title,
-                            body: "\(d.title)还有 \(max(1, Int(d.date.timeIntervalSince(max(now, fire)) / 86400))) 天。需要准备什么吗？",
+                            body: CoreLocalization.format("%@还有 %@ 天。需要准备什么吗？", String(describing: d.title), String(describing: max(1, Int(d.date.timeIntervalSince(max(now, fire)) / 86400)))),
                             evidence: d.evidence, fireDate: max(now, fire),
                             eventFingerprint: "\(d.date.timeIntervalSince1970)")
     }

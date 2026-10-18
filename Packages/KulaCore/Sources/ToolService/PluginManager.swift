@@ -35,19 +35,19 @@ public actor PluginManager {
     public static func repositoryURL(_ input: String) throws -> String {
         guard let u = URLComponents(string: input.trimmingCharacters(in: .whitespacesAndNewlines)),
               u.scheme == "https", u.host?.lowercased() == "github.com", u.user == nil, u.password == nil,
-              u.query == nil, u.fragment == nil, u.port == nil else { throw ToolError(.invalidArguments, "请输入公开 GitHub HTTPS 仓库链接") }
+              u.query == nil, u.fragment == nil, u.port == nil else { throw ToolError(.invalidArguments, CoreLocalization.text("请输入公开 GitHub HTTPS 仓库链接")) }
         let pieces = u.path.split(separator: "/").map(String.init)
-        guard pieces.count == 2 else { throw ToolError(.invalidArguments, "链接必须指向仓库根目录") }
+        guard pieces.count == 2 else { throw ToolError(.invalidArguments, CoreLocalization.text("链接必须指向仓库根目录")) }
         let repo = pieces[1].hasSuffix(".git") ? String(pieces[1].dropLast(4)) : pieces[1]
         guard [pieces[0], repo].allSatisfy({ $0.range(of: "^[A-Za-z0-9_.-]+$", options: .regularExpression) != nil && $0 != "." && $0 != ".." }) else {
-            throw ToolError(.invalidArguments, "GitHub 仓库链接无效")
+            throw ToolError(.invalidArguments, CoreLocalization.text("GitHub 仓库链接无效"))
         }
         // GitHub names are case insensitive. Preserve canonical official spelling for display.
         let url = "https://github.com/\(pieces[0])/\(repo)"
         return officialRepositories.first { $0.lowercased() == url.lowercased() } ?? url
     }
     private func beginChange() throws {
-        guard !changing else { throw ToolError(.conflict, "已有插件安装或更新正在进行") }
+        guard !changing else { throw ToolError(.conflict, CoreLocalization.text("已有插件安装或更新正在进行")) }
         changing = true
     }
     private func waitUntilIdle(_ id: String) async throws {
@@ -59,7 +59,7 @@ public actor PluginManager {
     }
     private func manifest(at directory: URL) throws -> PluginManifest {
         let data = try Data(contentsOf: directory.appending(path: "asky-plugin.json"))
-        guard data.count <= 128 * 1024 else { throw ToolError(.invalidArguments, "插件清单过大") }
+        guard data.count <= 128 * 1024 else { throw ToolError(.invalidArguments, CoreLocalization.text("插件清单过大")) }
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
         try manifest.validate(at: directory)
         return manifest
@@ -73,14 +73,14 @@ public actor PluginManager {
         _ = try checked(await installationCommand("git", ["clone", "--depth", "1", "--", source + ".git", staging.path], nil, 120))
         let m = try manifest(at: staging)
         if let existing = records.first(where: { $0.id == m.id }) {
-            guard existing.repository.lowercased() == source.lowercased() else { throw ToolError(.conflict, "插件 ID 已被另一个仓库占用") }
+            guard existing.repository.lowercased() == source.lowercased() else { throw ToolError(.conflict, CoreLocalization.text("插件 ID 已被另一个仓库占用")) }
             try await waitUntilIdle(m.id)
         }
         let package = staging.appending(path: "package.json")
         if FileManager.default.fileExists(atPath: package.path) {
             let value = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: package))
             if !(value["dependencies"]?.objectValue ?? [:]).isEmpty {
-                guard FileManager.default.fileExists(atPath: staging.appending(path: "package-lock.json").path) else { throw ToolError(.invalidArguments, "插件依赖需要 package-lock.json") }
+                guard FileManager.default.fileExists(atPath: staging.appending(path: "package-lock.json").path) else { throw ToolError(.invalidArguments, CoreLocalization.text("插件依赖需要 package-lock.json")) }
                 _ = try checked(await installationCommand("npm", ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"], staging, 120))
             }
         }
@@ -105,10 +105,10 @@ public actor PluginManager {
     public func rollback(_ id: String) async throws {
         try beginChange(); defer { changing = false }
         try await waitUntilIdle(id)
-        guard let index = records.firstIndex(where: { $0.id == id }), let commit = records[index].previousCommit else { throw ToolError(.unavailable, "没有可回退的版本") }
+        guard let index = records.firstIndex(where: { $0.id == id }), let commit = records[index].previousCommit else { throw ToolError(.unavailable, CoreLocalization.text("没有可回退的版本")) }
         let current = root.appending(path: id), previous = root.appending(path: id + ".previous"), temporary = root.appending(path: ".rollback-" + UUID().uuidString)
         let m = try manifest(at: previous)
-        guard m.id == id else { throw ToolError(.invalidArguments, "旧版插件 ID 不匹配") }
+        guard m.id == id else { throw ToolError(.invalidArguments, CoreLocalization.text("旧版插件 ID 不匹配")) }
         try FileManager.default.moveItem(at: current, to: temporary)
         do { try FileManager.default.moveItem(at: previous, to: current) }
         catch { try? FileManager.default.moveItem(at: temporary, to: current); throw error }
@@ -129,7 +129,7 @@ public actor PluginManager {
         records[index].enabled = enabled; save()
     }
     public func configure(_ id: String, values: [String: JSONValue]) throws {
-        guard let index = records.firstIndex(where: { $0.id == id }) else { throw ToolError(.targetNotFound, "插件未安装") }
+        guard let index = records.firstIndex(where: { $0.id == id }) else { throw ToolError(.targetNotFound, CoreLocalization.text("插件未安装")) }
         for field in records[index].manifest.configuration ?? [] {
             guard let value = values[field.key] else { continue }
             let valid: Bool
@@ -138,7 +138,7 @@ public actor PluginManager {
             case "enum": valid = (field.options ?? []).contains(value.stringValue ?? "")
             default: valid = value.stringValue != nil
             }
-            guard valid else { throw ToolError(.invalidArguments, "配置值类型错误：\(field.label)") }
+            guard valid else { throw ToolError(.invalidArguments, CoreLocalization.format("配置值类型错误：%@", String(describing: field.label))) }
         }
         records[index].configuration = values; save()
     }
@@ -173,7 +173,7 @@ public actor PluginManager {
             try await Task.sleep(for: .milliseconds(50))
         }
         guard !changing, let p = records.first(where: { $0.id == id }), p.enabled && !p.needsConfiguration else {
-            throw ToolError(.sourceDisabled, "插件已停用或正在更新")
+            throw ToolError(.sourceDisabled, CoreLocalization.text("插件已停用或正在更新"))
         }
         active[id, default: 0] += 1; leases[requestID] = p
     }
@@ -182,8 +182,8 @@ public actor PluginManager {
     }
     func invoke(pluginID: String, tool: String, arguments: JSONValue, requestID: String, readback: Bool, output: JSONValue?) async throws -> JSONValue {
         guard let p = leases[requestID], p.id == pluginID,
-              readback || records.first(where: { $0.id == pluginID })?.enabled == true else { throw ToolError(.sourceDisabled, "插件已停用或正在更新") }
-        guard let node = runtime.nodePath, let runner = runtime.runnerPath else { throw ToolError(.unavailable, "插件运行时不可用，请检查 Asky 的 Node 与 AgentRuntime") }
+              readback || records.first(where: { $0.id == pluginID })?.enabled == true else { throw ToolError(.sourceDisabled, CoreLocalization.text("插件已停用或正在更新")) }
+        guard let node = runtime.nodePath, let runner = runtime.runnerPath else { throw ToolError(.unavailable, CoreLocalization.text("插件运行时不可用，请检查 Asky 的 Node 与 AgentRuntime")) }
         let directory = root.appending(path: pluginID)
         let entry = try PluginManifest.resource(p.manifest.entry, at: directory)
         let stateKey = "plugins.state.\(pluginID)"

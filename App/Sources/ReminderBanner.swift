@@ -210,20 +210,20 @@ final class ReminderBannerCenter {
     #if DEBUG
     /// Developer preview: two sample cards, no calendar or scheduler records.
     func showPreview() {
-        show(ReminderBannerItem(source: "Asky · 情境提醒", timeLabel: "15 分钟后",
-                                title: "产品讨论会", body: "14:30 – 15:30 · 3 号会议室\n上次会议约定要带上新版原型，记得提前准备。",
+        show(ReminderBannerItem(source: NSLocalizedString("Asky · 情境提醒", comment: "Reminder preview"), timeLabel: NSLocalizedString("15 分钟后", comment: "Reminder preview"),
+                                title: NSLocalizedString("产品讨论会", comment: "Reminder preview"), body: NSLocalizedString("14:30 – 15:30 · 3 号会议室\n上次会议约定要带上新版原型，记得提前准备。", comment: "Reminder preview"),
                                 symbol: "calendar",
-                                reasons: ["日程：产品讨论会 14:30", "记忆：上次会议约定带新版原型"],
-                                actions: [.init(title: "稍后提醒"),
-                                          .init(title: "打开日程", prominent: true) { Self.openApp("com.apple.iCal") }],
+                                reasons: [NSLocalizedString("日程：产品讨论会 14:30", comment: "Reminder preview"), NSLocalizedString("记忆：上次会议约定带新版原型", comment: "Reminder preview")],
+                                actions: [.init(title: NSLocalizedString("稍后提醒", comment: "Reminder preview")),
+                                          .init(title: NSLocalizedString("打开日程", comment: "Reminder preview"), prominent: true) { Self.openApp("com.apple.iCal") }],
                                 lifetime: nil))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
-            self?.show(ReminderBannerItem(source: "Asky · 出行提醒", timeLabel: "现在",
-                                          title: "该出发了", body: "去往望京 SOHO 预计 28 分钟，路况较平时拥堵。",
+            self?.show(ReminderBannerItem(source: NSLocalizedString("Asky · 出行提醒", comment: "Reminder preview"), timeLabel: NSLocalizedString("现在", comment: "Reminder preview"),
+                                          title: NSLocalizedString("该出发了", comment: "Reminder preview"), body: NSLocalizedString("去往望京 SOHO 预计 28 分钟，路况较平时拥堵。", comment: "Reminder preview"),
                                           symbol: "car.fill",
-                                          reasons: ["日程：望京 SOHO 拜访 10:30", "路况：较平时拥堵"],
-                                          actions: [.init(title: "已处理"),
-                                                    .init(title: "查看路线", prominent: true) { Self.openApp("com.apple.Maps") }]))
+                                          reasons: [NSLocalizedString("日程：望京 SOHO 拜访 10:30", comment: "Reminder preview"), NSLocalizedString("路况：较平时拥堵", comment: "Reminder preview")],
+                                          actions: [.init(title: NSLocalizedString("已处理", comment: "Reminder preview")),
+                                                    .init(title: NSLocalizedString("查看路线", comment: "Reminder preview"), prominent: true) { Self.openApp("com.apple.Maps") }]))
         }
         // Deterministic preview of the folded → expanded path; keep it open for inspection.
         if CommandLine.arguments.contains("--test-banner-reflow") {

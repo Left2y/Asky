@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Contracts
 
 extension ToolService {
     public static var appInstallationRequired: Bool {
@@ -36,7 +37,7 @@ extension ToolService {
         let fm = FileManager.default
         let parent = destination.deletingLastPathComponent()
         guard !fm.fileExists(atPath: destination.path) else {
-            throw AppUpdateError.installFailed(NSLocalizedString("应用程序中已有 Asky，请打开已安装的版本。", comment: ""))
+            throw AppUpdateError.installFailed(CoreLocalization.text("应用程序中已有 Asky，请打开已安装的版本。"))
         }
         guard fm.isWritableFile(atPath: parent.path) else { throw AppUpdateError.notWritable(parent.path) }
         guard let bundle = Bundle(url: source), bundle.bundleIdentifier == "app.kulahere.KulaHere" else {

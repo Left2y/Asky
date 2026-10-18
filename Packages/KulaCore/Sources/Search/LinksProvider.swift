@@ -14,7 +14,7 @@ public struct LinksProvider: SearchProvider {
         guard limit > 0, !Task.isCancelled,
               let url = LauncherWebURL.parse(query) ?? Self.complete(query, from: knownSites()) else { return [] }
         return [SearchResult(source: .link, target: TargetRef(kind: "url", identifier: url.absoluteString),
-                             title: "打开链接", subtitle: url.absoluteString,
+                             title: CoreLocalization.text("打开链接"), subtitle: url.absoluteString,
                              actions: [.openURL(url), .copy(url.absoluteString)], score: 1)]
     }
 

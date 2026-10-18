@@ -3,6 +3,7 @@
 import os
 import platform
 from pathlib import Path
+from regression_resources import copy_core_resources
 import subprocess
 import sys
 
@@ -25,6 +26,7 @@ command += [str(root / "App/Tests/LauncherCalculationRegression.swift")]
 command += [str(path) for path in sorted(products.glob("*.o"))]
 binary = root / "build/launcher-calculation-regression"
 command += ["-lsqlite3", "-o", str(binary)]
+copy_core_resources(products, binary.parent)
 environment = os.environ.copy()
 environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], env=environment, text=True).strip()

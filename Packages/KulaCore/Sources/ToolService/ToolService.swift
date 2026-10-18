@@ -138,7 +138,7 @@ public actor ToolService {
         var candidate = adapters[request.tool]
         if candidate == nil { candidate = await plugins.adapter(named: request.tool) }
         guard let adapter = candidate else {
-            return .failure(request.requestID, .unknownTool, "未知工具：\(request.tool)")
+            return .failure(request.requestID, .unknownTool, CoreLocalization.format("未知工具：%@", String(describing: request.tool)))
         }
         do { try await adapter.prepare(requestID: request.requestID) } catch { return failure(request, error) }
         defer { Task { await adapter.finish(requestID: request.requestID) } }
@@ -191,7 +191,7 @@ public actor ToolService {
             }
             guard decision == .approved else {
                 return record(request, ExecutionResult(requestID: request.requestID, status: .rejected,
-                                                       error: ToolError(.userRejected, "用户未确认，操作未执行"),
+                                                       error: ToolError(.userRejected, CoreLocalization.text("用户未确认，操作未执行")),
                                                        confirmation: confirmation))
             }
         }
@@ -231,7 +231,7 @@ public actor ToolService {
         } catch is CancellationError {
             let rb = await adapter.readback(request.arguments, output: nil, requestID: request.requestID)
             return record(request, ExecutionResult(requestID: request.requestID, status: rb == nil ? .pendingVerification : .completed,
-                                                   readback: rb, error: ToolError(.cancelled, "已取消，结果需核实")))
+                                                   readback: rb, error: ToolError(.cancelled, CoreLocalization.text("已取消，结果需核实"))))
         } catch {
             if adapter.definition.source == .plugins, (error as? ToolError)?.code != .invalidArguments {
                 let rb = await adapter.readback(request.arguments, output: nil, requestID: request.requestID)
@@ -246,22 +246,22 @@ public actor ToolService {
 
     nonisolated func exposureError(_ def: ToolDefinition, origin: CallerOrigin, policy p: PolicySnapshot) -> ToolError? {
         guard p.enabledSources.contains(def.source) else {
-            return ToolError(.sourceDisabled, "数据源未启用：\(def.source.rawValue)")
+            return ToolError(.sourceDisabled, CoreLocalization.format("数据源未启用：%@", String(describing: def.source.rawValue)))
         }
         switch origin {
         case .launcher:
             return nil
         case .agent:
-            return def.agentExposable ? nil : ToolError(.notExposed, "该工具不向 AI 开放")
+            return def.agentExposable ? nil : ToolError(.notExposed, CoreLocalization.text("该工具不向 AI 开放"))
         case .mcp(let instanceID):
-            guard def.externallyExposable else { return ToolError(.notExposed, "该工具不向外部 MCP 开放") }
+            guard def.externallyExposable else { return ToolError(.notExposed, CoreLocalization.text("该工具不向外部 MCP 开放")) }
             guard let inst = p.mcpInstances[instanceID], inst.enabled else {
-                return ToolError(.permissionDenied, "MCP 实例未启用或已撤销")
+                return ToolError(.permissionDenied, CoreLocalization.text("MCP 实例未启用或已撤销"))
             }
             guard inst.sources.contains(def.source) else {
-                return ToolError(.permissionDenied, "该实例未获准访问 \(def.source.rawValue)")
+                return ToolError(.permissionDenied, CoreLocalization.format("该实例未获准访问 %@", String(describing: def.source.rawValue)))
             }
-            if def.effect == .write && inst.readOnly { return ToolError(.permissionDenied, "该实例为只读") }
+            if def.effect == .write && inst.readOnly { return ToolError(.permissionDenied, CoreLocalization.text("该实例为只读")) }
             return nil
         }
     }
@@ -300,7 +300,7 @@ public actor ToolService {
             return ExecutionResult(requestID: request.requestID, status: .failed, error: e)
         }
         if error is CancellationError {
-            return .failure(request.requestID, .cancelled, "已取消", status: .cancelled)
+            return .failure(request.requestID, .cancelled, CoreLocalization.text("已取消"), status: .cancelled)
         }
         return .failure(request.requestID, .adapterFailure, String(describing: error))
     }
@@ -341,10 +341,10 @@ func withTimeout<T: Sendable>(_ limit: Duration, _ op: @escaping @Sendable () as
         group.addTask { try await op() }
         group.addTask {
             try await Task.sleep(for: limit)
-            throw ToolError(.timeout, "操作超时")
+            throw ToolError(.timeout, CoreLocalization.text("操作超时"))
         }
         defer { group.cancelAll() }
-        guard let first = try await group.next() else { throw ToolError(.timeout, "操作超时") }
+        guard let first = try await group.next() else { throw ToolError(.timeout, CoreLocalization.text("操作超时")) }
         return first
     }
 }

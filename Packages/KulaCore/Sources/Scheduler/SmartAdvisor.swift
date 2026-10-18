@@ -156,8 +156,8 @@ public struct SmartAdvisor: Sendable {
                 + "|\(Int(draft.start.timeIntervalSince1970 / 60))"
             guard seen.insert(key).inserted else { return nil }
             let anchor = References.Ref.message(note)
-            return ReminderPlan(eventID: anchor.key, reason: .insight, title: "待添加日程：\(draft.title)",
-                body: note.summary, evidence: [anchor.key, "短信（\(note.sender)）：\(note.summary)"],
+            return ReminderPlan(eventID: anchor.key, reason: .insight, title: CoreLocalization.format("待添加日程：%@", String(describing: draft.title)),
+                body: note.summary, evidence: [anchor.key, CoreLocalization.format("短信（%@）：%@", note.sender, note.summary)],
                 fireDate: input.now, eventFingerprint: anchor.fingerprint)
         }
     }
@@ -270,10 +270,10 @@ struct References {
     /// Human-readable evidence line shown under “提醒原因”.
     func describe(_ alias: String) -> String? {
         switch ref(alias) {
-        case .event(let e): "日程：\(e.title)"
-        case .task(let t): "待办：\(t.title)"
-        case .memory(let m): "记忆：\(m.text.prefix(80))"
-        case .message(let n): "短信（\(n.sender)）：\(n.summary)"
+        case .event(let e): CoreLocalization.format("日程：%@", String(describing: e.title))
+        case .task(let t): CoreLocalization.format("待办：%@", String(describing: t.title))
+        case .memory(let m): CoreLocalization.format("记忆：%@", String(describing: m.text.prefix(80)))
+        case .message(let n): CoreLocalization.format("短信（%@）：%@", String(describing: n.sender), String(describing: n.summary))
         case nil: nil
         }
     }

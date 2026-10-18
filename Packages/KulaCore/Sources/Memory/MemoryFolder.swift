@@ -1,4 +1,5 @@
 import Foundation
+import Contracts
 import LocalStore
 
 /// Long-term memory is a folder of Markdown files maintained by Asky, laid out like Codex's memory summary:
@@ -84,7 +85,7 @@ public struct MemoryFolder: Sendable {
         }
         guard hasBody || !topicFiles().isEmpty else { return nil }
         guard text.count > Self.maxIndexCharacters else { return text }
-        return String(text.prefix(Self.maxIndexCharacters)) + "\n（记忆索引过长，后面的内容已省略）"
+        return String(text.prefix(Self.maxIndexCharacters)) + CoreLocalization.text("\n（记忆索引过长，后面的内容已省略）")
     }
 
     /// Appends `- content` to a file. In the index it goes under `section`; a new topic file starts with a title and

@@ -1,4 +1,5 @@
 import Foundation
+import Contracts
 
 extension ToolService {
     /// Only called after the user submits an explicit launcher terminal result.
@@ -7,7 +8,7 @@ extension ToolService {
         guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         guard launcherTerminalApplicationURL(application) != nil else {
             throw NSError(domain: "LauncherTerminal", code: 2, userInfo: [NSLocalizedDescriptionKey:
-                String(format: NSLocalizedString("%@ 未安装，请在设置 › 指令 › 终端中重新选择。", comment: ""), application.name)])
+                String(format: CoreLocalization.text("%@ 未安装，请在设置 › 指令 › 终端中重新选择。"), application.name)])
         }
         try await LauncherTerminalHandoff.shared.open(command: command, directory: workingDirectory, application: application)
     }
@@ -20,15 +21,15 @@ private actor LauncherTerminalHandoff {
     func open(command: String, directory: URL, application: LauncherTerminalApplication) throws {
         guard let script = NSAppleScript(source: LauncherTerminalScript.source(command: command, directory: directory, application: application)) else {
             throw NSError(domain: "LauncherTerminal", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("无法创建终端命令。", comment: "")])
+                          userInfo: [NSLocalizedDescriptionKey: CoreLocalization.text("无法创建终端命令。")])
         }
         var info: NSDictionary?
         _ = script.executeAndReturnError(&info)
         if let info {
             let code = (info[NSAppleScript.errorNumber] as? Int) ?? 0
             let message = code == -1743
-                ? String(format: NSLocalizedString("请在系统设置 › 隐私与安全性 › 自动化中允许 Asky 控制 %@。", comment: ""), application.name)
-                : (info[NSAppleScript.errorMessage] as? String) ?? NSLocalizedString("无法打开终端。", comment: "")
+                ? String(format: CoreLocalization.text("请在系统设置 › 隐私与安全性 › 自动化中允许 Asky 控制 %@。"), application.name)
+                : (info[NSAppleScript.errorMessage] as? String) ?? CoreLocalization.text("无法打开终端。")
             throw NSError(domain: "LauncherTerminal", code: code, userInfo: [NSLocalizedDescriptionKey: message])
         }
     }

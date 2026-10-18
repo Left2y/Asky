@@ -30,7 +30,7 @@ import Contracts
     @Test func explicitNamesAndIDsNeverFallBack() throws {
         #expect(try CalendarSelection.resolve(selector: "工作", defaultID: "personal", calendars: [personal, work]) == "work")
         #expect(try CalendarSelection.resolve(selector: "work", defaultID: nil, calendars: [work]) == "work")
-        #expect(throws: ToolError(.targetNotFound, "找不到日历「不存在」。可写日历：「个人」（iCloud，ID: personal）")) {
+        #expect(throws: ToolError(.targetNotFound, CoreLocalization.format("找不到日历「%@」。", "不存在") + CoreLocalization.text("可写日历：") + personal.label)) {
             try CalendarSelection.resolve(selector: "不存在", defaultID: "personal", calendars: [personal])
         }
         #expect(throws: ToolError.self) {
@@ -53,7 +53,7 @@ import Contracts
                 Issue.record("Should reject unwritable calendars")
             } catch let error as ToolError {
                 #expect(error.code == .targetReadOnly)
-                #expect(error.message.contains("系统日历 App"))
+                #expect(error.message == CoreLocalization.text("没有可写日历，请在系统日历 App 中启用日历账户或创建日历后重试。"))
             } catch { Issue.record("Unexpected error: \(error)") }
         }
     }

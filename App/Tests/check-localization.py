@@ -3,6 +3,7 @@
 from collections import Counter
 from pathlib import Path
 import re
+from swift_source_strings import unlocalized_error_literals
 
 root = Path(__file__).resolve().parents[2]
 entry = re.compile(r'^"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)";', re.M)
@@ -19,7 +20,9 @@ catalogs = {}
 errors = []
 for language in ("en", "zh-Hans"):
     catalogs[language] = {}
-    for path in sorted((root / "App/Resources" / (language + ".lproj")).glob("*.strings")):
+    paths = list((root / "App/Resources" / (language + ".lproj")).glob("*.strings"))
+    paths += list((root / "Packages/KulaCore/Sources/Contracts/Resources" / (language + ".lproj")).glob("*.strings"))
+    for path in sorted(paths):
         pairs = entry.findall(path.read_text())
         duplicate = [key for key, count in Counter(key for key, _ in pairs).items() if count > 1]
         if duplicate:
@@ -47,12 +50,18 @@ call = re.compile(r'NSLocalizedString\((.*?)\bcomment:\s*"(?:[^"\\]|\\.)*"\s*\)'
 literal = re.compile(r'"((?:[^"\\]|\\.)*)"')
 sources = list((root / "App/Sources").glob("*.swift"))
 sources += list((root / "Packages/KulaCore/Sources").rglob("*.swift"))
+sources += list((root / "MCPBridge/Sources").rglob("*.swift"))
 for path in sources:
     source = re.sub(r'(?m)^\s*//.*$', '', path.read_text())
     for match in re.finditer(r'\b(?:Text|Button|Label|Picker|Section|TextField|accessibilityLabel|accessibilityHint|help)\("((?:[^"\\]|\\.)*)"', source):
         key = match.group(1)
         if re.search(r'[\u4e00-\u9fff]', key) and "\\(" not in key and key not in catalogs["en"]["Localizable"]:
             errors.append(f"{path.relative_to(root)}: missing SwiftUI key {key!r}")
+    for match in re.finditer(r'CoreLocalization\.(?:text|format)\("((?:[^"\\]|\\.)*)"', source):
+        if match.group(1) not in catalogs["en"]["Core"]:
+            errors.append(f"{path.relative_to(root)}: missing Core key {match.group(1)!r}")
+    for line, value in unlocalized_error_literals(source):
+        errors.append(f"{path.relative_to(root)}:{line}: unlocalized error literal {value}")
     for match in call.finditer(source):
         arguments = match.group(1)
         table_match = re.search(r'tableName:\s*"([^"]+)"', arguments)

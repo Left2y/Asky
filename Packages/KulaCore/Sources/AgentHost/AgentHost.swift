@@ -40,12 +40,12 @@ public enum AgentHostError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notConfigured: NSLocalizedString("尚未配置模型，请在设置 › 模型中填写 API 地址、模型名与 Key。", comment: "")
-        case .credentialMissing: NSLocalizedString("模型 API Key 不存在或为空，请在设置 › 模型中重新保存 Key。", comment: "")
-        case .sessionBusy: NSLocalizedString("该会话已有任务在运行。", comment: "")
-        case .handshakeFailed(let reason): String(format: NSLocalizedString("AI 运行时连接失败：%@", comment: ""), reason)
-        case .protocolMismatch(let version): String(format: NSLocalizedString("AI 运行时协议版本不匹配：%d", comment: ""), version)
-        case .launchFailed(let reason): String(format: NSLocalizedString("AI 运行时启动失败：%@", comment: ""), reason)
+        case .notConfigured: CoreLocalization.text("尚未配置模型，请在设置 › 模型中填写 API 地址、模型名与 Key。")
+        case .credentialMissing: CoreLocalization.text("模型 API Key 不存在或为空，请在设置 › 模型中重新保存 Key。")
+        case .sessionBusy: CoreLocalization.text("该会话已有任务在运行。")
+        case .handshakeFailed(let reason): String(format: CoreLocalization.text("AI 运行时连接失败：%@"), reason)
+        case .protocolMismatch(let version): String(format: CoreLocalization.text("AI 运行时协议版本不匹配：%d"), version)
+        case .launchFailed(let reason): String(format: CoreLocalization.text("AI 运行时启动失败：%@"), reason)
         }
     }
 }
@@ -111,7 +111,7 @@ public actor AgentHost {
     public func submit(_ request: AgentRequest) -> AsyncStream<AgentEvent> {
         let (stream, cont) = AsyncStream<AgentEvent>.makeStream(bufferingPolicy: .bufferingNewest(512))
         if tasks.values.contains(where: { $0.sessionID == request.sessionID }) {
-            cont.yield(.error(taskID: request.taskID, NSLocalizedString("该会话已有任务在运行", comment: "")))
+            cont.yield(.error(taskID: request.taskID, CoreLocalization.text("该会话已有任务在运行")))
             cont.finish()
             return stream
         }
@@ -146,7 +146,7 @@ public actor AgentHost {
             try p.write(HostMessage.resources(tools: await toolsProvider(), pluginGuidance: await guidanceProvider()).encoded())
             try p.write(HostMessage.prompt(request, sessionFile: sessionFiles[request.sessionID]).encoded())
         } catch {
-            emit(request.taskID, .error(taskID: request.taskID, String(format: NSLocalizedString("无法启动 AI 运行时：%@", comment: ""), error.localizedDescription)))
+            emit(request.taskID, .error(taskID: request.taskID, String(format: CoreLocalization.text("无法启动 AI 运行时：%@"), error.localizedDescription)))
             finish(request.taskID, .failed)
         }
     }
@@ -209,7 +209,7 @@ public actor AgentHost {
                 case .success(let line):
                     if let msg = try? RuntimeMessage.decode(line) { await handle(msg, from: p) }
                 case .failure(let e):
-                    emitAll(.error(taskID: nil, String(format: NSLocalizedString("运行时协议错误：%@", comment: ""), String(describing: e))))
+                    emitAll(.error(taskID: nil, String(format: CoreLocalization.text("运行时协议错误：%@"), String(describing: e))))
                 }
             }
         }
@@ -253,15 +253,15 @@ public actor AgentHost {
     private func runTool(taskID: String, callID: String, tool: String, arguments: JSONValue,
                          intent: UserIntent, process p: any RuntimeProcess) async {
         guard var ctx = tasks[taskID] else {
-            try? p.write(HostMessage.toolResult(callID: callID, .failure(callID, .cancelled, NSLocalizedString("任务已结束", comment: ""))).encoded())
+            try? p.write(HostMessage.toolResult(callID: callID, .failure(callID, .cancelled, CoreLocalization.text("任务已结束"))).encoded())
             return
         }
         ctx.toolRounds += 1
         if ctx.toolRounds > config.maxToolRounds {
             tasks[taskID] = ctx
             try? p.write(HostMessage.toolResult(callID: callID, .failure(callID, .cancelled,
-                NSLocalizedString("已达到自动工具轮数上限，请用户确认后继续", comment: ""), status: .cancelled)).encoded())
-            emit(taskID, .error(taskID: taskID, String(format: NSLocalizedString("已达到 %d 轮自动工具上限", comment: ""), config.maxToolRounds)))
+                CoreLocalization.text("已达到自动工具轮数上限，请用户确认后继续"), status: .cancelled)).encoded())
+            emit(taskID, .error(taskID: taskID, String(format: CoreLocalization.text("已达到 %d 轮自动工具上限"), config.maxToolRounds)))
             return
         }
         ctx.pendingTools += 1

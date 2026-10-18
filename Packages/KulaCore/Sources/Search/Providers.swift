@@ -82,7 +82,7 @@ public final class AppsProvider: SearchProvider {
             guard var s = app.searchNames.compactMap({ FuzzyMatch.score(query, in: $0) }).max() else { continue }
             if let last = recent[app.path] { s += max(0, 0.1 - now.timeIntervalSince(last) / (86400 * 70)) }
             let r = SearchResult(source: .app, target: TargetRef(kind: "app", identifier: app.path), title: app.name,
-                                 subtitle: "应用", actions: [.open, .revealInFinder], score: s)
+                                 subtitle: CoreLocalization.text("应用"), actions: [.open, .revealInFinder], score: s)
             scored.append((r, s))
         }
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
@@ -325,11 +325,11 @@ public struct ClipboardProvider: SearchProvider {
             let title: String
             switch item.kind {
             case .text: title = String((item.text ?? "").prefix(120)).replacingOccurrences(of: "\n", with: " ")
-            case .image: title = "图片"
+            case .image: title = CoreLocalization.text("图片")
             case .file: title = item.text ?? URL(fileURLWithPath: item.filePath ?? "").lastPathComponent
             }
             return SearchResult(source: .clipboard, target: TargetRef(kind: "clipboard", identifier: item.id), title: title,
-                                subtitle: "剪贴板 · \(item.sourceApp ?? "")",
+                                subtitle: CoreLocalization.format("剪贴板 · %@", String(describing: item.sourceApp ?? "")),
                                 actions: item.kind == .text ? (item.text.map { [.copy($0)] } ?? [.open]) : [.open], score: 0.35)
         }
     }

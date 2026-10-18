@@ -45,14 +45,14 @@ public struct ChromeBridge: Sendable {
 
     /// Re-validates the target (exists, not incognito, same URL if given) right before switching.
     public func activate(windowID: String, tabID: String, expectedURL: String?) async throws -> Tab {
-        guard isRunning else { throw ToolError(.unavailable, "Chrome 未运行") }
-        guard let w = Int(windowID), let t = Int(tabID) else { throw ToolError(.invalidArguments, "标签标识无效") }
-        let check = expectedURL.map { "if URL of tb is not \(AppleScript.literal($0)) then error \"标签页已变化\" number -1728" } ?? ""
+        guard isRunning else { throw ToolError(.unavailable, CoreLocalization.text("Chrome 未运行")) }
+        guard let w = Int(windowID), let t = Int(tabID) else { throw ToolError(.invalidArguments, CoreLocalization.text("标签标识无效")) }
+        let check = expectedURL.map { "if URL of tb is not \(AppleScript.literal($0)) then error \(AppleScript.literal(CoreLocalization.text("标签页已变化"))) number -1728" } ?? ""
         let src = """
         \(AppleScript.joinHandler)
         tell application id "\(Self.bundleID)"
           set w to window id \(w)
-          if mode of w is "incognito" then error "无痕窗口不可访问" number -1728
+          if mode of w is "incognito" then error \(AppleScript.literal(CoreLocalization.text("无痕窗口不可访问"))) number -1728
           set tb to tab id \(t) of w
           \(check)
           set idx to 0
@@ -66,7 +66,7 @@ public struct ChromeBridge: Sendable {
         end tell
         """
         guard let f = AppleScript.parseRecords(try await runner.run(src), fields: 4).first else {
-            throw ToolError(.targetNotFound, "找不到该标签页")
+            throw ToolError(.targetNotFound, CoreLocalization.text("找不到该标签页"))
         }
         return Tab(windowID: f[0], tabID: f[1], title: f[2], url: f[3])
     }
@@ -140,7 +140,7 @@ public struct ChromeListTabsTool: ToolAdapter {
     public init(_ bridge: ChromeBridge = .init()) { self.bridge = bridge }
 
     public var definition: ToolDefinition {
-        ToolDefinition(name: "chrome_list_tabs", summary: "列出 Chrome 普通窗口中的标签页（标题、URL）",
+        ToolDefinition(name: "chrome_list_tabs", summary: CoreLocalization.text("列出 Chrome 普通窗口中的标签页（标题、URL）"),
                        inputSchema: Args.schema(["query": Args.stringProp, "limit": Args.intProp], required: []),
                        source: .chrome, effect: .read, confirmation: .never, externallyExposable: true)
     }
@@ -162,7 +162,7 @@ public struct ChromeActivateTabTool: ToolAdapter {
     public init(_ bridge: ChromeBridge = .init()) { self.bridge = bridge }
 
     public var definition: ToolDefinition {
-        ToolDefinition(name: "chrome_activate_tab", summary: "切换到指定的 Chrome 标签页",
+        ToolDefinition(name: "chrome_activate_tab", summary: CoreLocalization.text("切换到指定的 Chrome 标签页"),
                        inputSchema: Args.schema(["windowID": Args.stringProp, "tabID": Args.stringProp, "url": Args.stringProp],
                                                 required: ["windowID", "tabID"]),
                        source: .chrome, effect: .write, writeKind: .create, confirmation: .createDirectOtherwiseConfirm,
@@ -172,7 +172,7 @@ public struct ChromeActivateTabTool: ToolAdapter {
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
         let w = try Args.requiredString(a, "windowID"), t = try Args.requiredString(a, "tabID")
         guard let tab = try await bridge.tabs().first(where: { $0.windowID == w && $0.tabID == t }) else {
-            throw ToolError(.targetNotFound, "该标签页已关闭或不可访问")
+            throw ToolError(.targetNotFound, CoreLocalization.text("该标签页已关闭或不可访问"))
         }
         return ConfirmationPreview(target: "Chrome 标签页", changes: ["切换到「\(tab.title)」", tab.url])
     }

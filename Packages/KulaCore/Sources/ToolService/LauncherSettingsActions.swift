@@ -1,3 +1,4 @@
+import Contracts
 import AppKit
 import DirectActions
 
@@ -5,9 +6,9 @@ extension ToolService {
     @MainActor
     public static func chooseLauncherSearchFolder() async -> URL? {
         let panel = NSOpenPanel()
-        panel.title = NSLocalizedString("添加文件搜索范围", comment: "")
-        panel.message = NSLocalizedString("选择要加入文件搜索范围的文件夹。", comment: "")
-        panel.prompt = NSLocalizedString("添加", comment: "")
+        panel.title = CoreLocalization.text("添加文件搜索范围")
+        panel.message = CoreLocalization.text("选择要加入文件搜索范围的文件夹。")
+        panel.prompt = CoreLocalization.text("添加")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -26,9 +27,9 @@ extension ToolService {
     @MainActor
     public static func chooseChromeBookmarkFolder() async -> Data? {
         let panel = NSOpenPanel()
-        panel.title = NSLocalizedString("授权 Chrome 书签", comment: "")
-        panel.message = NSLocalizedString("选择 Chrome 文件夹以允许读取书签。Asky 只读取书签文件，不读取浏览历史。", comment: "")
-        panel.prompt = NSLocalizedString("授权", comment: "")
+        panel.title = CoreLocalization.text("授权 Chrome 书签")
+        panel.message = CoreLocalization.text("选择 Chrome 文件夹以允许读取书签。Asky 只读取书签文件，不读取浏览历史。")
+        panel.prompt = CoreLocalization.text("授权")
         panel.directoryURL = ChromeBookmarkService.defaultRoot
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -47,9 +48,9 @@ extension ToolService {
                                            includingResourceValuesForKeys: nil, relativeTo: nil)
         } catch {
             let alert = AppDialog.make()
-            alert.messageText = NSLocalizedString("无法读取所选文件夹中的 Chrome 书签", comment: "")
-            alert.informativeText = NSLocalizedString("请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。", comment: "")
-            alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
+            alert.messageText = CoreLocalization.text("无法读取所选文件夹中的 Chrome 书签")
+            alert.informativeText = CoreLocalization.text("请选择 Chrome 文件夹或它的 Default／Profile 个人资料文件夹，再重新授权。")
+            alert.addButton(withTitle: CoreLocalization.text("好"))
             await AppDialog.present(alert)
             return nil
         }

@@ -28,27 +28,27 @@ enum PluginWorker {
                     buffer.append(data)
                     while let newline = buffer.firstIndex(of: 10) {
                         let line = Data(buffer[..<newline]); buffer.removeSubrange(...newline)
-                        guard line.count <= PluginProcess.maxOutput else { throw ToolError(.adapterFailure, "插件响应过大") }
+                        guard line.count <= PluginProcess.maxOutput else { throw ToolError(.adapterFailure, CoreLocalization.text("插件响应过大")) }
                         let frame = try JSONDecoder().decode(JSONValue.self, from: line)
                         if frame["type"]?.stringValue == "result" {
                             if let error = frame["error"]?.stringValue { throw ToolError(frame["errorCode"]?.stringValue == "invalidArguments" ? .invalidArguments : .adapterFailure, error) }
                             return frame["value"] ?? .null
                         }
-                        guard frame["type"]?.stringValue == "rpc", let id = frame["id"] else { throw ToolError(.protocolError, "插件运行协议无效") }
+                        guard frame["type"]?.stringValue == "rpc", let id = frame["id"] else { throw ToolError(.protocolError, CoreLocalization.text("插件运行协议无效")) }
                         let value: JSONValue
                         do {
                             switch frame["method"]?.stringValue {
                             case "state":
-                                guard let state = frame["value"] else { throw ToolError(.invalidArguments, "缺少状态") }
+                                guard let state = frame["value"] else { throw ToolError(.invalidArguments, CoreLocalization.text("缺少状态")) }
                                 saveState(state); value = true
                             case "exec":
                                 guard let executable = frame["executable"]?.stringValue,
                                       let args = frame["arguments"]?.arrayValue,
-                                      args.allSatisfy({ $0.stringValue != nil }) else { throw ToolError(.invalidArguments, "CLI 参数无效") }
+                                      args.allSatisfy({ $0.stringValue != nil }) else { throw ToolError(.invalidArguments, CoreLocalization.text("CLI 参数无效")) }
                                 let cwd = frame["cwd"]?.stringValue.map { URL(filePath: $0) } ?? directory
                                 let timeout = min(120, max(1, frame["timeoutSeconds"]?.numberValue ?? 20))
                                 value = try PluginProcess.commandSync(executable, args.compactMap(\.stringValue), cwd: cwd, seconds: timeout, control: control).json
-                            default: throw ToolError(.protocolError, "未知插件宿主调用")
+                            default: throw ToolError(.protocolError, CoreLocalization.text("未知插件宿主调用"))
                             }
                             try send(["id": id, "value": value])
                         } catch {
@@ -56,10 +56,10 @@ enum PluginWorker {
                             try send(["id": id, "error": .string(error.localizedDescription)])
                         }
                     }
-                    guard buffer.count <= PluginProcess.maxOutput else { throw ToolError(.adapterFailure, "插件响应过大") }
+                    guard buffer.count <= PluginProcess.maxOutput else { throw ToolError(.adapterFailure, CoreLocalization.text("插件响应过大")) }
                 }
                 try control.check()
-                throw ToolError(.adapterFailure, "插件执行进程异常退出；查看 execution.log")
+                throw ToolError(.adapterFailure, CoreLocalization.text("插件执行进程异常退出；查看 execution.log"))
             }.value
         } onCancel: { control.cancel() }
     }

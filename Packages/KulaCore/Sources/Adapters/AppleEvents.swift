@@ -7,12 +7,12 @@ public actor AppleScriptRunner {
     public static let shared = AppleScriptRunner()
 
     public func run(_ source: String) throws -> String {
-        guard let script = NSAppleScript(source: source) else { throw ToolError(.adapterFailure, "脚本无法编译") }
+        guard let script = NSAppleScript(source: source) else { throw ToolError(.adapterFailure, CoreLocalization.text("脚本无法编译")) }
         var info: NSDictionary?
         let result = script.executeAndReturnError(&info)
         if let info {
             let code = (info[NSAppleScript.errorNumber] as? Int) ?? 0
-            let msg = (info[NSAppleScript.errorMessage] as? String) ?? "未知错误"
+            let msg = (info[NSAppleScript.errorMessage] as? String) ?? CoreLocalization.text("未知错误")
             throw AppleScript.mapError(code: code, message: msg)
         }
         return result.stringValue ?? ""
@@ -46,11 +46,11 @@ public enum AppleScript {
 
     static func mapError(code: Int, message: String) -> ToolError {
         switch code {
-        case -1743: ToolError(.permissionDenied, "未获得自动化授权（系统设置 › 隐私与安全性 › 自动化）")
-        case -600, -609: ToolError(.unavailable, "目标应用未运行")
+        case -1743: ToolError(.permissionDenied, CoreLocalization.text("未获得自动化授权（系统设置 › 隐私与安全性 › 自动化）"))
+        case -600, -609: ToolError(.unavailable, CoreLocalization.text("目标应用未运行"))
         case -1728, -1719: ToolError(.targetNotFound, message)
-        case -1712: ToolError(.timeout, "目标应用响应超时")
-        default: ToolError(.adapterFailure, "Apple Events 错误 \(code)：\(message)")
+        case -1712: ToolError(.timeout, CoreLocalization.text("目标应用响应超时"))
+        default: ToolError(.adapterFailure, CoreLocalization.format("Apple Events 错误 %@：%@", String(describing: code), String(describing: message)))
         }
     }
 

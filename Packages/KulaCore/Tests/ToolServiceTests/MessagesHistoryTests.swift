@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Contracts
 import SQLite3
 @testable import ToolService
 
@@ -28,7 +29,7 @@ struct MessagesHistoryTests {
         #expect(MessagesHistoryReader.sanitize("尾号卡 6222020200112233 本月账单 1,203 元，10 月 20 日到期", maxLength: 300)
                 == "尾号卡 ••••2233 本月账单 1,203 元，10 月 20 日到期")
         #expect(MessagesHistoryReader.sanitize("\u{FFFC} ", maxLength: 300) == nil)
-        #expect(MessagesHistoryReader.mask("+8613812345678") == "尾号5678")
+        #expect(MessagesHistoryReader.mask("+8613812345678") == CoreLocalization.format("尾号%@", "5678"))
         #expect(MessagesHistoryReader.normalize("+86 138-1234-5678") == MessagesHistoryReader.normalize("13812345678"))
     }
 

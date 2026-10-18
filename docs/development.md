@@ -77,6 +77,14 @@ build/outside-click-regression
 
 检查结果按实际运行情况记录在 `docs/validation/`。自动化检查与真实系统权限、模型和界面验收分别记录。
 
+### 本地化资源
+
+App 界面资源位于 `App/Resources`；核心错误、工具说明及确定性提醒通过 `Contracts/CoreLocalization` 读取 SwiftPM 资源包 `KulaCore_Contracts.bundle` 中的 `Core.strings`。两个语言必须同步添加键，并保留格式参数与用户内容。固定错误不要直接拼接中文字符串。
+
+原生 App 按启动时选中的语言读取资源；设置改动仍在重启后生效。独立 MCP Bridge 使用自己的启动语言或系统语言。Xcode 与 SwiftPM 自动打包共享资源，原生回归脚本通过 `regression_resources.py` 复制相同资源包。测试不得用中文内容来判断流程是否结束。
+
+确认请求的内部字段标记、输入别名、持久化字段和用户内容保持原有契约，展示层负责翻译。第三方原始错误作为参数保留。
+
 ### 发布打包
 
 版本变更与发布结果见 [0.1.0 发布记录](validation/2026-10-14-release-0.1.0.md)。以下路径为该版本的打包示例；发布新版本时替换版本号、构建号及目录。
@@ -178,6 +186,14 @@ build/outside-click-regression
 ```
 
 Record only checks actually executed in `docs/validation/`. Track automated checks separately from acceptance testing of real system permissions, models, and interfaces.
+
+### Localization Resources
+
+App interface resources live in `App/Resources`. Core errors, tool descriptions and deterministic reminders use `Contracts/CoreLocalization` to read `Core.strings` from the SwiftPM `KulaCore_Contracts.bundle`. Add keys in both languages, preserving format arguments and user content. Do not concatenate fixed Chinese error text directly.
+
+The native app uses the language selected at launch; changes in Settings still take effect after restarting. The standalone MCP Bridge uses its launch or system language. Xcode and SwiftPM package the shared resources automatically, and native regression scripts copy the same bundle through `regression_resources.py`. Tests must not use Chinese wording to decide when a flow has finished.
+
+Internal confirmation field markers, input aliases, persisted fields and user content retain their existing contracts; the presentation layer translates them. Raw third-party errors remain format arguments.
 
 ### Release Packaging
 

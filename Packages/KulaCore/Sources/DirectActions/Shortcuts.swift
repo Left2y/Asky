@@ -1,4 +1,5 @@
 import Foundation
+import Contracts
 
 public enum ShortcutRunState: Sendable, Equatable {
     case started
@@ -39,7 +40,7 @@ public enum ShortcutsService {
                         let out = (try? String(contentsOf: outFile, encoding: .utf8)) ?? r.stdout
                         c.yield(.completed(output: String(out.prefix(16 * 1024))))
                     } else {
-                        c.yield(.failed(message: r.stderr.isEmpty ? "退出码 \(r.status)" : r.stderr))
+                        c.yield(.failed(message: r.stderr.isEmpty ? CoreLocalization.format("退出码 %@", String(describing: r.status)) : r.stderr))
                     }
                 } catch {
                     c.yield(.failed(message: error.localizedDescription))

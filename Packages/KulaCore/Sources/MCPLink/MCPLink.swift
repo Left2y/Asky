@@ -70,10 +70,10 @@ public enum MCPLinkError: Error, Equatable, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .appUnavailable: "Asky 未运行或未开启外部 MCP。请启动 Asky 后重试。"
-        case .denied(let m): "接入被拒绝：\(m)"
-        case .closed: "与 Asky 的连接已断开。请重试。"
-        case .protocolError(let m): "协议错误：\(m)"
+        case .appUnavailable: CoreLocalization.text("Asky 未运行或未开启外部 MCP。请启动 Asky 后重试。")
+        case .denied(let m): CoreLocalization.format("接入被拒绝：%@", String(describing: m))
+        case .closed: CoreLocalization.text("与 Asky 的连接已断开。请重试。")
+        case .protocolError(let m): CoreLocalization.format("协议错误：%@", String(describing: m))
         }
     }
 }
@@ -101,7 +101,7 @@ public final class MCPLinkClient: @unchecked Sendable {
         switch try receive() {
         case .welcome(let name): instance = name
         case .denied(let m): throw MCPLinkError.denied(m)  // deinit closes fd
-        default: throw MCPLinkError.protocolError("unexpected handshake reply")
+        default: throw MCPLinkError.protocolError(CoreLocalization.text("握手响应无效"))
         }
     }
     deinit { close(fd) }
@@ -115,7 +115,7 @@ public final class MCPLinkClient: @unchecked Sendable {
             case .tools(id, let tools): return tools
             case .failure(id, let m): throw MCPLinkError.protocolError(m)
             case .denied(let m): throw MCPLinkError.denied(m)
-            default: throw MCPLinkError.protocolError("unexpected reply")
+            default: throw MCPLinkError.protocolError(CoreLocalization.text("响应无效"))
             }
         }
     }
@@ -129,7 +129,7 @@ public final class MCPLinkClient: @unchecked Sendable {
             case .result(id, let r): return r
             case .failure(id, let m): throw MCPLinkError.protocolError(m)
             case .denied(let m): throw MCPLinkError.denied(m)
-            default: throw MCPLinkError.protocolError("unexpected reply")
+            default: throw MCPLinkError.protocolError(CoreLocalization.text("响应无效"))
             }
         }
     }
@@ -149,7 +149,7 @@ public final class MCPLinkClient: @unchecked Sendable {
         }
         let line = pending.removeFirst()
         do { return try JSONDecoder().decode(MCPLink.ServerFrame.self, from: line) } catch {
-            throw MCPLinkError.protocolError("malformed frame")
+            throw MCPLinkError.protocolError(CoreLocalization.text("消息帧格式无效"))
         }
     }
 }

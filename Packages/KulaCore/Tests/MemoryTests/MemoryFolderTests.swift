@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Contracts
 import LocalStore
 @testable import Memory
 
@@ -65,7 +66,8 @@ func tempMemoryFolder() -> MemoryFolder {
         try m.ensureExists()
         try (m.read() + String(repeating: "- 很长的一行\n", count: 1000)).write(to: m.indexURL, atomically: true, encoding: .utf8)
         let ctx = try #require(m.context())
-        #expect(ctx.count < MemoryFolder.maxIndexCharacters + 50 && ctx.hasSuffix("已省略）"))
+        let suffix = CoreLocalization.text("\n（记忆索引过长，后面的内容已省略）")
+        #expect(ctx.count == MemoryFolder.maxIndexCharacters + suffix.count && ctx.hasSuffix(suffix))
     }
 
     @Test func legacyConfirmedMemoriesAreExportedOnce() throws {

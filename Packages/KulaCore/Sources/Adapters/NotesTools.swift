@@ -67,7 +67,7 @@ public struct NotesBridge: Sendable {
 
     func folders() throws -> [NotesFolder] {
         let f = allowed()
-        guard !f.isEmpty else { throw ToolError(.permissionDenied, "尚未在设置中选择允许访问的 Notes 文件夹") }
+        guard !f.isEmpty else { throw ToolError(.permissionDenied, CoreLocalization.text("尚未在设置中选择允许访问的 Notes 文件夹")) }
         return f
     }
 
@@ -75,11 +75,11 @@ public struct NotesBridge: Sendable {
         let all = try folders()
         guard let label else {
             if all.count == 1 { return all[0] }
-            throw ToolError(.ambiguousTarget, "请选择文件夹：" + all.map(\.label).joined(separator: "、"))
+            throw ToolError(.ambiguousTarget, CoreLocalization.text("请选择文件夹：") + all.map(\.label).joined(separator: "、"))
         }
         let m = all.filter { $0.label == label || $0.folder == label }
-        if m.count > 1 { throw ToolError(.ambiguousTarget, "有多个名为「\(label)」的文件夹：" + m.map(\.label).joined(separator: "、")) }
-        guard let f = m.first else { throw ToolError(.permissionDenied, "文件夹「\(label)」未授权") }
+        if m.count > 1 { throw ToolError(.ambiguousTarget, CoreLocalization.format("有多个名为「%@」的文件夹：", String(describing: label)) + m.map(\.label).joined(separator: "、")) }
+        guard let f = m.first else { throw ToolError(.permissionDenied, CoreLocalization.format("文件夹「%@」未授权", String(describing: label))) }
         return f
     }
 
@@ -118,7 +118,7 @@ public struct NotesBridge: Sendable {
             """
             if (try await runner.run(src)) != "0" { return f }
         }
-        throw ToolError(.targetNotFound, "在已授权文件夹中找不到该备忘录")
+        throw ToolError(.targetNotFound, CoreLocalization.text("在已授权文件夹中找不到该备忘录"))
     }
 
     public func read(_ id: String) async throws -> (name: String, text: String, folder: NotesFolder) {
@@ -127,12 +127,12 @@ public struct NotesBridge: Sendable {
         \(AppleScript.joinHandler)
         tell application "Notes"
           set n to note id \(AppleScript.literal(id))
-          if password protected of n then error "锁定的备忘录不可访问" number -1728
+          if password protected of n then error \(AppleScript.literal(CoreLocalization.text("锁定的备忘录不可访问"))) number -1728
           return my kjoin({name of n, plaintext of n}, \(AppleScript.us))
         end tell
         """
         guard let r = AppleScript.parseRecords(try await runner.run(src), fields: 2).first else {
-            throw ToolError(.targetNotFound, "找不到该备忘录")
+            throw ToolError(.targetNotFound, CoreLocalization.text("找不到该备忘录"))
         }
         return (r[0], r[1], f)
     }
@@ -153,7 +153,7 @@ public struct NotesBridge: Sendable {
         let src = """
         tell application "Notes"
           set n to note id \(AppleScript.literal(id))
-          if password protected of n then error "锁定的备忘录不可修改" number -1728
+          if password protected of n then error \(AppleScript.literal(CoreLocalization.text("锁定的备忘录不可修改"))) number -1728
           set body of n to (body of n) & \(AppleScript.literal(Self.htmlParagraphs(text)))
           return "ok"
         end tell
@@ -176,7 +176,7 @@ public struct NotesSearchTool: ToolAdapter {
     let notes: NotesBridge
     public init(_ notes: NotesBridge) { self.notes = notes }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "notes_search", summary: "在已授权的 Notes 文件夹中按标题或正文搜索",
+        ToolDefinition(name: "notes_search", summary: CoreLocalization.text("在已授权的 Notes 文件夹中按标题或正文搜索"),
                        inputSchema: Args.schema(["query": Args.stringProp, "limit": Args.intProp], required: ["query"]),
                        source: .notes, effect: .read, confirmation: .never, externallyExposable: true)
     }
@@ -191,7 +191,7 @@ public struct NotesReadTool: ToolAdapter {
     let notes: NotesBridge
     public init(_ notes: NotesBridge) { self.notes = notes }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "notes_read", summary: "读取一条备忘录的纯文本",
+        ToolDefinition(name: "notes_read", summary: CoreLocalization.text("读取一条备忘录的纯文本"),
                        inputSchema: Args.schema(["id": Args.stringProp], required: ["id"]),
                        source: .notes, effect: .read, confirmation: .never, externallyExposable: true)
     }
@@ -208,9 +208,9 @@ public struct NotesCreateTool: ToolAdapter {
     let notes: NotesBridge
     public init(_ notes: NotesBridge) { self.notes = notes }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "notes_create", summary: "在已授权文件夹中新建备忘录",
+        ToolDefinition(name: "notes_create", summary: CoreLocalization.text("在已授权文件夹中新建备忘录"),
                        inputSchema: Args.schema(["title": Args.stringProp, "body": Args.stringProp,
-                                                 "folder": ["type": "string", "description": "「账户 › 文件夹」或文件夹名"]],
+                                                 "folder": ["type": "string", "description": .string(CoreLocalization.text("「账户 › 文件夹」或文件夹名"))]],
                                                 required: ["title"]),
                        source: .notes, effect: .write, writeKind: .create, confirmation: .createDirectOtherwiseConfirm,
                        externallyExposable: true)
@@ -241,7 +241,7 @@ public struct NotesAppendTool: ToolAdapter {
     let notes: NotesBridge
     public init(_ notes: NotesBridge) { self.notes = notes }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "notes_append", summary: "向已有备忘录末尾追加文本（需用户确认）",
+        ToolDefinition(name: "notes_append", summary: CoreLocalization.text("向已有备忘录末尾追加文本（需用户确认）"),
                        inputSchema: Args.schema(["id": Args.stringProp, "text": Args.stringProp], required: ["id", "text"]),
                        source: .notes, effect: .write, writeKind: .modify, confirmation: .always, externallyExposable: true)
     }
@@ -269,7 +269,7 @@ public struct NotesListFoldersTool: ToolAdapter {
     let notes: NotesBridge
     public init(_ notes: NotesBridge) { self.notes = notes }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "notes_list_folders", summary: "列出备忘录账户和文件夹以配置访问范围",
+        ToolDefinition(name: "notes_list_folders", summary: CoreLocalization.text("列出备忘录账户和文件夹以配置访问范围"),
                        inputSchema: Args.schema([:], required: []), source: .notes, effect: .read,
                        confirmation: .never, externallyExposable: false, agentExposable: false)
     }

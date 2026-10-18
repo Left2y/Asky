@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "KulaCore",
+    defaultLocalization: "zh-Hans",
     platforms: [.macOS(.v15)],
     products: [
         .library(name: "Contracts", targets: ["Contracts"]),
@@ -21,7 +22,7 @@ let package = Package(
         .library(name: "MCPGateway", targets: ["MCPGateway"]),
     ],
     targets: [
-        .target(name: "Contracts"),
+        .target(name: "Contracts", resources: [.process("Resources")]),
         .target(name: "Theme"),
         .target(name: "Router", dependencies: ["Contracts", "DirectActions"]),
         .target(name: "DirectActions", dependencies: ["Contracts"]),

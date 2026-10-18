@@ -25,7 +25,7 @@ public actor MessageCalendarCreation {
         if let previous = saved[sourceID] { request = previous }
         else {
             guard draft.isValid(at: now) else {
-                return .failure(UUID().uuidString, .invalidArguments, "日程信息无效或开始时间已过")
+                return .failure(UUID().uuidString, .invalidArguments, CoreLocalization.text("日程信息无效或开始时间已过"))
             }
             request = ActionRequest(tool: "calendar_create_event", arguments: draft.arguments,
                                     origin: .launcher, intent: .explicitRequest)

@@ -1,3 +1,4 @@
+import Contracts
 import AppKit
 import UniformTypeIdentifiers
 
@@ -11,8 +12,8 @@ extension ToolService {
     @MainActor
     public static func chooseSettingsExclusion(_ selection: SettingsExclusionSelection) async -> String? {
         let panel = NSOpenPanel()
-        panel.title = NSLocalizedString(selection == .directory ? "排除的目录名" : "排除的应用 Bundle ID", comment: "")
-        panel.prompt = NSLocalizedString("确定", comment: "")
+        panel.title = CoreLocalization.text(selection == .directory ? "排除的目录名" : "排除的应用 Bundle ID")
+        panel.prompt = CoreLocalization.text("确定")
         panel.canChooseFiles = selection == .application
         panel.canChooseDirectories = selection == .directory
         panel.allowsMultipleSelection = false
@@ -38,8 +39,8 @@ extension ToolService {
         case .application:
             guard let identifier = Bundle(url: url)?.bundleIdentifier, !identifier.isEmpty else {
                 let alert = AppDialog.make()
-                alert.messageText = NSLocalizedString("所选应用没有 Bundle ID，无法添加排除项。", comment: "")
-                alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
+                alert.messageText = CoreLocalization.text("所选应用没有 Bundle ID，无法添加排除项。")
+                alert.addButton(withTitle: CoreLocalization.text("好"))
                 await AppDialog.present(alert)
                 return nil
             }

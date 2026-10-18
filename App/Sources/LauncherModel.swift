@@ -770,7 +770,16 @@ final class LauncherModel {
         status = String(format: NSLocalizedString("正在运行快捷指令：%@…", comment: ""), name)
         Task {
             for await state in ToolService.runLauncherShortcut(name: name) {
-                status = "\(name)：\(state)"
+                switch state {
+                case .started:
+                    status = String(format: NSLocalizedString("正在运行快捷指令：%@…", comment: ""), name)
+                case .completed(let output):
+                    status = output.isEmpty
+                        ? String(format: NSLocalizedString("快捷指令 %@ 已完成", comment: ""), name)
+                        : String(format: NSLocalizedString("快捷指令 %@：%@", comment: ""), name, output)
+                case .failed(let message):
+                    status = String(format: NSLocalizedString("快捷指令 %@ 失败：%@", comment: ""), name, message)
+                }
             }
         }
     }

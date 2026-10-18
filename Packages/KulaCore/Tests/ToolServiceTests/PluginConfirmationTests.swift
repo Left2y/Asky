@@ -18,9 +18,9 @@ import Contracts
             .string("{\"title\":\"示例\",\"space_id\":\"123\"}")
         ])])
         let preview = PluginConfirmation.preview(pluginName: "飞书", arguments: args)
-        #expect(preview.title?.contains("创建") == true)
-        #expect(preview.changes == ["标题：示例"])
-        #expect(preview.target.contains("知识库内容"))
+        #expect(preview.title?.contains(CoreLocalization.text("创建")) == true)
+        #expect(preview.changes == [CoreLocalization.text("标题") + "：示例"])
+        #expect(preview.target.contains(CoreLocalization.text("知识库内容")))
         #expect(preview.details?.contains("space_id") == true)
         #expect(preview.details?.contains("node-create") == true)
     }

@@ -43,7 +43,7 @@ private func advisor(_ reply: String, seen: (@Sendable (String) -> Void)? = nil)
         #expect(plans.count == 1 && p.reason == .insight && p.eventID == "event:ev-review")
         #expect(p.fireDate == at(2))
         #expect(p.evidence.contains("task:rm-deck") && p.evidence.contains("memory:m1"))
-        #expect(p.evidence.contains("记忆：老板希望评审时带上用户增长数据") && !p.evidence.contains { $0.contains("X9") })
+        #expect(p.evidence.contains(CoreLocalization.format("记忆：%@", "老板希望评审时带上用户增长数据")) && !p.evidence.contains { $0.contains("X9") })
     }
 
     @Test func dropsUnknownAnchorsAndClampsTimes() async throws {
@@ -93,7 +93,7 @@ private func advisor(_ reply: String, seen: (@Sendable (String) -> Void)? = nil)
         // Notes alone are enough to ask; the advisor never sees raw message text.
         #expect(box.value.contains("S1") && box.value.contains("王磊：王磊要你周五前发合同扫描件") && box.value.contains("截止"))
         let p = try #require(plans.first)
-        #expect(p.eventID == "message:1068" && p.evidence.contains("短信（王磊）：王磊要你周五前发合同扫描件，你已答应"))
+        #expect(p.eventID == "message:1068" && p.evidence.contains(CoreLocalization.format("短信（%@）：%@", "王磊", "王磊要你周五前发合同扫描件，你已答应")))
         #expect(SmartAdvisor.stillValid(plans, in: withSMS).count == 1)
         let resolved = AdvisorInput(events: [], tasks: [], memories: [], messages: [], now: now)
         #expect(SmartAdvisor.stillValid(plans, in: resolved).isEmpty)

@@ -26,7 +26,7 @@ public struct MCPGateway: Sendable {
     public func register(name: String) throws -> (MCPInstance, credential: String) {
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            throw ToolError(.adapterFailure, "无法生成凭据")
+            throw ToolError(.adapterFailure, CoreLocalization.text("无法生成凭据"))
         }
         let credential = "kmcp_" + Data(bytes).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
@@ -56,11 +56,11 @@ public struct MCPGateway: Sendable {
     public func call(credential: String, tool: String, arguments: JSONValue) async -> ExecutionResult {
         let requestID = UUID().uuidString
         guard let inst = authenticate(credential), inst.enabled else {
-            return .failure(requestID, .permissionDenied, "MCP 实例未启用或已撤销", status: .rejected)
+            return .failure(requestID, .permissionDenied, CoreLocalization.text("MCP 实例未启用或已撤销"), status: .rejected)
         }
         let defs = await tools.definitions(for: .mcp(instanceID: inst.id))
         if let def = defs.first(where: { $0.name == tool }), Self.blockedSources.contains(def.source) {
-            return .failure(requestID, .notExposed, "该工具不向外部 MCP 开放", status: .rejected)
+            return .failure(requestID, .notExposed, CoreLocalization.text("该工具不向外部 MCP 开放"), status: .rejected)
         }
         let req = ActionRequest(requestID: requestID, tool: tool, arguments: arguments,
                                 origin: .mcp(instanceID: inst.id), intent: .explicitRequest)
@@ -209,16 +209,16 @@ private final class Connection: @unchecked Sendable {
         guard let frame = try? JSONDecoder().decode(MCPLink.ClientFrame.self, from: line) else { return false }
         switch frame {
         case .hello(let version, let cred):
-            guard version == MCPLink.version else { return reply(.denied(message: "协议版本不匹配")) && false }
+            guard version == MCPLink.version else { return reply(.denied(message: CoreLocalization.text("协议版本不匹配"))) && false }
             guard let inst = gateway.authenticate(cred), inst.enabled else {
-                return reply(.denied(message: "凭据无效或实例未启用")) && false
+                return reply(.denied(message: CoreLocalization.text("凭据无效或实例未启用"))) && false
             }
             credential = cred
             return reply(.welcome(instance: inst.name))
         case .listTools(let id):
             guard let cred = credential else { return false }
             guard let tools = await gateway.listTools(credential: cred) else {
-                return reply(.denied(message: "MCP 实例未启用或已撤销")) && false
+                return reply(.denied(message: CoreLocalization.text("MCP 实例未启用或已撤销"))) && false
             }
             return reply(.tools(id: id, tools: tools))
         case .call(let id, let tool, let args):

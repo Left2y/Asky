@@ -15,14 +15,14 @@ public enum SystemPermission: String, CaseIterable, Identifiable, Sendable {
     }
     public var title: String {
         switch self {
-        case .calendar: "日历"
-        case .reminders: "提醒事项"
-        case .contacts: "通讯录"
-        case .screenRecording: "屏幕录制"
-        case .accessibility: "辅助功能（自动粘贴）"
-        case .automation: "自动化（Chrome、备忘录）"
-        case .notifications: "通知"
-        case .fullDiskAccess: "完全磁盘访问（读取信息）"
+        case .calendar: CoreLocalization.text("日历")
+        case .reminders: CoreLocalization.text("提醒事项")
+        case .contacts: CoreLocalization.text("通讯录")
+        case .screenRecording: CoreLocalization.text("屏幕录制")
+        case .accessibility: CoreLocalization.text("辅助功能（自动粘贴）")
+        case .automation: CoreLocalization.text("自动化（Chrome、备忘录）")
+        case .notifications: CoreLocalization.text("通知")
+        case .fullDiskAccess: CoreLocalization.text("完全磁盘访问（读取信息）")
         }
     }
     var pane: String {
@@ -141,10 +141,10 @@ public enum SystemPermissions {
         // External clients cannot cause system prompts. Grant access in the native app first.
         if case .mcp = origin {} else if current.canRequest {
             do { current = try await request(permission) }
-            catch { throw ToolError(.permissionDenied, "\(permission.title)授权请求失败：\(error.localizedDescription)。请打开 Asky 设置 › 系统权限。") }
+            catch { throw ToolError(.permissionDenied, CoreLocalization.format("%@授权请求失败：%@。请打开 Asky 设置 › 系统权限。", String(describing: permission.title), String(describing: error.localizedDescription))) }
         }
         guard current == .authorized else {
-            throw ToolError(.permissionDenied, "\(permission.title)：\(current.rawValue)。请打开 Asky 设置 › 系统权限；授权后重新发送请求。")
+            throw ToolError(.permissionDenied, CoreLocalization.format("%@：%@。请打开 Asky 设置 › 系统权限；授权后重新发送请求。", String(describing: permission.title), String(describing: CoreLocalization.text(current.rawValue))))
         }
     }
 
@@ -153,7 +153,7 @@ public enum SystemPermissions {
             ? "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
             : "x-apple.systempreferences:com.apple.preference.security?\(permission.pane)"
         guard let url = URL(string: link), NSWorkspace.shared.open(url) else {
-            throw ToolError(.adapterFailure, "无法打开系统设置。请手动进入系统设置 › 隐私与安全性 › \(permission.title)。")
+            throw ToolError(.adapterFailure, CoreLocalization.format("无法打开系统设置。请手动进入系统设置 › 隐私与安全性 › %@。", String(describing: permission.title)))
         }
     }
 

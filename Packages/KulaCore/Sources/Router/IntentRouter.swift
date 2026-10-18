@@ -74,7 +74,7 @@ public struct IntentRouter: Sendable {
         let input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return nil }
         return SearchResult(source: .askAI, target: TargetRef(kind: "ai", identifier: "ask"),
-                            title: "询问 AI：\(input)", actions: [.askAI(prompt: input)], score: -1)
+                            title: CoreLocalization.format("询问 AI：%@", String(describing: input)), actions: [.askAI(prompt: input)], score: -1)
     }
 
     /// Builds direct-result rows for a non-search route (currency is resolved asynchronously by the caller).
@@ -90,15 +90,15 @@ public struct IntentRouter: Sendable {
         case .conversion(let c):
             let v = Calculator.format((c.value * 1e6).rounded() / 1e6)
             return [SearchResult(source: .conversion, target: TargetRef(kind: "unit", identifier: c.display),
-                                 title: "\(v) \(c.toSymbol)", subtitle: "\(c.display) · ↩ 复制", actions: [.copy(v)], score: 100)]
+                                 title: "\(v) \(c.toSymbol)", subtitle: CoreLocalization.format("%@ · ↩ 复制", String(describing: c.display)), actions: [.copy(v)], score: 100)]
         case .keyword(let cmd, let q):
             guard let url = cmd.url(for: q) else { return [] }
             return [SearchResult(source: .keyword, target: TargetRef(kind: "url", identifier: url.absoluteString),
-                                 title: cmd.supportsQuery ? "\(cmd.name)：\(q)" : "打开 \(cmd.name)",
-                                 subtitle: cmd.supportsQuery ? url.absoluteString : "仅打开网页，问题不会传递到网站", actions: [.openURL(url)], score: 100)]
+                                 title: cmd.supportsQuery ? CoreLocalization.format("%@：%@", CoreLocalization.text(cmd.name), q) : CoreLocalization.format("打开 %@", CoreLocalization.text(cmd.name)),
+                                 subtitle: cmd.supportsQuery ? url.absoluteString : CoreLocalization.text("仅打开网页，问题不会传递到网站"), actions: [.openURL(url)], score: 100)]
         case .terminal(let cmd):
             return [SearchResult(source: .terminal, target: TargetRef(kind: "terminal", identifier: cmd),
-                                 title: "运行：\(cmd)", subtitle: "↩ 在终端中运行", actions: [.runTerminal(command: cmd)], score: 100)]
+                                 title: CoreLocalization.format("运行：%@", String(describing: cmd)), subtitle: CoreLocalization.text("↩ 在终端中运行"), actions: [.runTerminal(command: cmd)], score: 100)]
         case .currency, .search, .empty:
             return []
         }

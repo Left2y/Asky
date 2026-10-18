@@ -6,7 +6,7 @@ import ToolService
 public struct WebSearchTool: ToolAdapter {
     public init() {}
     public var definition: ToolDefinition {
-        ToolDefinition(name: "web_search", summary: "联网搜索公开网页（Bing，无需 API Key），返回标题、来源链接和搜索摘要；摘要不等于已读取网页全文",
+        ToolDefinition(name: "web_search", summary: CoreLocalization.text("联网搜索公开网页（Bing，无需 API Key），返回标题、来源链接和搜索摘要；摘要不等于已读取网页全文"),
             inputSchema: Args.schema(["query": Args.stringProp,
                 "count": ["type": "integer", "minimum": 1, "maximum": 10]], required: ["query"]),
             source: .web, effect: .read, confirmation: .never, externallyExposable: false)
@@ -14,11 +14,11 @@ public struct WebSearchTool: ToolAdapter {
 
     public func execute(_ arguments: JSONValue) async throws -> AdapterOutput {
         let query = try Args.requiredString(arguments, "query")
-        guard query.count <= 500 else { throw ToolError(.invalidArguments, "搜索词不能超过 500 字") }
+        guard query.count <= 500 else { throw ToolError(.invalidArguments, CoreLocalization.text("搜索词不能超过 500 字")) }
         let count: Int
         if let value = arguments["count"] {
             guard let n = value.numberValue, n.isFinite, n.rounded() == n, (1...10).contains(n) else {
-                throw ToolError(.invalidArguments, "count 必须是 1 到 10 的整数")
+                throw ToolError(.invalidArguments, CoreLocalization.text("count 必须是 1 到 10 的整数"))
             }
             count = Int(n)
         } else { count = 5 }
@@ -35,23 +35,23 @@ public struct WebSearchTool: ToolAdapter {
         request.setValue("text/html", forHTTPHeaderField: "Accept")
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw ToolError(.unavailable, "联网搜索服务暂不可用，请稍后重试")
+            throw ToolError(.unavailable, CoreLocalization.text("联网搜索服务暂不可用，请稍后重试"))
         }
         var data = Data()
         for try await byte in bytes {
             try Task.checkCancellation()
-            guard data.count < 1_048_576 else { throw ToolError(.unavailable, "搜索响应超过大小限制") }
+            guard data.count < 1_048_576 else { throw ToolError(.unavailable, CoreLocalization.text("搜索响应超过大小限制")) }
             data.append(byte)
         }
         guard let html = String(data: data, encoding: .utf8) else {
-            throw ToolError(.unavailable, "搜索响应编码无法解析")
+            throw ToolError(.unavailable, CoreLocalization.text("搜索响应编码无法解析"))
         }
         return AdapterOutput(output: try Self.output(html: html, query: query, searchURL: url, count: count))
     }
 
     static func output(html: String, query: String, searchURL: URL, count: Int) throws -> JSONValue {
         if html.contains("b_captcha") || html.contains("/challenge") {
-            throw ToolError(.unavailable, "搜索服务要求验证，请在浏览器中搜索或稍后重试")
+            throw ToolError(.unavailable, CoreLocalization.text("搜索服务要求验证，请在浏览器中搜索或稍后重试"))
         }
         var results: [JSONValue] = []
         var seen = Set<String>()
@@ -67,7 +67,7 @@ public struct WebSearchTool: ToolAdapter {
         }
         // A changed page or a challenge must never be reported as a successful empty search.
         if results.isEmpty && captures(#"<[^>]*class=["'][^"']*\bb_no\b[^"']*["']"#, html).isEmpty {
-            throw ToolError(.unavailable, "未能解析搜索结果，搜索服务可能限流或页面结构已变化，请稍后重试")
+            throw ToolError(.unavailable, CoreLocalization.text("未能解析搜索结果，搜索服务可能限流或页面结构已变化，请稍后重试"))
         }
         return ["provider": "Bing", "query": .string(query), "searchURL": .string(searchURL.absoluteString),
                 "retrievedAt": .string(ISO8601DateFormatter().string(from: Date())),

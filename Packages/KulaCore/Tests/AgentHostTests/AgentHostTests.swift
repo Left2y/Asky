@@ -151,7 +151,7 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
         let events = await collect(await host.submit(AgentRequest(sessionID: "s", text: "hello")))
         #expect(events.contains {
             if case .error(_, let text) = $0 {
-                return text.contains("API Key 不存在或为空") && !text.contains("notConfigured")
+                return text.contains(AgentHostError.credentialMissing.localizedDescription) && !text.contains("notConfigured")
             }
             return false
         })
@@ -280,7 +280,7 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
         var calls = 0, capped = false
         for await e in stream {
             if case .toolCall = e { calls += 1 }
-            if case .error(_, let m) = e, m.contains("上限") { capped = true; break }
+            if case .error(_, let m) = e, m == CoreLocalization.format("已达到 %d 轮自动工具上限", 2) { capped = true; break }
         }
         #expect(calls == 2 && capped)
         #expect(launches.last?.seenTypes.filter { $0 == "toolResult" }.count ?? 0 >= 1)

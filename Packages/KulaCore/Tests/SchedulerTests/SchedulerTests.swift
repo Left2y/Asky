@@ -36,7 +36,7 @@ private func scheduler() throws -> ContextScheduler {
     @Test func travelWithoutETANeverInventsATime() throws {
         let e = EventSnapshot(id: "e", title: "看牙", start: at(6), end: at(7), location: "某诊所")
         let p = try #require(rules.travel(e, eta: nil, now: base))
-        #expect(p.title.hasPrefix("检查路线") && p.evidence.contains("eta:unavailable"))
+        #expect(p.title == CoreLocalization.format("检查路线：%@", e.title) && p.evidence.contains("eta:unavailable"))
         let q = try #require(rules.travel(e, eta: 40 * 60, now: base))
         // leave = 14:00 - 40m - 10m = 13:10
         #expect(q.body.contains("13:10"))

@@ -45,7 +45,7 @@ public struct MessagesHistoryReader: Sendable {
     private func read(since: Date, until: Date, query: String?, limit: Int, scanLimit: Int,
                       name: (String) -> String?) throws -> SearchResult {
         guard let db = open() else {
-            throw ToolError(.permissionDenied, "无法读取信息数据库。请在系统设置 › 隐私与安全性 › 完全磁盘访问权限中允许 Asky。")
+            throw ToolError(.permissionDenied, CoreLocalization.text("无法读取信息数据库。请在系统设置 › 隐私与安全性 › 完全磁盘访问权限中允许 Asky。"))
         }
         defer { sqlite3_close(db) }
         // Reactions, edits and system items carry no text of their own.
@@ -64,7 +64,7 @@ public struct MessagesHistoryReader: Sendable {
             """
         var st: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &st, nil) == SQLITE_OK else {
-            throw ToolError(.adapterFailure, "信息数据库格式无法识别：\(String(cString: sqlite3_errmsg(db)))")
+            throw ToolError(.adapterFailure, CoreLocalization.format("信息数据库格式无法识别：%@", String(describing: String(cString: sqlite3_errmsg(db)))))
         }
         defer { sqlite3_finalize(st) }
         sqlite3_bind_double(st, 1, since.timeIntervalSince1970 - Self.referenceOffset)
@@ -101,12 +101,12 @@ public struct MessagesHistoryReader: Sendable {
                 conversation: sqlite3_column_type(st, 8) == SQLITE_NULL ? "h:\(sqlite3_column_int64(st, 9))" : "c:\(sqlite3_column_int64(st, 8))",
                 sender: name(handle) ?? Self.mask(handle),
                 isFromMe: sqlite3_column_int(st, 3) != 0,
-                group: isGroup ? (groupName.isEmpty ? "群聊" : groupName) : nil,
+                group: isGroup ? (groupName.isEmpty ? CoreLocalization.text("群聊") : groupName) : nil,
                 date: Self.date(fromRaw: sqlite3_column_int64(st, 4)),
                 text: text))
         }
         guard step == SQLITE_DONE else {
-            throw ToolError(.adapterFailure, "信息数据库查询失败：\(String(cString: sqlite3_errmsg(db)))")
+            throw ToolError(.adapterFailure, CoreLocalization.format("信息数据库查询失败：%@", String(describing: String(cString: sqlite3_errmsg(db)))))
         }
         return SearchResult(messages: out, hasMore: false, scanLimitReached: false)
     }
@@ -175,10 +175,10 @@ public struct MessagesHistoryReader: Sendable {
 
     /// Phone numbers keep only their last 4 digits; emails keep the first letter and domain.
     static func mask(_ handle: String) -> String {
-        if handle.isEmpty { return "未知联系人" }
+        if handle.isEmpty { return CoreLocalization.text("未知联系人") }
         if let at = handle.firstIndex(of: "@") { return "\(handle.prefix(1))…\(handle[at...])" }
         let digits = handle.filter(\.isNumber)
-        return digits.count > 4 ? "尾号\(digits.suffix(4))" : handle
+        return digits.count > 4 ? CoreLocalization.format("尾号%@", String(describing: digits.suffix(4))) : handle
     }
 
     /// Key used to match a Messages handle against contact phone numbers and emails.

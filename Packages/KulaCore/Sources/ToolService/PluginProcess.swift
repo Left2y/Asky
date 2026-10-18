@@ -10,14 +10,14 @@ final class PluginProcessControl: @unchecked Sendable {
     private var timedOut = false
     func launch(_ process: Process) throws {
         lock.lock(); defer { lock.unlock() }
-        if timedOut { throw ToolError(.timeout, "进程执行超时") }
+        if timedOut { throw ToolError(.timeout, CoreLocalization.text("进程执行超时")) }
         if cancelled { throw CancellationError() }
         try process.run()
         processes.append(process)
     }
     func check() throws {
         lock.lock(); defer { lock.unlock() }
-        if timedOut { throw ToolError(.timeout, "进程执行超时") }
+        if timedOut { throw ToolError(.timeout, CoreLocalization.text("进程执行超时")) }
         if cancelled { throw CancellationError() }
     }
     func cancel(timedOut: Bool = false) {
@@ -45,7 +45,7 @@ enum PluginProcess {
     static func executable(_ name: String) throws -> String {
         let paths = name.hasPrefix("/") ? [name] : (environment()["PATH"] ?? "").split(separator: ":").map { "\($0)/\(name)" } + [NSHomeDirectory() + "/.local/bin/" + name]
         guard let path = paths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw ToolError(.unavailable, "未找到可执行程序：\(name)")
+            throw ToolError(.unavailable, CoreLocalization.format("未找到可执行程序：%@", String(describing: name)))
         }
         return path
     }
@@ -53,7 +53,7 @@ enum PluginProcess {
         var data = Data()
         while let chunk = try handle.read(upToCount: 8192), !chunk.isEmpty {
             guard data.count + chunk.count <= maxOutput else {
-                control.cancel(); throw ToolError(.adapterFailure, "进程输出超出 512 KiB 上限")
+                control.cancel(); throw ToolError(.adapterFailure, CoreLocalization.text("进程输出超出 512 KiB 上限"))
             }
             data.append(chunk)
         }

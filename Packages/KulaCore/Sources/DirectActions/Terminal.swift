@@ -1,4 +1,5 @@
 import Foundation
+import Contracts
 import Synchronization
 
 public enum TerminalEvent: Sendable, Equatable {
@@ -84,7 +85,7 @@ public final class TerminalRunner: Sendable {
                 try p.run()
                 process.withLock { $0 = p }
             } catch {
-                continuation.yield(.stderr("无法启动命令：\(error.localizedDescription)\n"))
+                continuation.yield(.stderr(CoreLocalization.format("无法启动命令：%@\n", String(describing: error.localizedDescription))))
                 continuation.yield(.exited(code: -1, spilledOutput: nil))
                 continuation.finish()
             }

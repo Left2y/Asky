@@ -4,6 +4,7 @@ import os
 import platform
 import plistlib
 from pathlib import Path
+from regression_resources import copy_core_resources
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,7 @@ command += [str(path) for path in sorted(products.glob("*.o"))]
 bundle = root / "build/CalendarEditorRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)
 (bundle / "Resources").mkdir(exist_ok=True)
+copy_core_resources(products, bundle / "Resources")
 executable = bundle / "MacOS/CalendarEditorRegression"
 command += ["-lsqlite3", "-o", str(executable)]
 subprocess.run(command, env=environment, cwd=root, check=True)

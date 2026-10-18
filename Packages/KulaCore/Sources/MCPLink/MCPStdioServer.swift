@@ -23,7 +23,7 @@ public struct MCPStdioServer: Sendable {
     /// Handles one inbound line; returns the encoded response line, or nil for notifications.
     public func handle(_ line: Data) -> Data? {
         guard let msg = try? JSONDecoder().decode(JSONValue.self, from: line), let obj = msg.objectValue else {
-            return Self.encode(["jsonrpc": "2.0", "id": nil, "error": ["code": -32700, "message": "Parse error"]])
+            return Self.encode(["jsonrpc": "2.0", "id": nil, "error": ["code": -32700, "message": .string(CoreLocalization.text("请求解析失败"))]])
         }
         guard let method = obj["method"]?.stringValue else {
             // A response from the client (we never send requests) or garbage: ignore.
@@ -60,24 +60,24 @@ public struct MCPStdioServer: Sendable {
             }
             return ["tools": .array(tools)]
         case "tools/call":
-            guard let tool = params["name"]?.stringValue else { throw RPCError(code: -32602, message: "Missing tool name") }
+            guard let tool = params["name"]?.stringValue else { throw RPCError(code: -32602, message: CoreLocalization.text("缺少工具名称")) }
             do {
                 return Self.render(try callTool(tool, params["arguments"] ?? [:]))
             } catch {
                 return ["content": [["type": "text", "text": .string(String(describing: error))]], "isError": true]
             }
         default:
-            throw RPCError(code: -32601, message: "Method not found: \(method)")
+            throw RPCError(code: -32601, message: CoreLocalization.format("未知方法：%@", method))
         }
     }
 
     static func render(_ r: ExecutionResult) -> JSONValue {
         var lines = ["status: \(r.status.rawValue)"]
         switch r.status {
-        case .completed: lines.append("已在 Asky 中完成。")
-        case .rejected: lines.append("未执行。")
-        case .pendingVerification: lines.append("结果未能核实，请勿假定已完成。")
-        case .suggestion: lines.append("仅为建议，未执行。")
+        case .completed: lines.append(CoreLocalization.text("已在 Asky 中完成。"))
+        case .rejected: lines.append(CoreLocalization.text("未执行。"))
+        case .pendingVerification: lines.append(CoreLocalization.text("结果未能核实，请勿假定已完成。"))
+        case .suggestion: lines.append(CoreLocalization.text("仅为建议，未执行。"))
         default: break
         }
         if let e = r.error { lines.append("error: \(e.code.rawValue) \(e.message)") }

@@ -6,6 +6,9 @@ import Search
 import DirectActions
 import AgentHost
 import Scheduler
+import MCPLink
+import LocalStore
+import Security
 
 private struct LanguageBrowserProvider: SearchProvider {
     let source: SearchSource
@@ -22,8 +25,25 @@ enum ApplicationLanguageRegression {
         try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/\(name).png"))
     }
 
-    private static func checkOtherInterfaces(english: Bool) async throws {
+    private static func checkOtherInterfaces(english: Bool, app: AppModel) async throws {
         let language = english ? "en" : "zh-Hans"
+        let missing = await app.tools.submit(ActionRequest(tool: "missing 工具", arguments: [:], origin: .launcher, intent: .explicitRequest))
+        precondition(missing.error?.code == .unknownTool)
+        precondition(missing.error?.message == (english ? "Unknown tool: missing 工具" : "未知工具：missing 工具"))
+        precondition(MCPLinkError.appUnavailable.description.hasPrefix(english ? "Asky is not running" : "Asky 未运行"))
+        precondition(Keychain.KeychainError.status(errSecUserCanceled).localizedDescription.hasPrefix(english ? "Keychain authorization was cancelled" : "钥匙串授权已取消"))
+        do {
+            _ = try PluginManifest.resource("../中文.md", at: app.store.root)
+            fatalError("invalid plugin path was accepted")
+        } catch let error as ToolError {
+            precondition(error.code == .invalidArguments && error.message.contains("../中文.md"))
+            precondition(error.message.hasPrefix(english ? "The plugin file is missing" : "插件文件不存在"))
+        }
+        let invalid = await MessageCalendarCreation(store: app.store).submit(sourceID: "invalid", draft: .init(title: "Review", start: Date().addingTimeInterval(-86400))) { _ in
+            fatalError("invalid calendar draft reached a write")
+        }
+        precondition(invalid.error?.code == .invalidArguments)
+        precondition(invalid.error?.message == (english ? "The event information is invalid or its start time has passed" : "日程信息无效或开始时间已过"))
         let runtime = AgentHostError.handshakeFailed("raw service detail").localizedDescription
         precondition(runtime.contains("raw service detail"))
         precondition(runtime.hasPrefix(english ? "AI runtime connection failed:" : "AI 运行时连接失败："))
@@ -69,7 +89,10 @@ enum ApplicationLanguageRegression {
             calendarModel.saving = saving
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 480), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: MessageCalendarEditorView(model: calendarModel, cancel: {}, create: {}))
+            let host = NSHostingView(rootView: MessageCalendarEditorView(model: calendarModel, cancel: {}, create: {}))
+            host.sizingOptions = []
+            host.frame = window.contentRect(forFrameRect: window.frame)
+            window.contentView = WindowSurface.glassContentView(host, cornerRadius: 24)
             window.center()
             window.makeKeyAndOrderFront(nil)
             try await Task.sleep(for: .milliseconds(200))
@@ -89,6 +112,7 @@ enum ApplicationLanguageRegression {
         guard let alert = owner.attachedSheet, alert.isVisible else {
             fatalError("missing confirmation window")
         }
+        try await Task.sleep(for: .milliseconds(400))
         try snapshot(alert, name: "confirmation-\(language)")
         center.rejectAll()
         _ = await task.value
@@ -111,6 +135,8 @@ enum ApplicationLanguageRegression {
                 let root = FileManager.default.temporaryDirectory.appending(path: "Asky-language-\(UUID())")
                 defer { try? FileManager.default.removeItem(at: root) }
                 let model = try AppModel(root: root)
+                let coreAtLaunch = CoreLocalization.text("未获得日历完全访问权限")
+                precondition(coreAtLaunch == (english ? "Full calendar access has not been granted" : "未获得日历完全访问权限"))
                 model.preferences.language = .english
                 let restored = try AppModel(root: root)
                 guard restored.preferences.language == .english, model.launchLanguage == .system else {
@@ -126,7 +152,8 @@ enum ApplicationLanguageRegression {
                       NSLocalizedString("退出 Asky", comment: "") == (english ? "Quit Asky" : "退出 Asky") else {
                     fatalError("native bundle localization mismatch")
                 }
-                try await checkOtherInterfaces(english: english)
+                precondition(CoreLocalization.text("未获得日历完全访问权限") == coreAtLaunch)
+                try await checkOtherInterfaces(english: english, app: model)
                 let launcher = LauncherModel(app: model, searchProviders: [LanguageBrowserProvider(source: .chromeTab), LanguageBrowserProvider(source: .bookmark)], chromeBookmarkAccessAllowed: true)
                 for (trigger, expected) in [("st", "Search Open Tabs"), ("bm", "Search bookmarks"), ("link", "Search links"), ("ai", "AI search")] {
                     launcher.query = trigger

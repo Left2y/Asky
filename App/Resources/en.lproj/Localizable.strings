@@ -721,3 +721,19 @@
 "请在系统设置 › 隐私与安全性 › 自动化中允许 Asky 控制 %@。" = "Allow Asky to control %@ in System Settings › Privacy & Security › Automation.";
 "无法打开终端。" = "Unable to open Terminal.";
 "与 %d 个日程时间重叠" = "Overlaps with %d events";
+
+"快捷指令 %@ 已完成" = "Shortcut %@ completed";
+"快捷指令 %@：%@" = "Shortcut %@: %@";
+"快捷指令 %@ 失败：%@" = "Shortcut %@ failed: %@";
+
+"Asky · 情境提醒" = "Asky · Context Reminder";
+"15 分钟后" = "In 15 minutes";
+"产品讨论会" = "Product meeting";
+"14:30 – 15:30 · 3 号会议室\n上次会议约定要带上新版原型，记得提前准备。" = "14:30 – 15:30 · Room 3\nBring the updated prototype as agreed at the last meeting.";
+"日程：产品讨论会 14:30" = "Event: Product meeting at 14:30";
+"记忆：上次会议约定带新版原型" = "Memory: Bring the updated prototype as agreed";
+"Asky · 出行提醒" = "Asky · Travel Reminder";
+"该出发了" = "Time to leave";
+"去往望京 SOHO 预计 28 分钟，路况较平时拥堵。" = "It takes about 28 minutes to Wangjing SOHO. Traffic is heavier than usual.";
+"日程：望京 SOHO 拜访 10:30" = "Event: Wangjing SOHO visit at 10:30";
+"路况：较平时拥堵" = "Traffic: Heavier than usual";

@@ -39,15 +39,15 @@ public final class ContactsBridge: @unchecked Sendable {
     }
 
     public func search(_ name: String, limit: Int) throws -> [Person] {
-        guard authorized else { throw ToolError(.permissionDenied, "未获得通讯录访问权限") }
+        guard authorized else { throw ToolError(.permissionDenied, CoreLocalization.text("未获得通讯录访问权限")) }
         let found = try store.unifiedContacts(matching: CNContact.predicateForContacts(matchingName: name), keysToFetch: Self.keys)
         return found.prefix(limit).map(person)
     }
 
     public func get(_ id: String) throws -> Person {
-        guard authorized else { throw ToolError(.permissionDenied, "未获得通讯录访问权限") }
+        guard authorized else { throw ToolError(.permissionDenied, CoreLocalization.text("未获得通讯录访问权限")) }
         do { return person(try store.unifiedContact(withIdentifier: id, keysToFetch: Self.keys)) } catch {
-            throw ToolError(.targetNotFound, "找不到联系人")
+            throw ToolError(.targetNotFound, CoreLocalization.text("找不到联系人"))
         }
     }
 
@@ -69,7 +69,7 @@ public struct ContactsSearchTool: ToolAdapter {
     let contacts: ContactsBridge
     public init(_ c: ContactsBridge) { contacts = c }
     public var definition: ToolDefinition {
-        ToolDefinition(name: "contacts_search", summary: "按姓名查找联系人（同名时返回全部候选）",
+        ToolDefinition(name: "contacts_search", summary: CoreLocalization.text("按姓名查找联系人（同名时返回全部候选）"),
                        inputSchema: Args.schema(["name": Args.stringProp, "limit": Args.intProp], required: ["name"]),
                        source: .contacts, effect: .read, confirmation: .never, externallyExposable: true)
     }
@@ -90,9 +90,9 @@ public struct MessagesDraftTool: ToolAdapter {
     public init(_ c: ContactsBridge) { contacts = c }
 
     public var definition: ToolDefinition {
-        ToolDefinition(name: "messages_prepare_draft", summary: "在 Messages 中准备草稿（需确认；由用户手动发送）",
+        ToolDefinition(name: "messages_prepare_draft", summary: CoreLocalization.text("在 Messages 中准备草稿（需确认；由用户手动发送）"),
                        inputSchema: Args.schema(["contactID": Args.stringProp,
-                                                 "handle": ["type": "string", "description": "电话号码或邮箱；联系人有多个时必填"],
+                                                 "handle": ["type": "string", "description": .string(CoreLocalization.text("电话号码或邮箱；联系人有多个时必填"))],
                                                  "body": Args.stringProp], required: ["body"]),
                        source: .messages, effect: .write, writeKind: .handoff, confirmation: .always, externallyExposable: true)
     }
@@ -103,16 +103,16 @@ public struct MessagesDraftTool: ToolAdapter {
         if let cid = try Args.string(a["contactID"], "contactID", required: false) {
             let p = try contacts.get(cid)
             if let handle {
-                guard p.handles.contains(handle) else { throw ToolError(.invalidArguments, "该号码不属于「\(p.name)」") }
+                guard p.handles.contains(handle) else { throw ToolError(.invalidArguments, CoreLocalization.format("该号码不属于「%@」", String(describing: p.name))) }
                 return (handle, "\(p.name)（\(handle)）")
             }
             guard p.handles.count == 1 else {
-                if p.handles.isEmpty { throw ToolError(.targetNotFound, "「\(p.name)」没有电话或邮箱") }
-                throw ToolError(.ambiguousTarget, "请选择「\(p.name)」的号码：" + p.handles.joined(separator: "、"))
+                if p.handles.isEmpty { throw ToolError(.targetNotFound, CoreLocalization.format("「%@」没有电话或邮箱", String(describing: p.name))) }
+                throw ToolError(.ambiguousTarget, CoreLocalization.format("请选择「%@」的号码：", String(describing: p.name)) + p.handles.joined(separator: "、"))
             }
             return (p.handles[0], "\(p.name)（\(p.handles[0])）")
         }
-        guard let handle, Self.isValidHandle(handle) else { throw ToolError(.invalidArguments, "缺少有效的收件人") }
+        guard let handle, Self.isValidHandle(handle) else { throw ToolError(.invalidArguments, CoreLocalization.text("缺少有效的收件人")) }
         return (handle, handle)
     }
 
@@ -147,7 +147,7 @@ public struct MessagesDraftTool: ToolAdapter {
         }
         return AdapterOutput(output: ["recipient": .string(r.display), "opened": .bool(opened), "copiedToClipboard": true,
                                       "sent": false,
-                                      "note": .string(opened ? "已打开草稿；若正文未预填，可直接粘贴" : "未能打开 Messages，正文已复制")],
+                                      "note": .string(opened ? CoreLocalization.text("已打开草稿；若正文未预填，可直接粘贴") : CoreLocalization.text("未能打开 Messages，正文已复制"))],
                              targets: [TargetRef(kind: "messagesDraft", identifier: r.handle)])
     }
 }
@@ -157,7 +157,7 @@ public struct MessagesDraftTool: ToolAdapter {
 public struct ShortcutsListTool: ToolAdapter {
     public init() {}
     public var definition: ToolDefinition {
-        ToolDefinition(name: "shortcuts_list", summary: "列出可用的快捷指令", inputSchema: Args.schema([:], required: []),
+        ToolDefinition(name: "shortcuts_list", summary: CoreLocalization.text("列出可用的快捷指令"), inputSchema: Args.schema([:], required: []),
                        source: .shortcuts, effect: .read, confirmation: .never, externallyExposable: false)
     }
     public func execute(_ a: JSONValue) async throws -> AdapterOutput {
@@ -168,13 +168,13 @@ public struct ShortcutsListTool: ToolAdapter {
 public struct ShortcutsRunTool: ToolAdapter {
     public init() {}
     public var definition: ToolDefinition {
-        ToolDefinition(name: "shortcuts_run", summary: "运行指定快捷指令（需确认；报告开始与结束状态）",
+        ToolDefinition(name: "shortcuts_run", summary: CoreLocalization.text("运行指定快捷指令（需确认；报告开始与结束状态）"),
                        inputSchema: Args.schema(["name": Args.stringProp, "input": Args.stringProp], required: ["name"]),
                        source: .shortcuts, effect: .write, writeKind: .handoff, confirmation: .always, externallyExposable: false)
     }
     public func preview(_ a: JSONValue) async throws -> ConfirmationPreview {
         let name = try Args.requiredString(a, "name")
-        guard await ShortcutsService.list().contains(name) else { throw ToolError(.targetNotFound, "找不到快捷指令「\(name)」") }
+        guard await ShortcutsService.list().contains(name) else { throw ToolError(.targetNotFound, CoreLocalization.format("找不到快捷指令「%@」", String(describing: name))) }
         return ConfirmationPreview(target: "快捷指令「\(name)」",
                                    changes: a["input"]?.stringValue.map { ["输入：" + String($0.prefix(200))] } ?? ["无输入"],
                                    note: "快捷指令可能执行其自身定义的任意操作")
@@ -185,10 +185,10 @@ public struct ShortcutsRunTool: ToolAdapter {
             switch state {
             case .started: continue
             case .completed(let out): return AdapterOutput(output: ["name": .string(name), "output": .string(out)])
-            case .failed(let m): throw ToolError(.adapterFailure, "快捷指令失败：\(m)")
+            case .failed(let m): throw ToolError(.adapterFailure, CoreLocalization.format("快捷指令失败：%@", String(describing: m)))
             }
         }
-        throw ToolError(.cancelled, "快捷指令已取消")
+        throw ToolError(.cancelled, CoreLocalization.text("快捷指令已取消"))
     }
     /// A shortcut's effects cannot be read back; only report what the run itself returned.
     public func readback(_ a: JSONValue, output: AdapterOutput?) async -> JSONValue? { output?.output }

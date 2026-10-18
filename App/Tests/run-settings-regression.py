@@ -3,6 +3,7 @@
 import os
 import platform
 from pathlib import Path
+from regression_resources import copy_core_resources
 import subprocess
 import sys
 import plistlib
@@ -37,6 +38,7 @@ subprocess.run(command, env=environment, cwd=root, check=True)
 bundle = root / "build/SettingsRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)
 (bundle / "Resources").mkdir(exist_ok=True)
+copy_core_resources(products, bundle / "Resources")
 executable = bundle / "MacOS/SettingsRegression"
 shutil.copy2(binary, executable)
 shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")

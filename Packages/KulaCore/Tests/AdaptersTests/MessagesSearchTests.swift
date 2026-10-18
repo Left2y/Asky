@@ -57,7 +57,7 @@ import ToolService
         #expect(items.count == 2)
         #expect(items[0]["isFromMe"] == true)
         #expect(items[1]["text"]?.stringValue == "观鹤报名地点：杭州西溪，订单 ••••9012")
-        #expect(items[1]["sender"]?.stringValue == "尾号5678")
+        #expect(items[1]["sender"]?.stringValue == CoreLocalization.format("尾号%@", "5678"))
         let limited = try await tool.execute(["query": "观鹤", "limit": 1])
         #expect(limited.output["hasMore"] == true)
         let decoded = try await tool.execute(["query": "报名"])

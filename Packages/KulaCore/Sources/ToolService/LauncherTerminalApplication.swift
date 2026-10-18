@@ -1,3 +1,4 @@
+import Contracts
 import AppKit
 
 public enum LauncherTerminalApplication: String, CaseIterable, Sendable, Identifiable {
@@ -8,7 +9,7 @@ public enum LauncherTerminalApplication: String, CaseIterable, Sendable, Identif
     public var id: String { rawValue }
     public var name: String {
         switch self {
-        case .system: NSLocalizedString("系统终端", comment: "")
+        case .system: CoreLocalization.text("系统终端")
         case .iTerm: "iTerm2"
         case .ghostty: "Ghostty"
         }

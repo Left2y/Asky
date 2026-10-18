@@ -42,19 +42,19 @@ public struct PluginManifest: Codable, Sendable, Hashable {
         guard apiVersion == 1, valid(id), !name.isEmpty, !version.isEmpty, !tools.isEmpty,
               Set(tools.map(\.name)).count == tools.count,
               Set((configuration ?? []).map(\.key)).count == (configuration ?? []).count else {
-            throw ToolError(.invalidArguments, "插件清单无效或 API 版本不兼容")
+            throw ToolError(.invalidArguments, CoreLocalization.text("插件清单无效或 API 版本不兼容"))
         }
         _ = try Self.resource(entry, at: root)
         if let instructions { _ = try Self.resource(instructions, at: root) }
         for field in configuration ?? [] {
             guard valid(field.key), ["text", "path", "boolean", "enum"].contains(field.type),
-                  field.type != "enum" || !(field.options ?? []).isEmpty else { throw ToolError(.invalidArguments, "插件配置字段无效") }
+                  field.type != "enum" || !(field.options ?? []).isEmpty else { throw ToolError(.invalidArguments, CoreLocalization.text("插件配置字段无效")) }
         }
         for tool in tools {
             guard valid(tool.name), tool.inputSchema["type"]?.stringValue == "object",
                   (1...240).contains(tool.timeoutSeconds ?? 20),
                   tool.effect != .write || tool.confirmation != .never else {
-                throw ToolError(.invalidArguments, "插件工具定义无效：\(tool.name)")
+                throw ToolError(.invalidArguments, CoreLocalization.format("插件工具定义无效：%@", String(describing: tool.name)))
             }
         }
     }
@@ -64,7 +64,7 @@ public struct PluginManifest: Codable, Sendable, Hashable {
         guard !path.hasPrefix("/"), file.path.hasPrefix(base.path + "/"),
               FileManager.default.fileExists(atPath: file.path),
               (try file.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else {
-            throw ToolError(.invalidArguments, "插件文件不存在或路径无效：\(path)")
+            throw ToolError(.invalidArguments, CoreLocalization.format("插件文件不存在或路径无效：%@", String(describing: path)))
         }
         return file
     }

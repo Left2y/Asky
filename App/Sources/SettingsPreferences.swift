@@ -31,7 +31,8 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var copyPathHotKey = LauncherActionShortcut.copyPath
     var aliases: [LauncherAlias] = []
     var commandKeywords: [String: String] = [:]
-    var disabledBuiltInCommands: Set<String> = []
+    static let defaultDisabledBuiltInCommands: Set<String> = ["ds", "yt", "bd", "hb", "zh", "xhs", "wb"]
+    var disabledBuiltInCommands = Self.defaultDisabledBuiltInCommands
     static let key = "app.preferences.v1"
     static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | shiftKey), label: "⌃⇧ C")
 
@@ -68,7 +69,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         copyPathHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .copyPathHotKey) ?? d.copyPathHotKey
         aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
         commandKeywords = try c.decodeIfPresent([String: String].self, forKey: .commandKeywords) ?? [:]
-        disabledBuiltInCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledBuiltInCommands) ?? []
+        disabledBuiltInCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledBuiltInCommands) ?? d.disabledBuiltInCommands
     }
 }
 

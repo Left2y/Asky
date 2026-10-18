@@ -132,7 +132,7 @@ enum SettingsRegression {
                     print("Dock visibility: legacy defaults, persistence, live changes with settings open, settings focus, window close and relaunch passed")
                     exit(0)
                 }
-                guard model.keywords.commands == KeywordCommand.builtIn,
+                guard model.keywords.commands.map(\.keyword) == ["go", "chat", "dy", "tb", "jd", "bl", "gh", "x"],
                       model.keywords.match("go hello")?.0.urlTemplate.contains("google.com") == true,
                       model.keywords.match("chat hello")?.0.url(for: "hello")?.host == "chatgpt.com",
                       SettingsPage.allCases.contains(.keywords),
@@ -140,7 +140,18 @@ enum SettingsRegression {
                     fatalError("legacy settings changed fixed presets or command settings are missing")
                 }
                 let legacyCommands = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
-                precondition(legacyCommands.disabledBuiltInCommands.isEmpty)
+                let defaults: Set<String> = ["ds", "yt", "bd", "hb", "zh", "xhs", "wb"]
+                precondition(SettingsPreferences().disabledBuiltInCommands == defaults)
+                precondition(legacyCommands.disabledBuiltInCommands == defaults)
+                let explicitlyEnabled = try JSONDecoder().decode(SettingsPreferences.self,
+                    from: Data(#"{"disabledBuiltInCommands":[]}"#.utf8))
+                precondition(explicitlyEnabled.disabledBuiltInCommands.isEmpty)
+                let customized = try JSONDecoder().decode(SettingsPreferences.self,
+                    from: Data(#"{"disabledBuiltInCommands":["go"]}"#.utf8))
+                precondition(customized.disabledBuiltInCommands == ["go"])
+                for keyword in defaults {
+                    precondition(model.keywords.matchInput(keyword + " query") == nil)
+                }
                 let launcher = LauncherModel(app: model, searchProviders: [])
                 for command in KeywordCommand.builtIn {
                     model.preferences.disabledBuiltInCommands.insert(command.keyword)

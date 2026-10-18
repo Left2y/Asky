@@ -65,7 +65,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 四个分类触发词可在“设置 › 指令”修改并恢复默认。
 
-网站指令仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
+网站指令默认仅开启 `go`、`chat`、`dy`、`tb`、`jd`、`bl`、`gh`、`x`；其余默认关闭，已有启停配置保留。仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
 
 快捷键可在设置中修改；Chrome 搜索与系统工具需要相应授权。完整操作见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
 
@@ -176,7 +176,7 @@ Unit and currency conversions share two horizontal cards for the input and conve
 
 Customize or reset the four category trigger tokens in Settings › Commands.
 
-Website commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
+Website commands enable only `go`, `chat`, `dy`, `tb`, `jd`, `bl`, `gh`, and `x` by default; the others start disabled. Existing saved choices are preserved. Commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
 
 Customize shortcuts in Settings. Chrome search and system tools require the relevant permissions. See the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs) for full instructions.
 

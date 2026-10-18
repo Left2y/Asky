@@ -77,9 +77,14 @@ final class LauncherModel {
     var isFilterMenuPresented = false
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
+    private var folderStack: [(url: URL, previousText: String)] = []
+    private var folderText = ""
+    var folderScope: URL? { folderStack.last?.url }
 
     func setFilter(_ value: LauncherFilter) {
         let text = inputText
+        folderStack = []
+        folderText = ""
         filter = value
         filterText = text
         if value == .all { inputState.replaceRawQuery(text, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
@@ -105,9 +110,10 @@ final class LauncherModel {
         set { storedInputState = newValue }
     }
     var query: String {
-        get { filter == .all ? inputState.rawQuery : filterText }
+        get { folderScope != nil ? folderText : filter == .all ? inputState.rawQuery : filterText }
         set {
-            if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
+            if folderScope != nil { folderText = newValue }
+            else if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
             update()
         }
@@ -194,7 +200,7 @@ final class LauncherModel {
             self.chromeBookmarkAccessAllowed = state == .authorized
             self.configureProviders()
             let rawQuery = self.query
-            if self.filter == .all {
+            if self.filter == .all, self.folderScope == nil {
                 self.inputState.replaceRawQuery(rawQuery, keywords: self.app.keywords,
                                                 bookmarksEnabled: self.canSearchBookmarks)
             }
@@ -250,6 +256,8 @@ final class LauncherModel {
 
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
+        folderStack = []
+        folderText = ""
         closeActionsMenu()
         isPinned = false
         isFilterMenuPresented = false
@@ -302,12 +310,13 @@ final class LauncherModel {
     var isBookmarkScope: Bool { inputState.bookmarks }
     var isLinkScope: Bool { inputState.links }
     var isAIScope: Bool { inputState.ai }
-    var hasScope: Bool { inputState.hasScope }
+    var hasScope: Bool { folderScope != nil || inputState.hasScope }
 
     var inputText: String {
-        get { filter == .all ? inputState.text : filterText }
+        get { folderScope != nil ? folderText : filter == .all ? inputState.text : filterText }
         set {
-            if filter == .all { inputState.edit(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
+            if folderScope != nil { folderText = newValue }
+            else if filter == .all { inputState.edit(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
             update()
         }
@@ -315,14 +324,37 @@ final class LauncherModel {
 
     func leaveCommand() {
         guard hasScope else { return }
+        if let previous = folderStack.popLast() {
+            folderText = folderStack.isEmpty ? "" : previous.previousText
+            update()
+            return
+        }
         inputState.leaveCommand()
         update()
     }
 
     func backspaceOnEmptyInput() -> Bool {
+        if folderScope != nil, folderText.isEmpty { leaveCommand(); return true }
         guard inputState.backspaceOnEmptyText() else { return false }
         update()
         return true
+    }
+
+    @discardableResult
+    func enterSelectedFolder() -> Bool {
+        guard !isActionsMenuPresented, results.indices.contains(selection) else { return false }
+        let result = results[selection]
+        guard result.source == .file,
+              let folder = ToolService.launcherFolder(at: result.target.identifier) else { return false }
+        folderStack.append((folder, inputText))
+        folderText = ""
+        update()
+        return true
+    }
+
+    var canEnterSelectedFolder: Bool {
+        guard results.indices.contains(selection), results[selection].source == .file else { return false }
+        return ToolService.launcherFolder(at: results[selection].target.identifier) != nil
     }
 
     func keyword(for result: SearchResult) -> String? {
@@ -352,6 +384,10 @@ final class LauncherModel {
         bookmarkCoordinator?.cancel()
         tabCoordinator?.cancel()
         currencyTask?.cancel()
+        if let folder = folderScope {
+            searchFolder(folder)
+            return
+        }
         if inputState.ai || inputState.links {
             batches = []
             isSearching = false
@@ -499,6 +535,34 @@ final class LauncherModel {
     }
 
     private static let bookmarkSearchKind = "bookmark-search"
+
+    private func searchFolder(_ folder: URL) {
+        let text = folderText
+        let excluded = app.settings.excludedDirectories
+        direct = []
+        batches = []
+        isSearching = true
+        remainingSearchProviders = 1
+        publish()
+        searchTask = Task { [weak self] in
+            do {
+                if !text.isEmpty { try await Task.sleep(for: .milliseconds(100)) }
+                let rows = try await ToolService.searchLauncherFolder(folder, query: text, excluded: excluded)
+                guard let self, !Task.isCancelled, self.folderScope == folder, self.folderText == text else { return }
+                self.direct = rows
+                self.isSearching = false
+                self.remainingSearchProviders = 0
+                self.status = rows.isEmpty ? NSLocalizedString("文件夹中没有匹配项目", comment: "") : nil
+                self.publish()
+            } catch {
+                guard let self, !Task.isCancelled else { return }
+                self.isSearching = false
+                self.remainingSearchProviders = 0
+                self.status = NSLocalizedString("无法读取文件夹，请检查访问权限或文件夹是否已移动。", comment: "")
+                self.publish()
+            }
+        }
+    }
 
     private func searchScopedBrowser(_ text: String) {
         let searchingTabs = inputState.tabs

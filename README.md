@@ -44,6 +44,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 入口 | 用法 |
 | --- | --- |
 | 搜索 | 从菜单栏打开，输入关键词，方向键选择、回车打开 |
+| 文件夹内搜索 | 选中文件夹按 `Tab`，空输入浏览目录，输入文件名搜索当前目录及 Spotlight 已索引的子目录；空输入退格或 `Esc` 返回上一层 |
 | 剪贴板 | `Ctrl + Shift + C` |
 | AI 新对话 | `Ctrl + Shift + /` |
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
@@ -82,6 +83,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
@@ -132,6 +134,7 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Entry | Usage |
 | --- | --- |
 | Search | Open from the menu bar, type a keyword, select with arrow keys, press Return |
+| Search within a folder | Select a folder and press `Tab`; browse its contents or type a filename to search it and Spotlight-indexed subfolders. Backspace on empty input or `Esc` returns one level |
 | Clipboard | `Ctrl + Shift + C` |
 | New AI chat | `Ctrl + Shift + /` |
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
@@ -170,6 +173,7 @@ Common checks (build MCP Bridge before testing the core package):
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```

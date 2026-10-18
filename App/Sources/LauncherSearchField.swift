@@ -21,6 +21,7 @@ struct LauncherSearchField: NSViewRepresentable {
     var revealInFinder: (() -> Bool)? = nil
     var copyPathShortcut = LauncherActionShortcut.copyPath
     var revealInFinderShortcut = LauncherActionShortcut.revealInFinder
+    var enterFolder: (() -> Bool)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -95,6 +96,10 @@ struct LauncherSearchField: NSViewRepresentable {
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
             guard !textView.hasMarkedText() else { return false }
             switch selector {
+            case #selector(NSResponder.insertTab(_:)):
+                guard parent.enterFolder?() == true else { return false }
+                if let field = control as? NSTextField { synchronize(field) }
+                return true
             case #selector(NSResponder.deleteBackward(_:)):
                 guard parent.text.isEmpty, parent.backspaceOnEmpty() else { return false }
                 if let field = control as? NSTextField { synchronize(field) }

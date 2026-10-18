@@ -406,7 +406,7 @@ struct LauncherView: View {
         RoundedRectangle(cornerRadius: LauncherLayout.shellCornerRadius, style: .circular)
     }
 
-    private var hasInput: Bool { !model.query.isEmpty }
+    private var hasInput: Bool { model.hasScope || !model.query.isEmpty }
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
     private var chrome: LauncherChrome {
         LauncherChrome(filterMenu: model.isFilterMenuPresented && !hasInput,
@@ -426,7 +426,19 @@ struct LauncherView: View {
     private var searchShell: some View {
         VStack(spacing: 0) {
             HStack(spacing: LauncherLayout.inputSpacing) {
-                if model.hasScope {
+                if let folder = model.folderScope {
+                    HStack(spacing: 6) {
+                        Image(nsImage: ToolService.launcherIcon(filePath: folder.path))
+                            .resizable().frame(width: 24, height: 24)
+                        Text(folder.lastPathComponent)
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    .frame(maxWidth: 180, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .help(folder.path)
+                    .accessibilityLabel(folder.path)
+                } else if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
                         .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isTabScope ? NSLocalizedString("搜索开启的标签页", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.isAIScope ? NSLocalizedString("AI 搜索", comment: "") : model.isLinkScope ? NSLocalizedString("搜索链接", comment: "") : model.commandInput.map { NSLocalizedString($0.command.name, comment: "Built-in website command") } ?? NSLocalizedString("关键词命令", comment: ""))
@@ -444,7 +456,8 @@ struct LauncherView: View {
                     copyPath: model.copySelectedPath,
                     revealInFinder: model.revealSelectionInFinder,
                     copyPathShortcut: model.actionPreferences.copyPathHotKey,
-                    revealInFinderShortcut: model.actionPreferences.revealInFinderHotKey
+                    revealInFinderShortcut: model.actionPreferences.revealInFinderHotKey,
+                    enterFolder: model.enterSelectedFolder
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)

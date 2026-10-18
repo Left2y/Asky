@@ -737,3 +737,7 @@
 "去往望京 SOHO 预计 28 分钟，路况较平时拥堵。" = "It takes about 28 minutes to Wangjing SOHO. Traffic is heavier than usual.";
 "日程：望京 SOHO 拜访 10:30" = "Event: Wangjing SOHO visit at 10:30";
 "路况：较平时拥堵" = "Traffic: Heavier than usual";
+
+"文件夹中没有匹配项目" = "No matching items in this folder";
+
+"无法读取文件夹，请检查访问权限或文件夹是否已移动。" = "Unable to read the folder. Check access permissions or whether it has moved.";

@@ -50,6 +50,12 @@ struct LauncherActionBar: View {
                 .buttonStyle(LauncherActionButtonStyle())
             }
             Spacer(minLength: 12)
+            if model.canEnterSelectedFolder {
+                Button { model.enterSelectedFolder() } label: {
+                    actionLabel("搜索文件夹", icon: "folder", shortcut: "⇥")
+                }
+                .buttonStyle(LauncherActionButtonStyle())
+            }
             if !model.secondaryActions.isEmpty {
                 Button { model.toggleActionsMenu() } label: {
                     actionLabel("更多", shortcut: "⌘ K")

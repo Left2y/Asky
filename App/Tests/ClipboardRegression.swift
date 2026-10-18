@@ -308,6 +308,12 @@ enum ClipboardRegression {
                 }
                 if CommandLine.arguments.contains("--card-actions") {
                     controller.pinned = true
+                    controller.pinItem(controller.items[0])
+                    let parked = CGPoint(x: panel().frame.minX - 20,
+                                         y: NSScreen.screens[0].frame.maxY - panel().frame.midY)
+                    CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: parked, mouseButton: .left)?.post(tap: .cghidEventTap)
+                    try await Task.sleep(for: .milliseconds(400))
+                    try snapshot(panel(), "card-pinned-actions")
                     @MainActor func surfaces(_ view: NSView) -> [ClipboardCardMouseView] {
                         (view as? ClipboardCardMouseView).map { [$0] } ?? view.subviews.flatMap(surfaces)
                     }

@@ -31,13 +31,13 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共用无染色的 AppKit 原生 Regular 玻璃；关闭液态玻璃或启用辅助功能显示选项时保留对应回退。
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
-- **剪贴板**：文本、图片和文件历史，支持搜索、分类筛选、固定、预览与拖放，可切换卡片或列表视图。两种视图均支持按回车粘贴到原应用，`⌘ Return` 始终仅复制并保留面板。列表底栏检测到输入焦点时显示回车粘贴，复制操作收进更多菜单；明确无输入焦点时显示 `⌘ Return` 复制，普通回车不执行。微信等应用若不提供完整的焦点信息，保留回车粘贴以兼容其自定义输入框。焦点检测及自动粘贴需要辅助功能权限；粘贴时若目标失效，保留复制结果并提示手动粘贴。列表单击选中、双击复制；底栏“更多”（`⌘K`）可固定或删除记录，`⌥⌘P` 切换所选记录的固定状态。卡片保持单击复制，悬停时右上角显示更多操作按钮；右键不打开菜单。
+- **剪贴板**：文本、图片和文件历史，支持搜索、预览与拖放，可切换卡片或列表视图。两种视图均支持按回车粘贴到原应用，`⌘ Return` 始终仅复制并保留面板。列表底栏检测到输入焦点时显示回车粘贴，更多菜单始终提供“复制到剪贴板”，并在有输入焦点时提供“粘贴并保持窗口开启”（粘贴后保留窗口、搜索词与选中项）；明确无输入焦点时显示 `⌘ Return` 复制，普通回车不执行。微信等应用若不提供完整的焦点信息，保留回车粘贴以兼容其自定义输入框。焦点检测及自动粘贴需要辅助功能权限；粘贴时若目标失效，保留复制结果并提示手动粘贴。列表单击选中、双击复制；底栏“更多”（`⌘K`）可删除记录。卡片保持单击复制，悬停时右上角显示更多操作按钮；右键不打开菜单。
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆；上下文压缩时显示 loading 与状态提示。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
 
 拖放优先使用目标应用的原生接收；若目标拒绝拖放，但松手位置可识别为输入框，则将该记录复制后粘贴到目标输入框。Esc 取消或拖到非输入区域不会触发补粘贴。飞书文本拖放即使报告已接收，也会核对同一输入框的前后内容；确认未变化才补粘贴，已有变化则保留原生结果。列表与卡片共用该处理；固定窗口也会在补粘贴前释放键盘焦点，投递后恢复显示。该兜底需要辅助功能权限及可用的拖拽事件观察。
 
-卡片与列表顶部共用主搜索样式：整行输入区内保留筛选与窗口固定按钮，不显示搜索图标，筛选与固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。主搜索与剪贴板输入区同为 52 pt 高，右侧图标大小与边距一致。
+卡片与列表顶部共用主搜索样式：整行输入区内保留窗口固定按钮，不显示搜索图标；所有输入均作为普通搜索词，可匹配正文、来源应用和类型名称（如“图片”“微信”“TIFF”），多个词可组合匹配；固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。主搜索与剪贴板输入区同为 52 pt 高，右侧图标大小与边距一致。
 
 ### 安装与使用
 
@@ -59,7 +59,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 搜索框右侧常驻静态搜索图标，仅作装饰，没有点击、悬停或固定窗口功能；输入前后保持相同布局。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
 
-搜索底栏的“更多”（`⌘K`）在 macOS 26+ 开启液态玻璃时原位变形成菜单，关闭后缩回按钮；旧系统保留材质回退，系统“减少动态效果”开启时立即切换。菜单支持方向键、回车与 Esc，保持搜索词和输入焦点。
+搜索和剪贴板列表底栏的“更多”（`⌘K`）在 macOS 26+ 开启液态玻璃时原位变形成菜单，关闭后缩回按钮；旧系统保留材质回退，系统“减少动态效果”开启时立即切换。菜单支持方向键、回车与 Esc，保持搜索词和输入焦点。
 
 单位换算与汇率换算共用横向双卡片，分别显示输入值与目标值，中间以双向箭头连接；卡片只读，不提供选中、悬停或复制操作。
 
@@ -96,7 +96,8 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target --list-drag --pinned-drag
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion --list-drag --pinned-drag
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
@@ -140,13 +141,13 @@ Asky is built with SwiftUI and AppKit. Search and clipboard history work indepen
 With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window backgrounds share untinted native AppKit Regular glass. Disabling Liquid Glass or enabling accessibility display options retains the corresponding fallbacks.
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
-- **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view. In both views, Return pastes into the original app; `⌘ Return` always only copies and keeps the panel open. With a detected input, the list footer offers Return to paste and moves Copy into More; with a confirmed non-input focus, it offers `⌘ Return` to copy and plain Return does nothing. Apps such as WeChat that do not expose complete focus information retain Return to paste for compatibility with custom editors. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to pin or delete a record; `⌥⌘P` toggles pinning for the selected record. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
+- **Clipboard**: text, image, and file history with search, previews, and drag and drop, in card or list view. In both views, Return pastes into the original app; `⌘ Return` always only copies and keeps the panel open. The list footer offers Return to paste when an input is detected, or `⌘ Return` to copy when focus is confirmed to be outside an input; plain Return does nothing in the latter case. More always includes Copy to Clipboard. With an input target, it also offers Paste and Keep Window Open, preserving the window, query, and selection. Apps such as WeChat that do not expose complete focus information retain Return to paste for compatibility with custom editors. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to delete a record. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory; context compaction shows a loading indicator and status.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 
 Dragging first uses the destination’s native drop handling. If it rejects the drop and the release position identifies an editor, Asky copies the record and pastes into that editor. Escape cancellation and non-input regions do not trigger paste. For Feishu text drops that report acceptance, Asky compares the same editor’s contents before and after the drop, pasting only when they remain unchanged; changed contents retain the native result. Lists and cards share this handling. A pinned window releases keyboard focus before the fallback paste and reappears after dispatch. This fallback requires Accessibility access and available drag event observation.
 
-Card and list views share the launcher search style: the full-row input contains the filter and window pin buttons, omits the search icon, and uses icon-only filter and pin buttons without persistent backgrounds. The bottom divider has horizontal insets, and the list column divider has vertical insets. Launcher and clipboard input rows are both 52 pt tall and share the same trailing icon size and alignment.
+Card and list views share the launcher search style: the full-row input keeps the window pin button and omits the search icon. All input is treated as ordinary search text and matches content, source apps, and type names (such as Image, WeChat, or TIFF); multiple terms can be combined. The pin is an icon-only button without a persistent background. The bottom divider has horizontal insets, and the list column divider has vertical insets. Launcher and clipboard input rows are both 52 pt tall and share the same trailing icon size and alignment.
 
 ### Install and Use
 
@@ -168,7 +169,7 @@ File search filters hidden items and excluded directories before limiting result
 
 A static search icon remains on the right of the search field. It is decorative, with no click, hover, or window-pinning behavior, and the layout stays the same while typing. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
 
-With Liquid Glass enabled on macOS 26+, More (`⌘K`) in the search footer morphs in place into its menu and contracts back into the button. Older systems retain the material fallback; Reduce Motion switches immediately. Arrow keys, Return, and Escape work without changing the query or input focus.
+With Liquid Glass enabled on macOS 26+, More (`⌘K`) in the search and clipboard list footers morphs in place into its menu and contracts back into the button. Older systems retain the material fallback; Reduce Motion switches immediately. Arrow keys, Return, and Escape work without changing the query or input focus.
 
 Unit and currency conversions share two horizontal cards for the input and converted values, joined by a bidirectional arrow. Both are read-only, with no selection, hover, or copy actions.
 
@@ -205,7 +206,8 @@ Common checks (build MCP Bridge before testing the core package):
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target --list-drag --pinned-drag
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion --list-drag --pinned-drag
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories

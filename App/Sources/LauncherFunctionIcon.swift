@@ -12,7 +12,7 @@ enum ToolIconPalette {
 /// Built-in tools share a white MingCute glyph and a solid, circular-cornered tile.
 struct LauncherFunctionIcon: View {
     enum Kind {
-        case bookmark, link, quickLinks, quit, conversion, tabs, ai, calculator, files, applications, shortcuts
+        case clipboardImage, clipboardVideo, clipboardText, bookmark, link, quickLinks, quit, conversion, tabs, ai, calculator, files, applications, shortcuts
 
         static func searchCommand(_ id: String) -> Self {
             switch id {
@@ -29,6 +29,9 @@ struct LauncherFunctionIcon: View {
 
         var symbol: String? {
             switch self {
+            case .clipboardImage: "photo"
+            case .clipboardVideo: "video"
+            case .clipboardText: "text.document"
             case .bookmark: "bookmark"
             case .link: "link"
             case .quit: "power"
@@ -45,6 +48,9 @@ struct LauncherFunctionIcon: View {
 
         var background: Color {
             switch self {
+            case .clipboardImage: ToolIconPalette.blue
+            case .clipboardVideo: ToolIconPalette.purple
+            case .clipboardText: ToolIconPalette.cyan
             case .bookmark: ToolIconPalette.orange
             case .quit: ToolIconPalette.red
             case .conversion, .calculator: ToolIconPalette.cyan

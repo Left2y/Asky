@@ -44,33 +44,25 @@ enum ClipboardScroll {
     }
 }
 
-enum ClipboardFilter: String, CaseIterable, Identifiable {
-    case all = "全部", image = "图片", video = "视频", text = "文本", file = "文件"
-    var id: String { rawValue }
-    var title: String { NSLocalizedString(rawValue, tableName: "Clipboard", comment: "Clipboard filter") }
+enum ClipboardHistoryAction {
+    case copy, pasteKeepingOpen, delete
+
+    var title: String {
+        switch self {
+        case .copy: "复制到剪贴板"
+        case .pasteKeepingOpen: "粘贴并保持窗口开启"
+        case .delete: "删除记录"
+        }
+    }
+
     var icon: String {
         switch self {
-        case .all: "square.stack.3d.up"
-        case .image: "photo"
-        case .video: "video"
-        case .text: "text.document"
-        case .file: "doc"
+        case .copy: "doc.on.clipboard"
+        case .pasteKeepingOpen: "cursor_3"
+        case .delete: "trash"
         }
-    }
-
-    func includes(_ item: ClipboardItem) -> Bool {
-        if self == .all { return true }
-        if item.kind == .image { return self == .image }
-        if item.kind == .text { return self == .text }
-        // Classify stored references without opening the files; missing originals keep their category.
-        let movies = !item.filePaths.isEmpty && item.filePaths.allSatisfy {
-            UTType(filenameExtension: URL(filePath: $0).pathExtension)?.conforms(to: .movie) == true
-        }
-        return movies ? self == .video : self == .file
     }
 }
-
-enum ClipboardHistoryAction { case copy, pin, delete }
 
 @MainActor @Observable
 final class ClipboardController {
@@ -84,18 +76,18 @@ final class ClipboardController {
     private let outsideClickDismissal = OutsideClickDismissal()
     private let toastPanel = SurfacePanel()
     private var toastDismissTask: Task<Void, Never>?
-    private let filterPanel = SurfacePanel()
-    private let actionsPanel = SurfacePanel()
+    var actionsMenuFrame: CGRect = .zero
     var actionSelection = 0
     var isActionsMenuPresented = false {
-        didSet { updateActionsMenu(); updateOutsideClickDismissal() }
+        didSet { updateOutsideClickDismissal() }
     }
     private var hiding = false
     private var pasteTarget: ClipboardPasteTarget?
     private var pasteTask: Task<Void, Never>?
+    private var keepingOpenForPaste = false
     private let pasteTargetProvider: @MainActor () -> ClipboardPasteTarget
     private(set) var hasPasteTarget = false
-    var actionKinds: [ClipboardHistoryAction] { hasPasteTarget ? [.copy, .pin, .delete] : [.pin, .delete] }
+    var actionKinds: [ClipboardHistoryAction] { hasPasteTarget ? [.copy, .pasteKeepingOpen, .delete] : [.copy, .delete] }
     var layout: ClipboardLayout { app.preferences.clipboardLayout }
     var isDragging: Bool { dragSource.active }
 
@@ -125,13 +117,14 @@ final class ClipboardController {
 
     var selectedItem: ClipboardItem? { items.indices.contains(selection) ? items[selection] : nil }
 
-    var filter = ClipboardFilter.all {
+    var query = "" {
         didSet { isActionsMenuPresented = false; selection = 0; refresh(); dismissPreview() }
     }
-    var isFilterMenuPresented = false {
-        didSet { updateFilterMenu(); updateOutsideClickDismissal() }
+
+    func escape() {
+        if isActionsMenuPresented { isActionsMenuPresented = false }
+        else { hide() }
     }
-    var query = "" { didSet { isActionsMenuPresented = false; selection = 0; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
     var selection = 0 { didSet { if selection != oldValue { isActionsMenuPresented = false } } }
     var pinned = false { didSet { updateOutsideClickDismissal() } }
@@ -170,23 +163,22 @@ final class ClipboardController {
         preview.title = NSLocalizedString("剪贴板完整预览", comment: "")
         panel.dismiss = { [weak self] in
             guard let self else { return }
-            if self.isActionsMenuPresented { self.isActionsMenuPresented = false }
-            else if self.isFilterMenuPresented { self.isFilterMenuPresented = false } else { self.hide() }
+            self.escape()
         }
         panel.onMouseDown = { [weak self] event in
             guard let self else { return }
             let moreButton = NSRect(x: self.panel.frame.width - 130, y: 0, width: 116, height: LauncherLayout.actionBarHeight)
-            if !moreButton.contains(event.locationInWindow) { self.isActionsMenuPresented = false }
-            guard self.isFilterMenuPresented else { return }
-            let point = event.locationInWindow
-            let button = NSRect(x: self.panel.frame.width - 88, y: self.panel.frame.height - 48, width: 32, height: 36)
-            if !button.contains(point) { self.isFilterMenuPresented = false }
+            if !moreButton.contains(event.locationInWindow),
+               !(self.isActionsMenuPresented && self.actionsMenuFrame.contains(event.locationInWindow)) {
+                self.isActionsMenuPresented = false
+            }
+
         }
         panel.handleKey = { [weak self] in self?.handleActionKey($0) ?? false }
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
         // Keyboard application switching must also release the outside-click shield.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active { self.hide() } }
+            MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active, !self.keepingOpenForPaste { self.hide() } }
         }
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.panel.level = .floating }
@@ -201,9 +193,9 @@ final class ClipboardController {
 
     func show() {
         pasteTask?.cancel()
+        keepingOpenForPaste = false
         pasteTarget = pasteTargetProvider()
         hasPasteTarget = pasteTarget?.canPaste == true
-        filter = .all
         query = ""
         status = nil
         refresh()
@@ -235,8 +227,9 @@ final class ClipboardController {
     func hide() {
         guard !hiding else { return }
         hiding = true
+        if keepingOpenForPaste { pasteTask?.cancel() }
+        keepingOpenForPaste = false
         defer { hiding = false }
-        isFilterMenuPresented = false
         isActionsMenuPresented = false
         outsideClickDismissal.hide()
         dismissPreview()
@@ -250,13 +243,13 @@ final class ClipboardController {
     }
 
     private func updateOutsideClickDismissal() {
-        guard panel.isVisible, (!pinned || isFilterMenuPresented || isActionsMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
+        guard panel.isVisible, (!pinned || isActionsMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            return self.shellFrame.contains(point) || (self.actionsPanel.isVisible && self.actionsPanel.frame.contains(point)) || (self.filterPanel.isVisible && self.filterPanel.frame.contains(point)) || (self.preview.isVisible && self.preview.frame.contains(point))
+            return self.shellFrame.contains(point) || (self.preview.isVisible && self.preview.frame.contains(point))
         }, dismiss: { [weak self] in
             guard let self else { return }
-            if self.pinned { self.isFilterMenuPresented = false; self.isActionsMenuPresented = false } else { self.hide() }
+            if self.pinned { self.isActionsMenuPresented = false } else { self.hide() }
         })
     }
 
@@ -275,11 +268,8 @@ final class ClipboardController {
         }
     }
 
-    func toggleFilterMenu() { isActionsMenuPresented = false; isFilterMenuPresented.toggle(); dismissPreview() }
-
     func toggleActionsMenu() {
         guard layout == .list, selectedItem != nil else { return }
-        isFilterMenuPresented = false
         actionSelection = 0
         isActionsMenuPresented.toggle()
     }
@@ -290,24 +280,19 @@ final class ClipboardController {
         guard actionKinds.indices.contains(index) else { return }
         switch actionKinds[index] {
         case .copy: copy(item)
-        case .pin: pinItem(item); select(items.first { $0.id == item.id } ?? item)
+        case .pasteKeepingOpen: pasteSelection(keepingOpen: true)
         case .delete: delete(item)
         }
     }
 
     func handleActionKey(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
-        if event.keyCode == 35, modifiers == [.option, .command] {
-            if !event.isARepeat, let index = actionKinds.firstIndex(of: .pin) { performSelectedAction(index) }
-            return true
-        }
         if event.keyCode == 40, modifiers == .command, layout == .list {
             toggleActionsMenu()
             return true
         }
         if [36, 76].contains(event.keyCode), modifiers == .command {
             isActionsMenuPresented = false
-            isFilterMenuPresented = false
             if !event.isARepeat { submitSelection(copyOnly: true) }
             return true
         }
@@ -322,38 +307,10 @@ final class ClipboardController {
         return true
     }
 
-    private func updateActionsMenu() {
-        guard isActionsMenuPresented, panel.isVisible, selectedItem != nil else { actionsPanel.remove(); return }
-        actionsPanel.title = NSLocalizedString("更多", tableName: "Clipboard", comment: "")
-        let view = ClipboardActionsMenu(controller: self)
-        actionsPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.actionsMenuWidth), cornerRadius: 18)
-        actionsPanel.setFrameOrigin(NSPoint(x: panel.frame.maxX - actionsPanel.frame.width - 14,
-                                           y: panel.frame.minY + LauncherLayout.actionBarHeight + 4))
-        panel.addChildWindow(actionsPanel, ordered: .above)
-    }
-
-    private func updateFilterMenu() {
-        guard isFilterMenuPresented, panel.isVisible else { filterPanel.remove(); return }
-        let view = ClipboardFilterMenu(controller: self)
-        filterPanel.title = NSLocalizedString("筛选剪贴板", tableName: "Clipboard", comment: "")
-        filterPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: 220), cornerRadius: 24)
-        filterPanel.setFrameTopLeftPoint(NSPoint(x: panel.frame.maxX - 56 - filterPanel.frame.width,
-                                                y: panel.frame.maxY - 52))
-        panel.addChildWindow(filterPanel, ordered: .above)
-    }
-
     func refresh() {
         let store = ClipboardStore(app.store)
         let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Expand the query until there are enough matches, so older categories are not hidden by 100 newer items.
-        var limit = 100
-        var next: [ClipboardItem]
-        while true {
-            let candidates = value.isEmpty ? store.recent(limit: limit) : store.search(value, limit: limit)
-            next = Array(candidates.lazy.filter { self.filter.includes($0) }.prefix(100))
-            if next.count == 100 || candidates.count < limit || filter == .all { break }
-            limit *= 2
-        }
+        let next = value.isEmpty ? store.recent(limit: 100) : ClipboardAccess.search(in: store, query: value, limit: 100)
         if next != items { isActionsMenuPresented = false; items = next; selection = min(selection, max(0, next.count - 1)) }
     }
 
@@ -372,19 +329,36 @@ final class ClipboardController {
         if copyOnly { copySelection() } else if hasPasteTarget { pasteSelection() }
     }
 
-    /// Return: copy the selected card, close the panel and paste into the app that was in front.
-    func pasteSelection() {
+    /// Release keyboard focus for the original app before dispatching its paste shortcut.
+    func pasteSelection(keepingOpen: Bool = false) {
         guard items.indices.contains(selection) else { return }
         guard ClipboardAccess.copy(items[selection]) else { status = NSLocalizedString("无法复制：原始内容已不可用", comment: ""); return }
         guard let pasteTarget else { showPasteFallback(.unavailable); return }
         let ready = pasteTarget.prepare()
         guard ready == .posted else { showPasteFallback(ready); return }
         let changeCount = ClipboardAccess.changeCount
-        hide()
+        pasteTask?.cancel()
+        if keepingOpen {
+            keepingOpenForPaste = true
+            outsideClickDismissal.hide()
+            dismissPreview()
+            // A nonactivating panel must release its stolen keyboard focus for Cmd V.
+            // Retain its content, frame, query and selection while the target receives it.
+            panel.orderOut(nil)
+        } else {
+            hide()
+        }
         pasteTask = Task { @MainActor [weak self] in
             let result = await pasteTarget.paste(expectedChangeCount: changeCount)
-            guard !Task.isCancelled else { return }
-            self?.showPasteFallback(result)
+            // Allow WindowServer to deliver the shortcut before showing the panel again.
+            if keepingOpen { try? await Task.sleep(for: .milliseconds(150)) }
+            guard !Task.isCancelled, let self else { return }
+            if keepingOpen {
+                self.panel.orderFrontRegardless()
+                self.keepingOpenForPaste = false
+                self.updateOutsideClickDismissal()
+            }
+            self.showPasteFallback(result)
         }
     }
 
@@ -490,11 +464,6 @@ final class ClipboardController {
         }
         view.beginDraggingSession(with: dragging, event: event, source: dragSource)
             .animatesToStartingPositionsOnCancelOrFail = true
-    }
-
-    func pinItem(_ item: ClipboardItem) {
-        do { try ClipboardStore(app.store).setPinned(item.id, !item.pinned); refresh() }
-        catch { status = NSLocalizedString("无法更新固定状态", comment: "") }
     }
 
     func delete(_ item: ClipboardItem) {
@@ -611,11 +580,6 @@ private struct ClipboardHistoryView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 26)
                 HStack(spacing: LauncherLayout.inputSpacing) {
-                    ClipboardHeaderButton(symbol: "line.3.horizontal.decrease",
-                                          title: NSLocalizedString("筛选剪贴板", tableName: "Clipboard", comment: ""),
-                                          action: controller.toggleFilterMenu,
-                                          selected: controller.filter != .all || controller.isFilterMenuPresented)
-                        .accessibilityValue(controller.filter.title)
                     ClipboardHeaderButton(symbol: controller.pinned ? "pin.fill" : "pin",
                                           title: controller.pinned ? NSLocalizedString("取消固定窗口", comment: "") : NSLocalizedString("固定窗口", comment: ""),
                                           action: controller.togglePinned)
@@ -634,7 +598,7 @@ private struct ClipboardHistoryView: View {
                 .padding(.horizontal, 28)
             if controller.items.isEmpty {
                 VStack(spacing: 8) {
-                    Text(controller.query.isEmpty && controller.filter == .all ? NSLocalizedString("暂无剪贴板历史", comment: "") : NSLocalizedString("没有匹配的内容", comment: ""))
+                    Text(controller.query.isEmpty ? NSLocalizedString("暂无剪贴板历史", comment: "") : NSLocalizedString("没有匹配的内容", comment: ""))
                     Text(NSLocalizedString("复制文字或图片后会显示在这里", comment: "")).textStyle(.secondary).foregroundStyle(ThemeColor.kTextSubtlest)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if controller.layout == .list {
@@ -655,11 +619,28 @@ private struct ClipboardHistoryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
         .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .circular))
+        .overlayPreferenceValue(LauncherMoreAnchorKey.self) { anchor in
+            GeometryReader { geometry in
+                if let anchor {
+                    let rect = geometry[anchor]
+                    let availableHeight = max(32, rect.maxY - LauncherLayout.inputHeight - 12)
+                    let height = min(availableHeight, LauncherMorphingActions.menuHeight(actionCount: controller.actionKinds.count))
+                    let hitRect = CGRect(x: rect.maxX - LauncherLayout.actionsMenuWidth,
+                                         y: geometry.size.height - rect.maxY,
+                                         width: LauncherLayout.actionsMenuWidth, height: height)
+                    let width = controller.isActionsMenuPresented ? LauncherLayout.actionsMenuWidth : rect.width
+                    let surfaceHeight = controller.isActionsMenuPresented ? height : rect.height
+                    ClipboardMorphingActions(controller: controller, availableHeight: availableHeight)
+                        .frame(width: width, height: surfaceHeight, alignment: .bottomTrailing)
+                        .position(x: rect.maxX - width / 2, y: rect.maxY - surfaceHeight / 2)
+                        .onChange(of: hitRect, initial: true) { _, frame in controller.actionsMenuFrame = frame }
+                }
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .circular))
         .onChange(of: controller.layout) { _, _ in controller.updateLayout() }
         .onExitCommand {
-            if controller.isActionsMenuPresented { controller.isActionsMenuPresented = false }
-            else if controller.isFilterMenuPresented { controller.isFilterMenuPresented = false } else { controller.hide() }
+            controller.escape()
         }
     }
 
@@ -679,11 +660,10 @@ private struct ClipboardActionBar: View {
             }
             .buttonStyle(LauncherActionButtonStyle())
             Spacer(minLength: 12)
-            Button { controller.toggleActionsMenu() } label: {
-                label("更多", shortcut: "⌘ K")
-            }
-            .buttonStyle(LauncherActionButtonStyle())
-            .accessibilityValue(controller.isActionsMenuPresented ? "On" : "Off")
+            label("更多", shortcut: "⌘ K")
+                .hidden()
+                .accessibilityHidden(true)
+                .anchorPreference(key: LauncherMoreAnchorKey.self, value: .bounds) { $0 }
         }
         .disabled(controller.selectedItem == nil)
         .padding(.horizontal, 14)
@@ -703,6 +683,70 @@ private struct ClipboardActionBar: View {
     }
 }
 
+private struct ClipboardMorphingActions: View {
+    @Bindable var controller: ClipboardController
+    let availableHeight: CGFloat
+    @Namespace private var glassNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            if #available(macOS 26, *), !SurfaceCompatibility.useLegacyMaterial {
+                GlassEffectContainer {
+                    ZStack(alignment: .bottomTrailing) {
+                        if controller.isActionsMenuPresented {
+                            menu
+                                .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 18))
+                                .glassEffectID("more", in: glassNamespace)
+                                .glassEffectTransition(.matchedGeometry)
+                        } else {
+                            button
+                                .glassEffectID("more", in: glassNamespace)
+                                .glassEffectTransition(.matchedGeometry)
+                        }
+                    }
+                }
+            } else {
+                ZStack(alignment: .bottomTrailing) {
+                    if controller.isActionsMenuPresented {
+                        menu.nativeGlassBackground(in: RoundedRectangle(cornerRadius: 18))
+                    } else {
+                        button
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.18), value: controller.isActionsMenuPresented)
+    }
+
+    private var button: some View {
+        Button { controller.toggleActionsMenu() } label: {
+            LauncherActionLabel(title: "更多", shortcut: "⌘ K")
+        }
+        .buttonStyle(LauncherActionButtonStyle())
+        .fixedSize()
+        .focusable(false)
+        .accessibilityIdentifier("clipboard-more-button")
+        .accessibilityValue("Off")
+    }
+
+    private var menu: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                ClipboardActionsMenu(controller: controller)
+            }
+            .scrollIndicators(.hidden)
+            .focusable(false)
+            .onChange(of: controller.actionSelection) { _, selection in
+                proxy.scrollTo(selection, anchor: .center)
+            }
+        }
+        .frame(width: LauncherLayout.actionsMenuWidth,
+               height: min(availableHeight, LauncherMorphingActions.menuHeight(actionCount: controller.actionKinds.count)))
+    }
+}
+
 private struct ClipboardActionsMenu: View {
     @Bindable var controller: ClipboardController
     @Environment(\.colorScheme) private var scheme
@@ -713,13 +757,11 @@ private struct ClipboardActionsMenu: View {
                 Button { controller.performSelectedAction(index) } label: {
                     HStack(spacing: 10) {
                         let kind = controller.actionKinds[index]
-                        Image(mingCute: kind == .copy ? "doc.on.clipboard" : (kind == .pin ? "pin" : "trash"), size: 16).frame(width: 20)
-                        Text(NSLocalizedString(kind == .copy ? "复制到剪贴板" : (kind == .pin ? (controller.selectedItem?.pinned == true ? "Unpin" : "Pin") : "删除记录"), tableName: "Clipboard", comment: "Clipboard action"))
+                        Image(mingCute: kind.icon, size: 16).frame(width: 20)
+                        Text(NSLocalizedString(kind.title, tableName: "Clipboard", comment: "Clipboard action"))
                         Spacer(minLength: 8)
                         if kind == .copy {
                             Text("⌘↩").foregroundStyle(ThemeColor.kTextSubtle)
-                        } else if kind == .pin {
-                            Text("⌥⌘P").foregroundStyle(ThemeColor.kTextSubtle)
                         }
                     }
                     .font(.system(size: 13))
@@ -730,51 +772,17 @@ private struct ClipboardActionsMenu: View {
                 .buttonStyle(.plain)
                 .background(controller.actionSelection == index ? ThemeColor.kInteractionHover.color(for: scheme) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 10))
+                .focusable(false)
                 .onHover { if $0 { controller.actionSelection = index } }
+                .id(index)
+                .accessibilityIdentifier("clipboard-action-\(index)")
                 .accessibilityAddTraits(controller.actionSelection == index ? .isSelected : [])
             }
         }
         .padding(8)
         .frame(width: LauncherLayout.actionsMenuWidth)
         .foregroundStyle(ThemeColor.kText)
-        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: 18))
-    }
-}
-
-private struct ClipboardFilterMenu: View {
-    @Bindable var controller: ClipboardController
-    @State private var hoveredFilter: ClipboardFilter?
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ForEach(ClipboardFilter.allCases) { filter in
-                Button {
-                    controller.filter = filter
-                    controller.isFilterMenuPresented = false
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(mingCute: filter.icon).frame(width: 22)
-                        Text(filter.title)
-                        Spacer()
-                        if controller.filter == filter { Image(mingCute: "checkmark") }
-                    }
-                    .font(.system(size: 14))
-                    .padding(.horizontal, 14)
-                    .frame(height: 40)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .background(controller.filter == filter || hoveredFilter == filter ? ThemeColor.kInteractionHover.color(for: scheme) : .clear,
-                            in: RoundedRectangle(cornerRadius: 12))
-                .onHover { hoveredFilter = $0 ? filter : nil }
-                .accessibilityValue(controller.filter == filter ? "On" : "Off")
-            }
-        }
-        .padding(8)
-        .frame(width: 220)
-        .foregroundStyle(ThemeColor.kText.color(for: scheme))
-        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: 24))
+        .accessibilityIdentifier("clipboard-actions-menu")
     }
 }
 
@@ -867,15 +875,7 @@ private struct ClipboardHistoryCard: View {
             drag: { view, event in controller.beginDrag(item, from: view, event: event) }
         ).clipShape(RoundedRectangle(cornerRadius: 24)))
         .overlay(alignment: .topTrailing) {
-            // Both states share the source icon's 28 pt header slot, so hovering
-            // changes the glyph without shifting its center or the content layout.
             ZStack {
-                if item.pinned {
-                    Image(mingCute: "pin.fill", size: 12)
-                        .foregroundStyle(ThemeColor.kIconSubtle)
-                        .opacity(hovering ? 0 : 1)
-                        .allowsHitTesting(false)
-                }
                 SettingsMoreMenu { cardActions }
                     .accessibilityLabel(NSLocalizedString("更多", tableName: "Clipboard", comment: ""))
                     .opacity(hovering ? 1 : 0)
@@ -894,7 +894,12 @@ private struct ClipboardHistoryCard: View {
 
     @ViewBuilder private var cardActions: some View {
         Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
-        Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
+        if controller.hasPasteTarget {
+            Button(NSLocalizedString("粘贴并保持窗口开启", tableName: "Clipboard", comment: "Clipboard action")) {
+                controller.select(item)
+                controller.pasteSelection(keepingOpen: true)
+            }
+        }
         Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
     }
 
@@ -981,7 +986,6 @@ private struct ClipboardHistoryRow: View {
                 .font(.system(size: 14)).foregroundStyle(ThemeColor.kText).lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle) }
         }
         .padding(.horizontal, LauncherLayout.rowHorizontalPadding)
         .frame(height: LauncherLayout.rowHeight)

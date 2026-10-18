@@ -136,7 +136,7 @@ enum ClipboardRegression {
                 let controller = ClipboardController(app: app, pasteTargetProvider: { .unavailable })
                 let dragPreview = CommandLine.arguments.contains("--drag-preview")
                 let dragTest = CommandLine.arguments.contains("--drag") || fileTest
-                if dragTest || dragPreview { app.preferences.clipboardLayout = .cards }
+                if dragTest || dragPreview || CommandLine.arguments.contains("--layouts") { app.preferences.clipboardLayout = .cards }
                 if CommandLine.arguments.contains("--preview") || CommandLine.arguments.contains("--layouts") || dragPreview || dragTest { controller.pinned = true }
                 controller.show()
                 if !CommandLine.arguments.contains("--preview"), !dragPreview { controller.pinned = true }
@@ -144,7 +144,7 @@ enum ClipboardRegression {
                 @MainActor func panel() -> NSWindow { application.windows.first { $0.title == "剪贴板历史" }! }
                 @MainActor func shellFrame() -> NSRect { panel().frame }
                 @MainActor func snapshot(_ window: NSWindow, _ name: String) throws {
-                    if CommandLine.arguments.contains("--video-preview") {
+                    if CommandLine.arguments.contains("--video-preview") || name.hasPrefix("layout-actions-") {
                         // AVPlayer renders in a composited layer, absent from cacheDisplay bitmaps.
                         let capture = Process()
                         capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
@@ -160,56 +160,31 @@ enum ClipboardRegression {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-\(name).png"))
                 }
-                if CommandLine.arguments.contains("--filters") || CommandLine.arguments.contains("--filter-preview") {
-                    let movie = ClipboardItem(kind: .file, text: "sample movie.mp4", filePath: root.appending(path: "missing.mp4").path,
-                                              byteSize: 10, contentHash: "filter-movie")
-                    let document = ClipboardItem(kind: .file, text: "sample document.pdf", filePath: root.appending(path: "missing.pdf").path,
-                                                 byteSize: 10, contentHash: "filter-document")
-                    try store.insert(movie)
-                    try store.insert(document)
-                    for i in 0..<105 {
-                        try store.insert(ClipboardItem(kind: .text, text: "newer sample text \(i)", byteSize: 20, contentHash: "filter-text-\(i)"))
+                if CommandLine.arguments.contains("--search-only") {
+                    for layout in [ClipboardLayout.cards, .list] {
+                        app.preferences.clipboardLayout = layout
+                        controller.updateLayout()
+                        for word in ["img", "text", "video", "file"] {
+                            let literal = ClipboardItem(kind: .text, text: "\(word) literal sample", byteSize: 20,
+                                                        contentHash: "literal-\(word)-\(layout)")
+                            try store.insert(literal)
+                            controller.query = word + " literal"
+                            precondition(controller.query == word + " literal")
+                            precondition(controller.items.contains { $0.id == literal.id }, "former commands search as literal text")
+                            controller.query = word
+                            precondition(controller.items.contains { $0.id == literal.id }, "bare keywords show history results")
+                        }
+                        controller.query = ""
+                        try await Task.sleep(for: .milliseconds(250))
+                        try snapshot(panel(), layout == .cards ? "search-only-cards" : "search-only-list")
                     }
-                    controller.refresh()
-                    precondition(controller.filter == .all && controller.items.count == 100)
-                    for (filter, ids) in [(ClipboardFilter.image, [picture.id]), (.video, [movie.id]), (.file, [document.id])] {
-                        controller.filter = filter
-                        precondition(Set(controller.items.map(\.id)) == Set(ids), "category must find older matching records")
-                        precondition(controller.selection == 0)
-                    }
-                    controller.filter = .text
-                    precondition(controller.items.count == 100 && controller.items.allSatisfy { $0.kind == .text })
-                    controller.query = "sample"
-                    controller.filter = .file
-                    precondition(controller.items.map(\.id) == [document.id])
-                    controller.filter = .image
-                    precondition(controller.items.isEmpty, "query and type must both match")
-                    controller.query = ""
-                    controller.filter = .video
-                    app.preferences.clipboardLayout = .list
-                    controller.updateLayout()
-                    try await Task.sleep(for: .milliseconds(250))
-                    try snapshot(panel(), "filter-list-video")
-                    controller.hide()
+                    controller.query = "img literal"
+                    controller.escape()
+                    precondition(!controller.isVisible, "Escape closes clipboard without a type scope")
                     controller.show()
-                    precondition(controller.filter == .all, "new opening defaults to all")
-                    controller.toggleFilterMenu()
-                    try await Task.sleep(for: .milliseconds(250))
-                    let menu = application.windows.first { $0.title == "筛选剪贴板" }!
-                    precondition(menu.isVisible && menu.parent == panel())
-                    precondition(abs(menu.frame.maxY - (panel().frame.maxY - 52)) < 0.5,
-                                 "menu sits 6pt below the filter button")
-                    precondition(abs(menu.frame.maxX - (panel().frame.maxX - 56)) < 0.5,
-                                 "menu right edge aligns with the filter button")
-                    try snapshot(menu, "filter-menu")
-                    try snapshot(panel(), "filter-header")
-                    if CommandLine.arguments.contains("--filter-preview") {
-                        try await Task.sleep(for: .seconds(90))
-                    }
-                    controller.isFilterMenuPresented = false
-                    precondition(!menu.isVisible)
+                    precondition(controller.query.isEmpty && !controller.items.isEmpty)
                     controller.hide()
-                    print("Clipboard filters passed: all categories, older history, search intersection, both layouts, reset and menu lifecycle")
+                    print("Clipboard search-only passed: both layouts, literal keywords, Escape and reopen")
                     application.terminate(nil)
                     return
                 }
@@ -333,12 +308,11 @@ enum ClipboardRegression {
                 }
                 if CommandLine.arguments.contains("--card-actions") {
                     controller.pinned = true
-                    controller.pinItem(controller.items[0])
                     let parked = CGPoint(x: panel().frame.minX - 20,
                                          y: NSScreen.screens[0].frame.maxY - panel().frame.midY)
                     CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: parked, mouseButton: .left)?.post(tap: .cghidEventTap)
                     try await Task.sleep(for: .milliseconds(400))
-                    try snapshot(panel(), "card-pinned-actions")
+                    try snapshot(panel(), "card-actions")
                     @MainActor func surfaces(_ view: NSView) -> [ClipboardCardMouseView] {
                         (view as? ClipboardCardMouseView).map { [$0] } ?? view.subviews.flatMap(surfaces)
                     }
@@ -403,7 +377,7 @@ enum ClipboardRegression {
                 }
                 if CommandLine.arguments.contains("--layouts") {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
-                    precondition(legacy.clipboardLayout == .cards)
+                    precondition(legacy.clipboardLayout == .list)
                     precondition(controller.layout == .cards && panel().frame.height == 244)
                     // Layout callbacks run directly; isolate them from concurrent desktop input.
                     panel().makeFirstResponder(nil)
@@ -481,30 +455,52 @@ enum ClipboardRegression {
                             isARepeat: false, keyCode: code)!)
                     }
                     let targetID = controller.selectedItem!.id
-                    key(35, [.option, .command, .shift])
-                    precondition(controller.selectedItem?.pinned == false, "extra modifiers must not pin")
                     key(35, [.option, .command])
-                    precondition(controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == true,
-                                 "Option Command P must pin and preserve selection after reordering")
-                    key(40, .command)
-                    key(35, [.option, .command])
-                    precondition(controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == false
-                                 && !controller.isActionsMenuPresented, "shortcut must unpin with the menu open")
+                    precondition(controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == false,
+                                 "removed pin shortcut must not change the record")
+                    precondition(controller.actionKinds == [.copy, .delete], "More always offers Copy and Delete")
                     key(40, .command)
                     try await Task.sleep(for: .milliseconds(200))
                     precondition(controller.isActionsMenuPresented)
-                    let actionMenu = panel().childWindows!.first { $0.isVisible && abs($0.frame.width - LauncherLayout.actionsMenuWidth) < 1 }!
-                    precondition(actionMenu.frame.minX >= panel().frame.minX && actionMenu.frame.maxX <= panel().frame.maxX)
-                    try snapshot(panel(), "layout-actions-footer")
-                    try snapshot(actionMenu, "layout-actions-menu")
-                    key(36)
-                    precondition(!controller.isActionsMenuPresented && controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == true)
-                    key(40, .command)
-                    key(36)
-                    precondition(controller.selectedItem?.pinned == false, "second pin action must unpin")
-                    key(40, .command)
+                    let shellFrame = panel().frame
+                    let editor = panel().firstResponder
+                    precondition(!(panel().childWindows ?? []).contains { $0.isVisible && abs($0.frame.width - LauncherLayout.actionsMenuWidth) < 1 },
+                                 "More must share the main window instead of opening a child window")
+                    precondition(panel().contentView!.bounds.contains(controller.actionsMenuFrame), "menu must fit inside the shell")
+                    try snapshot(panel(), "layout-actions-menu")
+                    for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+                        panel().appearance = NSAppearance(named: appearance)
+                        try await Task.sleep(for: .milliseconds(220))
+                        try snapshot(panel(), "layout-actions-menu-\(name)")
+                        key(53)
+                        try await Task.sleep(for: .milliseconds(220))
+                        precondition(!controller.isActionsMenuPresented && panel().frame == shellFrame)
+                        precondition(panel().firstResponder === editor, "closing More must preserve search focus")
+                        try snapshot(panel(), "layout-actions-footer-\(name)")
+                        key(40, .command)
+                        try await Task.sleep(for: .milliseconds(220))
+                    }
+                    panel().appearance = nil
+                    if CommandLine.arguments.contains("--more-motion") {
+                        let recording = Process()
+                        recording.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                        let path = "build/clipboard-more-morph-\(UUID()).mov"
+                        recording.arguments = ["-x", "-v", "-V", "4", "-l", String(panel().windowNumber), path]
+                        try recording.run()
+                        try await Task.sleep(for: .milliseconds(700))
+                        key(53)
+                        try await Task.sleep(for: .milliseconds(900))
+                        key(40, .command)
+                        try await Task.sleep(for: .milliseconds(900))
+                        key(53)
+                        try await Task.sleep(for: .milliseconds(900))
+                        key(40, .command)
+                        while recording.isRunning { try await Task.sleep(for: .milliseconds(100)) }
+                        precondition(recording.terminationStatus == 0)
+                        print("Clipboard More morph recording: \(path)")
+                    }
                     key(125)
-                    precondition(controller.actionSelection == 1)
+                    precondition(controller.actionSelection == 1, "menu must select Delete after moving down")
                     key(53)
                     precondition(!controller.isActionsMenuPresented && controller.isVisible, "Escape only closes the menu")
                     key(40, .command)
@@ -512,7 +508,7 @@ enum ClipboardRegression {
                     precondition(!controller.isActionsMenuPresented, "Cmd K toggles the menu")
                     key(40, .command)
                     controller.query = "Another"
-                    precondition(!controller.isActionsMenuPresented && !actionMenu.isVisible)
+                    precondition(!controller.isActionsMenuPresented)
                     key(40, .command)
                     key(125)
                     key(36)
@@ -551,8 +547,6 @@ enum ClipboardRegression {
                     precondition(controller.status == nil && !toast!.isVisible && controller.isVisible,
                                  "toast must disappear automatically without closing the list")
                     precondition(controller.items.count == 1 && controller.layout == .list)
-                    controller.pinItem(controller.items[0])
-                    precondition(controller.items[0].pinned)
                     controller.copySelection()
                     precondition(NSPasteboard.general.string(forType: .string) == "Another clipboard card")
                     app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
@@ -578,7 +572,7 @@ enum ClipboardRegression {
                     try snapshot(panel(), "layout-list")
                     let reloaded = try AppModel(root: root)
                     precondition(reloaded.preferences.clipboardLayout == .list)
-                    print("Clipboard settings layout, persistence, legacy default, selection, filtering, pinning and copy passed")
+                    print("Clipboard settings layout, persistence, legacy default, selection, filtering and copy passed")
                     if CommandLine.arguments.contains("--layout-preview") {
                         try await Task.sleep(for: .seconds(300))
                     }
@@ -803,8 +797,6 @@ enum ClipboardRegression {
                 controller.query = "example"
                 precondition(controller.items.count == 1 && controller.items.first?.id == text.id)
                 controller.query = ""
-                controller.pinItem(picture)
-                precondition(controller.items.first?.id == picture.id && controller.items.first?.pinned == true)
                 controller.pinned = false
                 controller.togglePinned()
                 precondition(panel().level == .floating)
@@ -895,7 +887,7 @@ enum ClipboardRegression {
                 precondition(controller.items.isEmpty && panel().contentView == nil && !panel().isVisible)
                 try? FileManager.default.removeItem(at: root)
                 restorePointer()
-                print("Clipboard native snapshots, search, pin, delete, preview placement and release passed")
+                print("Clipboard native snapshots, search, delete, preview placement and release passed")
                 exit(0)
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }
         }
@@ -983,16 +975,41 @@ enum ClipboardRegression {
         precondition(controller.hasPasteTarget && controller.actionKinds.first == .copy)
         controller.toggleActionsMenu()
         precondition(controller.isActionsMenuPresented)
+        try await Task.sleep(for: .milliseconds(250))
         let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
         if let bitmap = panel.contentView!.bitmapImageRepForCachingDisplay(in: panel.contentView!.bounds) {
             panel.contentView!.cacheDisplay(in: panel.contentView!.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/clipboard-focused-footer.png"))
         }
+        let menuCapture = Process()
+        menuCapture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+        menuCapture.arguments = ["-x", "-l", String(panel.windowNumber), "build/clipboard-keep-open-menu.png"]
+        try menuCapture.run()
+        menuCapture.waitUntilExit()
+        precondition(menuCapture.terminationStatus == 0)
         controller.performSelectedAction(0)
         try await Task.sleep(for: .milliseconds(120))
         let afterCopy = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
         precondition(afterCopy == "LeftRight",
                      "copy in More must not insert text")
+        // Use the menu with an unpinned panel: releasing key focus must not destroy it.
+        controller.pinned = false
+        controller.query = "PASTE"
+        let keptFrame = panel.frame
+        let keptItem = controller.selectedItem?.id
+        controller.toggleActionsMenu()
+        controller.performSelectedAction(controller.actionKinds.firstIndex(of: .pasteKeepingOpen)!)
+        try await Task.sleep(for: .milliseconds(650))
+        let afterKeepOpen = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
+        precondition(afterKeepOpen == "LeftPASTERight",
+                     "keep-open menu action must insert at the external cursor")
+        precondition(controller.isVisible && panel.contentView != nil && panel.frame == keptFrame,
+                     "unpinned panel must remain available at the same position")
+        precondition(controller.query == "PASTE" && controller.selectedItem?.id == keptItem && !controller.pinned,
+                     "keep-open paste must preserve query, selection and pin state")
+        precondition(!controller.isActionsMenuPresented && !panel.isKeyWindow,
+                     "close only More and leave keyboard focus with the destination")
+        panel.makeKey()
         controller.toggleActionsMenu()
         controller.actionSelection = 2
         let copyKey = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
@@ -1006,11 +1023,11 @@ enum ClipboardRegression {
         precondition(delegate.control(field, textView: NSTextView(),
             doCommandBy: #selector(NSResponder.insertNewline(_:))))
         for _ in 0..<100 {
-            if (try? String(contentsOf: root.appending(path: "text"), encoding: .utf8)) == "LeftPASTERight" { break }
+            if (try? String(contentsOf: root.appending(path: "text"), encoding: .utf8)) == "LeftPASTEPASTERight" { break }
             try await Task.sleep(for: .milliseconds(30))
         }
         let afterPaste = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
-        precondition(afterPaste == "LeftPASTERight",
+        precondition(afterPaste == "LeftPASTEPASTERight",
                      "Return must insert at the original cursor in another process")
         precondition(!controller.isVisible)
         // A clipboard change between copy and dispatch must prevent an unrelated paste.
@@ -1025,15 +1042,15 @@ enum ClipboardRegression {
             try await Task.sleep(for: .milliseconds(30))
         }
         controller.show()
-        precondition(!controller.hasPasteTarget && !controller.actionKinds.contains(.copy),
-                     "no input must offer copy as the primary action instead of in More")
+        precondition(!controller.hasPasteTarget && controller.actionKinds == [.copy, .delete],
+                     "no input must retain Copy and omit automatic paste in More")
         let before = ClipboardAccess.changeCount
         controller.submitSelection(copyOnly: false)
         precondition(ClipboardAccess.changeCount == before && controller.isVisible)
         controller.submitSelection(copyOnly: true)
         precondition(NSPasteboard.general.string(forType: .string) == "PASTE" && controller.isVisible)
         controller.hide()
-        print("Clipboard paste passed: external cursor insertion, dynamic actions, copy-only, no input, clipboard race")
+        print("Clipboard paste passed: external cursor insertion, keep-open menu paste, preserved panel state, copy-only, no input, clipboard race")
     }
 
     private static func verifyDragPasteTarget() async throws {

@@ -301,16 +301,25 @@ public struct ClipboardStore: Sendable {
     public func search(_ text: String, limit: Int = 20) -> [ClipboardItem] {
         let tokens = FTSQuery.tokens(text)
         guard !tokens.isEmpty else { return recent(limit: limit) }
+        // Images have a visible title but often no stored text. Match that title too,
+        // before applying the result limit, without turning the query into a type filter.
+        let matchesImageTitle = ["图片", "Image"].contains { title in
+            tokens.allSatisfy { title.localizedCaseInsensitiveContains($0) }
+        }
         let rows: [Row]
         if FTSQuery.canUseIndex(tokens) {
             rows = (try? db.query("""
-                SELECT c.* FROM clipboard_fts f JOIN clipboard c ON c.id = f.id WHERE clipboard_fts MATCH ?
+                SELECT c.* FROM clipboard c
+                WHERE c.id IN (SELECT id FROM clipboard_fts WHERE clipboard_fts MATCH ?)
+                    OR (? AND c.kind = 'image')
                 ORDER BY c.created_at DESC LIMIT ?
-                """, [FTSQuery.match(tokens), limit])) ?? []
+                """, [FTSQuery.match(tokens), matchesImageTitle, limit])) ?? []
         } else {
             let clause = tokens.map { _ in "text LIKE ? ESCAPE '\\'" }.joined(separator: " AND ")
-            rows = (try? db.query("SELECT * FROM clipboard WHERE \(clause) ORDER BY created_at DESC LIMIT ?",
-                                  tokens.map { FTSQuery.likePattern($0) } + [limit])) ?? []
+            rows = (try? db.query("""
+                SELECT * FROM clipboard WHERE (\(clause)) OR (? AND kind = 'image')
+                ORDER BY created_at DESC LIMIT ?
+                """, tokens.map { FTSQuery.likePattern($0) } + [matchesImageTitle, limit])) ?? []
         }
         return rows.map(Self.decode)
     }

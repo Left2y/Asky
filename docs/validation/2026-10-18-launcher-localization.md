@@ -10,7 +10,7 @@
 
 - `xcodegen generate`：通过。
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build`：通过。
-- `cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`：通过，Swift Testing 37 个测试、9 个 suite。
+- `cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`：通过，Swift Testing 合计 260 个测试、51 个 suite（13 个测试运行）。
 - 四份修改后的 `.strings` 经 `plutil -lint` 校验通过。
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"`：通过。首次编译期间调整测试 fixture 导致输入文件变化检查失败，稳定文件后重跑通过。
 - `build/ApplicationLanguageRegression.app/Contents/MacOS/ApplicationLanguageRegression -AppleLanguages "(zh-Hans)"`：复用上述编译的同一原生回归程序，通过。

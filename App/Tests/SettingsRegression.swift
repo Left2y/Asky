@@ -53,9 +53,10 @@ enum SettingsRegression {
                     }
                     legacyStore.setCodableSetting("plugins.installed", samples)
                 }
-                legacyStore.setCodableSetting("keywords", KeywordRegistry(commands: [
-                    KeywordCommand(keyword: "go", name: "Custom", urlTemplate: "https://example.com"),
-                ]))
+                // Retired custom-website data must never override the built-in registry.
+                legacyStore.setCodableSetting("keywords", ["commands": [
+                    ["keyword": "go", "name": "Custom", "urlTemplate": "https://example.com"],
+                ]])
                 let model = try AppModel(root: root)
                 if CommandLine.arguments.contains("--dock-only") {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self,
@@ -281,6 +282,7 @@ enum SettingsRegression {
                 precondition(launcher.isAIScope && launcher.results.count == 1)
                 launcher.query = ""
                 print("Custom search commands: migration, collision validation, persistence, AI/link routing, exit and brand identity passed")
+                if CommandLine.arguments.contains("--website-commands") { exit(0) }
                 if CommandLine.arguments.contains("--search-commands") {
                     model.settingsTab = "keywords"
                     let window = SettingsWindow.make(app: model)

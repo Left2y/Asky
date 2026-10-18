@@ -151,13 +151,8 @@ final class AppModel {
     @ObservationIgnored var onModelAuthenticationStarted: (() -> Void)?
     /// Stable preset identities keep enablement independent of custom trigger tokens.
     var keywords: KeywordRegistry {
-        KeywordRegistry(commands: KeywordCommand.builtIn.filter {
-            !preferences.disabledBuiltInCommands.contains($0.keyword)
-        }.map { preset in
-            var command = preset
-            command.keyword = commandKeyword(preset.keyword)
-            return command
-        })
+        KeywordRegistry(disabledCommands: preferences.disabledBuiltInCommands,
+                        triggerKeywords: preferences.commandKeywords)
     }
 
     static let searchCommands = [("tabs", "搜索开启的标签页", "st"), ("bookmark", "搜索书签", "bm"), ("link", "搜索链接", "link"), ("ai", "AI 搜索", "ai")]

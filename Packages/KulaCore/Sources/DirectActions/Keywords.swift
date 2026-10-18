@@ -1,13 +1,13 @@
 import Foundation
 
-public struct KeywordCommand: Sendable, Codable, Hashable, Identifiable {
+public struct KeywordCommand: Sendable, Hashable, Identifiable {
     public var id: String { keyword }
-    public var keyword: String
-    public var name: String
-    /// Website address. The persisted key also supports legacy `{query}` search templates.
-    public var urlTemplate: String
+    public let keyword: String
+    public let name: String
+    /// Built-in website address or search template.
+    public let urlTemplate: String
 
-    public init(keyword: String, name: String, urlTemplate: String) {
+    fileprivate init(keyword: String, name: String, urlTemplate: String) {
         self.keyword = keyword
         self.name = name
         self.urlTemplate = urlTemplate
@@ -65,51 +65,18 @@ public struct KeywordCommand: Sendable, Codable, Hashable, Identifiable {
     ]
 }
 
-/// In-memory keyword set with CRUD; persistence is owned by the caller (settings store).
-public struct KeywordRegistry: Sendable, Codable, Equatable {
-    public private(set) var commands: [KeywordCommand]
+/// Active built-in website commands with configurable trigger tokens.
+public struct KeywordRegistry: Sendable, Equatable {
+    public let commands: [KeywordCommand]
 
-    public init(commands: [KeywordCommand] = KeywordCommand.builtIn) { self.commands = commands }
-
-    public enum RegistryError: Error, Equatable { case invalidKeyword, invalidTemplate, duplicate }
-
-    public mutating func upsert(_ cmd: KeywordCommand, replacing old: String? = nil) throws {
-        let kw = cmd.keyword.trimmingCharacters(in: .whitespaces)
-        guard !kw.isEmpty, !kw.contains(" "), kw != ">", kw.lowercased() != "bm" else { throw RegistryError.invalidKeyword }
-        guard cmd.url(for: "x") != nil else { throw RegistryError.invalidTemplate }
-        if old != kw, commands.contains(where: { $0.keyword == kw }) { throw RegistryError.duplicate }
-        commands.removeAll { $0.keyword == (old ?? kw) }
-        var saved = cmd
-        saved.keyword = kw
-        saved.urlTemplate = cmd.urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
-        commands.append(saved)
-    }
-
-    /// One-time settings upgrade; preserve existing keywords and app/shortcut aliases.
-    public mutating func addMissingWebsitePresets(excluding aliases: Set<String> = []) {
-        let occupied = Set(commands.map { $0.keyword.lowercased() }).union(aliases.map { $0.lowercased() })
-        commands.append(contentsOf: KeywordCommand.websitePresets.filter { !occupied.contains($0.keyword.lowercased()) })
-    }
-
-    /// Remove retired defaults and shorten the original ChatGPT keyword without overwriting custom entries.
-    public mutating func migrateQueryPresets(excluding aliases: Set<String> = []) {
-        let retired = [
-            KeywordCommand(keyword: "gemini", name: "Gemini", urlTemplate: "https://gemini.google.com"),
-            KeywordCommand(keyword: "doubao", name: "豆包", urlTemplate: "https://www.doubao.com/chat/"),
-        ]
-        commands.removeAll { retired.contains($0) }
-        let old = KeywordCommand(keyword: "chatgpt", name: "ChatGPT", urlTemplate: "https://chatgpt.com")
-        if commands.contains(old) {
-            let occupied = commands.contains { $0.keyword.caseInsensitiveCompare("chat") == .orderedSame }
-                || aliases.contains { $0.caseInsensitiveCompare("chat") == .orderedSame }
-            if !occupied {
-                commands.removeAll { $0 == old }
-                commands.append(KeywordCommand.websitePresets[0])
-            }
+    public init(disabledCommands: Set<String> = [], triggerKeywords: [String: String] = [:]) {
+        commands = KeywordCommand.builtIn.filter {
+            !disabledCommands.contains($0.keyword)
+        }.map { preset in
+            KeywordCommand(keyword: triggerKeywords[preset.keyword] ?? preset.keyword,
+                           name: preset.name, urlTemplate: preset.urlTemplate)
         }
     }
-
-    public mutating func remove(_ keyword: String) { commands.removeAll { $0.keyword == keyword } }
 
     /// Matches "go SwiftUI" → (go, "SwiftUI").
     public func match(_ input: String) -> (KeywordCommand, String)? {

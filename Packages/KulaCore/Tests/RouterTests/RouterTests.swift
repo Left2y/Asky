@@ -113,8 +113,8 @@ import DirectActions
         #expect(registry.matchInput("go Who ")?.1 == "Who ")
         #expect(registry.match("go Who ")?.1 == "Who")
         #expect(registry.matchInput(" go Who is fantuan?")?.1 == "Who is fantuan?")
-        let custom = KeywordRegistry(commands: [KeywordCommand(keyword: "saf", name: "Safari", urlTemplate: "https://www.google.com/search?q={query}")])
-        #expect(custom.matchInput("saf Who is fantuan?")?.0.name == "Safari")
+        let custom = KeywordRegistry(triggerKeywords: ["go": "saf"])
+        #expect(custom.matchInput("saf Who is fantuan?")?.0.name == "Google 搜索")
         #expect(custom.matchInput("saf Who is fantuan?")?.1 == "Who is fantuan?")
     }
 
@@ -148,11 +148,9 @@ import DirectActions
         }
         #expect(query == "帮我梳理一下日程")
         #expect(router.route("> explain command") == .terminal(command: "explain command"))
-        let custom = IntentRouter(keywords: KeywordRegistry(commands: [
-            KeywordCommand(keyword: "please", name: "Search", urlTemplate: "https://example.com/?q={query}")
-        ]))
+        let custom = IntentRouter(keywords: KeywordRegistry(triggerKeywords: ["go": "please"]))
         guard case .keyword = custom.route("please help me plan") else {
-            Issue.record("custom keyword must win"); return
+            Issue.record("renamed built-in keyword must win"); return
         }
     }
 }

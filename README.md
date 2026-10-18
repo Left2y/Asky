@@ -45,6 +45,8 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
+网站指令仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
+
 快捷键可在设置中修改；Chrome 搜索与系统工具需要相应授权。完整操作见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
 
 ### AI 配置与隐私
@@ -71,6 +73,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 ```
 
 原生回归、Debug 预览和签名说明见[开发与发布指南](docs/development.md)。发布使用 `scripts/package-release.py` 生成 DMG、更新 ZIP 和校验文件；打包前提交源码并保持工作区干净，沿用固定的 `Asky Local Signing` 证书。检查结果写入 `docs/validation/`。
@@ -118,6 +121,8 @@ Asky is built with SwiftUI and AppKit. Search and clipboard history work indepen
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
+Website commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
+
 Customize shortcuts in Settings. Chrome search and system tools require the relevant permissions. See the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs) for full instructions.
 
 ### AI Configuration and Privacy
@@ -144,6 +149,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 ```
 
 See the [development and release guide](docs/development.md) for native regressions, Debug previews, and signing details. Use `scripts/package-release.py` to produce a DMG, updater ZIP, and checksums. Commit source changes and keep the working tree clean before packaging, retaining the persistent `Asky Local Signing` certificate. Record checks in `docs/validation/`.

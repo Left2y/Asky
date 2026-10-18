@@ -38,7 +38,8 @@ struct LauncherFunctionIcon: View {
             case .calculator: "equal.square"
             case .files: "folder"
             case .applications: "app.badge"
-            case .quickLinks, .shortcuts: "command"
+            case .quickLinks: "cursor_3"
+            case .shortcuts: "command"
             }
         }
 

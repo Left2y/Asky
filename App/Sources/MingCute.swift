@@ -58,6 +58,7 @@ enum MingCute {
         "gearshape.2": "MingCute-settings_6",
         "keyboard": "MingCute-keyboard",
         "command": "MingCute-command",
+        "cursor_3": "MingCute-cursor_3",
         "command.square": "MingCute-command",
         "hand.raised.fill": "MingCute-filled-hand",
         "hand.draw": "MingCute-hand_finger",

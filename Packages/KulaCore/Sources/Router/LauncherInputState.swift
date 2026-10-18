@@ -9,6 +9,8 @@ public struct LauncherInputState: Equatable {
 
     public private(set) var text = ""
     public private(set) var command: KeywordCommand?
+    public private(set) var tabs = false
+    public var tabToken = "st"
     public private(set) var bookmarks = false
     public private(set) var terminal = false
     public private(set) var links = false
@@ -20,10 +22,11 @@ public struct LauncherInputState: Equatable {
 
     public init() {}
 
-    public var hasScope: Bool { command != nil || bookmarks || terminal || links || ai }
+    public var hasScope: Bool { command != nil || tabs || bookmarks || terminal || links || ai }
 
     public var rawQuery: String {
         if terminal { return terminalKeyword + " " + text }
+        if tabs { return tabToken + " " + text }
         if bookmarks { return bookmarkToken + " " + text }
         if links { return linkToken + " " + text }
         if ai { return aiToken + " " + text }
@@ -33,6 +36,9 @@ public struct LauncherInputState: Equatable {
     public mutating func edit(_ value: String, keywords: KeywordRegistry, bookmarksEnabled: Bool = true) {
         if !hasScope, let query = Self.matchTerminal(value, keyword: terminalKeyword) {
             terminal = true
+            text = query
+        } else if !hasScope, let query = Self.matchTerminal(value, keyword: tabToken) {
+            tabs = true
             text = query
         } else if bookmarksEnabled, !hasScope, let query = Self.matchTerminal(value, keyword: bookmarkToken) {
             bookmarks = true
@@ -63,7 +69,14 @@ public struct LauncherInputState: Equatable {
         text = query
     }
 
+    public mutating func enterTabs(_ query: String) {
+        leaveCommand()
+        tabs = true
+        text = query
+    }
+
     public mutating func leaveCommand() {
+        tabs = false
         command = nil
         bookmarks = false
         terminal = false

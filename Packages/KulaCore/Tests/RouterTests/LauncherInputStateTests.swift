@@ -31,6 +31,29 @@ import DirectActions
     }
 
 
+    @Test func tabScopeSupportsCustomTokenAndExit() {
+        var state = LauncherInputState()
+        state.edit("st", keywords: keywords)
+        #expect(!state.hasScope)
+        state.edit("ST hello", keywords: keywords)
+        #expect(state.tabs && state.text == "hello" && state.rawQuery == "st hello")
+        state.edit("go query", keywords: keywords)
+        #expect(state.tabs && state.command == nil)
+        state.edit("", keywords: keywords)
+        let exited = state.backspaceOnEmptyText()
+        #expect(exited)
+        #expect(!state.hasScope)
+        state.tabToken = "tabs"
+        state.replaceRawQuery("tabs hello", keywords: keywords)
+        #expect(state.tabs && state.rawQuery == "tabs hello")
+        state.replaceRawQuery("st hello", keywords: keywords)
+        #expect(!state.hasScope)
+        state.enterTabs("hello")
+        #expect(state.tabs && state.text == "hello")
+        state.leaveCommand()
+        #expect(!state.hasScope && state.text == "hello")
+    }
+
     @Test func terminalPrefixRequiresSpaceAndKeepsShellSyntax() {
         var state = LauncherInputState()
         state.edit(">", keywords: keywords)

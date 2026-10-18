@@ -609,3 +609,5 @@
 "AI 搜索" = "AI search";
 "指令不能为空或包含空格。" = "Commands cannot be empty or contain whitespace.";
 "该指令与已有指令或别名重名。" = "This command conflicts with an existing command or alias.";
+
+"搜索开启的标签页" = "Search Open Tabs";

@@ -24,7 +24,7 @@ struct CommandSettings: View {
                         || NSLocalizedString(item.1, comment: "").localizedStandardContains(query)
                 }, id: \.0) { item in
                     HStack(spacing: 10) {
-                        LauncherFunctionIcon(asset: item.0 == "bookmark" ? "Bookmark" : item.0 == "link" ? "Link" : "Agent")
+                        LauncherFunctionIcon(asset: item.0 == "tabs" ? "Tabs" : item.0 == "bookmark" ? "Bookmark" : item.0 == "link" ? "Link" : "Agent")
                         Text(NSLocalizedString(item.1, comment: ""))
                         Spacer()
                         CommandKeywordEditor(app: app, id: item.0)

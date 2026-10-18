@@ -6,6 +6,15 @@ import LocalStore
 import Router
 import ToolService
 import Contracts
+import Search
+
+private struct TabCommandProvider: SearchProvider {
+    let source: SearchSource
+    func search(_ query: String, limit: Int) async -> [SearchResult] {
+        [SearchResult(source: source, target: TargetRef(kind: "fixture", identifier: query),
+                      title: query, actions: [], score: 1)]
+    }
+}
 
 @main @MainActor
 enum SettingsRegression {
@@ -126,6 +135,45 @@ enum SettingsRegression {
                 let allEnabled = try AppModel(root: root)
                 precondition(allEnabled.keywords.commands == KeywordCommand.builtIn)
                 print("Built-in command defaults, disable/enable routing, suggestions and persistence passed")
+                precondition(model.commandKeyword("tabs") == "st")
+                precondition(model.commandKeywordProblem("ST", id: "ai") != nil)
+                let tabLauncher = LauncherModel(app: model, searchProviders: [
+                    TabCommandProvider(source: .chromeTab), TabCommandProvider(source: .app)
+                ])
+                tabLauncher.query = "st"
+                guard let tabEntry = tabLauncher.results.first(where: { $0.target.kind == "tab-search" }) else { fatalError("missing tab entry") }
+                tabLauncher.execute(tabEntry, action: .open)
+                precondition(tabLauncher.isTabScope && tabLauncher.inputText.isEmpty)
+                tabLauncher.inputText = "fixture"
+                try await Task.sleep(for: .milliseconds(300))
+                precondition(tabLauncher.results.count == 1 && tabLauncher.results[0].source == .chromeTab)
+                tabLauncher.leaveCommand()
+                model.preferences.commandKeywords["tabs"] = "tabs"
+                let savedTabCommands = try AppModel(root: root)
+                precondition(savedTabCommands.commandKeyword("tabs") == "tabs")
+                tabLauncher.query = "TABS fixture"
+                precondition(tabLauncher.isTabScope && tabLauncher.inputText == "fixture")
+                tabLauncher.inputText = ""
+                precondition(tabLauncher.backspaceOnEmptyInput() && !tabLauncher.hasScope)
+                model.preferences.commandKeywords.removeValue(forKey: "tabs")
+                precondition(NSImage(named: "Tabs") != nil)
+                if CommandLine.arguments.contains("--search-commands") {
+                    let controller = LauncherController(model: tabLauncher)
+                    controller.show()
+                    guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else { fatalError("missing launcher panel") }
+                    panel.onBlur = {}
+                    tabLauncher.query = "st fixture"
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(400))
+                        guard let view = panel.contentView,
+                              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing tab view") }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/tab-search-\(appearance).png"))
+                    }
+                    controller.hide()
+                }
+                print("Tab search entry, isolated provider, custom token, persistence and exit passed")
                 precondition(legacyCommands.commandKeywords.isEmpty)
                 precondition(model.commandKeywordProblem("GO", id: "ai") != nil)
                 precondition(model.commandKeywordProblem(">", id: "link") != nil)

@@ -96,6 +96,7 @@ final class LauncherModel {
         get {
             var state = storedInputState
             state.terminalKeyword = app.settings.terminalCommandKeyword
+            state.tabToken = app.commandKeyword("tabs")
             state.bookmarkToken = app.commandKeyword("bookmark")
             state.linkToken = app.commandKeyword("link")
             state.aiToken = app.commandKeyword("ai")
@@ -133,6 +134,7 @@ final class LauncherModel {
     private let chrome = ChromeTabsProvider()
     private let shortcuts = ShortcutsProvider()
     private var coordinator: SearchCoordinator
+    private var tabCoordinator: SearchCoordinator?
     /// Bookmarks are searched only inside the `bm` scope, never in default search.
     private var bookmarkCoordinator: SearchCoordinator?
     private let searchProviders: [any SearchProvider]?
@@ -203,9 +205,12 @@ final class LauncherModel {
     private func configureProviders() {
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
+        tabCoordinator?.cancel()
         if let searchProviders {
             let general = searchProviders.filter { $0.source != .bookmark &&
                 ($0.source != .link || chromeBookmarkAccessAllowed) && filter.includes($0.source) }
+            let tabs = searchProviders.filter { $0.source == .chromeTab && app.settings.enabledSources.contains(.chrome) }
+            tabCoordinator = tabs.isEmpty ? nil : SearchCoordinator(providers: tabs)
             let marks = searchProviders.filter { $0.source == .bookmark && chromeBookmarkAccessAllowed }
             searchProviderCount = general.count
             searchSources = Set(general.map(\.source))
@@ -219,6 +224,7 @@ final class LauncherModel {
             useChrome ? ((try? ChromeBookmarkService.read(accessBookmark: reader.load().chromeBookmarkFolderAccess)) ?? []).map(\.url) + chrome.cachedURLs : []
         })
         var providers: [any SearchProvider] = [apps, shortcuts, files]
+        tabCoordinator = useChrome ? SearchCoordinator(providers: [chrome]) : nil
         if useChrome { providers.append(chrome) }
         if useChrome && chromeBookmarkAccessAllowed {
             providers.append(links)
@@ -252,6 +258,7 @@ final class LauncherModel {
         chromeAccessTask?.cancel()
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
+        tabCoordinator?.cancel()
         searchTask?.cancel()
         currencyTask?.cancel()
         batches = []
@@ -291,6 +298,7 @@ final class LauncherModel {
 
     var isTerminalScope: Bool { inputState.terminal }
     private var canSearchBookmarks: Bool { chromeBookmarkAccessAllowed && app.settings.enabledSources.contains(.chrome) }
+    var isTabScope: Bool { inputState.tabs }
     var isBookmarkScope: Bool { inputState.bookmarks }
     var isLinkScope: Bool { inputState.links }
     var isAIScope: Bool { inputState.ai }
@@ -342,6 +350,7 @@ final class LauncherModel {
         searchTask?.cancel()
         coordinator.cancel()
         bookmarkCoordinator?.cancel()
+        tabCoordinator?.cancel()
         currencyTask?.cancel()
         if inputState.ai || inputState.links {
             batches = []
@@ -358,8 +367,8 @@ final class LauncherModel {
             publish()
             return
         }
-        if inputState.bookmarks {
-            searchBookmarks(inputState.text)
+        if inputState.tabs || inputState.bookmarks {
+            searchScopedBrowser(inputState.text)
             return
         }
         let route: Route = filter != .all
@@ -388,6 +397,10 @@ final class LauncherModel {
                                     actions: actions, score: 100)
             }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if filter == .all, tabCoordinator != nil, !trimmed.isEmpty {
+                direct.append(SearchResult(source: .chromeTab, target: TargetRef(kind: "tab-search", identifier: trimmed),
+                                           title: NSLocalizedString("搜索开启的标签页", comment: ""), subtitle: trimmed, actions: [.open], score: 0))
+            }
             if filter == .all, bookmarkCoordinator != nil, !trimmed.isEmpty {
                 direct.append(SearchResult(source: .bookmark, target: TargetRef(kind: Self.bookmarkSearchKind, identifier: trimmed),
                                            title: NSLocalizedString("搜索书签", comment: ""), subtitle: trimmed, actions: [.open], score: 0))
@@ -440,19 +453,21 @@ final class LauncherModel {
 
     private static let bookmarkSearchKind = "bookmark-search"
 
-    private func searchBookmarks(_ text: String) {
+    private func searchScopedBrowser(_ text: String) {
+        let searchingTabs = inputState.tabs
+        let scopedCoordinator = searchingTabs ? tabCoordinator : bookmarkCoordinator
         direct = []
         batches = []
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        isSearching = hasText && bookmarkCoordinator != nil
+        isSearching = hasText && scopedCoordinator != nil
         remainingSearchProviders = isSearching ? 1 : 0
-        if isSearching, let coordinator = bookmarkCoordinator {
+        if isSearching, let coordinator = scopedCoordinator {
             searchTask = Task { [weak self] in
                 do { try await Task.sleep(for: .milliseconds(100)) }
                 catch { return }
                 guard let self, !Task.isCancelled else { return }
                 coordinator.query(text) { [weak self] batch in
-                    guard let self, self.inputState.bookmarks else { return }
+                    guard let self, searchingTabs ? self.inputState.tabs : self.inputState.bookmarks else { return }
                     self.batches = [batch]
                     self.remainingSearchProviders = 0
                     self.isSearching = false
@@ -500,7 +515,8 @@ final class LauncherModel {
         // concrete target falls back to AI regardless of its wording.
         if filter == .all, !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
-                ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias" || QuitAskyCommand.isResult($0))) && $0.source != .askAI && $0.target.kind != "bookmark-search"
+                if $0.target.kind == "tab-search", $0.target.identifier.caseInsensitiveCompare(app.commandKeyword("tabs")) == .orderedSame { return true }
+                return ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias" || QuitAskyCommand.isResult($0))) && $0.source != .askAI && $0.target.kind != "bookmark-search" && $0.target.kind != "tab-search"
             }
             if !hasLocalMatch { merged = [] }
         }
@@ -605,6 +621,12 @@ final class LauncherModel {
         closeActionsMenu()
         guard let action else { return }
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
+        if r.target.kind == "tab-search" {
+            guard tabCoordinator != nil else { return }
+            inputState.enterTabs(r.target.identifier.caseInsensitiveCompare(app.commandKeyword("tabs")) == .orderedSame ? "" : r.target.identifier)
+            update()
+            return
+        }
         if r.target.kind == Self.bookmarkSearchKind {
             guard chromeBookmarkAccessAllowed, bookmarkCoordinator != nil else { return }
             inputState.enterBookmarks(r.target.identifier)
@@ -755,6 +777,9 @@ extension LauncherModel {
         guard let result = selectedActionResult, let action = result.primaryAction else { return nil }
         if QuitAskyCommand.isResult(result) {
             return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: "↵", kind: .result(action))
+        }
+        if result.target.kind == "tab-search" {
+            return LauncherAction(title: "搜索开启的标签页", icon: "globe", shortcut: "↵", kind: .result(action))
         }
         if result.target.kind == Self.bookmarkSearchKind {
             return LauncherAction(title: "搜索书签", icon: "bookmark", shortcut: "↵", kind: .result(action))

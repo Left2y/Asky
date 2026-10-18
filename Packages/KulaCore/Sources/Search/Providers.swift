@@ -2,6 +2,7 @@ import Foundation
 import Contracts
 import Synchronization
 import LocalStore
+import ToolService
 
 /// Installed applications from standard folders (plus one level of vendor subfolders such as
 /// "/Applications/Adobe …"), ranked by fuzzy match + recent launches. The index is rebuilt when
@@ -258,59 +259,9 @@ public final class SpotlightProvider: SearchProvider {
     }
 
     public func search(_ query: String, limit: Int) async -> [SearchResult] {
-        guard query.count >= 2 else { return [] }
         let (scopes, excluded) = settings()
-        let runner = SpotlightRunner()
-        let paths = await runner.run(query: query, scopes: scopes, limit: limit * 3, timeout: timeout)
-        if Task.isCancelled { return [] }
-        return paths.lazy
-            .filter { p in !excluded.contains { p.hasPrefix($0) } && !p.contains("/Library/") && !p.contains("/.") }
-            .prefix(limit)
-            .map { p in
-                let u = URL(fileURLWithPath: p)
-                return SearchResult(source: .file, target: TargetRef(kind: "file", identifier: p), title: u.lastPathComponent,
-                                    subtitle: (u.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath,
-                                    actions: [.open, .revealInFinder], score: FuzzyMatch.score(query, in: u.lastPathComponent) ?? 0.3)
-            }
-    }
-}
-
-@MainActor
-final class SpotlightRunner {
-    private var query: NSMetadataQuery?
-    private var observer: NSObjectProtocol?
-
-    nonisolated init() {}
-
-    func run(query text: String, scopes: [URL], limit: Int, timeout: Duration) async -> [String] {
-        let q = NSMetadataQuery()
-        q.searchScopes = scopes
-        q.predicate = NSPredicate(format: "%K CONTAINS[cd] %@", NSMetadataItemFSNameKey, text)
-        q.sortDescriptors = [NSSortDescriptor(key: NSMetadataItemFSContentChangeDateKey, ascending: false)]
-        query = q
-        let paths: [String] = await withCheckedContinuation { cont in
-            var done = false
-            let finish: @MainActor () -> Void = { [weak self] in
-                guard !done else { return }
-                done = true
-                q.disableUpdates()
-                let n = min(q.resultCount, limit)
-                let out = (0..<n).compactMap { (q.result(at: $0) as? NSMetadataItem)?.value(forAttribute: NSMetadataItemPathKey) as? String }
-                q.stop()
-                if let o = self?.observer { NotificationCenter.default.removeObserver(o) }
-                cont.resume(returning: out)
-            }
-            observer = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering, object: q, queue: .main) { _ in
-                MainActor.assumeIsolated { finish() }
-            }
-            q.start()
-            Task { @MainActor in
-                try? await Task.sleep(for: timeout)
-                finish()
-            }
-        }
-        query = nil
-        return paths
+        return await ToolService.searchLauncherFiles(query: query, scopes: scopes,
+                                                     excluded: excluded, limit: limit, timeout: timeout)
     }
 }
 

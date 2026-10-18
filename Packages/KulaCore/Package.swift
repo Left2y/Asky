@@ -32,7 +32,7 @@ let package = Package(
         .target(name: "AgentHost", dependencies: ["Contracts"]),
         .target(name: "Memory", dependencies: ["Contracts", "LocalStore"]),
         .target(name: "Scheduler", dependencies: ["Contracts", "LocalStore"]),
-        .target(name: "Search", dependencies: ["Contracts", "Resources", "LocalStore"]),
+        .target(name: "Search", dependencies: ["Contracts", "Resources", "LocalStore", "ToolService"]),
         .target(name: "Adapters", dependencies: ["Contracts", "ToolService", "Search", "DirectActions", "Memory"]),
         .target(name: "MCPLink", dependencies: ["Contracts"]),
         .target(name: "MCPGateway", dependencies: ["Contracts", "LocalStore", "ToolService", "MCPLink"]),

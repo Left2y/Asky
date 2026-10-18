@@ -707,7 +707,6 @@ private struct ClipboardHistoryCard: View {
                     Image(nsImage: icon).resizable().frame(width: 28, height: 28)
                 } else { Image(mingCute: "doc.on.clipboard").frame(width: 28, height: 28) }
                 Spacer()
-                if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle).opacity(hovering ? 0 : 1) }
             }
             if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                 Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)
@@ -741,13 +740,24 @@ private struct ClipboardHistoryCard: View {
             drag: { view, event in controller.beginDrag(item, from: view, event: event) }
         ).clipShape(RoundedRectangle(cornerRadius: 24)))
         .overlay(alignment: .topTrailing) {
-            SettingsMoreMenu { cardActions }
-                .accessibilityLabel(NSLocalizedString("更多", tableName: "Clipboard", comment: ""))
-                .opacity(hovering ? 1 : 0)
-                .allowsHitTesting(hovering)
-                .accessibilityHidden(!hovering)
-                .padding(.top, 12)
-                .padding(.trailing, 16)
+            // Both states share the source icon's 28 pt header slot, so hovering
+            // changes the glyph without shifting its center or the content layout.
+            ZStack {
+                if item.pinned {
+                    Image(mingCute: "pin.fill", size: 12)
+                        .foregroundStyle(ThemeColor.kIconSubtle)
+                        .opacity(hovering ? 0 : 1)
+                        .allowsHitTesting(false)
+                }
+                SettingsMoreMenu { cardActions }
+                    .accessibilityLabel(NSLocalizedString("更多", tableName: "Clipboard", comment: ""))
+                    .opacity(hovering ? 1 : 0)
+                    .allowsHitTesting(hovering)
+                    .accessibilityHidden(!hovering)
+            }
+            .frame(width: 28, height: 28)
+            .padding(.top, 12)
+            .padding(.trailing, 16)
         }
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)

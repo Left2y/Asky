@@ -13,7 +13,7 @@ enum LauncherLayout {
     static let inputHeight: CGFloat = 52
     static let toolbarWidth = WindowMetrics.launcherWidth
     static let inputLeadingPadding: CGFloat = 28
-    static let inputTrailingPadding: CGFloat = 28
+    static let inputTrailingPadding: CGFloat = 22
     static let inputSpacing: CGFloat = 12
     static let folderScopeMaxWidth: CGFloat = 180
     static let folderScopeHeight: CGFloat = 24

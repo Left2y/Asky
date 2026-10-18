@@ -794,6 +794,7 @@ private struct ClipboardActionsMenu: View {
                         let kind = controller.actionKinds[index]
                         Image(mingCute: kind.icon, size: 16).frame(width: 20)
                         Text(NSLocalizedString(kind.title, tableName: "Clipboard", comment: "Clipboard action"))
+                            .foregroundStyle(kind == .delete || kind == .clearAll ? ThemeColor.kTextNegative : ThemeColor.kText)
                         Spacer(minLength: 8)
                         if kind == .copy {
                             Text("⌘↩").foregroundStyle(ThemeColor.kTextSubtle)
@@ -935,10 +936,15 @@ private struct ClipboardHistoryCard: View {
                 controller.pasteSelection(keepingOpen: true)
             }
         }
-        Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
+        Button(role: .destructive) { controller.delete(item) } label: {
+            Text(NSLocalizedString("删除", comment: "")).foregroundStyle(ThemeColor.kTextNegative)
+        }
         Divider()
-        Button(NSLocalizedString("清空全部", tableName: "Clipboard", comment: ""), role: .destructive) {
+        Button(role: .destructive) {
             Task { await controller.clearAll() }
+        } label: {
+            Text(NSLocalizedString("清空全部", tableName: "Clipboard", comment: ""))
+                .foregroundStyle(ThemeColor.kTextNegative)
         }
     }
 

@@ -44,7 +44,7 @@ with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "ClipboardRegression", "CFBundleIdentifier": "app.asky.clipboard-regression",
                   "CFBundleName": "ClipboardRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], env=environment, cwd=root, check=True)
-if "--paste-target" in sys.argv:
+if "--paste-target" in sys.argv or "--drag-paste-target" in sys.argv:
     receiver = root / "build/ClipboardPasteReceiver.app/Contents"
     (receiver / "MacOS").mkdir(parents=True, exist_ok=True)
     shutil.copy2(binary, receiver / "MacOS/ClipboardRegression")

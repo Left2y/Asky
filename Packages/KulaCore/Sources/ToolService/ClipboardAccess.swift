@@ -240,6 +240,12 @@ public enum ClipboardAccess {
 
     /// One dragging item per file keeps multi-file selections intact at native destinations.
     public static func dragItems(for item: ClipboardItem) -> [any NSPasteboardWriting]? {
+        if item.kind == .image {
+            guard let writer = dragItem(for: item), let address = writer.string(forType: .fileURL),
+                  let url = URL(string: address), url.isFileURL else { return nil }
+            // Image exports need the same native URL writer as files to convey sandbox access.
+            return [url as NSURL]
+        }
         guard item.kind == .file else { return dragItem(for: item).map { [$0] } }
         guard let urls = availableFiles(for: item) else { return nil }
         // AppKit recognizes NSURL writers and attaches sandbox extensions for receiving apps.

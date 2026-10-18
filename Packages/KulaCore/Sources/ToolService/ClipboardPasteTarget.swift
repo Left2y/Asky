@@ -36,6 +36,10 @@ public struct ClipboardPasteTarget {
 
     /// `.posted` means the shortcut was delivered, not that the receiving app accepted its content.
     public func paste(expectedChangeCount: Int) async -> Result {
+        await paste(expectedChangeCount: expectedChangeCount, validateFocus: { true })
+    }
+
+    func paste(expectedChangeCount: Int, validateFocus: @MainActor () -> Bool) async -> Result {
         guard let application, !application.isTerminated else { return .unavailable }
         guard AXIsProcessTrusted() else { return .accessibilityRequired }
         guard focusState != .nonInput else { return .noInputFocus }
@@ -45,7 +49,7 @@ public struct ClipboardPasteTarget {
             guard !Task.isCancelled, !application.isTerminated,
                   NSPasteboard.general.changeCount == expectedChangeCount else { return .unavailable }
             if NSWorkspace.shared.frontmostApplication?.processIdentifier == application.processIdentifier {
-                guard Self.focusedInput(in: application) != .nonInput else { return .noInputFocus }
+                guard Self.focusedInput(in: application) != .nonInput, validateFocus() else { return .noInputFocus }
                 guard let source = CGEventSource(stateID: .combinedSessionState),
                       let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
                       let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return .unavailable }

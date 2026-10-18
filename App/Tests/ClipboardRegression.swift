@@ -23,6 +23,14 @@ enum ClipboardRegression {
                     try await verifyPasteTarget()
                     exit(0)
                 }
+                if CommandLine.arguments.contains("--drag-paste-target") {
+                    try await verifyDragPasteTarget()
+                    exit(0)
+                }
+                if CommandLine.arguments.contains("--external-drag") {
+                    try await verifyExternalDrag()
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--external-paste") {
                     try await verifyExternalPaste()
                     exit(0)
@@ -128,6 +136,7 @@ enum ClipboardRegression {
                 let controller = ClipboardController(app: app, pasteTargetProvider: { .unavailable })
                 let dragPreview = CommandLine.arguments.contains("--drag-preview")
                 let dragTest = CommandLine.arguments.contains("--drag") || fileTest
+                if dragTest || dragPreview { app.preferences.clipboardLayout = .cards }
                 if CommandLine.arguments.contains("--preview") || CommandLine.arguments.contains("--layouts") || dragPreview || dragTest { controller.pinned = true }
                 controller.show()
                 if !CommandLine.arguments.contains("--preview"), !dragPreview { controller.pinned = true }
@@ -611,8 +620,9 @@ enum ClipboardRegression {
                     editor.isRichText = false
                     destination.contentView = fileTest ? fileReceiver : editor
                     if externalPoint == nil { destination.orderFrontRegardless() }
-                    panel().makeKey()
                     controller.pinned = false
+                    panel().level = .popUpMenu
+                    panel().makeKeyAndOrderFront(nil)
                     try await Task.sleep(for: .milliseconds(200))
                     func mouse(_ type: CGEventType, _ point: NSPoint) {
                         let location = CGPoint(x: point.x, y: NSScreen.screens[0].frame.maxY - point.y)
@@ -622,7 +632,16 @@ enum ClipboardRegression {
                         event?.flags = []
                         event?.post(tap: .cghidEventTap)
                     }
-                    let start = NSPoint(x: shellFrame().minX + 100 + (draggingImage ? 276 : 0), y: shellFrame().minY + 100)
+                    func dragCards(_ view: NSView) -> [ClipboardCardMouseView] {
+                        if let card = view as? ClipboardCardMouseView { return [card] }
+                        return view.subviews.flatMap(dragCards)
+                    }
+                    let sourceCards = dragCards(panel().contentView!).sorted {
+                        $0.convert(.zero, to: nil).x < $1.convert(.zero, to: nil).x
+                    }
+                    let sourceCard = sourceCards[draggingImage ? 1 : 0]
+                    let sourceRect = panel().convertToScreen(sourceCard.convert(sourceCard.bounds, to: nil))
+                    let start = NSPoint(x: sourceRect.midX, y: sourceRect.midY)
                     let end: NSPoint
                     if let externalPoint {
                         precondition(externalPoint.count == 2, "ASKY_CLIPBOARD_DROP_POINT must be screen x,y")
@@ -641,7 +660,15 @@ enum ClipboardRegression {
                     }
                     try await Task.sleep(for: .milliseconds(150))
                     mouse(.leftMouseUp, end)
+                    for _ in 0..<150 {
+                        if !controller.isDragging { break }
+                        try await Task.sleep(for: .milliseconds(20))
+                    }
                     try await Task.sleep(for: .milliseconds(500))
+                    if externalPoint != nil {
+                        print("External drop clipboard matches fixture:", NSPasteboard.general.string(forType: .string) == text.text)
+                        try await Task.sleep(for: .seconds(3))
+                    }
                     if externalPoint == nil {
                         precondition(ClipboardAccess.changeCount == clipboardChangeBeforeDrag,
                             "dragging must leave the system clipboard unchanged")
@@ -882,9 +909,12 @@ enum ClipboardRegression {
         let window = NSWindow(contentRect: NSRect(x: 120, y: 160, width: 440, height: 220),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Asky paste receiver"
-        let text = NSTextView(frame: NSRect(x: 20, y: 60, width: 400, height: 140))
-        text.string = "LeftRight"
-        text.setSelectedRange(NSRange(location: 4, length: 0))
+        let rejectsDrag = CommandLine.arguments.contains("--reject-drag")
+        if rejectsDrag { window.level = .statusBar }
+        let text = rejectsDrag ? ClipboardPasteOnlyTextView(frame: NSRect(x: 20, y: 60, width: 400, height: 140))
+            : NSTextView(frame: NSRect(x: 20, y: 60, width: 400, height: 140))
+        text.string = rejectsDrag ? "" : "LeftRight"
+        text.setSelectedRange(NSRange(location: rejectsDrag ? 0 : 4, length: 0))
         window.contentView!.addSubview(text)
         let button = NSButton(title: "Non-input focus", target: nil, action: nil)
         button.frame = NSRect(x: 20, y: 10, width: 160, height: 32)
@@ -893,6 +923,10 @@ enum ClipboardRegression {
         window.makeKeyAndOrderFront(nil)
         application.activate()
         receiverWindow = window
+        let drop = window.convertToScreen(text.frame)
+        try? "\(drop.midX),\(drop.midY)".write(to: root.appending(path: "drop-point"), atomically: true, encoding: .utf8)
+        let nonInput = window.convertToScreen(button.frame)
+        try? "\(nonInput.midX),\(nonInput.midY)".write(to: root.appending(path: "noninput-point"), atomically: true, encoding: .utf8)
         var previous = ""
         receiverTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
             MainActor.assumeIsolated {
@@ -1002,6 +1036,191 @@ enum ClipboardRegression {
         print("Clipboard paste passed: external cursor insertion, dynamic actions, copy-only, no input, clipboard race")
     }
 
+    private static func verifyDragPasteTarget() async throws {
+        let originalClipboard = NSPasteboard.general.pasteboardItems?.map { item in
+            item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }
+        } ?? []
+        defer {
+            let writers = originalClipboard.map { values in
+                let item = NSPasteboardItem()
+                for (type, data) in values { item.setData(data, forType: type) }
+                return item
+            }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects(writers)
+        }
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-drag-paste-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let receiver = Process()
+        receiver.executableURL = URL(filePath: ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_RECEIVER"]!)
+        receiver.arguments = ["--paste-receiver", root.path, "--reject-drag"]
+        try receiver.run()
+        defer { receiver.terminate(); try? FileManager.default.removeItem(at: root) }
+        for _ in 0..<100 {
+            if FileManager.default.fileExists(atPath: root.appending(path: "ready").path) { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        let coordinates = try String(contentsOf: root.appending(path: "drop-point"), encoding: .utf8)
+            .split(separator: ",").map { Double($0)! }
+        let inputPoint = NSPoint(x: coordinates[0], y: coordinates[1])
+        let buttonCoordinates = try String(contentsOf: root.appending(path: "noninput-point"), encoding: .utf8)
+            .split(separator: ",").map { Double($0)! }
+        let buttonPoint = NSPoint(x: buttonCoordinates[0], y: buttonCoordinates[1])
+        let app = try AppModel(root: root.appending(path: "model"))
+        app.preferences.clipboardLayout = .cards
+        let item = ClipboardItem(kind: .text, text: "DROP", byteSize: 4, contentHash: "drop")
+        try ClipboardStore(app.store).insert(item)
+        let controller = ClipboardController(app: app)
+        let oldPointer = CGEvent(source: nil)!.location
+        defer { CGWarpMouseCursorPosition(oldPointer) }
+        func mouse(_ type: CGEventType, _ point: NSPoint) {
+            let location = CGPoint(x: point.x, y: NSScreen.screens[0].frame.maxY - point.y)
+            CGWarpMouseCursorPosition(location)
+            CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: location, mouseButton: .left)?
+                .post(tap: .cghidEventTap)
+        }
+        for scenario in ["cancel", "button", "paste"] {
+            let cancel = scenario == "cancel"
+            let end = scenario == "button" ? buttonPoint : inputPoint
+            controller.pinned = true
+            controller.show()
+            try await Task.sleep(for: .milliseconds(300))
+            let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
+            panel.level = .popUpMenu
+            panel.makeKeyAndOrderFront(nil)
+            controller.pinned = false
+            func surfaces(_ view: NSView) -> [ClipboardCardMouseView] {
+                (view as? ClipboardCardMouseView).map { [$0] } ?? view.subviews.flatMap(surfaces)
+            }
+            let surface = surfaces(panel.contentView!).first!
+            let rect = panel.convertToScreen(surface.convert(surface.bounds, to: nil))
+            let start = NSPoint(x: rect.midX, y: rect.midY)
+            NSLog("Drag test: visible=%d key=%d card=%@ destination=%@", panel.isVisible, panel.isKeyWindow,
+                  NSStringFromRect(rect), NSStringFromPoint(end))
+            let before = ClipboardAccess.changeCount
+            mouse(.leftMouseDown, start)
+            try await Task.sleep(for: .milliseconds(100))
+            for step in 1...25 {
+                let fraction = CGFloat(step) / 25
+                mouse(.leftMouseDragged, NSPoint(x: start.x + (end.x - start.x) * fraction,
+                                                y: start.y + (end.y - start.y) * fraction))
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            if cancel {
+                for down in [true, false] {
+                    let event = CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: down)
+                    event?.flags = []
+                    event?.post(tap: .cghidEventTap)
+                }
+                try await Task.sleep(for: .milliseconds(200))
+            }
+            mouse(.leftMouseUp, end)
+            for _ in 0..<100 {
+                if !controller.isDragging { break }
+                try await Task.sleep(for: .milliseconds(30))
+            }
+            precondition(!controller.isDragging, "the native drag must finish before checking side effects")
+            if scenario != "paste" {
+                try await Task.sleep(for: .milliseconds(300))
+                let value = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
+                precondition(value.isEmpty && ClipboardAccess.changeCount == before,
+                             "cancelled drops and drops on buttons must not paste or rewrite the clipboard")
+            } else {
+                for _ in 0..<100 {
+                    if (try? String(contentsOf: root.appending(path: "text"), encoding: .utf8)) == "DROP" { break }
+                    try await Task.sleep(for: .milliseconds(30))
+                }
+                let value = try String(contentsOf: root.appending(path: "text"), encoding: .utf8)
+                precondition(value == "DROP", "a rejected native drop must paste once into the editor under the release point")
+                precondition(!controller.isVisible && NSPasteboard.general.string(forType: .string) == "DROP")
+            }
+            controller.hide()
+        }
+        print("Clipboard drag paste passed: native rejection, external editor insertion, Escape cancellation, non-input rejection, no duplicate insertion")
+    }
+
+    /// Opt-in native drag into a live app; verify the resulting draft separately, never send it.
+    private static func verifyExternalDrag() async throws {
+        let bundle = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TARGET_BUNDLE"]!
+        let target = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first {
+            bundle != "com.stablyai.orca" || $0.bundleURL?.path == "/Applications/Orca.app"
+        }!
+        target.activate()
+        for _ in 0..<100 {
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        precondition(NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier)
+        let coordinates = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_DROP_POINT"]!
+            .split(separator: ",").map { Double($0)! }
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-live-drag-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        app.preferences.clipboardLayout = .cards
+        try ClipboardStore(app.store).insert(ClipboardItem(kind: .text, text: "AskyDragProbe", byteSize: 13, contentHash: "live-drag"))
+        let controller = ClipboardController(app: app)
+        controller.pinned = true
+        controller.show()
+        try await Task.sleep(for: .milliseconds(300))
+        let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
+        controller.pinned = false
+        panel.level = .popUpMenu
+        panel.makeKeyAndOrderFront(nil)
+        try await Task.sleep(for: .milliseconds(200))
+        func cards(_ view: NSView) -> [ClipboardCardMouseView] {
+            if let card = view as? ClipboardCardMouseView { return [card] }
+            return view.subviews.flatMap(cards)
+        }
+        target.activate(options: [.activateAllWindows])
+        let targetAX = AXUIElementCreateApplication(target.processIdentifier)
+        var targetWindow: CFTypeRef?
+        if AXUIElementCopyAttributeValue(targetAX, kAXMainWindowAttribute as CFString, &targetWindow) == .success,
+           let targetWindow, CFGetTypeID(targetWindow) == AXUIElementGetTypeID() {
+            AXUIElementPerformAction(targetWindow as! AXUIElement, kAXRaiseAction as CFString)
+        }
+        try await Task.sleep(for: .milliseconds(300))
+        panel.makeKeyAndOrderFront(nil)
+        print("Live drag frontmost before mouse:", NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "none")
+        let card = cards(panel.contentView!).first!
+        let rect = panel.convertToScreen(card.convert(card.bounds, to: nil))
+        let start = CGPoint(x: rect.midX, y: NSScreen.screens[0].frame.maxY - rect.midY)
+        let end = CGPoint(x: coordinates[0], y: coordinates[1])
+        func mouse(_ type: CGEventType, _ point: CGPoint) {
+            CGWarpMouseCursorPosition(point)
+            let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
+            event?.flags = []
+            event?.post(tap: .cghidEventTap)
+        }
+        mouse(.leftMouseDown, start)
+        try await Task.sleep(for: .milliseconds(150))
+        for step in 1...30 {
+            let progress = CGFloat(step) / 30
+            mouse(.leftMouseDragged, CGPoint(x: start.x + (end.x - start.x) * progress,
+                y: start.y + (end.y - start.y) * progress))
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        var hit: AXUIElement?
+        AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(end.x), Float(end.y), &hit)
+        var hitPID: pid_t = 0
+        if let hit { AXUIElementGetPid(hit, &hitPID) }
+        print("Live drag actual destination:", NSRunningApplication(processIdentifier: hitPID)?.bundleIdentifier ?? "none")
+        mouse(.leftMouseUp, end)
+        for _ in 0..<150 {
+            if !controller.isDragging { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try await Task.sleep(for: .seconds(3))
+        print("Live drag finished; fixture on clipboard:", NSPasteboard.general.string(forType: .string) == "AskyDragProbe")
+        var focused: CFTypeRef?
+        var value: CFTypeRef?
+        if AXUIElementCopyAttributeValue(targetAX, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+           let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() {
+            AXUIElementCopyAttributeValue(focused as! AXUIElement, kAXValueAttribute as CFString, &value)
+        }
+        print("Live drag focused value contains fixture:", (value as? String)?.contains("AskyDragProbe") == true)
+        controller.hide()
+    }
+
     /// Opt-in live app check: only inserts a unique draft string; never sends Return to the receiver.
     private static func verifyExternalPaste() async throws {
         guard let bundle = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TARGET_BUNDLE"],
@@ -1089,4 +1308,11 @@ final class ClipboardFileDropReceiver: NSView {
             options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
         return !urls.isEmpty
     }
+}
+
+@MainActor
+final class ClipboardPasteOnlyTextView: NSTextView {
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { [] }
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation { [] }
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool { false }
 }

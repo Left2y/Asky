@@ -215,5 +215,10 @@ struct ClipboardAccessTests {
         #expect(url.pathExtension == "png")
         #expect(NSBitmapImageRep(data: try Data(contentsOf: url))?.pixelsWide == 640)
         #expect(dragged.data(forType: .png) != nil)
+        let native = try #require(ClipboardAccess.dragItems(for: stored))
+        let nativeURL = try #require(native.first as? NSURL) as URL
+        defer { try? FileManager.default.removeItem(at: nativeURL) }
+        #expect(nativeURL.pathExtension == "png")
+        #expect(NSBitmapImageRep(data: try Data(contentsOf: nativeURL))?.pixelsWide == 640)
     }
 }

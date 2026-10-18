@@ -97,6 +97,7 @@ final class ClipboardController {
     private(set) var hasPasteTarget = false
     var actionKinds: [ClipboardHistoryAction] { hasPasteTarget ? [.copy, .pin, .delete] : [.pin, .delete] }
     var layout: ClipboardLayout { app.preferences.clipboardLayout }
+    var isDragging: Bool { dragSource.active }
 
     func updateLayout() {
         isActionsMenuPresented = false
@@ -428,18 +429,54 @@ final class ClipboardController {
             entry.setDraggingFrame(view.bounds.offsetBy(dx: CGFloat(index) * 4, dy: CGFloat(index) * 4), contents: preview)
             return entry
         }
-        dragSource.active = true
+        dragSource.beginTracking(verifyNativeTextDrop: item.kind == .text)
         // The outside-click shields are real windows and would intercept the destination's drop.
         outsideClickDismissal.hide()
-        dragSource.onEnd = { [weak self] operation in
+        dragSource.onEnd = { [weak self] operation, point, wasReleased in
             #if DEBUG
             if CommandLine.arguments.contains("--test-clipboard") {
                 NSLog("Clipboard drag ended: operation %lu", operation.rawValue)
             }
             #endif
             guard let self else { return }
-            if operation != [], !self.pinned { self.hide() }
-            else { self.updateOutsideClickDismissal() }
+            let nativeSnapshot = self.dragSource.nativeTextDropTarget
+            let verifyNative = operation == .copy && nativeSnapshot != nil
+            guard wasReleased, operation == [] || verifyNative else {
+                if operation != [], !self.pinned { self.hide() }
+                else { self.updateOutsideClickDismissal() }
+                return
+            }
+            self.pasteTask?.cancel()
+            self.pasteTask = Task { @MainActor [weak self] in
+                // AppKit is still inside its drag tracking loop during the delegate callback.
+                // Wait for it to remove the drag image and finish restoring destination focus.
+                try? await Task.sleep(for: .milliseconds(verifyNative ? 300 : 80))
+                guard !Task.isCancelled, let self else { return }
+                let dropTarget = ClipboardDropTarget.capture(at: point)
+                if verifyNative, !(dropTarget.map { $0.hasUnchangedText(since: nativeSnapshot!) } ?? false) {
+                    if !self.pinned { self.hide() }
+                    else { self.updateOutsideClickDismissal() }
+                    return
+                }
+                if CommandLine.arguments.contains("--drag-paste-target") || CommandLine.arguments.contains("--test-clipboard") {
+                    NSLog("Drag completion: operation=%lu released=%d editableTarget=%d", operation.rawValue, wasReleased, dropTarget != nil)
+                }
+                guard let target = dropTarget else { self.updateOutsideClickDismissal(); return }
+                guard ClipboardAccess.copy(item) else {
+                    self.status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
+                    self.updateOutsideClickDismissal()
+                    return
+                }
+                let changeCount = ClipboardAccess.changeCount
+                if !self.pinned { self.hide() }
+                else { self.updateOutsideClickDismissal() }
+                let result = await target.paste(expectedChangeCount: changeCount)
+                if CommandLine.arguments.contains("--drag-paste-target") || CommandLine.arguments.contains("--test-clipboard") {
+                    NSLog("Drop paste result: %@", String(describing: result))
+                }
+                guard !Task.isCancelled else { return }
+                self.showPasteFallback(result)
+            }
         }
         view.beginDraggingSession(with: dragging, event: event, source: dragSource)
             .animatesToStartingPositionsOnCancelOrFail = true
@@ -1171,8 +1208,27 @@ private struct ClipboardVideoPreview: NSViewRepresentable {
 @MainActor
 final class ClipboardDragSource: NSObject, NSDraggingSource {
     var active = false
-    var onEnd: (NSDragOperation) -> Void = { _ in }
+    var onEnd: (NSDragOperation, NSPoint, Bool) -> Void = { _, _, _ in }
+    private var gesture: ClipboardDragGesture?
+    private(set) var nativeTextDropTarget: ClipboardDropTarget?
+    private var verifyNativeTextDrop = false
+    private var nextTargetObservation = Date.distantPast
 
+    func beginTracking(verifyNativeTextDrop: Bool) {
+        active = true
+        nativeTextDropTarget = nil
+        self.verifyNativeTextDrop = verifyNativeTextDrop
+        nextTargetObservation = .distantPast
+        gesture = ClipboardDragGesture()
+    }
+
+    func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        guard verifyNativeTextDrop, nativeTextDropTarget == nil, Date.now >= nextTargetObservation else { return }
+        nextTargetObservation = .now.addingTimeInterval(0.15)
+        if let target = ClipboardDropTarget.capture(at: screenPoint), target.canVerifyNativeTextDrop {
+            nativeTextDropTarget = target
+        }
+    }
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
     }
@@ -1181,7 +1237,14 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         active = false
-        onEnd(operation)
+        let release = gesture?.finish()
+        gesture = nil
+        let wasReleased = release != nil
+        let point = release ?? screenPoint
+        if (CommandLine.arguments.contains("--drag-paste-target") || CommandLine.arguments.contains("--test-clipboard")) {
+            NSLog("Drag end event: %lu", NSApp.currentEvent?.type.rawValue ?? 0)
+        }
+        onEnd(operation, point, wasReleased)
     }
 
     /// The mouse surface draws no content, so capture the card's area from the window instead.

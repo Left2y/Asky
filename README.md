@@ -35,6 +35,8 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆；上下文压缩时显示 loading 与状态提示。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
 
+拖放优先使用目标应用的原生接收；若目标拒绝拖放，但松手位置可识别为输入框，则将该记录复制后粘贴到目标输入框。Esc 取消或拖到非输入区域不会触发补粘贴。飞书文本拖放即使报告已接收，也会核对同一输入框的前后内容；确认未变化才补粘贴，已有变化则保留原生结果。该兜底需要辅助功能权限及可用的拖拽事件观察。
+
 卡片与列表顶部共用主搜索样式：整行输入区内保留筛选与窗口固定按钮，不显示搜索图标，筛选与固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。主搜索与剪贴板输入区同为 52 pt 高，右侧图标大小与边距一致。
 
 ### 安装与使用
@@ -91,6 +93,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
@@ -137,6 +140,8 @@ With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window ba
 - **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view. In both views, Return pastes into the original app; `⌘ Return` always only copies and keeps the panel open. With a detected input, the list footer offers Return to paste and moves Copy into More; with a confirmed non-input focus, it offers `⌘ Return` to copy and plain Return does nothing. Apps such as WeChat that do not expose complete focus information retain Return to paste for compatibility with custom editors. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to pin or delete a record; `⌥⌘P` toggles pinning for the selected record. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory; context compaction shows a loading indicator and status.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
+
+Dragging first uses the destination’s native drop handling. If it rejects the drop and the release position identifies an editor, Asky copies the record and pastes into that editor. Escape cancellation and non-input regions do not trigger paste. For Feishu text drops that report acceptance, Asky compares the same editor’s contents before and after the drop, pasting only when they remain unchanged; changed contents retain the native result. This fallback requires Accessibility access and available drag event observation.
 
 Card and list views share the launcher search style: the full-row input contains the filter and window pin buttons, omits the search icon, and uses icon-only filter and pin buttons without persistent backgrounds. The bottom divider has horizontal insets, and the list column divider has vertical insets. Launcher and clipboard input rows are both 52 pt tall and share the same trailing icon size and alignment.
 
@@ -194,6 +199,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories

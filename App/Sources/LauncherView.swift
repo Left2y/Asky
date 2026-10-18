@@ -853,7 +853,6 @@ private struct ResultList: View {
         // Only reveal the list on insertion. Provider batches, typing and
         // keyboard selection must not restart the entrance or animate rows.
         .opacity(isRevealed ? 1 : 0)
-        .offset(y: isRevealed || reduceMotion ? 0 : 6)
         .onAppear {
             withAnimation(.easeOut(duration: reduceMotion ? 0.10 : 0.18)) {
                 isRevealed = true

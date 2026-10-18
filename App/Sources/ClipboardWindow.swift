@@ -771,6 +771,8 @@ private struct ClipboardInformation: View {
                         }
                         Text(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))
                     }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .gridColumnAlignment(.trailing)
                 }
                 GridRow {
                     Text(label("类型"))
@@ -789,6 +791,7 @@ private struct ClipboardInformation: View {
                     Text(item.createdAt, format: .dateTime.year().month().day().hour().minute())
                 }
             }
+            .multilineTextAlignment(.trailing)
             .font(.system(size: 14))
             .foregroundStyle(ThemeColor.kTextSubtlest)
         }

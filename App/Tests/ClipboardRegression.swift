@@ -306,6 +306,35 @@ enum ClipboardRegression {
                     application.terminate(nil)
                     return
                 }
+                if CommandLine.arguments.contains("--card-actions") {
+                    controller.pinned = true
+                    @MainActor func surfaces(_ view: NSView) -> [ClipboardCardMouseView] {
+                        (view as? ClipboardCardMouseView).map { [$0] } ?? view.subviews.flatMap(surfaces)
+                    }
+                    let card = surfaces(panel().contentView!).first!
+                    let point = panel().convertPoint(toScreen: card.convert(NSPoint(x: card.bounds.maxX - 30, y: card.bounds.maxY - 26), to: nil))
+                    let position = CGPoint(x: point.x, y: NSScreen.screens[0].frame.maxY - point.y)
+                    CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: position, mouseButton: .left)?.post(tap: .cghidEventTap)
+                    try await Task.sleep(for: .milliseconds(400))
+                    try snapshot(panel(), "card-hover-actions")
+                    let previousCopies = NSPasteboard.general.changeCount
+                    CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: position, mouseButton: .left)?.post(tap: .cghidEventTap)
+                    CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: position, mouseButton: .left)?.post(tap: .cghidEventTap)
+                    try await Task.sleep(for: .milliseconds(500))
+                    precondition(NSPasteboard.general.changeCount == previousCopies, "dots must open the menu without copying")
+                    let capture = Process()
+                    capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                    capture.arguments = ["-x", "build/clipboard-card-actions-native.png"]
+                    try capture.run()
+                    capture.waitUntilExit()
+                    CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: true)?.post(tap: .cghidEventTap)
+                    CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: false)?.post(tap: .cghidEventTap)
+                    try await Task.sleep(for: .milliseconds(200))
+                    controller.hide()
+                    print("Card hover dots click did not copy; native menu captured")
+                    application.terminate(nil)
+                    return
+                }
                 if CommandLine.arguments.contains("--layouts") {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
                     precondition(legacy.clipboardLayout == .cards)
@@ -365,12 +394,58 @@ enum ClipboardRegression {
                     let up = NSEvent.mouseEvent(with: .leftMouseUp, location: .zero, modifierFlags: [],
                         timestamp: 0, windowNumber: panel().windowNumber, context: nil, eventNumber: 0,
                         clickCount: 1, pressure: 0)!
+                    let beforeClick = NSPasteboard.general.changeCount
                     rows[0].mouseDown(with: down)
                     rows[0].mouseUp(with: up)
                     precondition(controller.selectedItem?.id == controller.items[0].id)
+                    precondition(NSPasteboard.general.changeCount == beforeClick && controller.status == nil,
+                                 "single click must only select the row")
+                    let doubleUp = NSEvent.mouseEvent(with: .leftMouseUp, location: .zero, modifierFlags: [],
+                        timestamp: 0, windowNumber: panel().windowNumber, context: nil, eventNumber: 0,
+                        clickCount: 2, pressure: 0)!
+                    rows[0].mouseDown(with: down)
+                    rows[0].mouseUp(with: doubleUp)
                     precondition(NSPasteboard.general.string(forType: .string) == controller.items[0].text,
-                                 "click must select and copy the clicked row")
+                                 "double click must copy the selected row")
                     precondition(controller.status == NSLocalizedString("已复制", comment: "") && controller.isVisible)
+                    @MainActor func key(_ code: UInt16, _ modifiers: NSEvent.ModifierFlags = []) {
+                        panel().sendEvent(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+                            timestamp: 0, windowNumber: panel().windowNumber, context: nil,
+                            characters: code == 40 ? "k" : "", charactersIgnoringModifiers: code == 40 ? "k" : "",
+                            isARepeat: false, keyCode: code)!)
+                    }
+                    let targetID = controller.selectedItem!.id
+                    key(40, .command)
+                    try await Task.sleep(for: .milliseconds(200))
+                    precondition(controller.isActionsMenuPresented)
+                    let actionMenu = panel().childWindows!.first { $0.isVisible && abs($0.frame.width - LauncherLayout.actionsMenuWidth) < 1 }!
+                    precondition(actionMenu.frame.minX >= panel().frame.minX && actionMenu.frame.maxX <= panel().frame.maxX)
+                    try snapshot(panel(), "layout-actions-footer")
+                    try snapshot(actionMenu, "layout-actions-menu")
+                    key(36)
+                    precondition(!controller.isActionsMenuPresented && controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == true)
+                    key(40, .command)
+                    key(36)
+                    precondition(controller.selectedItem?.pinned == false, "second pin action must unpin")
+                    key(40, .command)
+                    key(125)
+                    precondition(controller.actionSelection == 1)
+                    key(53)
+                    precondition(!controller.isActionsMenuPresented && controller.isVisible, "Escape only closes the menu")
+                    key(40, .command)
+                    key(40, .command)
+                    precondition(!controller.isActionsMenuPresented, "Cmd K toggles the menu")
+                    key(40, .command)
+                    controller.query = "Another"
+                    precondition(!controller.isActionsMenuPresented && !actionMenu.isVisible)
+                    key(40, .command)
+                    key(125)
+                    key(36)
+                    precondition(controller.items.isEmpty && !controller.isActionsMenuPresented)
+                    key(40, .command)
+                    precondition(!controller.isActionsMenuPresented, "empty results have no actions")
+                    try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "replacement"))
+                    controller.refresh()
                     controller.query = "Another"
                     try await Task.sleep(for: .milliseconds(200))
                     controller.status = nil
@@ -406,6 +481,11 @@ enum ClipboardRegression {
                     precondition(controller.query == "Another" && panel().frame.height == 244)
                     controller.query = ""
                     try await Task.sleep(for: .milliseconds(200))
+                    let card = descendants(panel().contentView!, of: ClipboardCardMouseView.self).first!
+                    let beforeCardClick = NSPasteboard.general.changeCount
+                    card.mouseDown(with: down)
+                    card.mouseUp(with: up)
+                    precondition(NSPasteboard.general.changeCount > beforeCardClick, "card still copies on single click")
                     try snapshot(panel(), "layout-cards")
                     app.preferences.clipboardLayout = controller.layout == .cards ? .list : .cards
                     controller.updateLayout()

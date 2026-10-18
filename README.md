@@ -31,7 +31,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共用无染色的 AppKit 原生 Regular 玻璃；关闭液态玻璃或启用辅助功能显示选项时保留对应回退。
 
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
-- **剪贴板**：文本、图片和文件历史，支持搜索、分类筛选、固定、预览与拖放，可切换卡片或列表视图。
+- **剪贴板**：文本、图片和文件历史，支持搜索、分类筛选、固定、预览与拖放，可切换卡片或列表视图。列表单击选中、双击或回车复制；底栏“更多”（`⌘K`）可固定或删除记录。卡片保持单击复制，悬停时右上角显示更多操作按钮。
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
 
@@ -128,7 +128,7 @@ Asky is built with SwiftUI and AppKit. Search and clipboard history work indepen
 With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window backgrounds share untinted native AppKit Regular glass. Disabling Liquid Glass or enabling accessibility display options retains the corresponding fallbacks.
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
-- **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view.
+- **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view. In list view, click to select and double-click or press Return to copy; use More (`⌘K`) in the footer to pin or delete a record. Cards still copy on a single click and show a More button in the upper-right corner on hover.
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 

@@ -77,7 +77,7 @@ struct LauncherActionBar: View {
     }
 }
 
-private struct LauncherActionButtonStyle: ButtonStyle {
+struct LauncherActionButtonStyle: ButtonStyle {
     @State private var isHovered = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled

@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 private final class ClipboardPanel: NSPanel {
     var dismiss: () -> Void = {}
     var onOpenSettings: () -> Void = {}
+    var handleKey: (NSEvent) -> Bool = { _ in false }
     var scrollsHorizontally = true
     var onMouseDown: (NSEvent) -> Void = { _ in }
     override var canBecomeKey: Bool { true }
@@ -18,6 +19,7 @@ private final class ClipboardPanel: NSPanel {
     /// Cards only scroll horizontally, so a vertical wheel/trackpad gesture scrolls them too (no Shift needed).
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown { onMouseDown(event) }
+        if event.type == .keyDown, handleKey(event) { return }
         if SettingsShortcut.matches(event) { onOpenSettings(); return }
         if scrollsHorizontally, event.type == .scrollWheel, let converted = ClipboardScroll.horizontal(event) { super.sendEvent(converted) }
         else { super.sendEvent(event) }
@@ -81,10 +83,16 @@ final class ClipboardController {
     private let toastPanel = SurfacePanel()
     private var toastDismissTask: Task<Void, Never>?
     private let filterPanel = SurfacePanel()
+    private let actionsPanel = SurfacePanel()
+    var actionSelection = 0
+    var isActionsMenuPresented = false {
+        didSet { updateActionsMenu(); updateOutsideClickDismissal() }
+    }
     private var hiding = false
     var layout: ClipboardLayout { app.preferences.clipboardLayout }
 
     func updateLayout() {
+        isActionsMenuPresented = false
         dismissPreview()
         panel.scrollsHorizontally = layout == .cards
         resizePanel()
@@ -110,14 +118,14 @@ final class ClipboardController {
     var selectedItem: ClipboardItem? { items.indices.contains(selection) ? items[selection] : nil }
 
     var filter = ClipboardFilter.all {
-        didSet { selection = 0; refresh(); dismissPreview() }
+        didSet { isActionsMenuPresented = false; selection = 0; refresh(); dismissPreview() }
     }
     var isFilterMenuPresented = false {
         didSet { updateFilterMenu(); updateOutsideClickDismissal() }
     }
-    var query = "" { didSet { selection = 0; refresh(); dismissPreview() } }
+    var query = "" { didSet { isActionsMenuPresented = false; selection = 0; refresh(); dismissPreview() } }
     var items: [ClipboardItem] = []
-    var selection = 0
+    var selection = 0 { didSet { if selection != oldValue { isActionsMenuPresented = false } } }
     var pinned = false { didSet { updateOutsideClickDismissal() } }
     var status: String? {
         didSet {
@@ -153,14 +161,19 @@ final class ClipboardController {
         preview.title = NSLocalizedString("剪贴板完整预览", comment: "")
         panel.dismiss = { [weak self] in
             guard let self else { return }
-            if self.isFilterMenuPresented { self.isFilterMenuPresented = false } else { self.hide() }
+            if self.isActionsMenuPresented { self.isActionsMenuPresented = false }
+            else if self.isFilterMenuPresented { self.isFilterMenuPresented = false } else { self.hide() }
         }
         panel.onMouseDown = { [weak self] event in
-            guard let self, self.isFilterMenuPresented else { return }
+            guard let self else { return }
+            let moreButton = NSRect(x: self.panel.frame.width - 130, y: 0, width: 116, height: LauncherLayout.actionBarHeight)
+            if !moreButton.contains(event.locationInWindow) { self.isActionsMenuPresented = false }
+            guard self.isFilterMenuPresented else { return }
             let point = event.locationInWindow
             let button = NSRect(x: self.panel.frame.width - 88, y: self.panel.frame.height - 48, width: 32, height: 36)
             if !button.contains(point) { self.isFilterMenuPresented = false }
         }
+        panel.handleKey = { [weak self] in self?.handleActionKey($0) ?? false }
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
         // Keyboard application switching must also release the outside-click shield.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
@@ -210,6 +223,7 @@ final class ClipboardController {
         hiding = true
         defer { hiding = false }
         isFilterMenuPresented = false
+        isActionsMenuPresented = false
         outsideClickDismissal.hide()
         dismissPreview()
         status = nil
@@ -222,13 +236,13 @@ final class ClipboardController {
     }
 
     private func updateOutsideClickDismissal() {
-        guard panel.isVisible, (!pinned || isFilterMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
+        guard panel.isVisible, (!pinned || isFilterMenuPresented || isActionsMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            return self.shellFrame.contains(point) || (self.filterPanel.isVisible && self.filterPanel.frame.contains(point)) || (self.preview.isVisible && self.preview.frame.contains(point))
+            return self.shellFrame.contains(point) || (self.actionsPanel.isVisible && self.actionsPanel.frame.contains(point)) || (self.filterPanel.isVisible && self.filterPanel.frame.contains(point)) || (self.preview.isVisible && self.preview.frame.contains(point))
         }, dismiss: { [weak self] in
             guard let self else { return }
-            if self.pinned { self.isFilterMenuPresented = false } else { self.hide() }
+            if self.pinned { self.isFilterMenuPresented = false; self.isActionsMenuPresented = false } else { self.hide() }
         })
     }
 
@@ -242,7 +256,48 @@ final class ClipboardController {
         if toastPanel.parent == nil { panel.addChildWindow(toastPanel, ordered: .above) }
     }
 
-    func toggleFilterMenu() { isFilterMenuPresented.toggle(); dismissPreview() }
+    func toggleFilterMenu() { isActionsMenuPresented = false; isFilterMenuPresented.toggle(); dismissPreview() }
+
+    func toggleActionsMenu() {
+        guard layout == .list, selectedItem != nil else { return }
+        isFilterMenuPresented = false
+        actionSelection = 0
+        isActionsMenuPresented.toggle()
+    }
+
+    func performSelectedAction(_ index: Int) {
+        guard let item = selectedItem else { isActionsMenuPresented = false; return }
+        isActionsMenuPresented = false
+        if index == 0 { pinItem(item); select(items.first { $0.id == item.id } ?? item) }
+        else if index == 1 { delete(item) }
+    }
+
+    func handleActionKey(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        if event.keyCode == 40, modifiers == .command, layout == .list {
+            toggleActionsMenu()
+            return true
+        }
+        guard isActionsMenuPresented else { return false }
+        switch event.keyCode {
+        case 53: isActionsMenuPresented = false
+        case 125: actionSelection = min(1, actionSelection + 1)
+        case 126: actionSelection = max(0, actionSelection - 1)
+        case 36, 76: performSelectedAction(actionSelection)
+        default: return false
+        }
+        return true
+    }
+
+    private func updateActionsMenu() {
+        guard isActionsMenuPresented, panel.isVisible, selectedItem != nil else { actionsPanel.remove(); return }
+        actionsPanel.title = NSLocalizedString("更多", tableName: "Clipboard", comment: "")
+        let view = ClipboardActionsMenu(controller: self)
+        actionsPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.actionsMenuWidth), cornerRadius: 18)
+        actionsPanel.setFrameOrigin(NSPoint(x: panel.frame.maxX - actionsPanel.frame.width - 14,
+                                           y: panel.frame.minY + LauncherLayout.actionBarHeight + 4))
+        panel.addChildWindow(actionsPanel, ordered: .above)
+    }
 
     private func updateFilterMenu() {
         guard isFilterMenuPresented, panel.isVisible else { filterPanel.remove(); return }
@@ -266,7 +321,7 @@ final class ClipboardController {
             if next.count == 100 || candidates.count < limit || filter == .all { break }
             limit *= 2
         }
-        if next != items { items = next; selection = min(selection, max(0, next.count - 1)) }
+        if next != items { isActionsMenuPresented = false; items = next; selection = min(selection, max(0, next.count - 1)) }
     }
 
     func moveSelection(_ delta: Int) {
@@ -488,6 +543,7 @@ private struct ClipboardHistoryView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if controller.layout == .list {
                 ClipboardListView(controller: controller)
+                ClipboardActionBar(controller: controller)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
@@ -507,10 +563,78 @@ private struct ClipboardHistoryView: View {
         .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .onChange(of: controller.layout) { _, _ in controller.updateLayout() }
         .onExitCommand {
-            if controller.isFilterMenuPresented { controller.isFilterMenuPresented = false } else { controller.hide() }
+            if controller.isActionsMenuPresented { controller.isActionsMenuPresented = false }
+            else if controller.isFilterMenuPresented { controller.isFilterMenuPresented = false } else { controller.hide() }
         }
     }
 
+}
+
+private struct ClipboardActionBar: View {
+    let controller: ClipboardController
+
+    var body: some View {
+        HStack {
+            Button { controller.copySelection() } label: {
+                label("复制到剪贴板", icon: "doc.on.clipboard", shortcut: "↩")
+            }
+            .buttonStyle(LauncherActionButtonStyle())
+            Spacer(minLength: 12)
+            Button { controller.toggleActionsMenu() } label: {
+                label("更多", shortcut: "⌘ K")
+            }
+            .buttonStyle(LauncherActionButtonStyle())
+            .accessibilityValue(controller.isActionsMenuPresented ? "On" : "Off")
+        }
+        .disabled(controller.selectedItem == nil)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 12)
+        .frame(height: LauncherLayout.actionBarHeight, alignment: .bottom)
+    }
+
+    private func label(_ title: String, icon: String? = nil, shortcut: String) -> some View {
+        HStack(spacing: 8) {
+            if let icon { Image(mingCute: icon, size: 14) }
+            Text(NSLocalizedString(title, tableName: "Clipboard", comment: "Clipboard action"))
+            LauncherActionKeyCap(value: shortcut)
+        }
+        .font(.system(size: 12, weight: .medium))
+        .padding(.horizontal, 12)
+        .frame(height: 32)
+        .contentShape(Capsule())
+    }
+}
+
+private struct ClipboardActionsMenu: View {
+    @Bindable var controller: ClipboardController
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ForEach(0..<2) { index in
+                Button { controller.performSelectedAction(index) } label: {
+                    HStack(spacing: 10) {
+                        Image(mingCute: index == 0 ? "pin" : "trash", size: 16).frame(width: 20)
+                        Text(NSLocalizedString(index == 0 ? (controller.selectedItem?.pinned == true ? "Unpin" : "Pin") : "删除记录", tableName: "Clipboard", comment: "Clipboard action"))
+                        Spacer(minLength: 8)
+                    }
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 10)
+                    .frame(height: 36)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .background(controller.actionSelection == index ? ThemeColor.kInteractionHover.color(for: scheme) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 10))
+                .onHover { if $0 { controller.actionSelection = index } }
+                .accessibilityAddTraits(controller.actionSelection == index ? .isSelected : [])
+            }
+        }
+        .padding(8)
+        .frame(width: LauncherLayout.actionsMenuWidth)
+        .foregroundStyle(ThemeColor.kText)
+        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: 18))
+    }
 }
 
 private struct ClipboardFilterMenu: View {
@@ -573,6 +697,7 @@ private struct ClipboardHeaderButton: View {
 private struct ClipboardHistoryCard: View {
     let item: ClipboardItem
     let controller: ClipboardController
+    @State private var hovering = false
     private var selected: Bool {
         controller.items.indices.contains(controller.selection) && controller.items[controller.selection].id == item.id
     }
@@ -583,7 +708,7 @@ private struct ClipboardHistoryCard: View {
                     Image(nsImage: icon).resizable().frame(width: 28, height: 28)
                 } else { Image(mingCute: "doc.on.clipboard").frame(width: 28, height: 28) }
                 Spacer()
-                if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle) }
+                if item.pinned { Image(mingCute: "pin.fill", size: 12).foregroundStyle(ThemeColor.kIconSubtle).opacity(hovering ? 0 : 1) }
             }
             if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                 Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)
@@ -616,15 +741,28 @@ private struct ClipboardHistoryCard: View {
             hover: { view, inside in controller.hover(item, frame: ClipboardAnchor.screenFrame(view), inside: inside) },
             drag: { view, event in controller.beginDrag(item, from: view, event: event) }
         ).clipShape(RoundedRectangle(cornerRadius: 24)))
-        .contextMenu {
-            Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
-            Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
-            Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
+        .overlay(alignment: .topTrailing) {
+            SettingsMoreMenu { cardActions }
+                .accessibilityLabel(NSLocalizedString("更多", tableName: "Clipboard", comment: ""))
+                .opacity(hovering ? 1 : 0)
+                .allowsHitTesting(hovering)
+                .accessibilityHidden(!hovering)
+                .padding(.top, 12)
+                .padding(.trailing, 16)
         }
+        .onHover { hovering = $0 }
+        .contextMenu { cardActions }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.kind == .image ? "\(NSLocalizedString("图片", comment: "")), \(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))" : String((item.text ?? "").prefix(200)))
         .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }
     }
+
+    @ViewBuilder private var cardActions: some View {
+        Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
+        Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
+        Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
+    }
+
 }
 
 private struct ClipboardListView: View {
@@ -698,18 +836,15 @@ private struct ClipboardHistoryRow: View {
                     in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .overlay(ClipboardCardMouseSurface(
-            copy: { controller.select(item); controller.copy(item) }, hover: { _, inside in hovering = inside },
+            copy: { controller.copy(item) },
+            select: { controller.select(item) }, requiresDoubleClick: true,
+            hover: { _, inside in hovering = inside },
             drag: { view, event in controller.select(item); controller.beginDrag(item, from: view, event: event) }
         ).clipShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius)))
-        .contextMenu {
-            Button(NSLocalizedString("复制", comment: "")) { controller.copy(item) }
-            Button(item.pinned ? NSLocalizedString("取消固定", comment: "") : NSLocalizedString("固定记录", comment: "")) { controller.pinItem(item) }
-            Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
-        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : [.isButton])
-        .accessibilityAction { controller.select(item); controller.copy(item) }
+        .accessibilityAction { controller.select(item) }
         .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }
     }
 }
@@ -958,11 +1093,15 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
 /// SwiftUI gesture updates can run after NSApp.currentEvent has changed or been cleared.
 private struct ClipboardCardMouseSurface: NSViewRepresentable {
     let copy: () -> Void
+    var select: () -> Void = {}
+    var requiresDoubleClick = false
     let hover: (NSView, Bool) -> Void
     let drag: (NSView, NSEvent) -> Void
 
     func makeNSView(context: Context) -> ClipboardCardMouseView { ClipboardCardMouseView() }
     func updateNSView(_ view: ClipboardCardMouseView, context: Context) {
+        view.select = select
+        view.requiresDoubleClick = requiresDoubleClick
         view.copy = copy
         view.hover = hover
         view.drag = drag
@@ -970,6 +1109,8 @@ private struct ClipboardCardMouseSurface: NSViewRepresentable {
 }
 
 final class ClipboardCardMouseView: NSView {
+    var select: () -> Void = {}
+    var requiresDoubleClick = false
     var copy: () -> Void = {}
     var hover: (NSView, Bool) -> Void = { _, _ in }
     private var hoverTracking: NSTrackingArea?
@@ -997,6 +1138,7 @@ final class ClipboardCardMouseView: NSView {
     override func mouseDown(with event: NSEvent) {
         press = event.locationInWindow
         dragged = false
+        select()
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -1007,7 +1149,7 @@ final class ClipboardCardMouseView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if press != nil, !dragged { copy() }
+        if press != nil, !dragged, !requiresDoubleClick || event.clickCount == 2 { copy() }
         press = nil
         dragged = false
     }

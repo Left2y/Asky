@@ -792,7 +792,6 @@ private struct ClipboardActionsMenu: View {
                 Button { controller.performSelectedAction(index) } label: {
                     HStack(spacing: 10) {
                         let kind = controller.actionKinds[index]
-                        Image(mingCute: kind.icon, size: 16).frame(width: 20)
                         Text(NSLocalizedString(kind.title, tableName: "Clipboard", comment: "Clipboard action"))
                             .foregroundStyle(kind == .delete || kind == .clearAll ? ThemeColor.kTextNegative : ThemeColor.kText)
                         Spacer(minLength: 8)

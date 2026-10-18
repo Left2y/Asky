@@ -126,7 +126,6 @@ struct LauncherActionsMenu: View {
             ForEach(Array(model.secondaryActions.enumerated()), id: \.offset) { index, action in
                 Button { model.performLauncherAction(action) } label: {
                     HStack(spacing: 10) {
-                        Image(mingCute: action.icon, size: 16).frame(width: 20)
                         Text(NSLocalizedString(action.title, tableName: "Launcher", comment: "Launcher action"))
                         Spacer(minLength: 8)
                         if let shortcut = action.shortcut { LauncherActionKeyCap(value: shortcut) }

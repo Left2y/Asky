@@ -30,3 +30,17 @@
 - 已查看 `build/tab-entry-light.png`、`build/tab-entry-dark.png`：首屏顶部为带紫色 Logo 的“搜索开启的标签页”，其后才是快捷指令与应用；默认选择入口。
 - `git diff --check` 通过。日志、截图与检查清单复用 `build/` 忽略规则；未增加忽略规则。
 - README 使用方法未变，保持原文；AGENTS.md 无开发命令或架构约定变化。
+
+## 四个搜索指令统一入口
+
+进一步复现 `link` 没有对应入口的问题：此前链接与 AI 仅支持触发词后按空格，书签入口未按触发词精确匹配。现以统一的 `search-command` 结果处理 `st`、`bm`、`link`、`ai`：精确匹配默认或自定义触发词时置顶并显示对应 Logo，回车进入空查询模式；不重复显示通用标签页/书签入口。进入 AI 模式本身不会提交模型请求。Chrome 指令仍遵循原有数据源及书签读取授权要求。
+
+实际执行：
+
+- `xcodegen generate` 与 README 中的 Debug `xcodebuild` 命令通过；日志 `build/search-entries-build.log`。
+- 在核心包执行 README 中的 `swift test` 命令，264 个测试通过；日志 `build/search-entries-tests.log`。
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --search-commands` 通过；验证四个默认触发词、四个自定义触发词、大小写、异步应用/快捷指令结果到达后仍置顶、回车进入、空格进入、空查询退格退出、不产生重复入口，以及进入 AI 模式不触发提交。日志 `build/search-entries-settings.log`。
+- 已查看 `build/search-entry-{tabs,bookmark,link,ai}-{light,dark}.png` 共 8 张实际窗口截图：四种入口的名称与 Logo 正确、首项选中，`link` 不会选中书签入口。
+- `git diff --check` 通过。日志、截图及检查清单复用现有 `build/` 忽略规则。README 中英文与 PRD 同步了回车进入行为；AGENTS.md 无持久开发约定变化。
+
+本轮使用隔离数据及受控 provider 验证，未调用真实 AI、未切换真实浏览器标签，未替换已安装应用或发布 Release。

@@ -146,7 +146,7 @@ enum SettingsRegression {
                 ])
                 tabLauncher.query = "st"
                 try await Task.sleep(for: .milliseconds(300))
-                precondition(tabLauncher.results.first?.target.kind == "tab-search")
+                precondition(tabLauncher.results.first?.target.kind == "search-command")
                 precondition(tabLauncher.results.filter { $0.source == .app }.count == 8)
                 precondition(tabLauncher.results.filter { $0.source == .shortcut }.count == 3)
                 if CommandLine.arguments.contains("--search-commands") {
@@ -158,7 +158,7 @@ enum SettingsRegression {
                     for appearance in ["light", "dark"] {
                         model.preferences.appearance = appearance
                         try await Task.sleep(for: .milliseconds(400))
-                        precondition(tabLauncher.results.first?.target.kind == "tab-search")
+                        precondition(tabLauncher.results.first?.target.kind == "search-command")
                         guard let view = panel.contentView,
                               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing tab entry view") }
                         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -167,7 +167,7 @@ enum SettingsRegression {
                     controller.hide()
                     tabLauncher.query = "st"
                 }
-                guard let tabEntry = tabLauncher.results.first(where: { $0.target.kind == "tab-search" }) else { fatalError("missing tab entry") }
+                guard let tabEntry = tabLauncher.results.first(where: { $0.target.kind == "search-command" }) else { fatalError("missing tab entry") }
                 tabLauncher.execute(tabEntry, action: .open)
                 precondition(tabLauncher.isTabScope && tabLauncher.inputText.isEmpty)
                 tabLauncher.inputText = "fixture"
@@ -179,7 +179,7 @@ enum SettingsRegression {
                 precondition(savedTabCommands.commandKeyword("tabs") == "tabs")
                 tabLauncher.query = "TABS"
                 try await Task.sleep(for: .milliseconds(300))
-                precondition(tabLauncher.results.first?.target.kind == "tab-search")
+                precondition(tabLauncher.results.first?.target.kind == "search-command")
                 tabLauncher.query = "TABS fixture"
                 precondition(tabLauncher.isTabScope && tabLauncher.inputText == "fixture")
                 tabLauncher.inputText = ""
@@ -203,6 +203,50 @@ enum SettingsRegression {
                     controller.hide()
                 }
                 print("Tab search entry, isolated provider, custom token, persistence and exit passed")
+                let searchLauncher = LauncherModel(app: model, searchProviders: [
+                    TabCommandProvider(source: .chromeTab), TabCommandProvider(source: .bookmark),
+                    TabCommandProvider(source: .app, count: 8), TabCommandProvider(source: .shortcut, count: 3)
+                ])
+                var unexpectedPrompts: [String] = []
+                searchLauncher.onAskAI = { unexpectedPrompts.append($0) }
+                let searchController = LauncherController(model: searchLauncher)
+                if CommandLine.arguments.contains("--search-commands") { searchController.show() }
+                for command in AppModel.searchCommands {
+                    for customized in [false, true] {
+                        let token = customized ? "custom" + command.0 : command.2
+                        if customized { model.preferences.commandKeywords[command.0] = token }
+                        searchLauncher.query = token.uppercased()
+                        try await Task.sleep(for: .milliseconds(300))
+                        precondition(searchLauncher.results.first?.target == TargetRef(kind: "search-command", identifier: command.0))
+                        precondition(!searchLauncher.results.contains { ["tab-search", "bookmark-search"].contains($0.target.kind) })
+                        if !customized, CommandLine.arguments.contains("--search-commands") {
+                            guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else { fatalError("missing search commands panel") }
+                            panel.onBlur = {}
+                            for appearance in ["light", "dark"] {
+                                model.preferences.appearance = appearance
+                                try await Task.sleep(for: .milliseconds(200))
+                                guard let view = panel.contentView,
+                                      let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing command view") }
+                                view.cacheDisplay(in: view.bounds, to: bitmap)
+                                try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/search-entry-\(command.0)-\(appearance).png"))
+                            }
+                        }
+                        searchLauncher.submit(.executeSelection)
+                        precondition(searchLauncher.hasScope && searchLauncher.inputText.isEmpty)
+                        precondition(searchLauncher.isTabScope == (command.0 == "tabs"))
+                        precondition(searchLauncher.isBookmarkScope == (command.0 == "bookmark"))
+                        precondition(searchLauncher.isLinkScope == (command.0 == "link"))
+                        precondition(searchLauncher.isAIScope == (command.0 == "ai"))
+                        precondition(unexpectedPrompts.isEmpty)
+                        precondition(searchLauncher.backspaceOnEmptyInput() && !searchLauncher.hasScope)
+                        searchLauncher.query = token + " "
+                        precondition(searchLauncher.hasScope && searchLauncher.inputText.isEmpty)
+                        searchLauncher.leaveCommand()
+                        model.preferences.commandKeywords.removeValue(forKey: command.0)
+                    }
+                }
+                searchController.hide()
+                print("All search commands: exact match, priority, custom triggers, Return/Space entry and no premature AI submission passed")
                 precondition(legacyCommands.commandKeywords.isEmpty)
                 precondition(model.commandKeywordProblem("GO", id: "ai") != nil)
                 precondition(model.commandKeywordProblem(">", id: "link") != nil)

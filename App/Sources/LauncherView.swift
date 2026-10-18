@@ -888,7 +888,7 @@ private struct ResultList: View {
 
     private static func section(for result: SearchResult) -> String {
         if QuitAskyCommand.isResult(result) { return title(.app) }
-        if result.target.kind == "tab-search" { return NSLocalizedString("搜索指令", comment: "") }
+        if ["search-command", "tab-search"].contains(result.target.kind) { return NSLocalizedString("搜索指令", comment: "") }
         if ["keyword-match", "launcher-alias"].contains(result.target.kind) { return NSLocalizedString("别名匹配", comment: "") }
         switch result.source {
         case .app, .link, .bookmark: return title(.app)
@@ -1006,7 +1006,9 @@ private struct ResultRow: View {
     }
 
     @ViewBuilder private var icon: some View {
-        if QuitAskyCommand.isResult(result) {
+        if result.target.kind == "search-command" {
+            LauncherFunctionIcon(asset: result.target.identifier == "tabs" ? "Tabs" : result.target.identifier == "bookmark" ? "Bookmark" : result.target.identifier == "link" ? "Link" : "Agent")
+        } else if QuitAskyCommand.isResult(result) {
             LauncherFunctionIcon(asset: "QuitAsky")
         } else {
             sourceIcon

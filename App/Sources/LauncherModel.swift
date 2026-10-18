@@ -397,11 +397,18 @@ final class LauncherModel {
                                     actions: actions, score: 100)
             }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if filter == .all, tabCoordinator != nil, !trimmed.isEmpty {
+            if filter == .all, let command = AppModel.searchCommands.first(where: {
+                app.commandKeyword($0.0).caseInsensitiveCompare(trimmed) == .orderedSame
+            }), (command.0 != "bookmark" || canSearchBookmarks), (command.0 != "tabs" || tabCoordinator != nil) {
+                direct.append(SearchResult(source: .keyword, target: TargetRef(kind: "search-command", identifier: command.0),
+                                           title: NSLocalizedString(command.1, comment: ""), actions: [.open], score: 100))
+            }
+            let hasExactSearchCommand = direct.contains { $0.target.kind == "search-command" }
+            if filter == .all, !hasExactSearchCommand, tabCoordinator != nil, !trimmed.isEmpty {
                 direct.append(SearchResult(source: .chromeTab, target: TargetRef(kind: "tab-search", identifier: trimmed),
                                            title: NSLocalizedString("搜索开启的标签页", comment: ""), subtitle: trimmed, actions: [.open], score: 0))
             }
-            if filter == .all, bookmarkCoordinator != nil, !trimmed.isEmpty {
+            if filter == .all, !hasExactSearchCommand, bookmarkCoordinator != nil, !trimmed.isEmpty {
                 direct.append(SearchResult(source: .bookmark, target: TargetRef(kind: Self.bookmarkSearchKind, identifier: trimmed),
                                            title: NSLocalizedString("搜索书签", comment: ""), subtitle: trimmed, actions: [.open], score: 0))
             }
@@ -515,7 +522,7 @@ final class LauncherModel {
         // concrete target falls back to AI regardless of its wording.
         if filter == .all, !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
-                if $0.target.kind == "tab-search", $0.target.identifier.caseInsensitiveCompare(app.commandKeyword("tabs")) == .orderedSame { return true }
+                if $0.target.kind == "search-command" { return true }
                 return ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias" || QuitAskyCommand.isResult($0))) && $0.source != .askAI && $0.target.kind != "bookmark-search" && $0.target.kind != "tab-search"
             }
             if !hasLocalMatch { merged = [] }
@@ -544,11 +551,8 @@ final class LauncherModel {
             }
         }
         // Exact command triggers must remain visible ahead of fuzzy app/shortcut matches.
-        let exactTabEntries = merged.filter {
-            $0.target.kind == "tab-search" && $0.target.identifier.caseInsensitiveCompare(app.commandKeyword("tabs")) == .orderedSame
-        }
-        let exactTabIDs = Set(exactTabEntries.map(\.id))
-        merged = exactTabEntries + merged.filter { !exactTabIDs.contains($0.id) }
+        let exactEntries = merged.filter { $0.target.kind == "search-command" }
+        merged = exactEntries + merged.filter { $0.target.kind != "search-command" }
         merged = merged.filter(QuitAskyCommand.isResult) + merged.filter { !QuitAskyCommand.isResult($0) }
         if isActionsMenuPresented, merged.indices.contains(selection), merged[selection] != actionMenuTarget {
             closeActionsMenu()
@@ -627,6 +631,13 @@ final class LauncherModel {
         closeActionsMenu()
         guard let action else { return }
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
+        if r.target.kind == "search-command" {
+            guard AppModel.searchCommands.contains(where: { $0.0 == r.target.identifier }) else { return }
+            inputState.replaceRawQuery(app.commandKeyword(r.target.identifier) + " ", keywords: app.keywords,
+                                       bookmarksEnabled: canSearchBookmarks)
+            update()
+            return
+        }
         if r.target.kind == "tab-search" {
             guard tabCoordinator != nil else { return }
             inputState.enterTabs(r.target.identifier.caseInsensitiveCompare(app.commandKeyword("tabs")) == .orderedSame ? "" : r.target.identifier)
@@ -783,6 +794,9 @@ extension LauncherModel {
         guard let result = selectedActionResult, let action = result.primaryAction else { return nil }
         if QuitAskyCommand.isResult(result) {
             return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: "↵", kind: .result(action))
+        }
+        if result.target.kind == "search-command" {
+            return LauncherAction(title: result.title, icon: "magnifyingglass", shortcut: "↵", kind: .result(action))
         }
         if result.target.kind == "tab-search" {
             return LauncherAction(title: "搜索开启的标签页", icon: "globe", shortcut: "↵", kind: .result(action))

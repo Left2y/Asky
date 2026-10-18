@@ -124,6 +124,8 @@ Debug 构建在 `project.yml` 中关闭 `ENABLE_DEBUG_DYLIB`，避免无 Team ID
 
 请求确认全量预览：Debug 构建后运行 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`；每个场景依次选择“确认执行”和“不执行”，只测试界面与返回结果，不执行真实工具。
 
+启动器圆角遮罩预览：运行 `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-launcher-sheet`；可追加 `--preview-dark` 或 `--preview-legacy-material` 检查深色外观与旧材质。此预览不读取应用数据，两个按钮均只关闭预览。
+
 服务商预设回归：先执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`，再运行 `build/model-provider-regression`。
 
 悬浮操作区回归：完成 Debug 构建后执行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar`，检查菜单键盘路由、焦点、复制路径、结果选择恢复与深浅色实际窗口。
@@ -262,6 +264,8 @@ Common checks (build MCP Bridge before testing the core package):
 ```
 
 Full confirmation preview: after building Debug, run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-confirmation-matrix`. Choose Confirm, then Decline, for each scenario; this checks UI and response handling without executing real tools.
+
+Launcher rounded dimming preview: run `open -n build/DerivedData/Build/Products/Debug/Asky.app --args --test-launcher-sheet`. Add `--preview-dark` or `--preview-legacy-material` to check dark appearance or the legacy material. This preview reads no app data; both buttons only close the preview.
 
 Provider preset regression: compile with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ModelProviderPreset.swift App/Tests/ModelProviderRegression.swift -o build/model-provider-regression`, then run `build/model-provider-regression`.
 

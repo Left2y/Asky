@@ -1,10 +1,42 @@
 #if DEBUG
 import AppKit
 import Contracts
+import SwiftUI
+import ToolService
 
 /// Exercises real confirmation UI with adapter-shaped fixtures, without initializing tools.
 @MainActor
 enum ConfirmationPreviews {
+    /// A real borderless launcher and native sheet, without app data or tools.
+    static func runLauncherSheet() {
+        NSApp.setActivationPolicy(.regular)
+        let panel = LauncherPanel()
+        panel.appearance = NSAppearance(named: CommandLine.arguments.contains("--preview-dark") ? .darkAqua : .aqua)
+        panel.setContentSize(NSSize(width: 720, height: 430))
+        let host = NSHostingView(rootView: VStack(alignment: .leading, spacing: 24) {
+            Text("asky").font(.title2)
+            Divider()
+            Text("APP 应用").foregroundStyle(.secondary)
+            Text("关闭 Asky").font(.title3)
+            Spacer()
+        }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: LauncherLayout.shellCornerRadius, style: .circular)))
+        host.frame = NSRect(origin: .zero, size: panel.frame.size)
+        panel.contentView = WindowSurface.glassContentView(host, cornerRadius: LauncherLayout.shellCornerRadius)
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        WindowSurface.updateCorners(of: panel.contentView!, radius: LauncherLayout.shellCornerRadius, circular: true)
+        NSApp.activate()
+        Task { @MainActor in
+            let response = await AppDialog.present(QuitAskyCommand.makeAlert(), for: panel)
+            print("launcher-sheet response: \(response.rawValue)")
+            fflush(stdout)
+            // The quit button is also harmless in this isolated preview.
+            panel.close()
+            NSApp.terminate(nil)
+        }
+    }
+
     struct Scenario {
         let id: String
         let request: ConfirmationRequest

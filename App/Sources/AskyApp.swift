@@ -40,6 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--test-launcher-sheet") {
+            ConfirmationPreviews.runLauncherSheet()
+            return
+        }
         if CommandLine.arguments.contains("--test-banner") || CommandLine.arguments.contains("--test-notification") {
             // Preview only: no app data, permissions, scheduler or AI runtime are started.
             ReminderBannerCenter.shared.showPreview()

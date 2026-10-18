@@ -20,6 +20,16 @@ enum WindowSurface {
     static func updateCorners(of view: NSView, radius: CGFloat, circular: Bool) {
         view.layer?.cornerRadius = radius
         view.layer?.cornerCurve = circular ? .circular : .continuous
+        // Native sheets put their dimming view beside the content, in AppKit's
+        // window frame view. Clip that shared ancestor too, so the dimmer cannot
+        // fill the transparent corners of a borderless surface.
+        if let window = view.window, !window.styleMask.contains(.titled),
+           window.contentView === view, let frameView = view.superview {
+            frameView.wantsLayer = true
+            frameView.layer?.cornerRadius = radius
+            frameView.layer?.cornerCurve = circular ? .circular : .continuous
+            frameView.layer?.masksToBounds = true
+        }
         if #available(macOS 26, *), let glass = view as? GlassSurfaceView {
             glass.updateCorners(radius: radius, circular: circular)
         }

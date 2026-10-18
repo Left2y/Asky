@@ -49,7 +49,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
-空输入时，搜索框右侧显示固定与筛选按钮，共用搜索框玻璃；输入后隐藏，让出文字空间。
+空输入时，搜索框右侧显示固定与筛选按钮，共用搜索框玻璃；输入后隐藏，让出文字空间。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
 
 网站指令仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
 
@@ -82,6 +82,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
 
@@ -136,7 +137,7 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
-When the input is empty, pin and filter buttons appear inside the search field and share its glass surface. Typing hides them to make room for text.
+When the input is empty, pin and filter buttons appear inside the search field and share its glass surface. Typing hides them to make room for text. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
 
 Website commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
 
@@ -169,6 +170,7 @@ Common checks (build MCP Bridge before testing the core package):
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
 

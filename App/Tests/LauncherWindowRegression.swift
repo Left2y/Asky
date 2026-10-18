@@ -40,7 +40,9 @@ enum LauncherWindowRegression {
                     ? [.darkAqua] : [.aqua, .darkAqua]
                 for appearance in appearances {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--alias-results") {
+                    if CommandLine.arguments.contains("--result-motion") {
+                        try await checkResultMotion()
+                    } else if CommandLine.arguments.contains("--alias-results") {
                         try await checkAliasResults()
                     } else if CommandLine.arguments.contains("--action-bar") {
                         try await checkActionBar()
@@ -1099,6 +1101,71 @@ enum LauncherWindowRegression {
                 try require(backAfter == backBefore, "background app must not scroll under launcher")
             }
         }
+    }
+
+    private static func checkResultMotion() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-result-motion-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [
+            WindowSearchProvider(source: .app, delay: .milliseconds(10), count: 8),
+            WindowSearchProvider(source: .file, delay: .milliseconds(100), count: 4),
+        ])
+        let controller = LauncherController(model: model)
+        controller.show()
+        defer { controller.hide() }
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
+              let content = panel.contentView, let field = searchField(in: content) else {
+            throw NSError(domain: "LauncherWindowRegression", code: 2)
+        }
+        panel.onBlur = {}
+        panel.makeFirstResponder(field)
+        try await Task.sleep(for: .milliseconds(50))
+        let editor = field.currentEditor()
+        let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+        var intermediateHeights: [CGFloat] = []
+        var maxDrift: CGFloat = 0
+        model.inputText = "s"
+        for _ in 0..<65 {
+            try await Task.sleep(for: .milliseconds(8))
+            let height = panel.frame.height
+            if height > 53 && height < 432 { intermediateHeights.append(height) }
+            let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+            maxDrift = max(maxDrift, abs(top - inputTop))
+        }
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            try require(Set(intermediateHeights.map { Int($0) }).count >= 4,
+                        "result reveal must visit multiple intermediate window heights")
+        }
+        try require(abs(panel.frame.height - 433) <= 1 && maxDrift <= 1,
+                    "reveal must settle at content height with anchored input: height=\(panel.frame.height), drift=\(maxDrift)")
+        model.selection = 0
+        model.move(1)
+        try require(model.selection == 1 && field.currentEditor() === editor,
+                    "keyboard selection must stay immediate and preserve the editor: selection=\(model.selection), editor=\(field.currentEditor() === editor), count=\(model.results.count)")
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                             "build/launcher-result-motion-\(NSApp.appearance!.name.rawValue).png"]
+        try capture.run()
+        capture.waitUntilExit()
+        try require(capture.terminationStatus == 0, "result motion screenshot must succeed")
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(50))
+        try require(abs(panel.frame.height - 52) <= 1, "clear must collapse immediately")
+        model.inputText = "sa"
+        try await Task.sleep(for: .milliseconds(60))
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(400))
+        try require(abs(panel.frame.height - 52) <= 1, "clear must cancel an in-flight reveal")
+        model.inputText = "s"
+        try await Task.sleep(for: .milliseconds(60))
+        controller.hide()
+        controller.show()
+        panel.onBlur = {}
+        try await Task.sleep(for: .milliseconds(400))
+        try require(abs(panel.frame.height - 52) <= 1, "reopen must not resume a stale reveal")
+        print("result motion: intermediateSamples=\(intermediateHeights.count), inputDrift=\(maxDrift), keyboard/clear/interruption/reopen passed")
     }
 
     private static func checkWindow() async throws {

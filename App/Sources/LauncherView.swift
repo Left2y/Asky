@@ -127,6 +127,7 @@ final class LauncherController {
     private let actionsPanel = SurfacePanel()
     private let toastPanel = SurfacePanel()
     private let filterReveal = SurfaceSpring()
+    private let resultReveal = SurfaceSpring()
     private var filterMenuSize = NSSize.zero
     private let outsideClickDismissal = OutsideClickDismissal()
     private let model: LauncherModel
@@ -137,6 +138,7 @@ final class LauncherController {
     private var chrome = LauncherChrome()
     private var availableShellHeight = CGFloat(WindowMetrics.launcherMaxHeight)
     private var shellHeight = LauncherLayout.inputHeight
+    private var targetShellHeight = LauncherLayout.inputHeight
     /// The full-width toolbar's top-left corner; every surface is placed from it.
     private var origin = NSPoint.zero
 
@@ -169,6 +171,11 @@ final class LauncherController {
         model.onHide = { [weak self] in self?.hide() }
         model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
         filterReveal.onStep = { [weak self] _ in self?.layoutFilterMenu() }
+        resultReveal.onStep = { [weak self] height in
+            guard let self else { return }
+            self.shellHeight = CGFloat(height)
+            self.layoutSurfaces()
+        }
         toastPanel.ignoresMouseEvents = true
     }
 
@@ -222,6 +229,8 @@ final class LauncherController {
             // Only the container/window resize; a flexible bottom margin keeps
             // the fixed-height canvas anchored to the window top.
             shellHeight = LauncherLayout.inputHeight
+            targetShellHeight = shellHeight
+            resultReveal.set(Double(shellHeight))
             let size = NSSize(width: LauncherLayout.toolbarWidth, height: shellHeight)
             let container = NSView(frame: NSRect(origin: .zero, size: size))
             container.clipsToBounds = true
@@ -351,10 +360,17 @@ final class LauncherController {
 
     private func resize(to contentHeight: CGFloat) {
         let height = min(availableShellHeight, max(LauncherLayout.inputHeight, ceil(contentHeight)))
-        guard shellHeight != height else { return }
+        guard targetShellHeight != height else { return }
+        targetShellHeight = height
         // AppKit's origin is at the bottom left; the input stays anchored while expanding down.
-        shellHeight = height
-        layoutSurfaces()
+        // Step the actual glass window, preserving the fixed hosting canvas and
+        // field editor. Retarget from the current height when another batch arrives.
+        if panel.isVisible, height > LauncherLayout.inputHeight,
+           !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            resultReveal.animate(to: Double(height), response: 0.18, damping: 1, in: panel)
+        } else {
+            resultReveal.set(Double(height))
+        }
     }
 
     /// Hiding releases the SwiftUI trees and the result payloads (panel resource scope).
@@ -364,6 +380,7 @@ final class LauncherController {
         defer { hiding = false }
         outsideClickDismissal.hide()
         filterReveal.stop()
+        resultReveal.stop()
         for surface in [filterPanel, actionsPanel, toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
@@ -705,6 +722,8 @@ private struct ResultList: View {
     @State private var retainedHeight: CGFloat = 0
     @State private var selectionFromPointer = false
     @State private var lastSelectionPointerLocation = NSEvent.mouseLocation
+    @State private var isRevealed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private struct LayoutRequest: Equatable {
         let query: String
@@ -829,6 +848,15 @@ private struct ResultList: View {
                 }
                 guard model.results.indices.contains(s) else { return }
                 proxy.scrollTo(model.results[s].id, anchor: .center)
+            }
+        }
+        // Only reveal the list on insertion. Provider batches, typing and
+        // keyboard selection must not restart the entrance or animate rows.
+        .opacity(isRevealed ? 1 : 0)
+        .offset(y: isRevealed || reduceMotion ? 0 : 6)
+        .onAppear {
+            withAnimation(.easeOut(duration: reduceMotion ? 0.10 : 0.18)) {
+                isRevealed = true
             }
         }
     }

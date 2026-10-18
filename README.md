@@ -61,6 +61,8 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 搜索底栏的“更多”（`⌘K`）在 macOS 26+ 开启液态玻璃时原位变形成菜单，关闭后缩回按钮；旧系统保留材质回退，系统“减少动态效果”开启时立即切换。菜单支持方向键、回车与 Esc，保持搜索词和输入焦点。
 
+单位换算与汇率换算共用横向双卡片，分别显示输入值与目标值，中间以双向箭头连接；卡片只读，不提供选中、悬停或复制操作。
+
 四个分类触发词可在“设置 › 指令”修改并恢复默认。
 
 网站指令仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
@@ -167,6 +169,8 @@ File search filters hidden items and excluded directories before limiting result
 A static search icon remains on the right of the search field. It is decorative, with no click, hover, or window-pinning behavior, and the layout stays the same while typing. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
 
 With Liquid Glass enabled on macOS 26+, More (`⌘K`) in the search footer morphs in place into its menu and contracts back into the button. Older systems retain the material fallback; Reduce Motion switches immediately. Arrow keys, Return, and Escape work without changing the query or input focus.
+
+Unit and currency conversions share two horizontal cards for the input and converted values, joined by a bidirectional arrow. Both are read-only, with no selection, hover, or copy actions.
 
 Customize or reset the four category trigger tokens in Settings › Commands.
 

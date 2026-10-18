@@ -422,6 +422,15 @@ struct LauncherView: View {
                     .frame(height: LauncherLayout.currencyCardHeight)
                     .padding(.bottom, LauncherLayout.actionBarHeight)
                     .overlay(alignment: .bottom) { LauncherActionBar(model: model) }
+            } else if let conversion = model.unitConversion {
+                inputDivider
+                ConversionPairView {
+                    ConversionValueCard(title: conversion.fromSymbol, amount: Calculator.format(conversion.input))
+                } destination: {
+                    ConversionValueCard(title: conversion.toSymbol,
+                                        amount: Calculator.format((conversion.value * 1e6).rounded() / 1e6))
+                }
+                .frame(height: LauncherLayout.currencyCardHeight)
             } else if case .converted(let value, _, _, _, let query) = model.currencyConversion {
                 inputDivider
                 CurrencyConversionView(query: query, value: value)
@@ -536,34 +545,65 @@ private struct CurrencyConversionView: View {
     let value: Double
 
     var body: some View {
-        HStack(spacing: 12) {
+        ConversionPairView {
             currency(code: query.from, amount: query.amount)
+        } destination: {
+            currency(code: query.to, amount: value)
+        }
+    }
+
+    private func currency(code: String, amount: Double) -> some View {
+        ConversionValueCard(title: code, subtitle: CurrencyPresentation.name(for: code),
+                            flag: CurrencyPresentation.flag(for: code),
+                            amount: amount.formatted(.number.precision(.fractionLength(0...2))))
+    }
+}
+
+/// Units and currencies share the same read-only two-card layout.
+private struct ConversionPairView<Source: View, Destination: View>: View {
+    @ViewBuilder var source: Source
+    @ViewBuilder var destination: Destination
+
+    var body: some View {
+        HStack(spacing: 12) {
+            source
             Image(mingCute: "arrow.left.arrow.right", size: 16)
                 .foregroundStyle(ThemeColor.kIcon)
                 .accessibilityHidden(true)
-            currency(code: query.to, amount: value)
+            destination
         }
         .padding(.horizontal, LauncherLayout.inputLeadingPadding)
         .padding(.top, 16)
         .padding(.bottom, 20)
     }
+}
 
-    private func currency(code: String, amount: Double) -> some View {
+private struct ConversionValueCard: View {
+    let title: String
+    var subtitle: String? = nil
+    var flag: String? = nil
+    let amount: String
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                if let flag = CurrencyPresentation.flag(for: code) {
+                if let flag {
                     Text(flag).font(.system(size: 22)).accessibilityHidden(true)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(code).font(.system(size: 14, weight: .semibold))
+                    Text(title).font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(ThemeColor.kText)
-                    Text(CurrencyPresentation.name(for: code))
-                        .font(.system(size: 12))
-                        .foregroundStyle(ThemeColor.kTextSubtle)
                         .lineLimit(1)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundStyle(ThemeColor.kTextSubtle)
+                            .lineLimit(1)
+                    }
                 }
             }
-            Text(amount.formatted(.number.precision(.fractionLength(0...2))))
+            .frame(height: 34, alignment: .leading)
+            Text(amount)
                 .font(.system(size: 28, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(ThemeColor.kText)

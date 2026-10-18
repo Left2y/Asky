@@ -127,6 +127,21 @@ enum LauncherCalculationRegression {
         try require(model.calculationCompletion == nil, "incomplete expression clears ghost")
         try require(model.calculation == nil, "incomplete expression clears card")
         }
+        for (query, expected) in [("1 kg 斤", 2.0), ("1km in cm", 100000.0), ("32 F C", 0.0), ("1 l ml", 1000.0)] {
+            setQuery(query)
+            try await Task.sleep(for: .milliseconds(250))
+            try require(model.unitConversion.map { abs($0.value - expected) < 0.000001 } == true, "unit card value: \(query)")
+            try require(model.primaryLauncherAction == nil && model.secondaryActions.isEmpty,
+                        "unit cards are read-only like currency cards")
+            model.move(1)
+            try require(model.selection == 0, "unit cards have no keyboard selection")
+            let pasteboardChangeCount = NSPasteboard.general.changeCount
+            model.submit(.executeSelection)
+            try require(NSPasteboard.general.changeCount == pasteboardChangeCount, "unit Return must not copy")
+            try capture(panel, "unit-\(expected)-\(appearance)")
+        }
+        setQuery("1 kg unknown")
+        try require(model.unitConversion == nil, "invalid unit clears card")
         try await waitForCurrency("1美元")
         let rows = model.results.filter { $0.source == .currency }
         try require(rows.count == snapshot.perEUR.count - 1, "all other currencies remain below the card")

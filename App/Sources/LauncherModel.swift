@@ -306,6 +306,11 @@ final class LauncherModel {
         return (query, Calculator.format(value))
     }
 
+    var unitConversion: ConversionResult? {
+        guard filter == .all, !hasScope, case .conversion(let value) = router.route(query) else { return nil }
+        return value
+    }
+
     var calculationCompletion: String? { calculation.map { "= " + $0.result } }
 
     var terminalApplication: LauncherTerminalApplication {
@@ -477,13 +482,6 @@ final class LauncherModel {
                 var result = result
                 result.title = String(format: NSLocalizedString("运行：%@", comment: ""), command)
                 result.subtitle = NSLocalizedString("↩ 在终端中运行", comment: "")
-                return result
-            }
-        }
-        if case .conversion(let conversion) = route {
-            direct = direct.map { result in
-                var result = result
-                result.subtitle = String(format: NSLocalizedString("%@ · ↩ 复制", comment: ""), conversion.display)
                 return result
             }
         }
@@ -714,13 +712,13 @@ final class LauncherModel {
             actionSelection = min(max(actionSelection + delta, 0), max(0, secondaryActions.count - 1))
             return
         }
-        guard currencyConversion == nil, !results.isEmpty else { return }
+        guard currencyConversion == nil, unitConversion == nil, !results.isEmpty else { return }
         selection = min(max(selection + delta, 0), results.count - 1)
     }
 
     /// ⌥⌘C copies the selected file/app path, like Finder's "Copy as Pathname".
     func copySelectedPath() -> Bool {
-        guard currencyConversion == nil, results.indices.contains(selection),
+        guard currencyConversion == nil, unitConversion == nil, results.indices.contains(selection),
               results[selection].actions.contains(.revealInFinder) else { return false }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(results[selection].target.identifier, forType: .string)
@@ -754,7 +752,7 @@ final class LauncherModel {
 
     /// ⌘F reveals the selected file/app in Finder.
     func revealSelectionInFinder() -> Bool {
-        guard currencyConversion == nil, results.indices.contains(selection),
+        guard currencyConversion == nil, unitConversion == nil, results.indices.contains(selection),
               results[selection].actions.contains(.revealInFinder) else { return false }
         execute(results[selection], action: .revealInFinder)
         return true
@@ -769,7 +767,7 @@ final class LauncherModel {
             guard !text.isEmpty else { return }
             onAskAI(text)
         case .executeSelection:
-            guard results.indices.contains(selection) else { return }
+            guard unitConversion == nil, results.indices.contains(selection) else { return }
             execute(results[selection], action: results[selection].primaryAction)
         }
     }
@@ -947,7 +945,7 @@ extension LauncherModel {
     }
 
     var selectedActionResult: SearchResult? {
-        guard currencyConversion == nil, terminal == nil, results.indices.contains(selection) else { return nil }
+        guard currencyConversion == nil, unitConversion == nil, terminal == nil, results.indices.contains(selection) else { return nil }
         return results[selection]
     }
 

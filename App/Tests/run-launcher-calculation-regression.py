@@ -2,6 +2,8 @@
 """Compile the actual launcher against the products of the documented Debug build."""
 import os
 import platform
+import plistlib
+import shutil
 from pathlib import Path
 from regression_resources import copy_core_resources
 import subprocess
@@ -32,4 +34,17 @@ environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Develo
 sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], env=environment, text=True).strip()
 command += ["-sdk", sdk]
 subprocess.run(command, env=environment, cwd=root, check=True)
-subprocess.run([str(binary), *sys.argv[1:]], env=environment, cwd=root, check=True)
+# The real launcher loads MingCute and function icons from Bundle.main.
+bundle = root / "build/LauncherCalculationRegression.app/Contents"
+(bundle / "MacOS").mkdir(parents=True, exist_ok=True)
+(bundle / "Resources").mkdir(exist_ok=True)
+copy_core_resources(products, bundle / "Resources")
+executable = bundle / "MacOS/LauncherCalculationRegression"
+shutil.copy2(binary, executable)
+shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
+with (bundle / "Info.plist").open("wb") as output:
+    plistlib.dump({"CFBundleExecutable": "LauncherCalculationRegression",
+                  "CFBundleIdentifier": "app.asky.launcher-calculation-regression",
+                  "CFBundleName": "LauncherCalculationRegression",
+                  "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

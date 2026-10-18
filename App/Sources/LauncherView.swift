@@ -922,6 +922,8 @@ struct LauncherFunctionIcon: View {
             (60 / 62, CGSize(width: -0.1, height: 0.1), Color(.sRGB, red: 45 / 255, green: 104 / 255, blue: 1, opacity: 1))
         case "QuitAsky":
             (60 / 66, CGSize(width: -0.1, height: -0.25), Color(.sRGB, red: 1, green: 0, blue: 0, opacity: 1))
+        case "Conversion":
+            (60 / 52, .zero, Color(.sRGB, red: 0, green: 145 / 255, blue: 1, opacity: 1))
         default:
             (1, .zero, .clear)
         }
@@ -1029,6 +1031,8 @@ private struct ResultRow: View {
             LauncherFunctionIcon(asset: "Link")
         case .calculator:
             Image(mingCute: "equal.square", size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
+        case .conversion:
+            LauncherFunctionIcon(asset: "Conversion")
         case .askAI:
             LauncherFunctionIcon(asset: "Agent")
         case .bookmark, .keyword:

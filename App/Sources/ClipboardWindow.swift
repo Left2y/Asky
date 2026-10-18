@@ -274,6 +274,10 @@ final class ClipboardController {
 
     func handleActionKey(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        if event.keyCode == 35, modifiers == [.option, .command] {
+            if !event.isARepeat { performSelectedAction(0) }
+            return true
+        }
         if event.keyCode == 40, modifiers == .command, layout == .list {
             toggleActionsMenu()
             return true
@@ -617,6 +621,9 @@ private struct ClipboardActionsMenu: View {
                         Image(mingCute: index == 0 ? "pin" : "trash", size: 16).frame(width: 20)
                         Text(NSLocalizedString(index == 0 ? (controller.selectedItem?.pinned == true ? "Unpin" : "Pin") : "删除记录", tableName: "Clipboard", comment: "Clipboard action"))
                         Spacer(minLength: 8)
+                        if index == 0 {
+                            Text("⌥⌘P").foregroundStyle(ThemeColor.kTextSubtle)
+                        }
                     }
                     .font(.system(size: 13))
                     .padding(.horizontal, 10)

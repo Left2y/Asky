@@ -421,6 +421,15 @@ enum ClipboardRegression {
                             isARepeat: false, keyCode: code)!)
                     }
                     let targetID = controller.selectedItem!.id
+                    key(35, [.option, .command, .shift])
+                    precondition(controller.selectedItem?.pinned == false, "extra modifiers must not pin")
+                    key(35, [.option, .command])
+                    precondition(controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == true,
+                                 "Option Command P must pin and preserve selection after reordering")
+                    key(40, .command)
+                    key(35, [.option, .command])
+                    precondition(controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == false
+                                 && !controller.isActionsMenuPresented, "shortcut must unpin with the menu open")
                     key(40, .command)
                     try await Task.sleep(for: .milliseconds(200))
                     precondition(controller.isActionsMenuPresented)

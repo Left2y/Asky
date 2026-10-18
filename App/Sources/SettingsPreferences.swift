@@ -9,7 +9,7 @@ enum ClipboardLayout: String, Codable, Sendable { case cards, list }
 
 struct SettingsPreferences: Codable, Equatable, Sendable {
     var folderBackspaceBehavior: FolderBackspaceBehavior = .parent
-    var clipboardLayout: ClipboardLayout = .cards
+    var clipboardLayout: ClipboardLayout = .list
     var appearance = "system"
     var showMenuBarIcon = true
     var showDockIcon = false

@@ -39,7 +39,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 [下载 Asky](https://github.com/Niall-Young/Asky/releases)（macOS 15+，Apple Silicon）。打开 DMG，将 `Asky.app` 拖入“应用程序”后启动。安装包已包含 Node.js 和 AgentRuntime；ZIP 用于应用内更新。自动更新默认开启，可在“设置 › 关于 Asky › 软件更新”关闭。
 
-首次启动默认显示菜单栏图标、登录时启动并隐藏 Dock 图标；主题与语言跟随系统，液态玻璃默认开启（受系统版本支持限制）。已有安装保留原设置。可在“设置 › 通用”调整。文件搜索范围与文件夹导航位于“搜索与导航”；剪贴板相关选项位于独立的“剪贴板”页面。
+首次启动默认显示菜单栏图标、登录时启动并隐藏 Dock 图标；主题与语言跟随系统，液态玻璃默认开启（受系统版本支持限制）。已有安装保留原设置。可在“设置 › 通用”调整。文件搜索范围与文件夹导航位于“搜索与导航”；剪贴板相关选项位于独立的“剪贴板”页面，样式默认为列表式，已保存的样式选择保持不变。
 
 | 入口 | 用法 |
 | --- | --- |
@@ -137,7 +137,7 @@ With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window ba
 
 [Download Asky](https://github.com/Niall-Young/Asky/releases) (macOS 15+, Apple Silicon). Open the DMG, drag `Asky.app` into Applications, then launch it. Node.js and AgentRuntime are bundled; ZIP packages are for in-app updates. Automatic updates are enabled by default; disable them in Settings › About Asky › Software Update.
 
-On first launch, Asky shows its menu bar icon, enables launch at login, and hides its Dock icon. Theme and language follow the system; Liquid Glass is enabled where supported. Existing installations retain their settings. Change these options in Settings › General. File search scope and folder navigation are in Search & Navigation; clipboard options have their own Clipboard page.
+On first launch, Asky shows its menu bar icon, enables launch at login, and hides its Dock icon. Theme and language follow the system; Liquid Glass is enabled where supported. Existing installations retain their settings. Change these options in Settings › General. File search scope and folder navigation are in Search & Navigation; clipboard options have their own Clipboard page. Clipboard style defaults to list view; saved style choices are preserved.
 
 | Entry | Usage |
 | --- | --- |

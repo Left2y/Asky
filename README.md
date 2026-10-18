@@ -28,6 +28,8 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 
 Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI 助手按需启动。项目仍在开发中，验收状态见[验证记录](docs/validation/)。
 
+macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共用无染色的 AppKit 原生 Regular 玻璃；关闭液态玻璃或启用辅助功能显示选项时保留对应回退。
+
 - **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
 - **剪贴板**：文本、图片和文件历史，支持搜索、分类筛选、固定、预览与拖放，可切换卡片或列表视图。
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆。
@@ -112,6 +114,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 ### Overview and Features
 
 Asky is built with SwiftUI and AppKit. Search and clipboard history work independently; the AI assistant starts on demand. The project is in development; see [validation records](docs/validation/) for acceptance status.
+
+With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window backgrounds share untinted native AppKit Regular glass. Disabling Liquid Glass or enabling accessibility display options retains the corresponding fallbacks.
 
 - **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
 - **Clipboard**: text, image, and file history with search, type filters, pinning, previews, and drag and drop, in card or list view.

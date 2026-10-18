@@ -46,6 +46,9 @@ enum WindowSurface {
         content.layer?.masksToBounds = true
         if #available(macOS 26, *), usesNativeGlass {
             let glass = GlassSurfaceView(frame: content.frame)
+            // All window backgrounds share the search shell's untinted native material.
+            glass.style = .regular
+            glass.tintColor = nil
             glass.cornerRadius = cornerRadius
             glass.install(content, cornerRadius: cornerRadius)
             glass.wantsLayer = true

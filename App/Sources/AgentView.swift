@@ -38,8 +38,11 @@ final class AgentWindowController {
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.minSize = NSSize(width: WindowMetrics.agentMinSize.width, height: WindowMetrics.agentMinSize.height)
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: AgentView(model: model, close: { [weak w] in w?.close() },
+            let host = NSHostingView(rootView: AgentView(model: model, close: { [weak w] in w?.close() },
                 setPinned: { [weak w] pinned in w?.level = pinned ? .floating : .normal }))
+            host.sizingOptions = []
+            host.frame = NSRect(origin: .zero, size: w.contentLayoutRect.size)
+            w.contentView = WindowSurface.glassContentView(host, cornerRadius: AgentLayout.radius)
             w.center()
             window = w
         }
@@ -140,7 +143,7 @@ struct AgentView: View {
             .animation(navigationAnimation, value: showingHistory)
         }
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
-        .nativeGlassBackground(in: shape)
+        .windowSurfaceBackground(in: shape)
         .clipShape(shape)
         .ignoresSafeArea()
         .onChange(of: model.newConversationRevision) { showingHistory = false; historyQuery = "" }

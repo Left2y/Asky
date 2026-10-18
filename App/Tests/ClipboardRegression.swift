@@ -321,6 +321,10 @@ enum ClipboardRegression {
                     controller.updateLayout()
                     try await Task.sleep(for: .milliseconds(400))
                     precondition(controller.selectedItem?.id == selectedID && panel().frame.height == 560)
+                    guard let glass = panel().contentView as? GlassSurfaceView else {
+                        preconditionFailure("clipboard list must use the search shell's AppKit glass")
+                    }
+                    precondition(glass.style == .regular && glass.tintColor == nil && panel().hasShadow)
                     try snapshot(panel(), "layout-list-image")
                     controller.selection = 2
                     try await Task.sleep(for: .milliseconds(200))

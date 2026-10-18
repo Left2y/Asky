@@ -15,6 +15,58 @@ enum AgentReplyRegression {
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = AgentModel(app: app)
+        if CommandLine.arguments.contains("--window-glass") {
+            func capture(_ window: NSWindow, name: String) throws {
+                let frame = window.frame
+                let top = NSScreen.screens[0].frame.maxY - frame.maxY
+                let capture = Process()
+                capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-R", "\(Int(frame.minX)),\(Int(top)),\(Int(frame.width)),\(Int(frame.height))",
+                    "build/\(name).png"]
+                try capture.run()
+                capture.waitUntilExit()
+                precondition(capture.terminationStatus == 0)
+            }
+            let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+            controller.show()
+            let window = application.windows.first { $0.title == "Asky AI" }!
+            defer { window.close() }
+            guard let glass = window.contentView as? GlassSurfaceView else {
+                preconditionFailure("chat must use the search shell's AppKit glass")
+            }
+            precondition(glass.style == .regular && glass.tintColor == nil && window.hasShadow)
+            for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+                window.appearance = NSAppearance(named: appearance)
+                for (name, size) in [("initial", window.frame.size), ("resized", NSSize(width: 820, height: 720))] {
+                    window.setContentSize(size)
+                    window.contentView!.layoutSubtreeIfNeeded()
+                    try await Task.sleep(for: .milliseconds(350))
+                    precondition(glass.frame.size == size, "glass must fill the resized window")
+                    precondition(glass.contentView?.frame.size == size, "content wrapper must resize with glass")
+                    try capture(window, name: "agent-window-glass-\(appearance.rawValue)-\(name)")
+                }
+            }
+            window.orderOut(nil)
+            app.preferences.clipboardLayout = .list
+            try ClipboardStore(app.store).insert(ClipboardItem(kind: .text,
+                text: "原生玻璃列表背景验证", byteSize: 33, contentHash: "window-glass-fixture"))
+            let clipboard = ClipboardController(app: app)
+            clipboard.pinned = true
+            clipboard.show()
+            let list = application.windows.first { $0.title == NSLocalizedString("剪贴板历史", comment: "") }!
+            for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+                list.appearance = NSAppearance(named: appearance)
+                try await Task.sleep(for: .milliseconds(400))
+                guard let surface = list.contentView as? GlassSurfaceView else {
+                    preconditionFailure("clipboard must share the native window glass")
+                }
+                precondition(surface.style == .regular && surface.tintColor == nil)
+                try capture(list, name: "clipboard-window-glass-\(appearance.rawValue)")
+            }
+            clipboard.hide()
+            print("Chat native Regular glass, untinted surface, light/dark capture and resizing passed")
+            return
+        }
         let store = ConversationStore(app.store)
         let cid = try store.create(title: "回复回归")
         model.open(cid)

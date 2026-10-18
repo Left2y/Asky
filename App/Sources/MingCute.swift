@@ -64,7 +64,7 @@ enum MingCute {
         "info.circle": "MingCute-information",
         "star": "MingCute-star",
         "star.fill": "MingCute-filled-star",
-        "app.badge": "MingCute-grid_2",
+        "app.badge": "MingCute-classify_add_2",
         "equal.square": "MingCute-counter_2",
         "dollarsign.arrow.circlepath": "MingCute-exchange_dollar",
         "record.circle": "MingCute-dot_circle",

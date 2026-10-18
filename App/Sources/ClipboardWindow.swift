@@ -428,33 +428,16 @@ final class ClipboardController {
             entry.setDraggingFrame(view.bounds.offsetBy(dx: CGFloat(index) * 4, dy: CGFloat(index) * 4), contents: preview)
             return entry
         }
-        dragSource.beginTracking()
+        dragSource.active = true
         // The outside-click shields are real windows and would intercept the destination's drop.
         outsideClickDismissal.hide()
-        dragSource.onEnd = { [weak self] operation, point, wasReleased in
+        dragSource.onEnd = { [weak self] operation in
             #if DEBUG
             if CommandLine.arguments.contains("--test-clipboard") {
                 NSLog("Clipboard drag ended: operation %lu", operation.rawValue)
             }
             #endif
             guard let self else { return }
-            if operation == [], wasReleased, let target = ClipboardDropTarget.capture(at: point) {
-                guard ClipboardAccess.copy(item) else {
-                    self.status = NSLocalizedString("无法拖拽：原始内容已不可用", comment: "")
-                    self.updateOutsideClickDismissal()
-                    return
-                }
-                let changeCount = ClipboardAccess.changeCount
-                if !self.pinned { self.hide() }
-                else { self.updateOutsideClickDismissal() }
-                self.pasteTask?.cancel()
-                self.pasteTask = Task { @MainActor [weak self] in
-                    let result = await target.paste(expectedChangeCount: changeCount)
-                    guard !Task.isCancelled else { return }
-                    self?.showPasteFallback(result)
-                }
-                return
-            }
             if operation != [], !self.pinned { self.hide() }
             else { self.updateOutsideClickDismissal() }
         }
@@ -1187,34 +1170,7 @@ private struct ClipboardVideoPreview: NSViewRepresentable {
 @MainActor
 final class ClipboardDragSource: NSObject, NSDraggingSource {
     var active = false
-    var onEnd: (NSDragOperation, NSPoint, Bool) -> Void = { _, _, _ in }
-    private var monitors: [Any] = []
-    private var cancelled = false
-    private var releasePoint: NSPoint?
-
-    func beginTracking() {
-        removeMonitors()
-        active = true
-        cancelled = false
-        releasePoint = nil
-        let observe: @MainActor (NSEvent) -> Void = { [weak self] event in
-            guard let self else { return }
-            if event.type == .keyDown, event.keyCode == 53 { self.cancelled = true }
-            if event.type == .leftMouseUp { self.releasePoint = NSEvent.mouseLocation }
-        }
-        if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp, .keyDown], handler: { event in
-            MainActor.assumeIsolated { observe(event) }
-            return event
-        }) { monitors.append(monitor) }
-        if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .keyDown], handler: { event in
-            MainActor.assumeIsolated { observe(event) }
-        }) { monitors.append(monitor) }
-    }
-
-    private func removeMonitors() {
-        for monitor in monitors { NSEvent.removeMonitor(monitor) }
-        monitors = []
-    }
+    var onEnd: (NSDragOperation) -> Void = { _ in }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
@@ -1224,10 +1180,7 @@ final class ClipboardDragSource: NSObject, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         active = false
-        let wasReleased = !cancelled && (releasePoint != nil || NSApp.currentEvent?.type == .leftMouseUp)
-        let point = releasePoint ?? NSEvent.mouseLocation
-        removeMonitors()
-        onEnd(operation, point, wasReleased)
+        onEnd(operation)
     }
 
     /// The mouse surface draws no content, so capture the card's area from the window instead.

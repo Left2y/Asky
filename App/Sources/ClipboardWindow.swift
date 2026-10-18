@@ -685,10 +685,9 @@ private struct ClipboardHeaderButton: View {
         Button(action: action) {
             Image(mingCute: symbol)
                 .frame(width: 32, height: 32)
-                .nativeGlassBackground(in: Circle(), interactive: true)
                 .contentShape(.interaction, Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(LauncherActionButtonStyle())
         .foregroundStyle(selected ? ThemeColor.kText.color(for: scheme) : ThemeColor.kIconSubtle.color(for: scheme))
         .accessibilityLabel(title).help(title)
     }

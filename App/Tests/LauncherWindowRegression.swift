@@ -394,7 +394,65 @@ enum LauncherWindowRegression {
         ])
         let controller = LauncherController(model: model)
         defer { controller.hide() }
-        if CommandLine.arguments.contains("--filter-motion") {
+        if CommandLine.arguments.contains("--reveal-open") {
+            let savedMouse = CGEvent(source: nil)?.location ?? .zero
+            let mainBounds = CGDisplayBounds(CGMainDisplayID())
+            CGWarpMouseCursorPosition(CGPoint(x: mainBounds.midX, y: mainBounds.midY))
+            try await Task.sleep(for: .milliseconds(100))
+            defer { CGWarpMouseCursorPosition(savedMouse) }
+            let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+            let visible = screen?.visibleFrame ?? .zero
+            let side = LauncherLayout.inputHeight
+            let originX = visible.midX - LauncherLayout.toolbarWidth / 2
+            let top = visible.maxY - visible.height * LauncherLayout.topInsetFraction
+            let capture = Process()
+            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            let screenHeight = screen?.frame.maxY ?? 0
+            let region = "\(Int(originX - 20)),\(Int(screenHeight - top - 10)),\(Int(LauncherLayout.toolbarWidth + 60)),\(Int(side + 30))"
+            let recording = "build/reveal-open-\(NSApp.appearance!.name.rawValue).mov"
+            if FileManager.default.fileExists(atPath: recording) {
+                try FileManager.default.removeItem(atPath: recording)
+            }
+            capture.arguments = ["-x", "-v", "-V", "4", "-R", region, recording]
+            try capture.run()
+            try await Task.sleep(for: .milliseconds(300))
+            controller.show()
+            (NSApp.windows.first { $0 is LauncherPanel && $0.isVisible } as? LauncherPanel)?.onBlur = {}
+            NSApp.activate(ignoringOtherApps: true)
+            try await Task.sleep(for: .seconds(2.5))
+            capture.waitUntilExit()
+        } else if CommandLine.arguments.contains("--reveal-motion") {
+            let savedMouse = CGEvent(source: nil)?.location ?? .zero
+            let mainBounds = CGDisplayBounds(CGMainDisplayID())
+            CGWarpMouseCursorPosition(CGPoint(x: mainBounds.midX, y: mainBounds.midY))
+            try await Task.sleep(for: .milliseconds(100))
+            defer { CGWarpMouseCursorPosition(savedMouse) }
+            controller.show()
+            guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) else {
+                throw NSError(domain: "RevealMotion", code: 1)
+            }
+            (panel as? LauncherPanel)?.onBlur = {}
+            NSApp.activate(ignoringOtherApps: true)
+            try await Task.sleep(for: .seconds(2))
+            let capture = Process()
+            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            let screenHeight = NSScreen.screens[0].frame.maxY
+            let side = LauncherLayout.inputHeight
+            let surfaceRight = panel.frame.maxX + LauncherLayout.accessoryReserve
+            let region = "\(Int(surfaceRight - 2 * side - 20)),\(Int(screenHeight - panel.frame.maxY - 10)),\(Int(2 * side + 60)),\(Int(side + 30))"
+            let recording = "build/reveal-motion-\(NSApp.appearance!.name.rawValue).mov"
+            if FileManager.default.fileExists(atPath: recording) {
+                try FileManager.default.removeItem(atPath: recording)
+            }
+            capture.arguments = ["-x", "-v", "-V", "4", "-R", region, recording]
+            try capture.run()
+            try await Task.sleep(for: .seconds(1))
+            model.inputText = "Safari"
+            try await Task.sleep(for: .seconds(0.8))
+            model.inputText = ""
+            try await Task.sleep(for: .seconds(0.8))
+            capture.waitUntilExit()
+        } else if CommandLine.arguments.contains("--filter-motion") {
             controller.show()
             guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) else {
                 throw NSError(domain: "FilterMotion", code: 1)
@@ -463,8 +521,9 @@ enum LauncherWindowRegression {
         panel.onBlur()
         try require(controller.isVisible, "pin must preserve panel on blur")
         try await Task.sleep(for: .milliseconds(1300))
-        let accessories = panel.childWindows?.filter { $0 is SurfacePanel && $0.isVisible && $0.alphaValue > 0.99 } ?? []
-        try require(accessories.count == 2, "pin and filter must be separate surface windows: \(panel.childWindows?.map { "\(type(of: $0)) \($0.isVisible) \($0.alphaValue) \($0.frame)" } ?? [])")
+        let accessories = NSApp.windows.compactMap { $0 as? SurfacePanel }
+            .filter { $0.isVisible && $0.alphaValue > 0.99 && $0.frame.height == LauncherLayout.inputHeight }
+        try require(accessories.count == 2, "pin and filter must be separate surface windows: \(NSApp.windows.compactMap { $0 as? SurfacePanel }.map { "\($0.isVisible) \($0.alphaValue) \($0.frame)" })")
         try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
                     "empty shell must yield accessory space: \(panel.frame.width)")
         let footprint = accessories.reduce(panel.frame) { $0.union($1.frame) }
@@ -474,13 +533,13 @@ enum LauncherWindowRegression {
         if WindowSurface.usesNativeGlass {
             // Child surfaces never become key, so their glass needs the
             // active-window highlight to match the key shell.
-            try require(accessories.allSatisfy { ($0 as? SurfacePanel)?.matchesActiveAppearance == panel.isKeyWindow },
+            try require(accessories.allSatisfy { $0.matchesActiveAppearance == panel.isKeyWindow },
                         "accessory glass must follow the shell's key appearance")
             panel.onKeyChange(true)
-            try require(accessories.allSatisfy { ($0 as? SurfacePanel)?.matchesActiveAppearance == true },
+            try require(accessories.allSatisfy { $0.matchesActiveAppearance == true },
                         "accessory glass must match the key shell's appearance")
             panel.onKeyChange(false)
-            try require(accessories.allSatisfy { ($0 as? SurfacePanel)?.matchesActiveAppearance == false },
+            try require(accessories.allSatisfy { $0.matchesActiveAppearance == false },
                         "accessory glass must dim with the shell when it resigns key")
             panel.onKeyChange(panel.isKeyWindow)
         }
@@ -499,6 +558,10 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(300))
         try require(field.frame.width >= emptyFieldWidth + 125, "typing must return accessory space to the search field")
         try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
+        // The shell's rounded corners are transparent, so the buttons must be
+        // hidden by alpha rather than relying on the shell to cover them.
+        try require(accessories.allSatisfy { $0.alphaValue < 0.05 },
+                    "typing must hide the accessory surfaces")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(220))
         try require(abs(panel.frame.height - 52) <= 1, "clearing must collapse the result window promptly")
@@ -545,7 +608,7 @@ enum LauncherWindowRegression {
             try await Task.sleep(for: .milliseconds(cycle.isMultiple(of: 2) ? 30 : 120))
             controller.show()
             try await Task.sleep(for: .milliseconds(650))
-            let buttons = panel.childWindows?.filter { $0 is SurfacePanel && $0.frame.height == LauncherLayout.inputHeight } ?? []
+            let buttons = NSApp.windows.filter { $0 is SurfacePanel && $0.frame.height == LauncherLayout.inputHeight }
             try require(buttons.count == 2 && buttons.allSatisfy { $0.isVisible && $0.alphaValue > 0.99 && $0.contentView != nil },
                         "reopen cycle \(cycle) must retain both rendered accessory surfaces")
             try require(buttons.allSatisfy { $0.frame.size == NSSize(width: 52, height: 52) && $0.hasShadow },

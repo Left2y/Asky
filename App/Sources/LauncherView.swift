@@ -255,8 +255,13 @@ final class LauncherController {
         }
         layoutSurfaces()
         panel.makeKeyAndOrderFront(nil)
-        for accessory in accessoryPanels { panel.addChildWindow(accessory, ordered: .above) }
+        // The panel only becomes key a few frames after show, while the child
+        // surfaces are already revealing. The additive light lift is not
+        // composited during that alpha animation, so enabling it mid-reveal
+        // made it pop in at once when the reveal settled. Arm it up front.
+        updateGlassAppearance(keyed: true)
         updateOutsideClickDismissal()
+        syncAccessoryStacking()
     }
 
     /// Child surfaces can never be key, so the system draws their glass with
@@ -275,6 +280,29 @@ final class LauncherController {
             let surfaces = [self.panel] + self.accessoryPanels + [self.filterPanel, self.actionsPanel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
+        // The shields are ordered directly below the shell; keep the buttons
+        // above them so clicks reach the circles.
+        syncAccessoryStacking()
+    }
+
+    /// With native glass the shell is opaque enough to mask the buttons, so
+    /// they sit one layer below it and emerge as it shrinks. That avoids
+    /// fading their windows: half-transparent light glass shows the dark
+    /// backdrop and reads as a dark flash while the buttons appear. The
+    /// translucent legacy material keeps the buttons above the shell.
+    ///
+    /// `above` is used only for the hide fade: the expanding shell's rounded
+    /// edge would slice across the opaque buttons (and show them through its
+    /// glass) while they slide away, which reads as a hard cut. Above the
+    /// shell they leave with a clean fade instead.
+    private func syncAccessoryStacking(above: Bool = false) {
+        for accessory in accessoryPanels {
+            if WindowSurface.usesNativeGlass {
+                accessory.order(above ? .above : .below, relativeTo: panel.windowNumber)
+            } else {
+                panel.addChildWindow(accessory, ordered: .above)
+            }
+        }
     }
 
     private func update(_ next: LauncherChrome) {
@@ -282,6 +310,9 @@ final class LauncherController {
         chrome = next
         if next.accessories != previous.accessories {
             surfaces.accessoriesRevealed = next.accessories
+            // Hide above the shell (clean fade as it expands); show below it,
+            // where the shrinking edge reveals the opaque buttons.
+            if WindowSurface.usesNativeGlass { syncAccessoryStacking(above: !next.accessories) }
             if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { reveal.set(next.accessories ? 1 : 0) }
             // Typing recovers the full field promptly; only the empty launcher's
             // separation uses the more expressive spring.
@@ -367,13 +398,19 @@ final class LauncherController {
                 radius: LauncherLayout.shellCornerRadius, circular: true)
         }
         let right = origin.x + LauncherLayout.toolbarWidth
+        // Native glass buttons sit below the shell and are revealed by its
+        // shrinking edge, so they stay fully opaque while shown. They must
+        // still fade out when hidden: the shell's rounded corners are
+        // transparent, so it cannot fully cover them while typing.
+        let native = WindowSurface.usesNativeGlass
+        let accessoryAlpha = native && chrome.accessories ? 1 : min(1, max(0, progress))
         for (index, accessory) in accessoryPanels.enumerated() {
             let slots = CGFloat(2 - index)
             // Each circle slides in from the right as it separates from the field.
             let x = right - slots * side - CGFloat(1 - index) * LauncherLayout.accessorySpacing
                 + (1 - progress) * slots * 28
             accessory.setFrame(NSRect(x: x, y: origin.y - side, width: side, height: side), display: false)
-            accessory.alphaValue = min(1, max(0, progress))
+            accessory.alphaValue = accessoryAlpha
             accessory.ignoresMouseEvents = !chrome.accessories
         }
         if filterPanel.isVisible { layoutFilterMenu() }

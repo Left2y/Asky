@@ -29,3 +29,37 @@
 - Debug `xcodebuild`（`-skipPackageUpdates`）：`BUILD SUCCEEDED`。
 - `run-launcher-window-regression.py --accessories`：浅色与深色外观均通过。
 - 未在真实桌面做最终肉眼截图：本机会话的第一个显示器被其他全屏窗口占用，启动器预览窗口落在屏幕外。
+
+## 后续修复：按钮入场的暗色阶段
+
+浅色外观下，圆形按钮窗口用窗口 alpha 淡入时会先处于半透明状态，透出后面的深色桌面，看起来像“闪一下暗色”。实测真实热键打开路径（⌘Space，浅色、深色壁纸）可复现：按钮在整段滑入过程中偏暗，落定后才变成最终磨砂外观。
+
+曾先把浅色下的淡入压缩到弹簧前 1/2（约 70 ms），暗色阶段明显缩短，但按钮出现仍显得突然。
+
+最终修改：原生玻璃下把两个圆形按钮窗口压到外壳窗口**下一层**（`order(.below, relativeTo:)`），按钮始终完全不透明，由收缩中的搜索框边缘自然遮住/露出，不再使用窗口 alpha 淡入。旧版兼容材质的搜索框不够不透明，遮不住下层按钮，因此仍保持“子窗口 + 淡入”。外壳变为 key 时补偿仍在此之前启用（见上一节）。
+
+逐帧录屏确认：按钮从搜索框右端下方滑出，出现时就是最终磨砂外观，全程没有半透明发暗阶段；`--accessories` 浅色、深色回归通过（窗口计数断言改为按 52 pt 高度查找，不再依赖 `childWindows`）。
+
+## 后续修复：按钮入场时亮度突跳
+
+### 原因
+
+`show()` 里第一次 `updateGlassAppearance(keyed: panel.isKeyWindow)` 执行时面板还不是 key，补偿层处于隐藏状态；约 50 ms 后面板成为 key 才启用补偿，此时圆形按钮的 alpha 入场动画已经开始了约 30 ms。
+
+加色补偿使用 `CALayer` 合成滤镜。逐帧录屏并在筛选按钮内固定取样确认：补偿层的显隐若发生在窗口 alpha 动画进行中，滤镜只在动画落定后提交。表现为按钮在入场过程中没有提亮，落定那一帧突然增加约 10–12 级；关闭补偿的对照录屏里该落差消失。打字清空后重新入场的路径在动画开始前补偿已启用，没有该问题。
+
+### 修改
+
+`App/Sources/LauncherView.swift`：`show()` 在 `makeKeyAndOrderFront` 之后立即以 `keyed: true` 预备补偿，确保按钮窗口入场前补偿已启用。真实的 key 变化仍由 `becomeKey` / `resignKey` 更新；深色模式使用普通透明填充，不受该时序影响。
+
+### 实际检查
+
+- 浅色外观逐帧录屏，筛选按钮内部固定取样：修复前入场期间与落定后相差约 10.6 级且集中在单帧；修复后随窗口 alpha 平滑提亮，落定帧仅变化约 1 级。
+- 打字清空后的重新入场（中灰背景探针）逐帧取样为 128 → 141 → 157 → 166 → 173 → 182，落定后保持 182–183，无台阶。
+- `run-launcher-window-regression.py --accessories`：浅色、深色均通过（首轮在繁忙机器上筛选菜单 100 ms 断言偶发失败，重跑通过）。
+- 预览录屏命令：
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --reveal-open
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --reveal-motion
+```

@@ -48,6 +48,11 @@ private enum LauncherFilterSearchRegression {
         throw NSError(domain: "CategorySearch", code: 2, userInfo: [NSLocalizedDescriptionKey: "Search did not settle"])
     }
 
+    private static func editableField(in view: NSView) -> NSTextField? {
+        if let field = view as? NSTextField, field.isEditable { return field }
+        return view.subviews.compactMap { editableField(in: $0) }.first
+    }
+
     private static func scrollView(in view: NSView) -> NSScrollView? {
         if let scroll = view as? NSScrollView { return scroll }
         return view.subviews.compactMap { scrollView(in: $0) }.first
@@ -109,6 +114,61 @@ private enum LauncherFilterSearchRegression {
         try await settle(model)
         try require(model.results.filter { $0.source == .file }.count == 8 && model.inputText == "report",
                     "returning to All must restore compact results and preserve query")
-        print("\(appearance.rawValue): files 8 -> 200 -> 8; apps 85, shortcuts 65, quick links 200; scroll and stale queries passed")
+        for (id, name, trigger) in LauncherFilter.commands {
+            let category = LauncherFilter(commandID: id)!
+            model.setFilter(.all, query: "")
+            model.inputText = trigger.uppercased()
+            try require(model.results.first?.target == TargetRef(kind: "search-command", identifier: id),
+                        "exact trigger must put the category command first: \(trigger)")
+            model.submit(.executeSelection)
+            try require(model.filter == category && model.hasScope && model.inputText.isEmpty,
+                        "Return must enter an empty category scope")
+            try require(model.backspaceOnEmptyInput() && model.filter == .all && !model.hasScope,
+                        "empty Backspace must leave category mode")
+            model.inputText = trigger + " report"
+            try await settle(model)
+            try require(model.filter == category && model.inputText == "report", "Space must consume trigger")
+            model.inputText = "go literal"
+            try require(model.filter == category && model.commandInput == nil && model.inputText == "go literal",
+                        "nested commands must remain literal")
+            panel.onEscape()
+            try require(controller.isVisible && model.filter == .all && model.inputText == "literal",
+                        "Escape must return to the root, where normal commands are parsed")
+            // Exit the normal `go` scope too, then find the category by its name.
+            model.leaveCommand()
+            model.query = name
+            try require(model.results.first?.target == TargetRef(kind: "search-command", identifier: id),
+                        "category name must discover its command")
+            model.query = ""
+            app.preferences.commandKeywords[id] = "custom" + trigger
+            try require(app.commandKeywordProblem("custom" + trigger, id: "ai") != nil,
+                        "custom category token must participate in conflict checks")
+            model.query = "custom" + trigger + " report"
+            try require(model.filter == category && model.inputText == "report", "custom trigger must enter category")
+            model.setFilter(.all, query: "")
+            model.inputText = trigger + " report"
+            try require(model.filter == .all, "customized category must stop consuming its default token")
+            app.preferences.commandKeywords.removeValue(forKey: id)
+        }
+        model.setFilter(.all, query: "")
+        model.inputText = "file "
+        try await Task.sleep(for: .milliseconds(150))
+        guard let field = editableField(in: panel.contentView!),
+              let editor = field.currentEditor() as? NSTextView else {
+            throw NSError(domain: "CategorySearch", code: 5)
+        }
+        // Exercise the native text-change delegate, including immediate removal of the token.
+        model.leaveCommand()
+        try await Task.sleep(for: .milliseconds(100))
+        field.stringValue = "file report"
+        field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
+        try require(model.filter == .files && model.inputText == "report" && editor.string == "report",
+                    "native edit must consume the prefix and synchronize the field editor")
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(100))
+        let handled = field.delegate?.control?(field, textView: editor, doCommandBy: #selector(NSResponder.deleteBackward(_:)))
+        try require(handled == true && model.filter == .all && editor.string.isEmpty,
+                    "native empty Backspace must leave category mode")
+        print("\(appearance.rawValue): category limits, scrolling, stale queries, command discovery, custom tokens, Space/Return/Escape/Backspace and native editor passed")
     }
 }

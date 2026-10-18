@@ -12,7 +12,19 @@ enum ToolIconPalette {
 /// Built-in tools share a white MingCute glyph and a solid, circular-cornered tile.
 struct LauncherFunctionIcon: View {
     enum Kind {
-        case bookmark, link, quit, conversion, tabs, ai, calculator
+        case bookmark, link, quit, conversion, tabs, ai, calculator, files, applications, shortcuts
+
+        static func searchCommand(_ id: String) -> Self {
+            switch id {
+            case "tabs": .tabs
+            case "bookmark": .bookmark
+            case "link", "quickLinks": .link
+            case "files": .files
+            case "applications": .applications
+            case "shortcuts": .shortcuts
+            default: .ai
+            }
+        }
 
         var symbol: String? {
             switch self {
@@ -23,6 +35,9 @@ struct LauncherFunctionIcon: View {
             case .tabs: "web"
             case .ai: nil
             case .calculator: "equal.square"
+            case .files: "folder"
+            case .applications: "app.badge"
+            case .shortcuts: "square.stack.3d.up"
             }
         }
 
@@ -31,8 +46,9 @@ struct LauncherFunctionIcon: View {
             case .bookmark: ToolIconPalette.orange
             case .quit: ToolIconPalette.red
             case .conversion, .calculator: ToolIconPalette.cyan
-            case .link: ToolIconPalette.blue
-            case .tabs: ToolIconPalette.purple
+            case .link, .applications: ToolIconPalette.blue
+            case .tabs, .shortcuts: ToolIconPalette.purple
+            case .files: ToolIconPalette.orange
             case .ai: .clear
             }
         }

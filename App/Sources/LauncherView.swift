@@ -448,7 +448,7 @@ struct LauncherView: View {
                 } else if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
-                        .accessibilityLabel(model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isTabScope ? NSLocalizedString("搜索开启的标签页", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.isAIScope ? NSLocalizedString("AI 搜索", comment: "") : model.isLinkScope ? NSLocalizedString("搜索链接", comment: "") : model.commandInput.map { NSLocalizedString($0.command.name, comment: "Built-in website command") } ?? NSLocalizedString("关键词命令", comment: ""))
+                        .accessibilityLabel(model.filter != .all ? NSLocalizedString(model.filter.title, tableName: "Launcher", comment: "Launcher filter") : model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isTabScope ? NSLocalizedString("搜索开启的标签页", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.isAIScope ? NSLocalizedString("AI 搜索", comment: "") : model.isLinkScope ? NSLocalizedString("搜索链接", comment: "") : model.commandInput.map { NSLocalizedString($0.command.name, comment: "Built-in website command") } ?? NSLocalizedString("关键词命令", comment: ""))
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -529,7 +529,9 @@ struct LauncherView: View {
         }
     }
     @ViewBuilder private var commandIcon: some View {
-        if model.isTerminalScope {
+        if model.filter != .all {
+            LauncherFunctionIcon(kind: .searchCommand(model.filter.rawValue))
+        } else if model.isTerminalScope {
             CommandIcon(terminalIcon: model.terminalIcon)
         } else if model.isTabScope {
             LauncherFunctionIcon(kind: .tabs)
@@ -973,7 +975,7 @@ private struct ResultRow: View {
 
     @ViewBuilder private var icon: some View {
         if result.target.kind == "search-command" {
-            LauncherFunctionIcon(kind: result.target.identifier == "tabs" ? .tabs : result.target.identifier == "bookmark" ? .bookmark : result.target.identifier == "link" ? .link : .ai)
+            LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
         } else if QuitAskyCommand.isResult(result) {
             LauncherFunctionIcon(kind: .quit)
         } else {

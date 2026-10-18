@@ -44,15 +44,18 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 入口 | 用法 |
 | --- | --- |
 | 搜索 | 从菜单栏打开，输入关键词，方向键选择、回车打开 |
+| 分类搜索 | `file 空格` 搜文件、`app 空格` 搜应用、`ql 空格` 搜快捷方式、`sc 空格` 搜快捷指令；也可输入“搜索文件”等命令名称后选中回车；Esc 或空输入退格退出 |
 | 文件夹内搜索 | 选中文件夹按 `Tab`，空输入浏览目录，输入文件名搜索当前目录及 Spotlight 已索引的子目录；空输入退格默认返回上一层，可在“搜索与导航”改为退出全部层级；`Esc` 返回上一层 |
 | 剪贴板 | `Ctrl + Shift + C` |
 | AI 新对话 | `Ctrl + Shift + /` |
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
-文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。“全部”每个来源最多显示 8 条；选择应用、文件、快捷方式或快捷指令分类后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
+文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。“全部”每个来源最多显示 8 条；通过指令或筛选按钮选择应用、文件、快捷方式或快捷指令分类后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
 
 空输入时，搜索框右侧显示固定与筛选按钮，共用搜索框玻璃；输入后隐藏，让出文字空间。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
+
+四个分类触发词可在“设置 › 指令”修改并恢复默认。
 
 网站指令仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
 
@@ -139,15 +142,18 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Entry | Usage |
 | --- | --- |
 | Search | Open from the menu bar, type a keyword, select with arrow keys, press Return |
+| Category search | Type `file ` for files, `app ` for apps, `ql ` for quick links, or `sc ` for shortcuts; alternatively find a category search command and press Return. Escape or Backspace on empty input exits |
 | Search within a folder | Select a folder and press `Tab`; browse its contents or type a filename to search it and Spotlight-indexed subfolders. Backspace on empty input returns one level by default; choose to exit all levels in Search & Navigation. `Esc` returns one level |
 | Clipboard | `Ctrl + Shift + C` |
 | New AI chat | `Ctrl + Shift + /` |
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
-File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. All shows up to 8 hits per source; selecting Applications, Files, Quick Links, or Shortcuts reruns the current query for up to 200 results in that category, accessible by scrolling.
+File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. All shows up to 8 hits per source; selecting Applications, Files, Quick Links, or Shortcuts through a command or the filter button reruns the current query for up to 200 results in that category, accessible by scrolling.
 
 When the input is empty, pin and filter buttons appear inside the search field and share its glass surface. Typing hides them to make room for text. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
+
+Customize or reset the four category trigger tokens in Settings › Commands.
 
 Website commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
 

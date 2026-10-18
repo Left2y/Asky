@@ -566,7 +566,7 @@ enum LauncherWindowRegression {
         }
         model.setFilter(.files)
         model.inputText = "go query"
-        try require(!model.hasScope && model.inputText == "go query", "filtered input must not consume command keywords")
+        try require(model.hasScope && model.commandInput == nil && model.inputText == "go query", "category scope must keep command-like filenames literal")
         model.inputText = "1+1"
         try require(model.calculation == nil, "files-only query must not display calculation")
         model.setFilter(.applications)

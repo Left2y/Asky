@@ -31,6 +31,14 @@ final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
 
 enum LauncherFilter: String, CaseIterable, Identifiable {
     case all, applications, files, quickLinks, shortcuts
+    static let commands: [(String, String, String)] = [
+        ("files", "搜索文件", "file"), ("applications", "搜索应用", "app"),
+        ("quickLinks", "搜索快捷方式", "ql"), ("shortcuts", "搜索快捷指令", "sc")
+    ]
+    init?(commandID: String) {
+        guard commandID != "all", let value = Self(rawValue: commandID) else { return nil }
+        self = value
+    }
     var id: String { rawValue }
     /// All sources stay compact; choosing a category requests a larger searchable list.
     var providerLimit: Int { self == .all ? 8 : 200 }
@@ -84,8 +92,8 @@ final class LauncherModel {
     private var folderText = ""
     var folderScope: URL? { folderStack.last?.url }
 
-    func setFilter(_ value: LauncherFilter) {
-        let text = inputText
+    func setFilter(_ value: LauncherFilter, query: String? = nil) {
+        let text = query ?? inputText
         folderStack = []
         folderText = ""
         filter = value
@@ -96,6 +104,18 @@ final class LauncherModel {
         rebuildProviders()
         batches = []
         update()
+    }
+
+    /// Category prefixes are parsed only at the root, never inside another mode or folder.
+    private func enterCategoryCommand(_ value: String) -> Bool {
+        guard filter == .all, folderScope == nil, !inputState.hasScope,
+              let separator = value.firstIndex(where: \.isWhitespace) else { return false }
+        let token = String(value[..<separator])
+        guard let command = LauncherFilter.commands.first(where: {
+            app.commandKeyword($0.0).caseInsensitiveCompare(token) == .orderedSame
+        }), let category = LauncherFilter(commandID: command.0) else { return false }
+        setFilter(category, query: String(value[value.index(after: separator)...]))
+        return true
     }
 
     private var storedInputState = LauncherInputState()
@@ -115,6 +135,7 @@ final class LauncherModel {
     var query: String {
         get { folderScope != nil ? folderText : filter == .all ? inputState.rawQuery : filterText }
         set {
+            if enterCategoryCommand(newValue) { return }
             if folderScope != nil { folderText = newValue }
             else if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
@@ -313,11 +334,12 @@ final class LauncherModel {
     var isBookmarkScope: Bool { inputState.bookmarks }
     var isLinkScope: Bool { inputState.links }
     var isAIScope: Bool { inputState.ai }
-    var hasScope: Bool { folderScope != nil || inputState.hasScope }
+    var hasScope: Bool { filter != .all || folderScope != nil || inputState.hasScope }
 
     var inputText: String {
         get { folderScope != nil ? folderText : filter == .all ? inputState.text : filterText }
         set {
+            if enterCategoryCommand(newValue) { return }
             if folderScope != nil { folderText = newValue }
             else if filter == .all { inputState.edit(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
@@ -330,6 +352,10 @@ final class LauncherModel {
         if let previous = folderStack.popLast() {
             folderText = folderStack.isEmpty ? "" : previous.previousText
             update()
+            return
+        }
+        if filter != .all {
+            setFilter(.all)
             return
         }
         inputState.leaveCommand()
@@ -348,6 +374,11 @@ final class LauncherModel {
             } else {
                 leaveCommand()
             }
+            return true
+        }
+        if filter != .all {
+            guard inputText.isEmpty else { return false }
+            leaveCommand()
             return true
         }
         guard inputState.backspaceOnEmptyText() else { return false }
@@ -488,11 +519,18 @@ final class LauncherModel {
                                     actions: actions, score: 100)
             }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if filter == .all, let command = AppModel.searchCommands.first(where: {
-                app.commandKeyword($0.0).caseInsensitiveCompare(trimmed) == .orderedSame
-            }), (command.0 != "bookmark" || canSearchBookmarks), (command.0 != "tabs" || tabCoordinator != nil) {
-                direct.append(SearchResult(source: .keyword, target: TargetRef(kind: "search-command", identifier: command.0),
-                                           title: NSLocalizedString(command.1, comment: ""), actions: [.open], score: 100))
+            if filter == .all {
+                for command in AppModel.searchCommands {
+                    let exact = app.commandKeyword(command.0).caseInsensitiveCompare(trimmed) == .orderedSame
+                    let categoryName = LauncherFilter(commandID: command.0) != nil && !trimmed.isEmpty &&
+                        (command.1.localizedStandardContains(trimmed) ||
+                         NSLocalizedString(command.1, comment: "").localizedStandardContains(trimmed))
+                    guard exact || categoryName,
+                          command.0 != "bookmark" || canSearchBookmarks,
+                          command.0 != "tabs" || tabCoordinator != nil else { continue }
+                    direct.append(SearchResult(source: .keyword, target: TargetRef(kind: "search-command", identifier: command.0),
+                                               title: NSLocalizedString(command.1, comment: ""), actions: [.open], score: 100))
+                }
             }
             let hasExactSearchCommand = direct.contains { $0.target.kind == "search-command" }
             if filter == .all, !hasExactSearchCommand, tabCoordinator != nil, !trimmed.isEmpty {
@@ -756,6 +794,10 @@ final class LauncherModel {
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
         if r.target.kind == "search-command" {
             guard AppModel.searchCommands.contains(where: { $0.0 == r.target.identifier }) else { return }
+            if let category = LauncherFilter(commandID: r.target.identifier) {
+                setFilter(category, query: "")
+                return
+            }
             inputState.replaceRawQuery(app.commandKeyword(r.target.identifier) + " ", keywords: app.keywords,
                                        bookmarksEnabled: canSearchBookmarks)
             update()

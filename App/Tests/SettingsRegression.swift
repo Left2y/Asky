@@ -433,14 +433,33 @@ enum SettingsRegression {
                 _ = try model.gateway.register(name: "Settings layout fixture")
                 for appearance in ["light", "dark"] {
                     model.preferences.appearance = appearance
-                    for page in SettingsPage.allCases {
+                    let pages: [SettingsPage] = CommandLine.arguments.contains("--navigation-settings")
+                        ? [.general, .search, .clipboard] : SettingsPage.allCases
+                    for page in pages {
                         let tab = page.rawValue
                         model.settingsTab = tab
                         try await Task.sleep(for: .milliseconds(250))
                         window.contentView?.layoutSubtreeIfNeeded()
                         assertDetailBelowToolbar(split, window: window)
-                        guard window.title == "\(page.title) — Asky 设置" else {
+                        guard window.title == "\(page.title) — \(NSLocalizedString("Asky 设置", comment: ""))" else {
                             fatalError("settings title did not follow selection: \(tab)")
+                        }
+                        if page == .search {
+                            func popup(in view: NSView) -> NSPopUpButton? {
+                                if let button = view as? NSPopUpButton { return button }
+                                return view.subviews.lazy.compactMap { popup(in: $0) }.first
+                            }
+                            guard let choice = popup(in: split.splitViewItems[1].viewController.view) else {
+                                fatalError("missing folder navigation choice")
+                            }
+                            choice.selectItem(at: 1)
+                            NSApp.sendAction(choice.action!, to: choice.target, from: choice)
+                            precondition(model.preferences.folderBackspaceBehavior == .exitNavigation)
+                            let reloadedNavigation = try AppModel(root: root)
+                            precondition(reloadedNavigation.preferences.folderBackspaceBehavior == .exitNavigation)
+                            choice.selectItem(at: 0)
+                            NSApp.sendAction(choice.action!, to: choice.target, from: choice)
+                            precondition(model.preferences.folderBackspaceBehavior == .parent)
                         }
                         if page == .model {
                             assertMCPCheckboxLayout(in: split.splitViewItems[1].viewController.view)
@@ -466,6 +485,11 @@ enum SettingsRegression {
                             try scrolled.write(to: URL(filePath: "build/settings-\(appearance)-sources-scrolled.png"))
                         }
                     }
+                }
+                if CommandLine.arguments.contains("--navigation-settings") {
+                    try? FileManager.default.removeItem(at: root)
+                    print("General, search and clipboard native snapshots and navigation choice persistence passed")
+                    exit(0)
                 }
                 model.openSettings(permissions: true)
                 try await Task.sleep(for: .milliseconds(250))

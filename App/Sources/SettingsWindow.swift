@@ -3,12 +3,14 @@ import SwiftUI
 import Theme
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general = "advanced", model, hotkey, aliases, keywords, terminal
+    case general = "advanced", search, clipboard, model, hotkey, aliases, keywords, terminal
     case sources, permissions, plugins, about, author
 
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .search: NSLocalizedString("搜索与导航", comment: "")
+        case .clipboard: NSLocalizedString("剪贴板", comment: "")
         case .general: NSLocalizedString("通用", comment: "")
         case .model: NSLocalizedString("智能配置", comment: "")
         case .hotkey: NSLocalizedString("触发快捷键", comment: "")
@@ -24,6 +26,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     }
     var symbol: String {
         switch self {
+        case .search: "magnifyingglass"
+        case .clipboard: "doc.on.clipboard"
         case .general: "gearshape"
         case .model: "sparkles"
         case .hotkey: "keyboard"
@@ -42,7 +46,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .general, .hotkey, .about, .author: .gray
         case .model: .purple
         case .aliases, .keywords, .terminal: .orange
-        case .sources: .blue
+        case .sources, .search, .clipboard: .blue
         case .permissions: .green
         case .plugins: .teal
         }
@@ -218,7 +222,7 @@ private struct SettingsSidebar: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup("Settings", pages: [.general, .hotkey, .permissions, .model])
+                sidebarGroup("Settings", pages: [.general, .search, .clipboard, .hotkey, .permissions, .model])
                 sidebarGroup("Tools", pages: [.aliases, .keywords, .terminal, .sources, .plugins])
                 sidebarGroup("Others", pages: [.about, .author])
             }

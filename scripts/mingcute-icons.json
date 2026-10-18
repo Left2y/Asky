@@ -89,7 +89,9 @@
     "Settings-permissions": "shield",
     "Settings-plugins": "plugin_2",
     "Settings-about": "information",
-    "Settings-author": "user_4"
+    "Settings-author": "user_4",
+    "Settings-search": "search",
+    "Settings-clipboard": "clipboard"
   },
   "customIcons": {
     "approval-hand": "App/Artwork/approval-hand.svg",

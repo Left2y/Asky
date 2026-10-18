@@ -3,9 +3,12 @@ import Carbon.HIToolbox
 import LocalStore
 import ToolService
 
+enum FolderBackspaceBehavior: String, Codable, Sendable { case parent, exitNavigation }
+
 enum ClipboardLayout: String, Codable, Sendable { case cards, list }
 
 struct SettingsPreferences: Codable, Equatable, Sendable {
+    var folderBackspaceBehavior: FolderBackspaceBehavior = .parent
     var clipboardLayout: ClipboardLayout = .cards
     var appearance = "system"
     var showMenuBarIcon = true
@@ -40,6 +43,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = SettingsPreferences()
+        folderBackspaceBehavior = try c.decodeIfPresent(FolderBackspaceBehavior.self, forKey: .folderBackspaceBehavior) ?? d.folderBackspaceBehavior
         clipboardLayout = try c.decodeIfPresent(ClipboardLayout.self, forKey: .clipboardLayout) ?? d.clipboardLayout
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         showMenuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? d.showMenuBarIcon

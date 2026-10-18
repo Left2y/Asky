@@ -334,7 +334,19 @@ final class LauncherModel {
     }
 
     func backspaceOnEmptyInput() -> Bool {
-        if folderScope != nil, folderText.isEmpty { leaveCommand(); return true }
+        if folderScope != nil {
+            guard folderText.isEmpty else { return false }
+            if app.preferences.folderBackspaceBehavior == .exitNavigation {
+                folderStack = []
+                folderText = ""
+                filterText = ""
+                inputState.replaceRawQuery("", keywords: app.keywords, bookmarksEnabled: canSearchBookmarks)
+                update()
+            } else {
+                leaveCommand()
+            }
+            return true
+        }
         guard inputState.backspaceOnEmptyText() else { return false }
         update()
         return true

@@ -163,6 +163,40 @@ private enum LauncherFolderRegression {
             windowNumber: panel.windowNumber, context: nil, characters: "\u{7f}", charactersIgnoringModifiers: "\u{7f}", isARepeat: false, keyCode: 51)!)
         try await Task.sleep(for: .milliseconds(250))
         try require(model.folderScope == nil && model.inputText == "Design", "empty input Backspace must leave scope")
+        let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data("{}".utf8))
+        try require(legacy.folderBackspaceBehavior == .parent, "legacy settings default to parent navigation")
+        for behavior in [FolderBackspaceBehavior.parent, .exitNavigation] {
+            app.preferences.folderBackspaceBehavior = behavior
+            let reloaded = try AppModel(root: root.appending(path: "store"))
+            try require(reloaded.preferences.folderBackspaceBehavior == behavior, "navigation preference survives relaunch")
+            model.query = "Design"
+            for _ in 0..<30 {
+                if model.results.contains(where: { $0.target.identifier == folder.path }) { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            model.selection = model.results.firstIndex { $0.target.identifier == folder.path }!
+            try require(model.enterSelectedFolder(), "enter root folder for Backspace behavior")
+            try await Task.sleep(for: .milliseconds(250))
+            model.selection = model.results.firstIndex { $0.title == "Icons" }!
+            try require(model.enterSelectedFolder(), "enter nested folder for Backspace behavior")
+            model.inputText = "Logo"
+            try require(!model.backspaceOnEmptyInput() && model.folderScope?.path == nested.path,
+                        "nonempty input must retain folder scope for normal text deletion")
+            model.inputText = ""
+            try await Task.sleep(for: .milliseconds(250))
+            panel.sendEvent(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: panel.windowNumber, context: nil, characters: "\u{7f}", charactersIgnoringModifiers: "\u{7f}", isARepeat: false, keyCode: 51)!)
+            try await Task.sleep(for: .milliseconds(250))
+            if behavior == .parent {
+                try require(model.folderScope?.path == folder.path, "default Backspace returns exactly one level")
+                model.leaveCommand()
+            } else {
+                try require(!model.hasScope && model.inputText.isEmpty && panel.isVisible,
+                            "exit navigation clears every level and query while keeping launcher visible")
+                model.query = "Design"
+                try await Task.sleep(for: .milliseconds(250))
+            }
+        }
         try FileManager.default.removeItem(at: folder)
         try require(!model.enterSelectedFolder(), "deleted folder cannot be entered")
         model.reset()

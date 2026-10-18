@@ -741,3 +741,13 @@
 "文件夹中没有匹配项目" = "No matching items in this folder";
 
 "无法读取文件夹，请检查访问权限或文件夹是否已移动。" = "Unable to read the folder. Check access permissions or whether it has moved.";
+
+"搜索与导航" = "Search & Navigation";
+
+"文件夹导航" = "Folder Navigation";
+
+"输入框为空时按退格键" = "Backspace on empty input";
+
+"返回上一层" = "Return to parent folder";
+
+"退出文件夹导航" = "Exit folder navigation";

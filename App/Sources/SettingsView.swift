@@ -24,6 +24,8 @@ struct SettingsView: View {
             case .keywords: CommandSettings(app: app)
             case .terminal: TerminalSettings(app: app)
             case .general: GeneralSettings(app: app)
+            case .search: SearchNavigationSettings(app: app)
+            case .clipboard: ClipboardSettings(app: app)
             case .sources: SourceSettings(app: app)
             case .permissions: PermissionSettings(app: app)
             case .plugins: PluginSettings(app: app)
@@ -253,6 +255,15 @@ private struct GeneralSettings: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+}
+
+private struct SearchNavigationSettings: View {
+    @Bindable var app: AppModel
+
+    var body: some View {
+        SettingsForm {
             Section(NSLocalizedString("文件搜索范围", comment: "")) {
                 SettingsEditableList(title: NSLocalizedString("包含的文件夹", comment: ""),
                                      emptyText: NSLocalizedString("尚未添加搜索目录", comment: ""),
@@ -264,6 +275,23 @@ private struct GeneralSettings: View {
                                       selection: .directory,
                                       items: $app.settings.excludedDirectories)
             }
+            Section(NSLocalizedString("文件夹导航", comment: "")) {
+                LabeledContent(NSLocalizedString("输入框为空时按退格键", comment: "")) {
+                    SettingsChoice(selection: $app.preferences.folderBackspaceBehavior, options: [
+                        (FolderBackspaceBehavior.parent, NSLocalizedString("返回上一层", comment: "")),
+                        (FolderBackspaceBehavior.exitNavigation, NSLocalizedString("退出文件夹导航", comment: ""))
+                    ]).fixedSize()
+                }
+            }
+        }
+    }
+}
+
+private struct ClipboardSettings: View {
+    @Bindable var app: AppModel
+
+    var body: some View {
+        SettingsForm {
             Section(NSLocalizedString("剪贴板", comment: "")) {
                 LabeledContent(NSLocalizedString("显示方式", comment: "")) {
                     SettingsChoice(selection: $app.preferences.clipboardLayout, options: [
@@ -283,8 +311,6 @@ private struct GeneralSettings: View {
             }
         }
     }
-
-
 }
 
 // MARK: Sources

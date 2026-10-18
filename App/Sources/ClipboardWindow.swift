@@ -743,9 +743,31 @@ private struct ClipboardHeaderButton: View {
                 .frame(width: 32, height: 32)
                 .contentShape(.interaction, Circle())
         }
-        .buttonStyle(LauncherActionButtonStyle())
+        .buttonStyle(ClipboardHeaderButtonStyle())
         .foregroundStyle(selected ? ThemeColor.kText.color(for: scheme) : ThemeColor.kIconSubtle.color(for: scheme))
         .accessibilityLabel(title).help(title)
+    }
+}
+
+private struct ClipboardHeaderButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay {
+                Circle()
+                    .fill(ThemeColor.kInteractionHover.color(for: colorScheme))
+                    .opacity(isEnabled ? (configuration.isPressed ? 1 : isHovered ? 0.6 : 0) : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(.interaction, Circle())
+            .onHover { isHovered = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 
@@ -853,6 +875,8 @@ private struct ClipboardListView: View {
             }
             .frame(width: 272)
             Rectangle().fill(ThemeColor.kBorder).frame(width: 1)
+                .padding(.top, 12)
+                .padding(.bottom, LauncherLayout.actionBarHeight + 12)
             if let item = controller.selectedItem {
                 ClipboardListDetail(item: item).id(item.id)
                     .padding(.bottom, LauncherLayout.actionBarHeight)

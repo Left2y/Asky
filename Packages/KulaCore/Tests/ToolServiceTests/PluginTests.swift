@@ -53,11 +53,18 @@ private func installer(version: String = "1", dependency: Bool = false, failure:
         #expect(await manager.installed().isEmpty)
         await manager.setInstallationCommand(installer())
         try await manager.install(repository: "https://github.com/example/plugin")
+        #expect(await manager.installed().first?.enabled == false)
+        #expect(await manager.definitions().isEmpty)
+        #expect(await manager.guidance().isEmpty)
+        #expect(await manager.adapter(named: "plugin_example__run") == nil)
+        #expect(await PluginManager(store: store).installed().first?.enabled == false)
+        await manager.setEnabled("example", true)
         #expect(await manager.definitions().count == 1)
         #expect(await manager.guidance().first?.contains("example") == true)
         await manager.setInstallationCommand(installer(version: "2"))
         try await manager.install(repository: "https://github.com/example/plugin")
         #expect(await manager.installed().first?.commit == "commit-2")
+        #expect(await manager.installed().first?.enabled == true)
         await manager.setInstallationCommand(installer(failure: true))
         await #expect(throws: Error.self) { try await manager.install(repository: "https://github.com/example/plugin") }
         #expect(await manager.installed().first?.commit == "commit-2")
@@ -96,6 +103,7 @@ private func installer(version: String = "1", dependency: Bool = false, failure:
             pluginRuntime: .init(nodePath: node, runnerPath: runner.path))
         await service.plugins.setInstallationCommand(installer())
         try await service.plugins.install(repository: "https://github.com/example/plugin")
+        await service.plugins.setEnabled("example", true)
         let text = "line one\n\"quotes\" `literal` $(literal) 中文"
         let request = ActionRequest(requestID: "stable-request", tool: "plugin_example__run", arguments: ["text": .string(text)], origin: .agent(sessionID: "s"), intent: .explicitRequest)
         let result = await service.submit(request)
@@ -124,6 +132,7 @@ private func installer(version: String = "1", dependency: Bool = false, failure:
         let manager = PluginManager(store: try LocalStore(root: root))
         await manager.setInstallationCommand(installer())
         try await manager.install(repository: "https://github.com/example/plugin")
+        await manager.setEnabled("example", true)
         try await manager.acquire("example", requestID: "lease")
         await manager.setInstallationCommand(installer(version: "2"))
         let update = Task { try await manager.install(repository: "https://github.com/example/plugin") }
@@ -156,6 +165,7 @@ private func installer(version: String = "1", dependency: Bool = false, failure:
             }
         }
         try await service.plugins.install(repository: PluginManager.officialRepositories[0])
+        await service.plugins.setEnabled("orca", true)
         let guide = await service.submit(ActionRequest(tool: "plugin_orca__cli_query",
             arguments: ["arguments": ["skills", "get", "orca-cli"]],
             origin: .agent(sessionID: "live-discovery"), intent: .explicitRequest))

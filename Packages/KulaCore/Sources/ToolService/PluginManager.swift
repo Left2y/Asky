@@ -98,7 +98,7 @@ public actor PluginManager {
         catch { if hasPrevious { try? FileManager.default.moveItem(at: previous, to: destination) }; throw error }
         var config = old?.configuration ?? [:]
         for f in m.configuration ?? [] where config[f.key] == nil { config[f.key] = f.defaultValue }
-        let installed = InstalledPlugin(manifest: m, repository: source, commit: commit, enabled: old?.enabled ?? true,
+        let installed = InstalledPlugin(manifest: m, repository: source, commit: commit, enabled: old?.enabled ?? false,
                                         configuration: config, previousCommit: hasPrevious ? old?.commit : nil)
         records.removeAll { $0.id == m.id }; records.append(installed); save()
     }

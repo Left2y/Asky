@@ -19,6 +19,10 @@ enum ClipboardRegression {
         }
         Task { @MainActor in
             do {
+                if CommandLine.arguments.contains("--clear-all") {
+                    try await verifyClearAll()
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--paste-target") {
                     try await verifyPasteTarget()
                     exit(0)
@@ -458,7 +462,7 @@ enum ClipboardRegression {
                     key(35, [.option, .command])
                     precondition(controller.selectedItem?.id == targetID && controller.selectedItem?.pinned == false,
                                  "removed pin shortcut must not change the record")
-                    precondition(controller.actionKinds == [.copy, .delete], "More always offers Copy and Delete")
+                    precondition(controller.actionKinds == [.copy, .delete, .clearAll], "More always offers Copy, Delete and Clear All")
                     key(40, .command)
                     try await Task.sleep(for: .milliseconds(200))
                     precondition(controller.isActionsMenuPresented)
@@ -894,6 +898,68 @@ enum ClipboardRegression {
         application.run()
     }
 
+    private static func verifyClearAll() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-clear-all-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let store = ClipboardStore(app.store)
+        let original = root.appending(path: "original.txt")
+        try Data("keep".utf8).write(to: original)
+        let controller = ClipboardController(app: app)
+        for layout in [ClipboardLayout.list, .cards] {
+            app.preferences.clipboardLayout = layout
+            for i in 0..<125 {
+                try store.insert(ClipboardItem(kind: .text, text: "history \(i)", byteSize: 1,
+                    pinned: i == 0, contentHash: "text-\(i)"))
+            }
+            let image = root.appending(path: "owned.png")
+            let thumb = root.appending(path: "thumb.png")
+            try Data([1]).write(to: image)
+            try Data([2]).write(to: thumb)
+            try store.insert(ClipboardItem(kind: .image, filePath: image.path, thumbPath: thumb.path,
+                byteSize: 1, contentHash: "image"))
+            try store.insert(ClipboardItem(kind: .file, filePath: original.path, byteSize: 4, contentHash: "file"))
+            controller.show()
+            controller.query = "history 124"
+            let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
+            for approved in [false, true] {
+                let task = Task { await controller.clearAll() }
+                for _ in 0..<50 {
+                    if panel.attachedSheet != nil { break }
+                    try await Task.sleep(for: .milliseconds(20))
+                }
+                guard let sheet = panel.attachedSheet else { preconditionFailure("Clear All must present an owned sheet") }
+                try await Task.sleep(for: .milliseconds(250))
+                precondition(store.recent(limit: 1000).count == 127, "Opening confirmation must preserve history")
+                if !approved {
+                    let url = URL(filePath: FileManager.default.currentDirectoryPath)
+                        .appending(path: "build/clipboard-clear-all-\(layout).png")
+                    let capture = Process()
+                    capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                    capture.arguments = ["-x", "-l", String(sheet.windowNumber), url.path]
+                    try capture.run()
+                    capture.waitUntilExit()
+                    precondition(capture.terminationStatus == 0)
+                }
+                panel.endSheet(sheet, returnCode: approved ? .alertFirstButtonReturn : .alertSecondButtonReturn)
+                await task.value
+                if approved {
+                    precondition(store.recent(limit: 1000).isEmpty && store.search("history").isEmpty)
+                    precondition(controller.items.isEmpty)
+                    precondition(!FileManager.default.fileExists(atPath: image.path))
+                    precondition(!FileManager.default.fileExists(atPath: thumb.path))
+                } else {
+                    precondition(store.recent(limit: 1000).count == 127)
+                    precondition(FileManager.default.fileExists(atPath: image.path))
+                }
+                precondition(FileManager.default.fileExists(atPath: original.path))
+                precondition(panel.isVisible)
+            }
+            controller.hide()
+        }
+        print("Clipboard Clear All: list/cards confirmation, cancel, filtered >100 history, pinned items, assets and original files passed")
+    }
+
     private static func startPasteReceiver(at root: URL) {
         let application = NSApplication.shared
         application.setActivationPolicy(.regular)
@@ -1042,7 +1108,7 @@ enum ClipboardRegression {
             try await Task.sleep(for: .milliseconds(30))
         }
         controller.show()
-        precondition(!controller.hasPasteTarget && controller.actionKinds == [.copy, .delete],
+        precondition(!controller.hasPasteTarget && controller.actionKinds == [.copy, .delete, .clearAll],
                      "no input must retain Copy and omit automatic paste in More")
         let before = ClipboardAccess.changeCount
         controller.submitSelection(copyOnly: false)

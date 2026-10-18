@@ -347,6 +347,19 @@ public struct ClipboardStore: Sendable {
         }
     }
 
+    /// Clears the entire history, including pinned rows and the search index.
+    /// Only owned image assets are returned; original file references are preserved.
+    @discardableResult
+    public func clearAll() throws -> [String] {
+        try db.transaction {
+            let paths = try db.query("SELECT file_path, thumb_path FROM clipboard WHERE kind = ?", [ClipboardKind.image.rawValue])
+                .flatMap { [$0.string("file_path"), $0.string("thumb_path")].compactMap { $0 } }
+            try db.run("DELETE FROM clipboard_fts")
+            try db.run("DELETE FROM clipboard")
+            return paths
+        }
+    }
+
     /// Removes unpinned items older than retention, then oldest unpinned until under the byte budget.
     /// Returns file paths to remove.
     public func cleanup(now: Date = Date(), budget: Int = ClipboardStore.byteBudget) throws -> [String] {

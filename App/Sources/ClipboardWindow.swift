@@ -45,13 +45,14 @@ enum ClipboardScroll {
 }
 
 enum ClipboardHistoryAction {
-    case copy, pasteKeepingOpen, delete
+    case copy, pasteKeepingOpen, delete, clearAll
 
     var title: String {
         switch self {
         case .copy: "复制到剪贴板"
         case .pasteKeepingOpen: "粘贴并保持窗口开启"
         case .delete: "删除记录"
+        case .clearAll: "清空全部"
         }
     }
 
@@ -60,6 +61,7 @@ enum ClipboardHistoryAction {
         case .copy: "doc.on.clipboard"
         case .pasteKeepingOpen: "cursor_3"
         case .delete: "trash"
+        case .clearAll: "trash"
         }
     }
 }
@@ -81,13 +83,14 @@ final class ClipboardController {
     var isActionsMenuPresented = false {
         didSet { updateOutsideClickDismissal() }
     }
+    private var isConfirmingClearAll = false
     private var hiding = false
     private var pasteTarget: ClipboardPasteTarget?
     private var pasteTask: Task<Void, Never>?
     private var keepingOpenForPaste = false
     private let pasteTargetProvider: @MainActor () -> ClipboardPasteTarget
     private(set) var hasPasteTarget = false
-    var actionKinds: [ClipboardHistoryAction] { hasPasteTarget ? [.copy, .pasteKeepingOpen, .delete] : [.copy, .delete] }
+    var actionKinds: [ClipboardHistoryAction] { hasPasteTarget ? [.copy, .pasteKeepingOpen, .delete, .clearAll] : [.copy, .delete, .clearAll] }
     var layout: ClipboardLayout { app.preferences.clipboardLayout }
     var isDragging: Bool { dragSource.active }
 
@@ -178,7 +181,7 @@ final class ClipboardController {
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
         // Keyboard application switching must also release the outside-click shield.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active, !self.keepingOpenForPaste { self.hide() } }
+            MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active, !self.keepingOpenForPaste, !self.isConfirmingClearAll { self.hide() } }
         }
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.panel.level = .floating }
@@ -243,7 +246,7 @@ final class ClipboardController {
     }
 
     private func updateOutsideClickDismissal() {
-        guard panel.isVisible, (!pinned || isActionsMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
+        guard !isConfirmingClearAll, panel.isVisible, (!pinned || isActionsMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
             return self.shellFrame.contains(point) || (self.preview.isVisible && self.preview.frame.contains(point))
@@ -282,6 +285,7 @@ final class ClipboardController {
         case .copy: copy(item)
         case .pasteKeepingOpen: pasteSelection(keepingOpen: true)
         case .delete: delete(item)
+        case .clearAll: Task { await clearAll() }
         }
     }
 
@@ -464,6 +468,37 @@ final class ClipboardController {
         }
         view.beginDraggingSession(with: dragging, event: event, source: dragSource)
             .animatesToStartingPositionsOnCancelOrFail = true
+    }
+
+    static func makeClearAllAlert() -> NSAlert {
+        let alert = AppDialog.make()
+        alert.messageText = NSLocalizedString("清空全部剪贴板历史？", tableName: "Clipboard", comment: "")
+        alert.informativeText = NSLocalizedString("所有剪贴板历史（包括固定的记录）都将被删除，且无法恢复。原始文件不会被删除。", tableName: "Clipboard", comment: "")
+        let confirm = alert.addButton(withTitle: NSLocalizedString("清空全部", tableName: "Clipboard", comment: ""))
+        confirm.hasDestructiveAction = true
+        confirm.keyEquivalent = "\r"
+        alert.addButton(withTitle: NSLocalizedString("取消", comment: "")).keyEquivalent = "\u{1b}"
+        return alert
+    }
+
+    func clearAll() async {
+        guard !isConfirmingClearAll else { return }
+        isConfirmingClearAll = true
+        isActionsMenuPresented = false
+        dismissPreview()
+        updateOutsideClickDismissal()
+        defer {
+            isConfirmingClearAll = false
+            updateOutsideClickDismissal()
+        }
+        guard await AppDialog.present(Self.makeClearAllAlert(), for: panel) == .alertFirstButtonReturn else { return }
+        do {
+            let paths = try ClipboardStore(app.store).clearAll()
+            ClipboardMonitor.removeFiles(paths)
+            refresh()
+        } catch {
+            status = NSLocalizedString("无法清空剪贴板历史", tableName: "Clipboard", comment: "")
+        }
     }
 
     func delete(_ item: ClipboardItem) {
@@ -901,6 +936,10 @@ private struct ClipboardHistoryCard: View {
             }
         }
         Button(NSLocalizedString("删除", comment: ""), role: .destructive) { controller.delete(item) }
+        Divider()
+        Button(NSLocalizedString("清空全部", tableName: "Clipboard", comment: ""), role: .destructive) {
+            Task { await controller.clearAll() }
+        }
     }
 
 }

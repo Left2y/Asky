@@ -15,3 +15,7 @@
 "更多" = "More";
 "删除记录" = "Delete Record";
 "粘贴并保持窗口开启" = "Paste and Keep Window Open";
+"清空全部" = "Clear All";
+"清空全部剪贴板历史？" = "Clear all clipboard history?";
+"所有剪贴板历史（包括固定的记录）都将被删除，且无法恢复。原始文件不会被删除。" = "All clipboard history, including pinned items, will be permanently deleted. Original files will be kept.";
+"无法清空剪贴板历史" = "Unable to clear clipboard history";

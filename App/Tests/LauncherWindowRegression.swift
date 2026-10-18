@@ -441,7 +441,7 @@ enum LauncherWindowRegression {
         try require(abs(panel.frame.width - (LauncherLayout.toolbarWidth - LauncherLayout.accessoryReserve)) <= 1,
                     "empty shell must yield accessory space: \(panel.frame.width)")
         let footprint = accessories.reduce(panel.frame) { $0.union($1.frame) }
-        try require(abs(footprint.width - 720) <= 1, "toolbar must retain the requested 720 pt width")
+        try require(abs(footprint.width - 640) <= 1, "toolbar must retain the requested 640 pt width")
         try require(abs(panel.frame.height - 52) <= 1, "empty shell window must be exactly the 52 pt field: \(panel.frame.height)")
         try require(panel.hasShadow && accessories.allSatisfy(\.hasShadow), "every surface uses the native window shadow")
         if WindowSurface.usesNativeGlass {
@@ -1078,7 +1078,7 @@ enum LauncherWindowRegression {
         let baseline = panel.frame
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let visibleFrame = screen?.visibleFrame {
-            try require(abs(baseline.width - 720) <= 1, "expanded launcher must be 720 pt wide")
+            try require(abs(baseline.width - 640) <= 1, "expanded launcher must be 640 pt wide")
             let expectedTop = visibleFrame.maxY - visibleFrame.height * 0.18
             try require(abs(baseline.maxY - expectedTop) <= 1, "launcher must open at the lowered screen anchor")
             let availableHeight = floor(visibleFrame.height * 0.82 - 24)

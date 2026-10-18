@@ -35,7 +35,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆；上下文压缩时显示 loading 与状态提示。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
 
-卡片与列表顶部共用主搜索样式：整行输入区内保留筛选与窗口固定按钮，不显示搜索图标，筛选与固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。
+卡片与列表顶部共用主搜索样式：整行输入区内保留筛选与窗口固定按钮，不显示搜索图标，筛选与固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。主搜索与剪贴板输入区同为 52 pt 高，右侧图标大小与边距一致。
 
 ### 安装与使用
 
@@ -135,7 +135,7 @@ With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window ba
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory; context compaction shows a loading indicator and status.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 
-Card and list views share the launcher search style: the full-row input contains the filter and window pin buttons, omits the search icon, and uses icon-only filter and pin buttons without persistent backgrounds. The bottom divider has horizontal insets, and the list column divider has vertical insets.
+Card and list views share the launcher search style: the full-row input contains the filter and window pin buttons, omits the search icon, and uses icon-only filter and pin buttons without persistent backgrounds. The bottom divider has horizontal insets, and the list column divider has vertical insets. Launcher and clipboard input rows are both 52 pt tall and share the same trailing icon size and alignment.
 
 ### Install and Use
 

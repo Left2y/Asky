@@ -740,11 +740,12 @@ private struct ClipboardHeaderButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(mingCute: symbol)
+            Image(mingCute: symbol, size: LauncherLayout.searchIconSize)
                 .frame(width: 32, height: 32)
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(ClipboardHeaderButtonStyle())
+        .frame(width: LauncherLayout.inputAccessoryWidth, height: LauncherLayout.inputAccessoryHeight)
         .foregroundStyle(selected ? ThemeColor.kText.color(for: scheme) : ThemeColor.kIconSubtle.color(for: scheme))
         .accessibilityLabel(title).help(title)
     }

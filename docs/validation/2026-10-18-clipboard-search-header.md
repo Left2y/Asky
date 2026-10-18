@@ -23,3 +23,11 @@
 - 新构建的 Debug App 卡片窗口实际检查通过：Filter 与 Pin 的圆形玻璃底板已消失。
 - 新编译的列表预览通过 WindowServer 截图检查：两个按钮普通状态仅显示图标，中间竖线顶部与横线分离，底部止于操作栏上方；截图位于本地忽略的 `build/clipboard-header-pure-icons-list.png`。
 - 修正后重新运行原生 `--filters` 回归通过：类型、搜索交集、重置和菜单生命周期。
+
+## 右侧图标与搜索区尺寸对齐
+
+主搜索图标原占 19 × 24 pt 布局槽，而剪贴板图标按钮占 32 × 32 pt，同样右留白 22 pt 时图标中心相差 6.5 pt。现在主搜索和剪贴板复用 `LauncherLayout.inputAccessoryWidth/Height` 的 19 × 24 pt 布局槽，图标均为 17 pt，右侧最后一个图标中心距窗口右缘 31.5 pt。剪贴板按钮内部仍为 32 × 32 pt 点击范围，外部槽只影响排版，不裁剪按钮。两个输入区共用 `LauncherLayout.inputHeight = 52`，剪贴板外圆角沿用主搜索的 26 pt。
+
+- XcodeGen、README Debug 构建与 KulaCore `swift test` 实际运行通过。
+- 新构建 Debug App 列表窗口经 `orca computer` 截图核对：2× 截图中右侧 Pin 中心约 x=1218，窗口宽 1280 px，对应距右缘约 31 pt；输入区底部分割线位于 y=104 px，对应 52 pt。
+- 截图保存在已忽略的 `build/clipboard-header-alignment-native.png`。

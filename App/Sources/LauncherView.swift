@@ -17,6 +17,8 @@ enum LauncherLayout {
     static let inputSpacing: CGFloat = 12
     static let folderScopeMaxWidth: CGFloat = 180
     static let folderScopeHeight: CGFloat = 24
+    static let inputAccessoryWidth: CGFloat = 19
+    static let inputAccessoryHeight: CGFloat = 24
     static let searchIconSize: CGFloat = 17
     static let shellCornerRadius = inputHeight / 2
     static let dividerHeight: CGFloat = 1
@@ -471,7 +473,7 @@ struct LauncherView: View {
     private var searchIcon: some View {
         Image(mingCute: "magnifyingglass", size: LauncherLayout.searchIconSize)
             .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
-            .frame(width: 19, height: 24)
+            .frame(width: LauncherLayout.inputAccessoryWidth, height: LauncherLayout.inputAccessoryHeight)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }

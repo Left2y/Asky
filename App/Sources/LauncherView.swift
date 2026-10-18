@@ -20,8 +20,6 @@ enum LauncherLayout {
     static let folderScopeMaxWidth: CGFloat = 180
     static let folderScopeHeight: CGFloat = 24
     static let accessoryIconSize: CGFloat = 17
-    static let filterMenuWidth: CGFloat = 220
-    static let filterMenuCornerRadius: CGFloat = 24
     static let shellCornerRadius = inputHeight / 2
     static let dividerHeight: CGFloat = 1
     // Compact, single-line results based on the supplied Tinycast reference.
@@ -117,7 +115,6 @@ final class LauncherPanel: NSPanel {
 
 /// Transient surfaces outside the single launcher shell.
 struct LauncherChrome: Equatable {
-    var filterMenu = false
     var actionsMenu = false
     var toast: String?
 }
@@ -125,12 +122,9 @@ struct LauncherChrome: Equatable {
 @MainActor
 final class LauncherController {
     private let panel = LauncherPanel()
-    private let filterPanel = SurfacePanel()
     private let actionsPanel = SurfacePanel()
     private let toastPanel = SurfacePanel()
-    private let filterReveal = SurfaceSpring()
     private let resultReveal = SurfaceSpring()
-    private var filterMenuSize = NSSize.zero
     private let outsideClickDismissal = OutsideClickDismissal()
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
@@ -149,14 +143,12 @@ final class LauncherController {
         panel.onEscape = { [weak self] in
             guard let self else { return }
             if self.model.isActionsMenuPresented { self.model.closeActionsMenu() }
-            else if self.model.isFilterMenuPresented { self.model.isFilterMenuPresented = false }
             else if self.model.hasScope { self.model.leaveCommand() }
             else { self.hide() }
         }
         panel.onBlur = { [weak self] in
             guard let self else { return }
             self.model.closeActionsMenu()
-            self.model.isFilterMenuPresented = false
             guard !self.model.isPinned, !self.model.isConfirmingQuit else { return }
             self.hide()
         }
@@ -172,7 +164,6 @@ final class LauncherController {
         panel.onRevealInFinder = { [weak model] in model?.revealSelectionInFinder() ?? false }
         model.onHide = { [weak self] in self?.hide() }
         model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
-        filterReveal.onStep = { [weak self] _ in self?.layoutFilterMenu() }
         resultReveal.onStep = { [weak self] height in
             guard let self else { return }
             self.shellHeight = CGFloat(height)
@@ -258,7 +249,7 @@ final class LauncherController {
     /// the dimmer inactive material. Match them to the shell while it is key.
     private func updateGlassAppearance(keyed: Bool) {
         let matches = keyed && WindowSurface.usesNativeGlass
-        for surface in [filterPanel, actionsPanel] {
+        for surface in [actionsPanel] {
             surface.matchesActiveAppearance = matches
         }
     }
@@ -267,7 +258,7 @@ final class LauncherController {
         guard panel.isVisible, !model.isPinned else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
-            let surfaces = [self.panel, self.filterPanel, self.actionsPanel]
+            let surfaces = [self.panel, self.actionsPanel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
     }
@@ -275,42 +266,9 @@ final class LauncherController {
     private func update(_ next: LauncherChrome) {
         let previous = chrome
         chrome = next
-        if next.filterMenu != previous.filterMenu { setFilterMenu(visible: next.filterMenu) }
         if next.actionsMenu != previous.actionsMenu { setActionsMenu(visible: next.actionsMenu) }
         if next.toast != previous.toast { setToast(next.toast) }
         layoutSurfaces()
-    }
-
-    private func setFilterMenu(visible: Bool) {
-        filterReveal.stop()
-        guard visible else { filterPanel.remove(); return }
-        let view = LauncherFilterMenu(model: model)
-        filterMenuSize = SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.filterMenuWidth)
-        filterPanel.setSurface(view, size: filterMenuSize, cornerRadius: LauncherLayout.filterMenuCornerRadius)
-        updateGlassAppearance(keyed: panel.isKeyWindow)
-        // Animate the actual window footprint so the system shadow follows the
-        // glass, with no transparent canvas around the scaled menu.
-        filterPanel.animationBehavior = .none
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        filterReveal.set(reduceMotion ? 1 : 0)
-        panel.addChildWindow(filterPanel, ordered: .above)
-        if !reduceMotion { filterReveal.animate(to: 1, response: 0.24, damping: 0.9, in: filterPanel) }
-    }
-
-    private func layoutFilterMenu() {
-        guard filterPanel.contentView != nil else { return }
-        let progress = min(1, max(0, filterReveal.value))
-        let scale = 0.94 + 0.06 * progress
-        let size = NSSize(width: filterMenuSize.width * scale, height: filterMenuSize.height * scale)
-        let top = origin.y - LauncherLayout.inputHeight - LauncherLayout.menuSpacing
-        filterPanel.setFrame(NSRect(x: origin.x + LauncherLayout.toolbarWidth - size.width,
-                                    y: top - size.height, width: size.width, height: size.height), display: false)
-        // Keep the content's logical size fixed; scale its coordinate space
-        // together with the glass instead of reflowing or cropping menu rows.
-        filterPanel.contentView?.setBoundsSize(filterMenuSize)
-        filterPanel.contentView?.layoutSubtreeIfNeeded()
-        filterPanel.alphaValue = progress
-        filterPanel.invalidateShadow()
     }
 
     private func setActionsMenu(visible: Bool) {
@@ -352,7 +310,6 @@ final class LauncherController {
             WindowSurface.updateCorners(of: surface,
                 radius: LauncherLayout.shellCornerRadius, circular: true)
         }
-        if filterPanel.isVisible { layoutFilterMenu() }
         if actionsPanel.isVisible {
             // Bottom-right anchor above More; the menu overlays the result rows.
             actionsPanel.setFrameOrigin(NSPoint(x: frame.maxX - actionsPanel.frame.width - 14,
@@ -385,9 +342,8 @@ final class LauncherController {
         hiding = true
         defer { hiding = false }
         outsideClickDismissal.hide()
-        filterReveal.stop()
         resultReveal.stop()
-        for surface in [filterPanel, actionsPanel, toastPanel] { surface.remove() }
+        for surface in [actionsPanel, toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
@@ -415,17 +371,13 @@ struct LauncherView: View {
     private var hasInput: Bool { model.hasScope || !model.query.isEmpty }
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
     private var chrome: LauncherChrome {
-        LauncherChrome(filterMenu: model.isFilterMenuPresented && !hasInput,
-                       actionsMenu: model.isActionsMenuPresented,
+        LauncherChrome(actionsMenu: model.isActionsMenuPresented,
                        toast: model.toast)
     }
 
     var body: some View {
         searchShell
             .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
-            .onChange(of: hasInput) { _, searching in
-                if searching { model.isFilterMenuPresented = false }
-            }
             .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
     }
 
@@ -468,14 +420,8 @@ struct LauncherView: View {
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)
-                .simultaneousGesture(TapGesture().onEnded {
-                    model.isFilterMenuPresented = false
-                })
                 if !hasInput {
-                    HStack(spacing: 4) {
-                        LauncherAccessory(model: model, index: 0)
-                        LauncherAccessory(model: model, index: 1)
-                    }
+                    LauncherPinButton(model: model)
                 }
             }
             .padding(.leading, LauncherLayout.inputLeadingPadding)
@@ -556,77 +502,26 @@ struct LauncherView: View {
 
 }
 
-/// Inline controls share the shell glass; only interaction feedback is drawn here.
-private struct LauncherAccessory: View {
+/// The pin shares the shell glass; only interaction feedback is drawn here.
+private struct LauncherPinButton: View {
     @Bindable var model: LauncherModel
-    let index: Int
     @Environment(\.colorScheme) private var colorScheme
 
-    private var isPin: Bool { index == 0 }
-    private var selected: Bool {
-        isPin ? model.isPinned : model.filter != .all || model.isFilterMenuPresented
-    }
-    private var label: String {
-        isPin ? (model.isPinned ? "取消固定" : "固定窗口") : "筛选搜索"
-    }
-    private var symbol: String {
-        isPin ? (model.isPinned ? "pin.fill" : "pin") : "line.3.horizontal.decrease"
-    }
+    private var label: String { model.isPinned ? "取消固定" : "固定窗口" }
 
     var body: some View {
         let size = LauncherLayout.accessorySize
-        Button {
-            if isPin { model.isPinned.toggle() } else { model.isFilterMenuPresented.toggle() }
-        } label: {
-            Image(mingCute: symbol, size: LauncherLayout.accessoryIconSize)
-                .foregroundStyle(selected ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
+        Button { model.isPinned.toggle() } label: {
+            Image(mingCute: model.isPinned ? "pin.fill" : "pin", size: LauncherLayout.accessoryIconSize)
+                .foregroundStyle(model.isPinned ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
                 .frame(width: size, height: size)
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(LauncherAccessoryButtonStyle(size: size))
-        .accessibilityIdentifier(isPin ? "launcher.pin" : "launcher.filter")
+        .accessibilityIdentifier("launcher.pin")
         .accessibilityLabel(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
-        .accessibilityValue(selected ? "On" : "Off")
+        .accessibilityValue(model.isPinned ? "On" : "Off")
         .help(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
-    }
-}
-
-/// The source filter list; it fills its own `SurfacePanel`.
-private struct LauncherFilterMenu: View {
-    @Bindable var model: LauncherModel
-    @State private var hoveredFilter: LauncherFilter?
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ForEach(LauncherFilter.allCases) { filter in
-                Button {
-                    model.setFilter(filter)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(mingCute: filter.icon).frame(width: 22)
-                        Text(NSLocalizedString(filter.title, tableName: "Launcher", comment: "Launcher filter"))
-                        Spacer()
-                        if model.filter == filter { Image(mingCute: "checkmark") }
-                    }
-                    .font(.system(size: 14))
-                    .padding(.horizontal, 14)
-                    .frame(height: 40)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .background(model.filter == filter || hoveredFilter == filter ? ThemeColor.kInteractionHover.color(for: colorScheme) : .clear,
-                            in: RoundedRectangle(cornerRadius: 12))
-                .onHover { inside in
-                    if inside { hoveredFilter = filter }
-                    else if hoveredFilter == filter { hoveredFilter = nil }
-                }
-            }
-        }
-        .padding(8)
-        .frame(width: LauncherLayout.filterMenuWidth)
-        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
-        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: LauncherLayout.filterMenuCornerRadius))
     }
 }
 

@@ -52,15 +52,6 @@ enum LauncherFilter: String, CaseIterable, Identifiable {
         case .shortcuts: "快捷指令"
         }
     }
-    var icon: String {
-        switch self {
-        case .all: "magnifyingglass"
-        case .applications: "app.badge"
-        case .files: "folder"
-        case .quickLinks: "link"
-        case .shortcuts: "square.stack.3d.up"
-        }
-    }
     func includes(_ source: SearchSource) -> Bool {
         switch self {
         case .all: true
@@ -85,7 +76,6 @@ struct TerminalSession: Identifiable {
 final class LauncherModel {
     var isPinned = false { didSet { onPinChanged() } }
     var onPinChanged: () -> Void = {}
-    var isFilterMenuPresented = false
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
     private var folderStack: [(url: URL, previousText: String)] = []
@@ -99,7 +89,6 @@ final class LauncherModel {
         filter = value
         filterText = text
         if value == .all { inputState.replaceRawQuery(text, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
-        isFilterMenuPresented = false
         if value != .all { inputState.leaveCommand() }
         rebuildProviders()
         batches = []
@@ -284,7 +273,6 @@ final class LauncherModel {
         folderText = ""
         closeActionsMenu()
         isPinned = false
-        isFilterMenuPresented = false
         filter = .all
         filterText = ""
         chromeAccessTask?.cancel()
@@ -1020,7 +1008,6 @@ extension LauncherModel {
     func toggleActionsMenu() -> Bool {
         if isActionsMenuPresented { closeActionsMenu(); return true }
         guard !secondaryActions.isEmpty else { return false }
-        isFilterMenuPresented = false
         actionSelection = 0
         actionMenuTarget = selectedActionResult
         isActionsMenuPresented = true

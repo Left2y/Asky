@@ -888,6 +888,7 @@ private struct ResultList: View {
 
     private static func section(for result: SearchResult) -> String {
         if QuitAskyCommand.isResult(result) { return title(.app) }
+        if result.target.kind == "tab-search" { return NSLocalizedString("搜索指令", comment: "") }
         if ["keyword-match", "launcher-alias"].contains(result.target.kind) { return NSLocalizedString("别名匹配", comment: "") }
         switch result.source {
         case .app, .link, .bookmark: return title(.app)

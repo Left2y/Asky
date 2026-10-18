@@ -10,9 +10,12 @@ import Search
 
 private struct TabCommandProvider: SearchProvider {
     let source: SearchSource
+    var count = 1
     func search(_ query: String, limit: Int) async -> [SearchResult] {
-        [SearchResult(source: source, target: TargetRef(kind: "fixture", identifier: query),
-                      title: query, actions: [], score: 1)]
+        (0..<min(count, limit)).map { index in
+            SearchResult(source: source, target: TargetRef(kind: "fixture", identifier: "\(query)-\(index)"),
+                         title: "\(query) \(index)", actions: [], score: 1)
+        }
     }
 }
 
@@ -138,9 +141,32 @@ enum SettingsRegression {
                 precondition(model.commandKeyword("tabs") == "st")
                 precondition(model.commandKeywordProblem("ST", id: "ai") != nil)
                 let tabLauncher = LauncherModel(app: model, searchProviders: [
-                    TabCommandProvider(source: .chromeTab), TabCommandProvider(source: .app)
+                    TabCommandProvider(source: .chromeTab), TabCommandProvider(source: .app, count: 8),
+                    TabCommandProvider(source: .shortcut, count: 3)
                 ])
                 tabLauncher.query = "st"
+                try await Task.sleep(for: .milliseconds(300))
+                precondition(tabLauncher.results.first?.target.kind == "tab-search")
+                precondition(tabLauncher.results.filter { $0.source == .app }.count == 8)
+                precondition(tabLauncher.results.filter { $0.source == .shortcut }.count == 3)
+                if CommandLine.arguments.contains("--search-commands") {
+                    let controller = LauncherController(model: tabLauncher)
+                    controller.show()
+                    guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else { fatalError("missing tab entry panel") }
+                    panel.onBlur = {}
+                    tabLauncher.query = "st"
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(400))
+                        precondition(tabLauncher.results.first?.target.kind == "tab-search")
+                        guard let view = panel.contentView,
+                              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing tab entry view") }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/tab-entry-\(appearance).png"))
+                    }
+                    controller.hide()
+                    tabLauncher.query = "st"
+                }
                 guard let tabEntry = tabLauncher.results.first(where: { $0.target.kind == "tab-search" }) else { fatalError("missing tab entry") }
                 tabLauncher.execute(tabEntry, action: .open)
                 precondition(tabLauncher.isTabScope && tabLauncher.inputText.isEmpty)
@@ -151,6 +177,9 @@ enum SettingsRegression {
                 model.preferences.commandKeywords["tabs"] = "tabs"
                 let savedTabCommands = try AppModel(root: root)
                 precondition(savedTabCommands.commandKeyword("tabs") == "tabs")
+                tabLauncher.query = "TABS"
+                try await Task.sleep(for: .milliseconds(300))
+                precondition(tabLauncher.results.first?.target.kind == "tab-search")
                 tabLauncher.query = "TABS fixture"
                 precondition(tabLauncher.isTabScope && tabLauncher.inputText == "fixture")
                 tabLauncher.inputText = ""

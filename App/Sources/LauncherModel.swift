@@ -543,6 +543,12 @@ final class LauncherModel {
                     (result.source == .app ? alias.primaryAction == .open : alias.primaryAction == result.primaryAction)
             }
         }
+        // Exact command triggers must remain visible ahead of fuzzy app/shortcut matches.
+        let exactTabEntries = merged.filter {
+            $0.target.kind == "tab-search" && $0.target.identifier.caseInsensitiveCompare(app.commandKeyword("tabs")) == .orderedSame
+        }
+        let exactTabIDs = Set(exactTabEntries.map(\.id))
+        merged = exactTabEntries + merged.filter { !exactTabIDs.contains($0.id) }
         merged = merged.filter(QuitAskyCommand.isResult) + merged.filter { !QuitAskyCommand.isResult($0) }
         if isActionsMenuPresented, merged.indices.contains(selection), merged[selection] != actionMenuTarget {
             closeActionsMenu()

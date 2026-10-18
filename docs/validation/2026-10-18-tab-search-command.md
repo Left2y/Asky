@@ -20,3 +20,13 @@
 ## 边界
 
 标签页范围隔离使用可控 provider 验证，未在本轮对真实 Chrome 标签页执行切换。未替换已安装应用，未发布 Release。
+
+## 搜索入口排序补充验证
+
+用户截图暴露了多结果场景：单独输入 `st` 时，入口随 Chrome 标签页分组落在快捷指令与应用之后，可见区域内无法找到。现在精确匹配默认或自定义标签页指令时，将入口置于首项；入口使用“搜索指令”分组，与真实标签页区分。
+
+- 再次执行上述 `xcodegen generate`、Debug `xcodebuild`、核心包 `swift test` 均通过；核心包共 264 个测试，日志为 `build/tab-entry-build.log` 与 `build/tab-entry-tests.log`。
+- 再次执行 `run-settings-regression.py --search-commands` 通过；注入 8 个应用结果（遵循每个 provider 的 8 条上限）与 3 个快捷指令结果，验证 `st` 及自定义大写 `TABS` 的入口始终为首项，回车进入与仅搜索标签页仍通过。日志为 `build/tab-entry-settings.log`。
+- 已查看 `build/tab-entry-light.png`、`build/tab-entry-dark.png`：首屏顶部为带紫色 Logo 的“搜索开启的标签页”，其后才是快捷指令与应用；默认选择入口。
+- `git diff --check` 通过。日志、截图与检查清单复用 `build/` 忽略规则；未增加忽略规则。
+- README 使用方法未变，保持原文；AGENTS.md 无开发命令或架构约定变化。

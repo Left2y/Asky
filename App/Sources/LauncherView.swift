@@ -136,6 +136,8 @@ final class LauncherController {
     private let toastPanel = SurfacePanel()
     private let surfaces = LauncherSurfaceState()
     private let reveal = SurfaceSpring()
+    private let filterReveal = SurfaceSpring()
+    private var filterMenuSize = NSSize.zero
     private let outsideClickDismissal = OutsideClickDismissal()
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
@@ -177,6 +179,7 @@ final class LauncherController {
         model.onHide = { [weak self] in self?.hide() }
         model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
         reveal.onStep = { [weak self] _ in self?.layoutSurfaces() }
+        filterReveal.onStep = { [weak self] _ in self?.layoutFilterMenu() }
         toastPanel.ignoresMouseEvents = true
     }
 
@@ -292,33 +295,35 @@ final class LauncherController {
     }
 
     private func setFilterMenu(visible: Bool) {
+        filterReveal.stop()
+        guard visible else { filterPanel.remove(); return }
+        let view = LauncherFilterMenu(model: model)
+        filterMenuSize = SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.filterMenuWidth)
+        filterPanel.setSurface(view, size: filterMenuSize, cornerRadius: LauncherLayout.filterMenuCornerRadius)
+        updateGlassAppearance(keyed: panel.isKeyWindow)
+        // Animate the actual window footprint so the system shadow follows the
+        // glass, with no transparent canvas around the scaled menu.
+        filterPanel.animationBehavior = .none
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        if visible {
-            let view = LauncherFilterMenu(model: model)
-            filterPanel.setSurface(view, size: SurfacePanel.fittingSize(of: view, maxWidth: LauncherLayout.filterMenuWidth),
-                                   cornerRadius: LauncherLayout.filterMenuCornerRadius)
-            updateGlassAppearance(keyed: panel.isKeyWindow)
-            filterPanel.alphaValue = reduceMotion ? 1 : 0
-            layoutSurfaces()
-            panel.addChildWindow(filterPanel, ordered: .above)
-            guard !reduceMotion else { return }
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.18
-                filterPanel.animator().alphaValue = 1
-            }
-        } else if reduceMotion {
-            filterPanel.remove()
-        } else {
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.14
-                filterPanel.animator().alphaValue = 0
-            }, completionHandler: { [weak self] in
-                MainActor.assumeIsolated {
-                    guard let self, !self.chrome.filterMenu else { return }
-                    self.filterPanel.remove()
-                }
-            })
-        }
+        filterReveal.set(reduceMotion ? 1 : 0)
+        panel.addChildWindow(filterPanel, ordered: .above)
+        if !reduceMotion { filterReveal.animate(to: 1, response: 0.24, damping: 0.9, in: filterPanel) }
+    }
+
+    private func layoutFilterMenu() {
+        guard filterPanel.contentView != nil else { return }
+        let progress = min(1, max(0, filterReveal.value))
+        let scale = 0.94 + 0.06 * progress
+        let size = NSSize(width: filterMenuSize.width * scale, height: filterMenuSize.height * scale)
+        let top = origin.y - LauncherLayout.inputHeight - LauncherLayout.accessorySpacing
+        filterPanel.setFrame(NSRect(x: origin.x + LauncherLayout.toolbarWidth - size.width,
+                                    y: top - size.height, width: size.width, height: size.height), display: false)
+        // Keep the content's logical size fixed; scale its coordinate space
+        // together with the glass instead of reflowing or cropping menu rows.
+        filterPanel.contentView?.setBoundsSize(filterMenuSize)
+        filterPanel.contentView?.layoutSubtreeIfNeeded()
+        filterPanel.alphaValue = progress
+        filterPanel.invalidateShadow()
     }
 
     private func setActionsMenu(visible: Bool) {
@@ -371,10 +376,7 @@ final class LauncherController {
             accessory.alphaValue = min(1, max(0, progress))
             accessory.ignoresMouseEvents = !chrome.accessories
         }
-        if filterPanel.isVisible {
-            filterPanel.setFrameTopLeftPoint(NSPoint(x: right - filterPanel.frame.width,
-                                                     y: origin.y - side - LauncherLayout.accessorySpacing))
-        }
+        if filterPanel.isVisible { layoutFilterMenu() }
         if actionsPanel.isVisible {
             // Bottom-right anchor above More; the menu overlays the result rows.
             actionsPanel.setFrameOrigin(NSPoint(x: frame.maxX - actionsPanel.frame.width - 14,
@@ -401,6 +403,7 @@ final class LauncherController {
         defer { hiding = false }
         outsideClickDismissal.hide()
         reveal.stop()
+        filterReveal.stop()
         for surface in accessoryPanels + [filterPanel, actionsPanel, toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()

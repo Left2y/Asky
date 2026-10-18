@@ -75,6 +75,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
 
 核心错误与工具说明使用 `CoreLocalization` 及 SwiftPM 共享中英文资源，App 和独立 MCP Bridge 共用；检查规则同时覆盖未接入翻译的固定错误文案。
@@ -154,6 +155,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories-preview --filter-motion
 ```
 
 Core errors and tool descriptions use `CoreLocalization` and shared SwiftPM language resources in both the app and the standalone MCP Bridge. The checks also reject fixed error text that bypasses localization.

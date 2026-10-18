@@ -394,7 +394,34 @@ enum LauncherWindowRegression {
         ])
         let controller = LauncherController(model: model)
         defer { controller.hide() }
-        if CommandLine.arguments.contains("--motion") {
+        if CommandLine.arguments.contains("--filter-motion") {
+            controller.show()
+            guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) else {
+                throw NSError(domain: "FilterMotion", code: 1)
+            }
+            (panel as? LauncherPanel)?.onBlur = {}
+            NSApp.activate(ignoringOtherApps: true)
+            try await Task.sleep(for: .seconds(1))
+            let capture = Process()
+            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            let screenHeight = NSScreen.screens[0].frame.maxY
+            let region = "\(Int(panel.frame.maxX - 160)),\(Int(screenHeight - panel.frame.maxY - 30)),360,390"
+            let recording = "build/filter-motion-\(NSApp.appearance!.name.rawValue).mov"
+            if FileManager.default.fileExists(atPath: recording) {
+                try FileManager.default.removeItem(atPath: recording)
+            }
+            capture.arguments = ["-x", "-v", "-V", "5", "-R", region, recording]
+            try capture.run()
+            try await Task.sleep(for: .seconds(1))
+            for _ in 0..<3 {
+                model.isFilterMenuPresented = true
+                try await Task.sleep(for: .milliseconds(650))
+                model.isFilterMenuPresented = false
+                try await Task.sleep(for: .milliseconds(350))
+            }
+            try await Task.sleep(for: .seconds(2))
+            try require(!capture.isRunning && capture.terminationStatus == 0, "filter motion recording must succeed")
+        } else if CommandLine.arguments.contains("--motion") {
             try await Task.sleep(for: .seconds(1))
             for _ in 0..<3 {
                 controller.show()

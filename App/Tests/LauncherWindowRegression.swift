@@ -1123,22 +1123,28 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(50))
         let editor = field.currentEditor()
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+        let windowTop = panel.frame.maxY
         var intermediateHeights: [CGFloat] = []
         var maxDrift: CGFloat = 0
+        var maxWindowDrift: CGFloat = 0
         model.inputText = "s"
         for _ in 0..<65 {
             try await Task.sleep(for: .milliseconds(8))
             let height = panel.frame.height
             if height > 53 && height < 432 { intermediateHeights.append(height) }
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+            if abs(top - inputTop) > maxDrift {
+                print("motion drift: input=\(top - inputTop) window=\(panel.frame.maxY - windowTop) frame=\(panel.frame) field=\(field.frame) content=\(content.frame)")
+            }
             maxDrift = max(maxDrift, abs(top - inputTop))
+            maxWindowDrift = max(maxWindowDrift, abs(panel.frame.maxY - windowTop))
         }
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             try require(Set(intermediateHeights.map { Int($0) }).count >= 4,
                         "result reveal must visit multiple intermediate window heights")
         }
-        try require(abs(panel.frame.height - 433) <= 1 && maxDrift <= 1,
-                    "reveal must settle at content height with anchored input: height=\(panel.frame.height), drift=\(maxDrift)")
+        try require(abs(panel.frame.height - 433) <= 1 && maxDrift < 0.01 && maxWindowDrift < 0.01,
+                    "reveal must settle with stationary input/window: height=\(panel.frame.height), inputDrift=\(maxDrift), windowDrift=\(maxWindowDrift)")
         model.selection = 0
         model.move(1)
         try require(model.selection == 1 && field.currentEditor() === editor,

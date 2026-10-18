@@ -200,8 +200,11 @@ final class LauncherController {
         if let f = screen?.visibleFrame {
             availableShellHeight = min(CGFloat(WindowMetrics.launcherMaxHeight), floor(f.height * (1 - LauncherLayout.topInsetFraction) - LauncherLayout.bottomClearance))
             // Anchor near the top of the pointer screen, leaving room for results below.
-            origin = NSPoint(x: f.midX - LauncherLayout.toolbarWidth / 2,
-                             y: f.maxY - f.height * LauncherLayout.topInsetFraction)
+            // NSWindow rounds origins and sizes independently to whole points.
+            // A fractional top anchor plus a fractional spring height can round
+            // their sum to alternating top edges (a visible one-point jump).
+            origin = NSPoint(x: (f.midX - LauncherLayout.toolbarWidth / 2).rounded(),
+                             y: (f.maxY - f.height * LauncherLayout.topInsetFraction).rounded())
         }
         if hosting == nil {
             let id = UUID()
@@ -332,7 +335,8 @@ final class LauncherController {
     /// parent's origin automatically, so they are reset after each shell move.
     private func layoutSurfaces() {
         let width = LauncherLayout.toolbarWidth
-        let frame = NSRect(x: origin.x, y: origin.y - shellHeight, width: width, height: shellHeight)
+        let height = shellHeight.rounded()
+        let frame = NSRect(x: origin.x, y: origin.y - height, width: width, height: height)
         if panel.frame != frame {
             // Let AppKit draw after laying out the new content size instead of forcing
             // a display of the intermediate field-editor/hosting-view geometry.

@@ -19,7 +19,7 @@
 | Opacity | 1 | Default；disabled = 30 |
 | Colors | 40 | Light / Dark；语义颜色与别名，2026-10-10 更新 |
 
-后续指定的[聚焦搜索 Field，node 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=22-348)为启动器收起状态的设计依据：720 × 60、左 24 / 右 20 留白、12 间距、17 pt `magnifyingglass`（21 × 22 图标槽）、16/400/Default 输入和 “Search” 提示。此节点替代之前的输入区尺寸与玻璃处理。搜索总宽度后续按用户要求调整为 640 pt（包含空状态右侧按钮），剪贴板列表维持 720 pt。
+后续指定的[聚焦搜索 Field，node 22:348](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=22-348)为启动器收起状态的设计依据：720 × 60、左 24 / 右 20 留白、12 间距、17 pt `magnifyingglass`（21 × 22 图标槽）、16/400/Default 输入和 “Search” 提示。此节点替代之前的输入区尺寸与玻璃处理。搜索总宽度后续按用户要求调整为 640 pt（包含空状态右侧按钮），AI 窗口初始宽度与剪贴板列表宽度同步为 640 pt，共用 `WindowMetrics.launcherWidth`。
 
 [UI 页 22:293](https://www.figma.com/design/tmVnTyCb2sz5egNQ7We9Sw/KulaHere?node-id=22-293)中的新聊天 43:1071、AI 对话 42:760、历史记录 38:653 是对话界面的设计依据：720 × 640、32 圆角、70% 语义背景与原生 Regular Liquid Glass、1 pt border。顶部 12 pt 内距、32 pt 圆形按钮与 18/500/Default 居中标题；正文左右 32 pt，用户气泡 16 圆角与 12/10 内距，正文和工具行使用 14/400/Default。工具行保留 8 pt 图文间距，示例搜索图标按实际工具替换。底部外距 12 pt，输入区 24 圆角、最小 44 pt 文字区域、32 pt 附件与发送按钮。顶部增加新对话与可切换置顶按钮；空状态显示 24/500 问候，历史行高 48 pt 并显示更新日期。历史页替换正文和输入区，不保留常驻侧栏；新对话与设置也可从附件菜单进入。Figma 壁纸属于桌面展示背景，不作为 App 资产。窗口阴影由 AppKit 提供，光学效果由系统实现，不声称逐项复刻 Figma 滤镜。见[新对话样式验证](validation/2026-10-10-ai-chat-refresh.md)。
 
@@ -57,7 +57,7 @@ AppKit NSPanel 承载快捷入口，普通层级的透明 NSWindow 承载 AI 对
 | 区域 | 原型默认值与行为 |
 | --- | --- |
 | Launcher | 宽 640 pt，输入区高 60 pt，高度随结果变化，最大 540 pt |
-| Agent | 初始 720 × 640 pt，最小 640 × 560 pt，可调整大小 |
+| Agent | 初始 640 × 640 pt，最小 640 × 560 pt，可调整大小 |
 | 输入 | 16/400/Default（node 22:348） |
 | 结果主文本 | 14/400/Default |
 | 次要说明与快捷键 | 12/400/Default |

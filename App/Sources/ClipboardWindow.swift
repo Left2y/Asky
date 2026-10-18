@@ -95,7 +95,7 @@ final class ClipboardController {
         guard let screen = panel.screen ?? NSScreen.main else { return }
         let available = screen.visibleFrame.insetBy(dx: 16, dy: 16)
         let height = min(layout == .cards ? 244.0 : 560.0, available.height)
-        let width = min(layout == .cards ? 900.0 : 720.0, available.width)
+        let width = min(layout == .cards ? 900.0 : WindowMetrics.launcherWidth, available.width)
         let x = min(max(panel.frame.minX, available.minX), available.maxX - width)
         let y = max(available.minY, min(panel.frame.maxY, available.maxY) - height)
         panel.setFrame(NSRect(x: x, y: y, width: width, height: height), display: true)
@@ -185,7 +185,7 @@ final class ClipboardController {
         // Every opening starts from the default spot; a drag only moves this session.
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let frame = screen?.visibleFrame {
-            let width = min(layout == .cards ? 900.0 : 720.0, frame.width - 32)
+            let width = min(layout == .cards ? 900.0 : WindowMetrics.launcherWidth, frame.width - 32)
             panel.setFrame(NSRect(x: frame.midX - width / 2, y: frame.maxY - frame.height * 0.16 - 244,
                                   width: width, height: 244), display: false)
         }

@@ -30,6 +30,7 @@ public enum UnitConverter {
         add(UnitMass.pounds, "lb", "lbs", "磅")
         add(UnitMass.metricTons, "t", "吨")
         add(UnitMass(symbol: "斤", converter: UnitConverterLinear(coefficient: 0.5)), "斤")
+        add(UnitMass(symbol: "两", converter: UnitConverterLinear(coefficient: 0.05)), "两")
         // Temperature
         add(UnitTemperature.celsius, "c", "°c", "℃", "摄氏度")
         add(UnitTemperature.fahrenheit, "f", "°f", "℉", "华氏度")
@@ -62,7 +63,8 @@ enum QuantityParser {
         s = s.replacingOccurrences(of: "fl oz", with: "floz")
         // Split number prefix from the rest ("10km mi" → "10", "km mi").
         var idx = s.startIndex
-        while idx < s.endIndex, s[idx].isNumber || s[idx] == "." || s[idx] == "," || (idx == s.startIndex && s[idx] == "-") {
+        // Restrict digits to those accepted by Double; Chinese mass unit “两” is also isNumber.
+        while idx < s.endIndex, (s[idx].isASCII && s[idx].isNumber) || s[idx] == "." || s[idx] == "," || (idx == s.startIndex && s[idx] == "-") {
             idx = s.index(after: idx)
         }
         let numStr = s[s.startIndex..<idx].replacingOccurrences(of: ",", with: "")

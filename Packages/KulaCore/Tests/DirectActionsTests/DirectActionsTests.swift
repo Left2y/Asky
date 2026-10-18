@@ -49,6 +49,20 @@ import Foundation
         #expect(abs(c.value - 4) < 1e-9)
     }
 
+    @Test(arguments: [("1斤转两", 10.0), ("10两换成斤", 1.0),
+                      ("1 两 克", 50.0), ("50 g to 两", 1.0),
+                      ("0.5两 克", 25.0), ("1 公斤 两", 20.0)])
+    func liangConversion(_ input: String, _ expected: Double) throws {
+        let result = try #require(UnitConverter.convert(input))
+        #expect(abs(result.value - expected) < 1e-9)
+    }
+
+    @Test func liangDisplay() throws {
+        let result = try #require(UnitConverter.convert("1斤转两"))
+        #expect(result.display == "1 斤 = 10 两")
+        #expect(UnitConverter.convert("1 两 米") == nil)
+    }
+
     @Test func incompatibleDimensions() {
         #expect(UnitConverter.convert("10 kg km") == nil)
         #expect(UnitConverter.convert("km to mi") == nil)

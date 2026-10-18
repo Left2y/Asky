@@ -62,6 +62,7 @@ public struct KeywordCommand: Sendable, Hashable, Identifiable {
         KeywordCommand(keyword: "zh", name: "知乎搜索", urlTemplate: "https://www.zhihu.com/search?type=content&q={query}"),
         KeywordCommand(keyword: "xhs", name: "小红书搜索", urlTemplate: "https://www.xiaohongshu.com/search_result?keyword={query}"),
         KeywordCommand(keyword: "wb", name: "微博搜索", urlTemplate: "https://s.weibo.com/weibo?q={query}"),
+        KeywordCommand(keyword: "x", name: "X 搜索", urlTemplate: "https://x.com/search?q={query}"),
     ]
 }
 

@@ -655,7 +655,7 @@ enum LauncherWindowRegression {
             try bitmap.representation(using: .png, properties: [:])?.write(to: URL(filePath:
                 "build/command-icon-\(NSApp.appearance!.name.rawValue)-terminal.png"))
         }
-        print("All eight native command fields, bundled logos, scoped results and Backspace passed")
+        print("All \(app.keywords.commands.count) native command fields, bundled logos, scoped results and Backspace passed")
     }
 
     private static func commandSearchField(in view: NSView?) -> NSTextField? {

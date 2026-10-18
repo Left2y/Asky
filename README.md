@@ -52,7 +52,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 文件夹内搜索 | 选中文件夹按 `Tab`，空输入浏览目录，输入文件名搜索当前目录及 Spotlight 已索引的子目录；空输入退格默认返回上一层，可在“搜索与导航”改为退出全部层级；`Esc` 返回上一层 |
 | 剪贴板 | `Ctrl + Shift + C` |
 | AI 新对话 | `Ctrl + Shift + /` |
-| 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`> pwd` |
+| 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`x 关键词`（X 搜索）、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
 文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。普通搜索每个来源最多显示 8 条；通过指令进入应用、文件、快捷方式或快捷指令模式后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
@@ -162,7 +162,7 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Search within a folder | Select a folder and press `Tab`; browse its contents or type a filename to search it and Spotlight-indexed subfolders. Backspace on empty input returns one level by default; choose to exit all levels in Search & Navigation. `Esc` returns one level |
 | Clipboard | `Ctrl + Shift + C` |
 | New AI chat | `Ctrl + Shift + /` |
-| Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `> pwd` |
+| Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `x keyword` (X search), `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
 File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. Root search shows up to 8 hits per source; entering Applications, Files, Quick Links, or Shortcuts through a command reruns the current query for up to 200 results in that category, accessible by scrolling.

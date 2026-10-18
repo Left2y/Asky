@@ -276,6 +276,16 @@ enum SettingsRegression {
                 print("All search commands: exact match, priority, custom triggers, Return/Space entry and no premature AI submission passed")
                 precondition(legacyCommands.commandKeywords.isEmpty)
                 precondition(model.commandKeywordProblem("GO", id: "ai") != nil)
+                precondition(model.commandKeywordProblem("X", id: "ai") != nil)
+                model.preferences.commandKeywords["x"] = "twitter"
+                let savedX = try AppModel(root: root)
+                precondition(savedX.keywords.matchInput("x ") == nil)
+                launcher.query = "twitter SwiftUI"
+                precondition(launcher.commandInput?.command.keyword == "twitter")
+                precondition(launcher.keyword(for: launcher.results[0]) == "x")
+                precondition(savedX.keywords.match("twitter SwiftUI")?.0.url(for: "SwiftUI")?.host == "x.com")
+                launcher.leaveCommand()
+                model.preferences.commandKeywords.removeValue(forKey: "x")
                 precondition(model.commandKeywordProblem(">", id: "link") != nil)
                 precondition(model.commandKeywordProblem("a b", id: "ai") != nil)
                 model.preferences.commandKeywords = ["ai": "ask", "link": "url", "bookmark": "saved", "go": "web"]

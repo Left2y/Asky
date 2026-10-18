@@ -113,7 +113,7 @@ import Foundation
         #expect(command.urlTemplate == KeywordCommand.builtIn[0].urlTemplate)
         #expect(query == "swift")
         #expect(KeywordRegistry().commands.map(\.keyword) == [
-            "go", "chat", "ds", "yt", "dy", "tb", "jd", "bl", "gh", "bd", "hb", "zh", "xhs", "wb",
+            "go", "chat", "ds", "yt", "dy", "tb", "jd", "bl", "gh", "bd", "hb", "zh", "xhs", "wb", "x",
         ])
     }
 

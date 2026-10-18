@@ -939,6 +939,10 @@ extension LauncherModel {
             LauncherAction(action: $0, source: result.source,
                            shortcut: $0 == .revealInFinder ? actionPreferences.revealInFinderHotKey.label : nil)
         }
+        if canEnterSelectedFolder {
+            actions.append(LauncherAction(title: "搜索文件夹", icon: "folder",
+                                          shortcut: "⇥", kind: .enterFolder))
+        }
         if result.actions.contains(.revealInFinder) {
             if [.file, .app].contains(result.source) {
                 actions.append(LauncherAction(title: "拷贝", icon: "doc.on.clipboard",
@@ -981,6 +985,7 @@ extension LauncherModel {
         let result = selectedActionResult
         closeActionsMenu()
         switch action.kind {
+        case .enterFolder: _ = enterSelectedFolder()
         case .copyFile: _ = copySelectedFile()
         case .copyPath: _ = copySelectedPath()
         case .result(let value):

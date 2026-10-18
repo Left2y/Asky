@@ -116,9 +116,24 @@ private enum LauncherFolderRegression {
         try await Task.sleep(for: .milliseconds(750))
         try require(model.folderScope == nil && model.inputText == "Design" && model.results.first?.title == "Design Assets",
                     "leaving during a query must restore original search and discard stale results")
-        panel.sendEvent(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-            windowNumber: panel.windowNumber, context: nil, characters: "\t", charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!)
+        try require(model.toggleActionsMenu(), "folder actions menu must open")
+        guard let folderAction = model.secondaryActions.firstIndex(where: { if case .enterFolder = $0.kind { return true }; return false }) else {
+            throw NSError(domain: "FolderRegression", code: 5)
+        }
+        model.actionSelection = folderAction
+        try await Task.sleep(for: .milliseconds(300))
+        if let menu = NSApp.windows.first(where: { $0.isVisible && $0.frame.width == LauncherLayout.actionsMenuWidth }) {
+            let capture = Process()
+            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            capture.arguments = ["-x", "-l", String(menu.windowNumber), "build/folder-more-\(appearance.rawValue).png"]
+            try capture.run()
+            capture.waitUntilExit()
+            try require(capture.terminationStatus == 0, "folder menu screenshot must succeed")
+        }
+        model.performHighlightedAction()
         try await Task.sleep(for: .milliseconds(250))
+        try require(model.folderScope?.path == folder.path && !model.isActionsMenuPresented,
+                    "Search Folder in More must close the menu and enter the folder")
         panel.sendEvent(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: panel.windowNumber, context: nil, characters: "\u{7f}", charactersIgnoringModifiers: "\u{7f}", isARepeat: false, keyCode: 51)!)
         try await Task.sleep(for: .milliseconds(250))

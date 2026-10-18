@@ -3,7 +3,7 @@ import Contracts
 import Theme
 
 struct LauncherAction {
-    enum Kind { case result(ResultAction), copyPath, copyFile }
+    enum Kind { case result(ResultAction), copyPath, copyFile, enterFolder }
     let title: String
     let icon: String
     let shortcut: String?
@@ -50,12 +50,6 @@ struct LauncherActionBar: View {
                 .buttonStyle(LauncherActionButtonStyle())
             }
             Spacer(minLength: 12)
-            if model.canEnterSelectedFolder {
-                Button { model.enterSelectedFolder() } label: {
-                    actionLabel("搜索文件夹", icon: "folder", shortcut: "⇥")
-                }
-                .buttonStyle(LauncherActionButtonStyle())
-            }
             if !model.secondaryActions.isEmpty {
                 Button { model.toggleActionsMenu() } label: {
                     actionLabel("更多", shortcut: "⌘ K")

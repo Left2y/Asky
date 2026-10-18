@@ -218,6 +218,8 @@ final class ClipboardController {
         host.sizingOptions = []
         host.frame = NSRect(origin: .zero, size: panel.frame.size)
         panel.contentView = WindowSurface.glassContentView(host, cornerRadius: ClipboardHistoryView.cornerRadius)
+        WindowSurface.updateCorners(of: panel.contentView!,
+            radius: ClipboardHistoryView.cornerRadius, circular: true)
         panel.invalidateShadow()
         panel.level = .floating
         panel.orderFrontRegardless()
@@ -545,7 +547,7 @@ final class ClipboardController {
 }
 
 private struct ClipboardHistoryView: View {
-    static let cornerRadius: CGFloat = 32
+    static let cornerRadius = LauncherLayout.shellCornerRadius
     @Bindable var controller: ClipboardController
     @Environment(\.colorScheme) private var scheme
     var body: some View {
@@ -605,8 +607,8 @@ private struct ClipboardHistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(ThemeColor.kText)
-        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.cornerRadius))
-        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .circular))
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .circular))
         .onChange(of: controller.layout) { _, _ in controller.updateLayout() }
         .onExitCommand {
             if controller.isActionsMenuPresented { controller.isActionsMenuPresented = false }

@@ -74,8 +74,6 @@ struct TerminalSession: Identifiable {
 
 @MainActor @Observable
 final class LauncherModel {
-    var isPinned = false { didSet { onPinChanged() } }
-    var onPinChanged: () -> Void = {}
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
     private var folderStack: [(url: URL, previousText: String)] = []
@@ -272,7 +270,6 @@ final class LauncherModel {
         folderStack = []
         folderText = ""
         closeActionsMenu()
-        isPinned = false
         filter = .all
         filterText = ""
         chromeAccessTask?.cancel()

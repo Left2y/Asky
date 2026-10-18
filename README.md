@@ -53,7 +53,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。普通搜索每个来源最多显示 8 条；通过指令进入应用、文件、快捷方式或快捷指令模式后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
 
-空输入时，搜索框右侧仅显示固定按钮，共用搜索框玻璃；输入后隐藏，让出文字空间。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
+搜索框右侧常驻静态搜索图标，仅作装饰，没有点击、悬停或固定窗口功能；输入前后保持相同布局。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
 
 四个分类触发词可在“设置 › 指令”修改并恢复默认。
 
@@ -150,7 +150,7 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 
 File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. Root search shows up to 8 hits per source; entering Applications, Files, Quick Links, or Shortcuts through a command reruns the current query for up to 200 results in that category, accessible by scrolling.
 
-When the input is empty, only the pin button appears inside the search field and shares its glass surface. Typing hides it to make room for text. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
+A static search icon remains on the right of the search field. It is decorative, with no click, hover, or window-pinning behavior, and the layout stays the same while typing. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
 
 Customize or reset the four category trigger tokens in Settings › Commands.
 

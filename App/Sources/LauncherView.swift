@@ -11,15 +11,13 @@ enum LauncherLayout {
     static let topInsetFraction: CGFloat = 0.18
     static let bottomClearance: CGFloat = 24
     static let inputHeight: CGFloat = 52
-    static let menuSpacing: CGFloat = 12
-    static let accessorySize: CGFloat = 32
     static let toolbarWidth = WindowMetrics.launcherWidth
     static let inputLeadingPadding: CGFloat = 28
     static let inputTrailingPadding: CGFloat = 28
     static let inputSpacing: CGFloat = 12
     static let folderScopeMaxWidth: CGFloat = 180
     static let folderScopeHeight: CGFloat = 24
-    static let accessoryIconSize: CGFloat = 17
+    static let searchIconSize: CGFloat = 17
     static let shellCornerRadius = inputHeight / 2
     static let dividerHeight: CGFloat = 1
     // Compact, single-line results based on the supplied Tinycast reference.
@@ -149,7 +147,7 @@ final class LauncherController {
         panel.onBlur = { [weak self] in
             guard let self else { return }
             self.model.closeActionsMenu()
-            guard !self.model.isPinned, !self.model.isConfirmingQuit else { return }
+            guard !self.model.isConfirmingQuit else { return }
             self.hide()
         }
         panel.onKeyChange = { [weak self] keyed in
@@ -163,7 +161,6 @@ final class LauncherController {
         panel.onCopyPath = { [weak model] in model?.copySelectedPath() ?? false }
         panel.onRevealInFinder = { [weak model] in model?.revealSelectionInFinder() ?? false }
         model.onHide = { [weak self] in self?.hide() }
-        model.onPinChanged = { [weak self] in self?.updateOutsideClickDismissal() }
         resultReveal.onStep = { [weak self] height in
             guard let self else { return }
             self.shellHeight = CGFloat(height)
@@ -255,7 +252,7 @@ final class LauncherController {
     }
 
     private func updateOutsideClickDismissal() {
-        guard panel.isVisible, !model.isPinned else { outsideClickDismissal.hide(); return }
+        guard panel.isVisible else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
             let surfaces = [self.panel, self.actionsPanel]
@@ -368,7 +365,6 @@ struct LauncherView: View {
         RoundedRectangle(cornerRadius: LauncherLayout.shellCornerRadius, style: .circular)
     }
 
-    private var hasInput: Bool { model.hasScope || !model.query.isEmpty }
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
     private var chrome: LauncherChrome {
         LauncherChrome(actionsMenu: model.isActionsMenuPresented,
@@ -420,12 +416,10 @@ struct LauncherView: View {
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)
-                if !hasInput {
-                    LauncherPinButton(model: model)
-                }
+                searchIcon
             }
             .padding(.leading, LauncherLayout.inputLeadingPadding)
-            .padding(.trailing, hasInput ? LauncherLayout.inputTrailingPadding : 16)
+            .padding(.trailing, LauncherLayout.inputTrailingPadding)
             .frame(height: inputHeight)
 
             if let t = model.terminal {
@@ -474,6 +468,14 @@ struct LauncherView: View {
             if status == nil { statusHeight = 0 }
         }
     }
+    private var searchIcon: some View {
+        Image(mingCute: "magnifyingglass", size: LauncherLayout.searchIconSize)
+            .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))
+            .frame(width: 19, height: 24)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     @ViewBuilder private var commandIcon: some View {
         if model.filter != .all {
             LauncherFunctionIcon(kind: .searchCommand(model.filter.rawValue))
@@ -500,54 +502,6 @@ struct LauncherView: View {
             .padding(.horizontal, 28)
     }
 
-}
-
-/// The pin shares the shell glass; only interaction feedback is drawn here.
-private struct LauncherPinButton: View {
-    @Bindable var model: LauncherModel
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var label: String { model.isPinned ? "取消固定" : "固定窗口" }
-
-    var body: some View {
-        let size = LauncherLayout.accessorySize
-        Button { model.isPinned.toggle() } label: {
-            Image(mingCute: model.isPinned ? "pin.fill" : "pin", size: LauncherLayout.accessoryIconSize)
-                .foregroundStyle(model.isPinned ? ThemeColor.kText.color(for: colorScheme) : ThemeColor.kIconSubtle.color(for: colorScheme))
-                .frame(width: size, height: size)
-                .contentShape(.interaction, Circle())
-        }
-        .buttonStyle(LauncherAccessoryButtonStyle(size: size))
-        .accessibilityIdentifier("launcher.pin")
-        .accessibilityLabel(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
-        .accessibilityValue(model.isPinned ? "On" : "Off")
-        .help(NSLocalizedString(label, tableName: "Launcher", comment: "Launcher accessory"))
-    }
-}
-
-private struct LauncherAccessoryButtonStyle: ButtonStyle {
-    let size: CGFloat
-    @State private var isHovered = false
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(width: size, height: size)
-            .overlay {
-                Circle()
-                    .fill(ThemeColor.kInteractionHover.color(for: colorScheme))
-                    .opacity(isEnabled ? (configuration.isPressed ? 1 : isHovered ? 0.6 : 0) : 0)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            // The full target participates in the native press/release gesture.
-            .contentShape(.interaction, Circle())
-            .onHover { isHovered = $0 }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
-    }
 }
 
 /// The input field owns editing and Return still copies the computed result.

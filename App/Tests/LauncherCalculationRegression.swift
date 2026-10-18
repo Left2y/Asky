@@ -39,8 +39,6 @@ enum LauncherCalculationRegression {
         let model = LauncherModel(app: app, searchProviders: [])
         let controller = LauncherController(model: model)
         controller.show()
-        // Keep unrelated desktop focus changes from cancelling a query under test.
-        model.isPinned = true
         guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
             throw NSError(domain: "CalculatorRegression", code: 2)
         }

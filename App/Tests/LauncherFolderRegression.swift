@@ -73,7 +73,7 @@ private enum LauncherFolderRegression {
             event.windowNumber == panel.windowNumber ? nil : event
         } : nil
         defer { if let inputMonitor { NSEvent.removeMonitor(inputMonitor) } }
-        if longName { model.isPinned = true; panel.onEscape = {} }
+        if longName { panel.onEscape = {} }
         model.query = "Design"
         for _ in 0..<30 {
             if model.results.contains(where: { $0.source == .file }) { break }

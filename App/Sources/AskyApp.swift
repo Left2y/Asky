@@ -4,7 +4,6 @@ import Resources
 import Carbon.HIToolbox
 import ToolService
 import Contracts
-import ServiceManagement
 
 @main
 @MainActor
@@ -116,6 +115,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.terminate(nil)
             return
         }
+        do { try model.initializeLaunchAtLogin() }
+        catch { NSLog("Unable to initialize launch at login: %@", error.localizedDescription) }
         model.onOpenSettings = { [weak self] in self?.openSettings() }
         dockVisibility.showDockIcon = model.preferences.showDockIcon
         model.onDockIconVisibilityChange = { [weak self] visible in
@@ -300,7 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for (value, title) in [("system", "跟随系统"), ("light", "浅色"), ("dark", "深色")] {
             add(appearance, title, #selector(selectAppearance(_:)), on: model.preferences.appearance == value).representedObject = value
         }
-        add(menu, "登录时启动", #selector(toggleLaunchAtLogin), on: SMAppService.mainApp.status == .enabled)
+        add(menu, "登录时启动", #selector(toggleLaunchAtLogin), on: ToolService.launchAtLoginEnabled)
         #if DEBUG
         add(menu, "预览提醒卡片", #selector(previewReminderBanner))
         #endif
@@ -349,8 +350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     @objc private func toggleLaunchAtLogin() {
         do {
-            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
-            else { try SMAppService.mainApp.register() }
+            try ToolService.setLaunchAtLogin(!ToolService.launchAtLoginEnabled)
         } catch {
             let alert = AppDialog.make()
             alert.messageText = NSLocalizedString("无法更改登录时启动", comment: "")

@@ -58,6 +58,32 @@ enum SettingsRegression {
                     ["keyword": "go", "name": "Custom", "urlTemplate": "https://example.com"],
                 ]])
                 let model = try AppModel(root: root)
+                if CommandLine.arguments.contains("--general-defaults") {
+                    precondition(model.preferences.showMenuBarIcon && !model.preferences.showDockIcon)
+                    precondition(model.preferences.appearance == "system" && model.preferences.language == .system)
+                    precondition(model.preferences.liquidGlass && !model.preferences.hasInitializedLoginItem)
+                    enum RegistrationFailure: Error { case denied }
+                    do {
+                        try model.initializeLaunchAtLogin { throw RegistrationFailure.denied }
+                        preconditionFailure("Registration failure must propagate")
+                    } catch RegistrationFailure.denied {}
+                    precondition(!model.preferences.hasInitializedLoginItem)
+                    var registrations = 0
+                    try model.initializeLaunchAtLogin { registrations += 1 }
+                    try model.initializeLaunchAtLogin { registrations += 1 }
+                    let relaunched = try AppModel(root: root)
+                    try relaunched.initializeLaunchAtLogin { registrations += 1 }
+                    precondition(registrations == 1 && relaunched.preferences.hasInitializedLoginItem)
+                    let legacy = try JSONDecoder().decode(SettingsPreferences.self, from: Data(
+                        #"{"showMenuBarIcon":false,"showDockIcon":true,"appearance":"dark","language":"en"}"#.utf8))
+                    precondition(legacy.hasInitializedLoginItem && !legacy.showMenuBarIcon && legacy.showDockIcon)
+                    precondition(legacy.appearance == "dark" && legacy.language == .english)
+                    model.preferences = legacy
+                    try model.initializeLaunchAtLogin { registrations += 1 }
+                    precondition(registrations == 1)
+                    print("General defaults: fresh install, one-time registration, retry, relaunch and legacy preferences passed")
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--dock-only") {
                     let legacy = try JSONDecoder().decode(SettingsPreferences.self,
                         from: Data(#"{"appearance":"dark","showMenuBarIcon":false}"#.utf8))

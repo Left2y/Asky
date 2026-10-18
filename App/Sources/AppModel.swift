@@ -175,6 +175,13 @@ final class AppModel {
         return nil
     }
 
+    /// Apply the fresh-install default once; never re-enable a user's disabled login item.
+    func initializeLaunchAtLogin(register: () throws -> Void = { try ToolService.enableDefaultLaunchAtLogin() }) throws {
+        guard !preferences.hasInitializedLoginItem else { return }
+        try register()
+        preferences.hasInitializedLoginItem = true
+    }
+
     init(root: URL = LocalStore.defaultRoot) throws {
         let store = try LocalStore(root: root)
         self.store = store

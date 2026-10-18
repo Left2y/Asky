@@ -10,6 +10,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var appearance = "system"
     var showMenuBarIcon = true
     var showDockIcon = false
+    var hasInitializedLoginItem = false
     var liquidGlass = true
     var automaticUpdates = true
     var language = ApplicationLanguage.system
@@ -43,6 +44,8 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         showMenuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? d.showMenuBarIcon
         showDockIcon = try c.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? d.showDockIcon
+        // Existing installations retain their system login-item choice.
+        hasInitializedLoginItem = try c.decodeIfPresent(Bool.self, forKey: .hasInitializedLoginItem) ?? true
         liquidGlass = try c.decodeIfPresent(Bool.self, forKey: .liquidGlass) ?? d.liquidGlass
         automaticUpdates = try c.decodeIfPresent(Bool.self, forKey: .automaticUpdates) ?? d.automaticUpdates
         let savedLanguage = try c.decodeIfPresent(String.self, forKey: .language)

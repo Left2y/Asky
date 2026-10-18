@@ -37,6 +37,8 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 
 [下载 Asky](https://github.com/Niall-Young/Asky/releases)（macOS 15+，Apple Silicon）。打开 DMG，将 `Asky.app` 拖入“应用程序”后启动。安装包已包含 Node.js 和 AgentRuntime；ZIP 用于应用内更新。自动更新默认开启，可在“设置 › 关于 Asky › 软件更新”关闭。
 
+首次启动默认显示菜单栏图标、登录时启动并隐藏 Dock 图标；主题与语言跟随系统，液态玻璃默认开启（受系统版本支持限制）。已有安装保留原设置。可在“设置 › 通用”调整。
+
 | 入口 | 用法 |
 | --- | --- |
 | 搜索 | 从菜单栏打开，输入关键词，方向键选择、回车打开 |
@@ -116,6 +118,8 @@ Asky is built with SwiftUI and AppKit. Search and clipboard history work indepen
 ### Install and Use
 
 [Download Asky](https://github.com/Niall-Young/Asky/releases) (macOS 15+, Apple Silicon). Open the DMG, drag `Asky.app` into Applications, then launch it. Node.js and AgentRuntime are bundled; ZIP packages are for in-app updates. Automatic updates are enabled by default; disable them in Settings › About Asky › Software Update.
+
+On first launch, Asky shows its menu bar icon, enables launch at login, and hides its Dock icon. Theme and language follow the system; Liquid Glass is enabled where supported. Existing installations retain their settings. Change these options in Settings › General.
 
 | Entry | Usage |
 | --- | --- |

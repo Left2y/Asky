@@ -1,5 +1,4 @@
 import SwiftUI
-import ServiceManagement
 import Carbon.HIToolbox
 import Contracts
 import LocalStore
@@ -202,7 +201,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
 
 private struct GeneralSettings: View {
     @Bindable var app: AppModel
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var launchAtLogin = ToolService.launchAtLoginEnabled
     @State private var loginError: String?
 
     var body: some View {
@@ -212,7 +211,7 @@ private struct GeneralSettings: View {
                 Toggle(NSLocalizedString("在 Dock 栏显示", comment: ""), isOn: $app.preferences.showDockIcon)
                 Toggle(NSLocalizedString("登录时启动", comment: ""), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
-                        do { on ? try SMAppService.mainApp.register() : try SMAppService.mainApp.unregister(); loginError = nil }
+                        do { try ToolService.setLaunchAtLogin(on); loginError = nil }
                         catch { loginError = error.localizedDescription; launchAtLogin = !on }
                     }
                 if let loginError { Text(loginError).foregroundStyle(ThemeColor.kTextNegative) }

@@ -300,6 +300,11 @@ final class ClipboardController {
             if !event.isARepeat { submitSelection(copyOnly: true) }
             return true
         }
+        if event.keyCode == 51, modifiers == .command {
+            isActionsMenuPresented = false
+            if !event.isARepeat, let item = selectedItem { delete(item) }
+            return true
+        }
         guard isActionsMenuPresented else { return false }
         switch event.keyCode {
         case 53: isActionsMenuPresented = false
@@ -797,6 +802,8 @@ private struct ClipboardActionsMenu: View {
                         Spacer(minLength: 8)
                         if kind == .copy {
                             LauncherActionKeyCap(value: "⌘ ↵")
+                        } else if kind == .delete {
+                            LauncherActionKeyCap(value: "⌘ ⌫")
                         }
                     }
                     .font(.system(size: 13))

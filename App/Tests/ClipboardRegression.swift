@@ -19,6 +19,10 @@ enum ClipboardRegression {
         }
         Task { @MainActor in
             do {
+                if CommandLine.arguments.contains("--delete-shortcut") {
+                    try await verifyDeleteShortcut()
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--clear-all") {
                     try await verifyClearAll()
                     exit(0)
@@ -896,6 +900,49 @@ enum ClipboardRegression {
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func verifyDeleteShortcut() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-delete-shortcut-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let store = ClipboardStore(app.store)
+        let controller = ClipboardController(app: app, pasteTargetProvider: { .unavailable })
+        controller.pinned = true
+        for layout in [ClipboardLayout.list, .cards] {
+            app.preferences.clipboardLayout = layout
+            for i in 0..<3 {
+                try store.insert(ClipboardItem(kind: .text, text: "delete fixture \(i)", byteSize: 1,
+                    contentHash: "\(layout)-\(i)"))
+            }
+            controller.show()
+            controller.query = "delete fixture"
+            let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
+            @MainActor func key(_ modifiers: NSEvent.ModifierFlags, repeatKey: Bool = false) -> NSEvent {
+                NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+                    timestamp: 0, windowNumber: panel.windowNumber, context: nil,
+                    characters: "\u{7f}", charactersIgnoringModifiers: "\u{7f}",
+                    isARepeat: repeatKey, keyCode: 51)!
+            }
+            precondition(!controller.handleActionKey(key([])), "plain Backspace remains available for search")
+            precondition(!controller.handleActionKey(key([.command, .shift])), "extra modifiers must not delete")
+            let firstID = controller.selectedItem!.id
+            panel.sendEvent(key(.command))
+            precondition(!store.recent(limit: 10).contains { $0.id == firstID }, "Cmd Backspace deletes selected record")
+            precondition(controller.items.count == 2 && controller.query == "delete fixture" && controller.isVisible)
+            panel.sendEvent(key(.command, repeatKey: true))
+            precondition(controller.items.count == 2, "holding shortcut must not delete additional records")
+            if layout == .list { controller.toggleActionsMenu() }
+            let nextID = controller.selectedItem!.id
+            panel.sendEvent(key(.command))
+            precondition(!controller.isActionsMenuPresented && controller.items.count == 1)
+            precondition(!store.recent(limit: 10).contains { $0.id == nextID })
+            panel.sendEvent(key(.command))
+            panel.sendEvent(key(.command))
+            precondition(controller.items.isEmpty, "shortcut is safe without a selection")
+            controller.hide()
+        }
+        print("PASS: Cmd Backspace deletes selection in list/cards, closes More, ignores repeat and preserves query")
     }
 
     private static func verifyClearAll() async throws {

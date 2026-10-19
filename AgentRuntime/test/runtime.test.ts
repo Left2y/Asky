@@ -344,7 +344,7 @@ test("MapKit tools reach the model, route results return, and disabling removes 
     assert.ok(!names.includes("web_search"));
     const prompt = mock.requests[0].body.messages.find((m: any) => m.role === "system").content;
     assert.ok(prompt.includes("不用 web_search 代替路线查询"));
-    assert.ok(prompt.includes("全日保持车辆位置与交通方式连贯"));
+    assert.ok(prompt.includes("打车不产生自有车辆遗留约束"));
     assert.ok(JSON.stringify(mock.requests[1].body.messages).includes("durationSeconds"));
     p.send({ type: "resources", tools: [], pluginGuidance: [] });
     p.send({ type: "prompt", request: request("maps-off", "再规划一次") });

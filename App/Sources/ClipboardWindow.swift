@@ -796,7 +796,9 @@ private struct ClipboardActionsMenu: View {
                             .foregroundStyle(kind == .delete || kind == .clearAll ? ThemeColor.kTextNegative : ThemeColor.kText)
                         Spacer(minLength: 8)
                         if kind == .copy {
-                            Text("⌘↩").foregroundStyle(ThemeColor.kTextSubtle)
+                            LauncherActionKeyCap(value: "⌘ ↵")
+                        } else if kind == .delete {
+                            LauncherActionKeyCap(value: "⌘ ⌫")
                         }
                     }
                     .font(.system(size: 13))

@@ -41,6 +41,12 @@ struct ChatMarkdownView: View {
                 ForegroundColor(ThemeColor("textPrimary").color(for: colorScheme))
                 UnderlineStyle(.single)
             }
+            .markdownBlockStyle(\.listItem) { configuration in
+                configuration.label
+                    // Tight Markdown lists discard bottom margins between items.
+                    // A top margin keeps item boundaries distinct from wrapped lines.
+                    .markdownMargin(top: 14, bottom: 14)
+            }
             .markdownBlockStyle(\.codeBlock) { configuration in
                 ChatCodeBlock(configuration: configuration)
                     .markdownMargin(top: 0, bottom: 16)

@@ -688,9 +688,9 @@ private struct ClipboardActionBar: View {
         HStack {
             Button { controller.hasPasteTarget ? controller.pasteSelection() : controller.copySelection() } label: {
                 if controller.hasPasteTarget {
-                    label("粘贴到光标位置", shortcut: "↩")
+                    label("粘贴到光标位置", shortcut: "↵")
                 } else {
-                    label("复制到剪贴板", shortcut: "⌘ ↩")
+                    label("复制到剪贴板", shortcut: "⌘ ↵")
                 }
             }
             .buttonStyle(LauncherActionButtonStyle())

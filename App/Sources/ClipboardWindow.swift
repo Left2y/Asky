@@ -797,8 +797,6 @@ private struct ClipboardActionsMenu: View {
                         Spacer(minLength: 8)
                         if kind == .copy {
                             LauncherActionKeyCap(value: "⌘ ↵")
-                        } else if kind == .delete {
-                            LauncherActionKeyCap(value: "⌘ ⌫")
                         }
                     }
                     .font(.system(size: 13))

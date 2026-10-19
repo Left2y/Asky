@@ -192,7 +192,7 @@ public struct NativeTools: Sendable {
             ContactsSearchTool(contacts), MessagesDraftTool(contacts),
             MessagesSearchTool(enabled: messagesEnabled, days: messagesDays),
             ChromeListTabsTool(chrome), ChromeActivateTabTool(chrome),
-            ShortcutsListTool(), ShortcutsRunTool(), WebSearchTool(),
+            ShortcutsListTool(), ShortcutsRunTool(), WebSearchTool(), MapsSearchPlacesTool(), MapsRoutesTool(),
         ]
         if let memory {
             all += [MemoryReadTool(memory), MemorySaveTool(memory), MemoryCorrectTool(memory), MemoryForgetTool(memory)] as [any ToolAdapter]

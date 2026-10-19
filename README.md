@@ -35,6 +35,8 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆；上下文压缩时显示 loading 与状态提示。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
 
+开启“设置 › AI 与工具可使用的来源 › 路线时间（MapKit）”后，AI 可搜索地点并比较驾车、公交、步行耗时，逐段规划当天日程、计算含到场缓冲的建议出发时间。无需地图 API Key；查询会向地图服务发送必要地点，不自动获取当前位置。起点或地点有歧义时先补充确认；公交仅提供预计耗时，不提供线路与换乘详情。此能力用于主动对话，不代表后台提醒已自动接入路线耗时。
+
 拖放优先使用目标应用的原生接收；若目标拒绝拖放，但松手位置可识别为输入框，则将该记录复制后粘贴到目标输入框。Esc 取消或拖到非输入区域不会触发补粘贴。飞书文本拖放即使报告已接收，也会核对同一输入框的前后内容；确认未变化才补粘贴，已有变化则保留原生结果。列表与卡片共用该处理；固定窗口也会在补粘贴前释放键盘焦点，投递后恢复显示。该兜底需要辅助功能权限及可用的拖拽事件观察。
 
 卡片与列表顶部共用主搜索样式：整行输入区内保留窗口固定按钮，不显示搜索图标；所有输入均作为普通搜索词，可匹配正文、来源应用和类型名称（如“图片”“微信”“TIFF”），多个词可组合匹配；固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。主搜索与剪贴板输入区同为 52 pt 高，右侧图标大小与边距一致。
@@ -93,6 +95,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
+(cd Packages/KulaCore && ASKY_LIVE_MAPS=1 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter MapToolsTests)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --clear-all
@@ -145,6 +148,8 @@ With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window ba
 - **Clipboard**: text, image, and file history with search, previews, and drag and drop, in card or list view. In both views, Return pastes into the original app; `⌘ Return` always only copies and keeps the panel open. The list footer offers Return to paste when an input is detected, or `⌘ Return` to copy when focus is confirmed to be outside an input; plain Return does nothing in the latter case. More always includes Copy to Clipboard. With an input target, it also offers Paste and Keep Window Open, preserving the window, query, and selection. Apps such as WeChat that do not expose complete focus information retain Return to paste for compatibility with custom editors. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to delete a record. Both card and list More menus offer Clear All; confirmation deletes all history, including pinned items, while preserving original files. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory; context compaction shows a loading indicator and status.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
+
+Enable “Travel time (MapKit)” under Settings › sources available to AI and tools to search places and compare driving, transit, and walking estimates in chat. The agent can query each leg of a day’s calendar and suggest departure times with an arrival buffer. No map API key is needed; necessary locations are sent to the map service, without automatically collecting your current location. Missing origins or ambiguous places require clarification. Transit provides estimates only, without line or transfer details. This chat capability does not automatically enable route estimates in background reminders.
 
 Dragging first uses the destination’s native drop handling. If it rejects the drop and the release position identifies an editor, Asky copies the record and pastes into that editor. Escape cancellation and non-input regions do not trigger paste. For Feishu text drops that report acceptance, Asky compares the same editor’s contents before and after the drop, pasting only when they remain unchanged; changed contents retain the native result. Lists and cards share this handling. A pinned window releases keyboard focus before the fallback paste and reappears after dispatch. This fallback requires Accessibility access and available drag event observation.
 
@@ -204,6 +209,7 @@ Common checks (build MCP Bridge before testing the core package):
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
+(cd Packages/KulaCore && ASKY_LIVE_MAPS=1 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter MapToolsTests)
 python3 App/Tests/check-localization.py
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --clear-all

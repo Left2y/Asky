@@ -371,6 +371,9 @@ private struct SourceSettings: View {
                     }
                 }
             }
+            Text(NSLocalizedString("开启 MapKit 后，地点搜索与路线查询会向地图服务发送必要地点；无需 API Key，不会自动获取当前位置", comment: ""))
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Section(NSLocalizedString("联网搜索", comment: "")) {
                 Toggle(NSLocalizedString("允许 AI 搜索公开网页", comment: ""), isOn: Binding(
                     get: { app.settings.webSearchEnabled != false },

@@ -310,3 +310,21 @@
 "默认提醒列表不可写" = "The default reminder list is not writable";
 
 "X 搜索" = "X Search";
+
+/* MapKit tools */
+"使用 Apple MapKit 搜索地点，返回名称、地址和坐标候选；包含城市以消除歧义，不要猜坐标" = "Search places with Apple MapKit; returns candidate names, addresses and coordinates. Include a city and never guess coordinates.";
+"使用 Apple MapKit 比较明确起终点的驾车、公交、步行耗时；可指定出发或到达时间，返回含缓冲的建议出发时间；公交仅有耗时，无线路换乘详情" = "Compare driving, transit and walking estimates between explicit endpoints with Apple MapKit. Optionally specify departure or arrival time; suggested departure includes a buffer. Transit has estimates only, no line or transfer details.";
+"地图查询超时，请稍后重试" = "Map request timed out. Please try again later.";
+"地点搜索词不能超过 300 字" = "Place search query must not exceed 300 characters.";
+"limit 必须是 1 到 5 的整数" = "limit must be an integer between 1 and 5.";
+"核对地点地址；有歧义时请用户选择，不能默认第一项就是目标" = "Check the place address. Ask the user to choose if ambiguous; do not assume the first result is correct.";
+"地图地点搜索失败，请补充城市或完整地址后重试" = "Place search failed. Add a city or full address and try again.";
+"%@ 必须包含地点名称及有效经纬度，请使用地点搜索结果" = "%@ requires a place name and valid coordinates. Use place search results.";
+"modes 必须包含 1 到 3 种交通方式" = "modes must contain 1 to 3 transport modes.";
+"交通方式只能是 driving、transit、walking，且不能重复" = "Transport modes must be unique and one of driving, transit, walking.";
+"出发时间和到达时间只能指定一个" = "Specify either departure time or arrival time, not both.";
+"缓冲时间必须是 0 到 120 的整数分钟" = "Buffer must be an integer between 0 and 120 minutes.";
+"MapKit 返回的路线耗时无效" = "MapKit returned an invalid travel estimate.";
+"该交通方式暂无可用路线时间" = "No travel estimate is available for this transport mode.";
+"暂无可用路线时间，不能生成具体出发建议，请稍后重试" = "No travel estimates are available. A specific departure recommendation cannot be generated. Please try again later.";
+"耗时为估计，临近出发需刷新；不包含停车或打车等候时间，不提供公交线路与换乘详情；不能把驾车耗时当成打车总耗时" = "Travel times are estimates; refresh near departure. Parking and taxi waits are excluded. Transit lines and transfer details are unavailable. Driving time is not total taxi travel time.";

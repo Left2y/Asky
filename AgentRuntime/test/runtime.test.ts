@@ -323,3 +323,32 @@ test("automatic compaction reports loading and resumes the running task", async 
     mock.server.close();
   }
 });
+
+test("MapKit tools reach the model, route results return, and disabling removes tools", async () => {
+  const endpoint = { name: "Station", latitude: 31.2, longitude: 121.3 };
+  const args = { origin: endpoint, destination: { ...endpoint, name: "Temple", longitude: 121.4 }, modes: ["transit"] };
+  const mock = await startMock([() => toolCallReply("maps_routes", args), () => textReply("公交预计 30 分钟"), () => textReply("请开启 MapKit")]);
+  const p = launch(mkdtempSync(join(tmpdir(), "asky-maps-")));
+  const schema = { type: "object", properties: { origin: { type: "object" }, destination: { type: "object" }, modes: { type: "array", items: { type: "string" } } }, required: ["origin", "destination"] };
+  const maps = ["maps_search_places", "maps_routes"].map(name => ({ name, summary: "Apple MapKit", inputSchema: schema, source: "maps", effect: "read", confirmation: "never", externallyExposable: false, agentExposable: true }));
+  try {
+    await handshake(p, mock, maps);
+    p.send({ type: "prompt", request: request("maps-on", "安排今天三个日程的出行") });
+    const call = await p.next(f => f.type === "toolCall");
+    assert.equal(call.tool, "maps_routes");
+    assert.deepEqual(call.arguments, args);
+    p.send({ type: "toolResult", callID: call.callID, result: { requestID: call.callID, status: "completed", output: { provider: "Apple MapKit", routes: [{ mode: "transit", durationSeconds: 1800 }], unavailableModes: [] } } });
+    await p.next(f => f.type === "taskState" && f.taskID === "maps-on" && f.state === "completed");
+    const names = mock.requests[0].body.tools.map((t: any) => t.function.name);
+    assert.ok(names.includes("maps_routes") && names.includes("maps_search_places"));
+    assert.ok(!names.includes("web_search"));
+    const prompt = mock.requests[0].body.messages.find((m: any) => m.role === "system").content;
+    assert.ok(prompt.includes("不用 web_search 代替路线查询"));
+    assert.ok(prompt.includes("全日保持车辆位置与交通方式连贯"));
+    assert.ok(JSON.stringify(mock.requests[1].body.messages).includes("durationSeconds"));
+    p.send({ type: "resources", tools: [], pluginGuidance: [] });
+    p.send({ type: "prompt", request: request("maps-off", "再规划一次") });
+    await p.next(f => f.type === "taskState" && f.taskID === "maps-off" && f.state === "completed");
+    assert.ok(!(mock.requests[2].body.tools ?? []).some((t: any) => t.function.name.startsWith("maps_")));
+  } finally { p.child.stdin.end(); assert.equal(await p.exit, 0); mock.server.close(); }
+});

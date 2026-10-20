@@ -49,14 +49,25 @@ final class ReminderBannerCenter {
 
     let stack = ReminderBannerStack()
     private var panel: ReminderBannerPanel?
-    private var screenTop: CGFloat = 0
-    private var screenRight: CGFloat = 0
+    private var screenID: CGDirectDisplayID?
+    private var screenObserver: NSObjectProtocol?
     private var waiting: [ReminderBannerItem] = []
     private var timers: [UUID: Timer] = [:]
     private var remaining: [UUID: TimeInterval] = [:]
     private var deadlines: [UUID: Date] = [:]
     private var foldTimer: Timer?
     private var shrinkWork: DispatchWorkItem?
+
+    private init() {
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let panel = self.panel, panel.isVisible else { return }
+                self.setPanelHeight(panel.frame.height, panel)
+            }
+        }
+    }
 
     func show(_ item: ReminderBannerItem) {
         guard stack.cards.filter({ !$0.leaving }).count < Self.maxCards else { waiting.append(item); return }
@@ -171,10 +182,13 @@ final class ReminderBannerCenter {
     }
 
     private func preparePanel() -> ReminderBannerPanel {
-        if let panel, panel.isVisible { return panel }
-        let screen = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame ?? .zero
-        screenTop = screen.maxY - Self.margin + Self.shadowInset
-        screenRight = screen.maxX - Self.margin + Self.shadowInset
+        shrinkWork?.cancel()
+        if let panel, panel.isVisible {
+            setPanelHeight(panel.frame.height, panel)
+            return panel
+        }
+        // A new stack follows the pointer; an existing stack stays on its original display.
+        screenID = nil
         let panel = self.panel ?? {
             let p = ReminderBannerPanel()
             let host = NSHostingView(rootView: ReminderBannerStackView(stack: stack, center: self))
@@ -203,8 +217,24 @@ final class ReminderBannerCenter {
     }
 
     private func setPanelHeight(_ height: CGFloat, _ panel: NSPanel) {
+        guard let screen = targetScreen() else { return }
+        let visibleFrame = screen.visibleFrame
         let width = Self.width + Self.shadowInset * 2
-        panel.setFrame(NSRect(x: screenRight - width, y: screenTop - height, width: width, height: height), display: true)
+        panel.setFrame(NSRect(x: visibleFrame.maxX - Self.margin + Self.shadowInset - width,
+                              y: visibleFrame.maxY - Self.margin + Self.shadowInset - height,
+                              width: width, height: height), display: true)
+    }
+
+    private func targetScreen() -> NSScreen? {
+        // NSScreen instances and their frames can become stale after display reconfiguration.
+        // Resolve the stable display ID against the current screen list on every placement.
+        let screens = NSScreen.screens
+        let displayKey = NSDeviceDescriptionKey("NSScreenNumber")
+        let screen = screens.first { ($0.deviceDescription[displayKey] as? NSNumber)?.uint32Value == screenID }
+            ?? screens.first { $0.frame.contains(NSEvent.mouseLocation) }
+            ?? NSScreen.main ?? screens.first
+        screenID = (screen?.deviceDescription[displayKey] as? NSNumber)?.uint32Value
+        return screen
     }
 
     #if DEBUG
@@ -393,6 +423,10 @@ private final class ReminderBannerPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    // Placement already anchors the visible card inside the target screen. The transparent
+    // shadow inset may extend above visibleFrame; AppKit must not shift that entire canvas.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
 private struct ReminderBannerCard: View {

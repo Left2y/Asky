@@ -3,7 +3,7 @@ import Contracts
 import Theme
 
 struct LauncherAction {
-    enum Kind { case result(ResultAction), copyPath, copyFile, enterFolder }
+    enum Kind { case result(ResultAction), copyPath, copyFile, copyFileName, showFileInfo, enterFolder }
     let title: String
     let icon: String
     let shortcut: String?

@@ -740,6 +740,33 @@ final class LauncherModel {
         return true
     }
 
+    @discardableResult
+    func copySelectedFileName() -> Bool {
+        guard let result = selectedActionResult, result.source == .file,
+              result.actions.contains(.revealInFinder) else { return false }
+        closeActionsMenu()
+        if ClipboardAccess.copyFileName(at: URL(fileURLWithPath: result.target.identifier)) {
+            showToast(NSLocalizedString("已复制文件名", comment: ""))
+        }
+        return true
+    }
+
+    @discardableResult
+    func showSelectedFileInfo() -> Bool {
+        guard let result = selectedActionResult, result.source == .file,
+              result.actions.contains(.revealInFinder) else { return false }
+        closeActionsMenu()
+        Task { @MainActor [weak self] in
+            do {
+                try await ToolService.showLauncherFileInfo(at: URL(fileURLWithPath: result.target.identifier))
+                self?.onHide()
+            } catch {
+                self?.status = error.localizedDescription
+            }
+        }
+        return true
+    }
+
     private func showToast(_ message: String) {
         toastTask?.cancel()
         toast = message
@@ -929,6 +956,10 @@ extension LauncherModel {
         if event.keyCode == 8, modifiers == .command,
            ((NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().length ?? 0) == 0,
            copySelectedFile() { return true }
+        if event.keyCode == 47, modifiers == [.command, .shift],
+           copySelectedFileName() { return true }
+        if event.keyCode == 34, modifiers == .command,
+           showSelectedFileInfo() { return true }
         guard isActionsMenuPresented else { return false }
         if modifiers.isEmpty {
             switch event.keyCode {
@@ -994,6 +1025,12 @@ extension LauncherModel {
             actions.append(LauncherAction(title: "复制路径", icon: "doc.on.clipboard",
                                           shortcut: actionPreferences.copyPathHotKey.label, kind: .copyPath))
         }
+        if result.source == .file, result.actions.contains(.revealInFinder) {
+            actions.append(LauncherAction(title: "复制文件名", icon: "doc.on.clipboard",
+                                          shortcut: "⇧⌘ .", kind: .copyFileName))
+            actions.append(LauncherAction(title: "展示文件信息", icon: "info.circle",
+                                          shortcut: "⌘ I", kind: .showFileInfo))
+        }
         let link = result.source == .chromeTab ? result.subtitle : result.target.identifier
         if [.link, .bookmark, .chromeTab].contains(result.source), LauncherWebURL.parse(link) != nil {
             actions.append(LauncherAction(title: "复制链接", icon: "link", shortcut: nil, kind: .result(.copy(link))))
@@ -1030,6 +1067,8 @@ extension LauncherModel {
         case .enterFolder: _ = enterSelectedFolder()
         case .copyFile: _ = copySelectedFile()
         case .copyPath: _ = copySelectedPath()
+        case .copyFileName: _ = copySelectedFileName()
+        case .showFileInfo: _ = showSelectedFileInfo()
         case .result(let value):
             if let result { execute(result, action: value) }
         }

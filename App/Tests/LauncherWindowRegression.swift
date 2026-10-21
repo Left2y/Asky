@@ -164,9 +164,9 @@ enum LauncherWindowRegression {
         try require(model.finderLauncherAction?.title == "在访达中显示" &&
                     model.finderLauncherAction?.shortcut == model.actionPreferences.revealInFinderHotKey.label,
                     "file must expose Finder action with configured shortcut in the left action bar")
-        try require(model.secondaryActions.count == 2 && !model.secondaryActions.contains {
+        try require(model.secondaryActions.count == 4 && !model.secondaryActions.contains {
             if case .result(.revealInFinder) = $0.kind { return true }; return false
-        }, "file menu must contain only file copy and path copy")
+        }, "file menu must contain file, path, filename and info actions")
         if CommandLine.arguments.contains("--more-inspect") {
             NSApp.activate(ignoringOtherApps: true)
             panel.makeKeyAndOrderFront(nil)
@@ -235,6 +235,22 @@ enum LauncherWindowRegression {
             throw NSError(domain: "ActionBarEditor", code: 1)
         }
         editor.setSelectedRange(NSRange(location: 0, length: 0))
+        key(47, modifiers: [.command, .shift])
+        try require(NSPasteboard.general.string(forType: .string) == fixture.lastPathComponent && copiedURLs().isEmpty,
+                    "Cmd Shift period must copy the full filename including extension")
+        key(40, modifiers: .command)
+        key(47, modifiers: [.command, .shift])
+        try require(!model.isActionsMenuPresented && controller.isVisible && model.inputText == input,
+                    "filename shortcut must close More and retain the launcher query")
+        key(40, modifiers: .command)
+        key(125)
+        key(125)
+        key(36)
+        try require(!model.isActionsMenuPresented && NSPasteboard.general.string(forType: .string) == fixture.lastPathComponent,
+                    "Return on Copy filename must copy filename")
+        try require(model.secondaryActions.contains {
+            if case .showFileInfo = $0.kind { return $0.shortcut == "⌘ I" }; return false
+        }, "file info action must advertise Cmd I")
         key(8, modifiers: .command)
         try require(copiedURLs() == [fixture], "Cmd C must copy a file URL, not path text")
         try require(controller.isVisible && model.inputText == input && model.results[model.selection].id == resultID,

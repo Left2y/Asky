@@ -5,6 +5,17 @@ import LocalStore
 
 @Suite @MainActor
 struct ClipboardAccessTests {
+    @Test func filenameCopyPreservesUnicodeAndExtension() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let url = URL(fileURLWithPath: "/tmp/资料/设计 \"终稿\".tar.gz")
+        #expect(ClipboardAccess.copyFileName(at: url, to: pasteboard))
+        #expect(pasteboard.string(forType: .string) == "设计 \"终稿\".tar.gz")
+        #expect(pasteboard.string(forType: .fileURL) == nil)
+        #expect(!ClipboardAccess.copyFileName(at: URL(string: "https://example.com/file")!, to: pasteboard))
+        #expect(pasteboard.string(forType: .string) == "设计 \"终稿\".tar.gz")
+    }
+
     @Test func informationUsesOriginalPixelsAndFileBytes() throws {
         let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString + ".png")
         defer { try? FileManager.default.removeItem(at: url) }

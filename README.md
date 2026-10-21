@@ -57,6 +57,8 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`x 关键词`（X 搜索）、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
+文件结果的“更多”菜单提供“复制文件名”（`⌘⇧.`，包含扩展名）与“展示文件信息”（`⌘I`，打开访达简介窗口，首次使用可能需要自动化授权）；菜单关闭时也可使用这两个快捷键。
+
 文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。普通搜索每个来源最多显示 8 条；通过指令进入应用、文件、快捷方式或快捷指令模式后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
 
 搜索框右侧常驻静态搜索图标，仅作装饰，没有点击、悬停或固定窗口功能；输入前后保持相同布局。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
@@ -170,6 +172,8 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | New AI chat | `Ctrl + Shift + /` |
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `x keyword` (X search), `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
+
+The More menu for file results offers Copy filename (`⌘⇧.`, including the extension) and Show file info (`⌘I`, opens Finder’s Get Info window and may require Automation permission on first use). Both shortcuts also work while the menu is closed.
 
 File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. Root search shows up to 8 hits per source; entering Applications, Files, Quick Links, or Shortcuts through a command reruns the current query for up to 200 results in that category, accessible by scrolling.
 

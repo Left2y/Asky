@@ -171,6 +171,13 @@ public enum ClipboardAccess {
         return nil
     }
 
+    /// Copy the actual filename, including its extension, as plain text.
+    public static func copyFileName(at url: URL, to pasteboard: NSPasteboard = .general) -> Bool {
+        guard url.isFileURL, !url.lastPathComponent.isEmpty else { return false }
+        pasteboard.clearContents()
+        return pasteboard.setString(url.lastPathComponent, forType: .string)
+    }
+
     /// Copy the actual file reference, including directories and app bundles, for Finder paste.
     /// Check availability first so stale search results leave the clipboard intact.
     @discardableResult

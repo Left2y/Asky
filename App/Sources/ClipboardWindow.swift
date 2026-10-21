@@ -6,6 +6,46 @@ import Theme
 import AVKit
 import UniformTypeIdentifiers
 
+/// Recognize only a complete CSS hex literal, never a color embedded in prose.
+struct ClipboardColor {
+    let hex: String
+    let color: Color
+
+    init?(item: ClipboardItem) {
+        guard item.kind == .text, let text = item.text else { return nil }
+        let literal = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard literal.hasPrefix("#") else { return nil }
+        var digits = String(literal.dropFirst())
+        guard [3, 4, 6, 8].contains(digits.count),
+              digits.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }) else { return nil }
+        if digits.count <= 4 { digits = digits.map { "\($0)\($0)" }.joined() }
+        guard let value = UInt32(digits, radix: 16) else { return nil }
+        let hasAlpha = digits.count == 8
+        let rgb = hasAlpha ? value >> 8 : value
+        hex = "#" + digits.uppercased()
+        color = Color(.sRGB, red: Double((rgb >> 16) & 255) / 255,
+                      green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255,
+                      opacity: hasAlpha ? Double(value & 255) / 255 : 1)
+    }
+}
+
+private struct ClipboardColorPreview: View {
+    let value: ClipboardColor
+    var diameter: CGFloat = 160
+
+    var body: some View {
+        VStack(spacing: diameter > 64 ? 16 : 8) {
+            Circle().fill(value.color)
+                .overlay { Circle().strokeBorder(ThemeColor.kBorderIntense, lineWidth: 1) }
+                .frame(width: diameter, height: diameter)
+                .accessibilityHidden(true)
+            Text(value.hex).textStyle(.resultPrimary).monospaced()
+                .textSelection(.enabled)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 private final class ClipboardPanel: NSPanel {
     var dismiss: () -> Void = {}
     var onOpenSettings: () -> Void = {}
@@ -565,6 +605,8 @@ final class ClipboardController {
         let contentHeight: CGFloat
         if let image {
             contentHeight = (width - 2 * inset) * image.size.height / max(1, image.size.width)
+        } else if ClipboardColor(item: item) != nil {
+            contentHeight = 232
         } else if ClipboardAccess.videoPreviewURL(for: item) != nil {
             contentHeight = (width - 2 * inset) * 9 / 16
         } else {
@@ -888,6 +930,8 @@ private struct ClipboardHistoryCard: View {
             if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                 Image(nsImage: image).resizable().scaledToFill().frame(width: 232, height: 96)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else if let value = ClipboardColor(item: item) {
+                ClipboardColorPreview(value: value, diameter: 56).frame(width: 232, height: 96)
             } else if item.kind == .file {
                 HStack(alignment: .top, spacing: 8) {
                     if let icon = ClipboardAccess.fileIcon(for: item) {
@@ -1020,6 +1064,10 @@ private struct ClipboardHistoryRow: View {
             Group {
                 if item.kind == .image, let path = item.thumbPath ?? item.filePath, let image = NSImage(contentsOfFile: path) {
                     Image(nsImage: image).resizable().scaledToFill()
+                } else if let value = ClipboardColor(item: item) {
+                    Circle().fill(value.color)
+                        .overlay { Circle().strokeBorder(ThemeColor.kBorderIntense, lineWidth: 1) }
+                        .padding(2)
                 } else if item.kind == .text {
                     Image(mingCute: "doc.on.clipboard", size: 18)
                         .foregroundStyle(ThemeColor.kIconSubtle)
@@ -1072,6 +1120,8 @@ private struct ClipboardListDetail: View {
                     ClipboardVideoPreview(url: url).id(url)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding(.horizontal, 24)
+                } else if let value = ClipboardColor(item: item) {
+                    ClipboardColorPreview(value: value).padding(.horizontal, 24)
                 } else if item.kind == .file, let icon = ClipboardAccess.fileIcon(for: item) {
                     VStack(spacing: 16) {
                         Image(nsImage: icon).resizable().scaledToFit()
@@ -1156,6 +1206,8 @@ private struct ClipboardFullPreview: View {
                 Image(nsImage: image).resizable().scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: Self.radius - Self.inset))
                     .padding(Self.inset)
+            } else if let value = ClipboardColor(item: item) {
+                ClipboardColorPreview(value: value).padding(Self.textInset)
             } else if let url = ClipboardAccess.videoPreviewURL(for: item) {
                 ClipboardVideoPreview(url: url).id(url)
                     .clipShape(RoundedRectangle(cornerRadius: Self.radius - Self.inset))

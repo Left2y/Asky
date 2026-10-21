@@ -114,6 +114,20 @@ enum ClipboardRegression {
                 try store.insert(ClipboardItem(kind: .text, text: String(repeating: "完整文字可以滚动查看。\n", count: 60), byteSize: 2000,
                                                contentHash: "long", createdAt: Date().addingTimeInterval(2)))
                 try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "fourth"))
+                if CommandLine.arguments.contains("--colors") {
+                    for (input, expected) in [("#f80", "#FF8800"), (" #aBcD\n", "#AABBCCDD"),
+                                              ("#123456", "#123456"), ("#12345678", "#12345678")] {
+                        precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input))?.hex == expected)
+                    }
+                    for input in ["hello #ff8800", "#12345", "#gg8800", "FF8800", "#１２３", "#123456789"] {
+                        precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input)) == nil)
+                    }
+                    precondition(ClipboardColor(item: ClipboardItem(kind: .file, text: "#FF8800", byteSize: 7, contentHash: "file-color")) == nil)
+                    _ = try store.delete(ids: store.recent(limit: 20).map(\.id))
+                    for value in ["#FF8800", "#FFFFFF", "#000000", "#48A0FF80", "ordinary text"] {
+                        try store.insert(ClipboardItem(kind: .text, text: value, byteSize: value.utf8.count, sourceApp: "Asky", contentHash: value))
+                    }
+                }
                 let fileTest = CommandLine.arguments.contains("--files")
                 let fileURLs = [root.appending(path: "复制文件.txt"), root.appending(path: "second.pdf")]
                 if fileTest {
@@ -193,6 +207,21 @@ enum ClipboardRegression {
                     precondition(controller.query.isEmpty && !controller.items.isEmpty)
                     controller.hide()
                     print("Clipboard search-only passed: both layouts, literal keywords, Escape and reopen")
+                    application.terminate(nil)
+                    return
+                }
+                if CommandLine.arguments.contains("--colors") {
+                    for appearance in ["light", "dark"] {
+                        app.preferences.appearance = appearance
+                        for layout in [ClipboardLayout.list, .cards] {
+                            app.preferences.clipboardLayout = layout
+                            controller.updateLayout()
+                            controller.query = "#FF8800"
+                            try await Task.sleep(for: .milliseconds(350))
+                            try snapshot(panel(), "color-\(appearance)-\(layout)")
+                        }
+                    }
+                    print("Color parsing, non-color rejection, list/card previews passed")
                     application.terminate(nil)
                     return
                 }

@@ -74,8 +74,6 @@ private struct HotKeySettings: View {
                 referenceRow("展示文件信息", keys: "⌘ I")
             } header: {
                 Text(NSLocalizedString("文件与应用", comment: ""))
-            } footer: {
-                Text(NSLocalizedString("选中文件或应用时生效；复制文件需搜索框没有选中文字。", comment: ""))
             }
             Section {
                 referenceRow("执行选中结果", keys: "↵")
@@ -88,8 +86,6 @@ private struct HotKeySettings: View {
                 referenceRow("打开设置", keys: "⌘ ,")
             } header: {
                 Text(NSLocalizedString("启动器", comment: ""))
-            } footer: {
-                Text(NSLocalizedString("退格在输入为空时生效，文件夹行为遵循搜索与导航设置。", comment: ""))
             }
             Section {
                 referenceRow("粘贴到光标位置", keys: "↵")
@@ -100,8 +96,6 @@ private struct HotKeySettings: View {
                 referenceRow("关闭菜单或剪贴板", keys: "Esc")
             } header: {
                 Text(NSLocalizedString("剪贴板历史", comment: ""))
-            } footer: {
-                Text(NSLocalizedString("粘贴需要可用的目标应用和辅助功能授权。", comment: ""))
             }
             Section {
                 referenceRow("发送消息", keys: "↵")
@@ -113,8 +107,6 @@ private struct HotKeySettings: View {
                 referenceRow("打开设置", keys: "⌘ ,")
             } header: {
                 Text(NSLocalizedString("AI 对话", comment: ""))
-            } footer: {
-                Text(NSLocalizedString("固定快捷键仅供查阅；带录制按钮的快捷键支持修改。", comment: ""))
             }
         }.formStyle(.grouped)
     }

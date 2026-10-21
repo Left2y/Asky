@@ -809,8 +809,6 @@
 
 "文件与应用" = "Files and Applications";
 
-"选中文件或应用时生效；复制文件需搜索框没有选中文字。" = "Available for selected files or applications. Copy file requires no selected search text.";
-
 "执行选中结果" = "Run selected result";
 
 "选择结果或操作" = "Select result or action";
@@ -823,21 +821,15 @@
 
 "打开设置" = "Open Settings";
 
-"退格在输入为空时生效，文件夹行为遵循搜索与导航设置。" = "Backspace works with empty input. Folder behavior follows Search and Navigation settings.";
-
 "更多（列表布局）" = "More (list layout)";
 
 "选择记录" = "Select item";
 
 "关闭菜单或剪贴板" = "Close menu or clipboard";
 
-"粘贴需要可用的目标应用和辅助功能授权。" = "Pasting requires an available target application and Accessibility permission.";
-
 "输入换行" = "Insert line break";
 
 "返回对话或关闭窗口" = "Return to conversation or close window";
-
-"固定快捷键仅供查阅；带录制按钮的快捷键支持修改。" = "Fixed shortcuts are for reference. Shortcuts with recorder buttons can be customized.";
 
 "复制文件" = "Copy file";
 

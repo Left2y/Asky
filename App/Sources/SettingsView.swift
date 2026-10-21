@@ -55,6 +55,10 @@ private struct HotKeySettings: View {
                     let d = SettingsPreferences.defaultAgentHotKey
                     return setAgent(d.code, d.modifiers, d.label)
                 }
+            } header: {
+                Text(NSLocalizedString("全局快捷键", comment: ""))
+            }
+            Section {
                 shortcutRow("在访达中显示", label: app.preferences.revealInFinderHotKey.label,
                             apply: { setLocal($0, $1, $2, keyPath: \.revealInFinderHotKey) }) {
                     let d = LauncherActionShortcut.revealInFinder
@@ -65,8 +69,65 @@ private struct HotKeySettings: View {
                     let d = LauncherActionShortcut.copyPath
                     return setLocal(d.code, d.modifiers, d.label, keyPath: \.copyPathHotKey)
                 }
+                referenceRow("复制文件", keys: "⌘ C")
+                referenceRow("复制文件名", keys: "⌘⇧ .")
+                referenceRow("展示文件信息", keys: "⌘ I")
+            } header: {
+                Text(NSLocalizedString("文件与应用", comment: ""))
+            } footer: {
+                Text(NSLocalizedString("选中文件或应用时生效；复制文件需搜索框没有选中文字。", comment: ""))
+            }
+            Section {
+                referenceRow("执行选中结果", keys: "↵")
+                referenceRow("询问 AI", keys: "⌘ ↵")
+                referenceRow("更多", keys: "⌘ K")
+                referenceRow("选择结果或操作", keys: "↑ / ↓")
+                referenceRow("进入选中文件夹", keys: "Tab")
+                referenceRow("返回上级或退出导航", keys: "⌫")
+                referenceRow("关闭菜单、退出导航或隐藏窗口", keys: "Esc")
+                referenceRow("打开设置", keys: "⌘ ,")
+            } header: {
+                Text(NSLocalizedString("启动器", comment: ""))
+            } footer: {
+                Text(NSLocalizedString("退格在输入为空时生效，文件夹行为遵循搜索与导航设置。", comment: ""))
+            }
+            Section {
+                referenceRow("粘贴到光标位置", keys: "↵")
+                referenceRow("复制到剪贴板", keys: "⌘ ↵")
+                referenceRow("删除记录", keys: "⌘ ⌫")
+                referenceRow("更多（列表布局）", keys: "⌘ K")
+                referenceRow("选择记录", keys: "↑ / ↓ / ← / →")
+                referenceRow("关闭菜单或剪贴板", keys: "Esc")
+            } header: {
+                Text(NSLocalizedString("剪贴板历史", comment: ""))
+            } footer: {
+                Text(NSLocalizedString("粘贴需要可用的目标应用和辅助功能授权。", comment: ""))
+            }
+            Section {
+                referenceRow("发送消息", keys: "↵")
+                referenceRow("输入换行", keys: "⇧ ↵")
+                referenceRow("新对话", keys: "⌘ N")
+                referenceRow("历史对话", keys: "⌘⇧ H")
+                referenceRow("关闭对话窗口", keys: "⌘ W")
+                referenceRow("返回对话或关闭窗口", keys: "Esc")
+                referenceRow("打开设置", keys: "⌘ ,")
+            } header: {
+                Text(NSLocalizedString("AI 对话", comment: ""))
+            } footer: {
+                Text(NSLocalizedString("固定快捷键仅供查阅；带录制按钮的快捷键支持修改。", comment: ""))
             }
         }.formStyle(.grouped)
+    }
+
+    private func referenceRow(_ title: String, keys: String) -> some View {
+        HStack(spacing: 24) {
+            Text(NSLocalizedString(title, comment: ""))
+            Spacer(minLength: 12)
+            Text(keys)
+                .monospaced()
+                .foregroundStyle(.secondary)
+                .fixedSize()
+        }
     }
 
     private func shortcutRow(_ title: String, label: String, status: String = "",

@@ -124,7 +124,6 @@ enum AgentReplyRegression {
                 }
             }
             window.orderOut(nil)
-            app.preferences.clipboardLayout = .list
             try ClipboardStore(app.store).insert(ClipboardItem(kind: .text,
                 text: "原生玻璃列表背景验证", byteSize: 33, contentHash: "window-glass-fixture"))
             let clipboard = ClipboardController(app: app)

@@ -308,12 +308,6 @@ private struct ClipboardSettings: View {
     var body: some View {
         SettingsForm {
             Section(NSLocalizedString("剪贴板", comment: "")) {
-                LabeledContent(NSLocalizedString("显示方式", comment: "")) {
-                    SettingsChoice(selection: $app.preferences.clipboardLayout, options: [
-                        (ClipboardLayout.cards, NSLocalizedString("卡片式", comment: "")),
-                        (ClipboardLayout.list, NSLocalizedString("列表式", comment: ""))
-                    ]).fixedSize()
-                }
                 Toggle(NSLocalizedString("记录剪贴板历史", comment: ""), isOn: $app.settings.clipboardEnabled)
                 LabeledContent(NSLocalizedString("历史保留时间", comment: "")) {
                     SettingsChoice(selection: $app.settings.clipboardRetention, options: [

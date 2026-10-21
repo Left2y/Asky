@@ -588,9 +588,6 @@
 "收起工具调用" = "收起工具调用";
 
 /* Clipboard layout preference */
-"显示方式" = "显示方式";
-"卡片式" = "卡片式";
-"列表式" = "列表式";
 
 /* Launcher quit confirmation */
 "关闭 Asky" = "关闭 Asky";

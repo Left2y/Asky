@@ -302,9 +302,9 @@ public struct ClipboardStore: Sendable {
         }
     }
 
-    public func recent(limit: Int, before: Date? = nil) -> [ClipboardItem] {
-        ((try? db.query("SELECT * FROM clipboard WHERE created_at < ? ORDER BY pinned DESC, created_at DESC LIMIT ?",
-                        [before ?? .distantFuture, limit])) ?? []).map(Self.decode)
+    public func recent(limit: Int, before: Date? = nil, offset: Int = 0) -> [ClipboardItem] {
+        ((try? db.query("SELECT * FROM clipboard WHERE created_at < ? ORDER BY pinned DESC, created_at DESC, id DESC LIMIT ? OFFSET ?",
+                        [before ?? .distantFuture, limit, max(0, offset)])) ?? []).map(Self.decode)
     }
 
     public func search(_ text: String, limit: Int = 20) -> [ClipboardItem] {

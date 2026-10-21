@@ -48,9 +48,11 @@ final class ClipboardMonitor {
             let paths = snapshot.fileURLs.map(\.path)
             let data = Data(JSONText.encode(paths).utf8)
             let names = snapshot.fileURLs.map(\.lastPathComponent).joined(separator: "\n")
-            try? store.insert(ClipboardItem(kind: .file, text: names, filePath: paths.first, filePaths: paths,
+            let item = ClipboardItem(kind: .file, text: names, filePath: paths.first, filePaths: paths,
                                             byteSize: data.count, sourceApp: sourceApp, sourceBundleID: sourceBundleID,
-                                            contentHash: "files:" + Self.hash(data)))
+                                            contentHash: "files:" + Self.hash(data))
+            guard ClipboardAccess.isAvailable(item) else { return }
+            try? store.insert(item)
         } else if snapshot.image == nil, let text = snapshot.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let data = Data(text.utf8)
             try? store.insert(ClipboardItem(kind: .text, text: text, byteSize: data.count, sourceApp: sourceApp,

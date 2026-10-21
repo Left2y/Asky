@@ -7,11 +7,23 @@ extension ClipboardAccess {
     /// Metadata is resolved inside ToolService; dimensions are deliberately excluded.
     public static func search(in store: ClipboardStore, query: String, limit: Int = 100) -> [ClipboardItem] {
         let tokens = FTSQuery.tokens(query)
-        guard !tokens.isEmpty else { return store.recent(limit: limit) }
         guard limit > 0 else { return [] }
+        guard !tokens.isEmpty else {
+            // Page past unavailable rows without loading the entire history on every panel refresh.
+            var result: [ClipboardItem] = []
+            var offset = 0
+            while result.count < limit {
+                let page = store.recent(limit: 128, offset: offset)
+                result += page.lazy.filter { isAvailable($0) }.prefix(limit - result.count)
+                if page.count < 128 { break }
+                offset += page.count
+            }
+            return result
+        }
         let contentMatches = Set(store.search(query, limit: Int.max).map(\.id))
         // Do not truncate to the visible page before matching older records.
         return Array(store.recent(limit: Int.max).sorted { $0.createdAt > $1.createdAt }.lazy.filter { item in
+            guard isAvailable(item) else { return false }
             if contentMatches.contains(item.id) { return true }
             let kindNames: String
             switch item.kind {

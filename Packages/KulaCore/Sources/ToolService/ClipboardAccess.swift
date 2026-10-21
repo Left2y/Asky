@@ -2,6 +2,7 @@ import AppKit
 import LocalStore
 import UniformTypeIdentifiers
 import ImageIO
+import Synchronization
 
 /// Native clipboard boundary. History never requires an agent or paste permission.
 @MainActor
@@ -78,10 +79,43 @@ public enum ClipboardAccess {
         return paths.filter { $0.hasPrefix("/") }.map { URL(filePath: $0) }
     }
 
-    private static func availableFiles(for item: ClipboardItem) -> [URL]? {
+    nonisolated private static func availableFiles(for item: ClipboardItem) -> [URL]? {
         let urls = item.filePaths.map { URL(filePath: $0) }
         guard !urls.isEmpty, urls.allSatisfy({ FileManager.default.isReadableFile(atPath: $0.path) }) else { return nil }
         return urls
+    }
+
+    private struct ImageAvailability: Sendable {
+        let modified: Date
+        let size: Int
+        let available: Bool
+    }
+    nonisolated private static let imageAvailability = Mutex<[String: ImageAvailability]>([:])
+
+    /// Check original content, never a surviving thumbnail. Keep unavailable rows in storage so
+    /// file references can reappear when a removable volume or temporarily unavailable file returns.
+    nonisolated public static func isAvailable(_ item: ClipboardItem) -> Bool {
+        switch item.kind {
+        case .text:
+            return item.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        case .file:
+            return availableFiles(for: item) != nil
+        case .image:
+            guard let path = item.filePath,
+                  FileManager.default.isReadableFile(atPath: path),
+                  let values = try? URL(filePath: path).resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]),
+                  let modified = values.contentModificationDate, let size = values.fileSize else { return false }
+            if let cached = imageAvailability.withLock({ $0[path] }), cached.modified == modified, cached.size == size {
+                return cached.available
+            }
+            let source = CGImageSourceCreateWithURL(URL(filePath: path) as CFURL, nil)
+            let available = source.flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) } != nil
+            imageAvailability.withLock {
+                if $0.count >= 256 { $0.removeAll() }
+                $0[path] = ImageAvailability(modified: modified, size: size, available: available)
+            }
+            return available
+        }
     }
 
     /// Resolve one readable movie for native preview without loading the video into history.

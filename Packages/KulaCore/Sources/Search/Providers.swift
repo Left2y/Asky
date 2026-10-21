@@ -272,7 +272,8 @@ public struct ClipboardProvider: SearchProvider {
     public init(store: ClipboardStore) { self.store = store }
 
     public func search(_ query: String, limit: Int) async -> [SearchResult] {
-        store.search(query, limit: limit).map { item in
+        guard limit > 0 else { return [] }
+        return store.search(query, limit: Int.max).lazy.filter { ClipboardAccess.isAvailable($0) }.prefix(limit).map { item in
             let title: String
             switch item.kind {
             case .text: title = String((item.text ?? "").prefix(120)).replacingOccurrences(of: "\n", with: " ")

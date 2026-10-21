@@ -3,6 +3,7 @@ import SwiftUI
 import LocalStore
 import ToolService
 import AVKit
+import Search
 
 @main @MainActor
 enum ClipboardRegression {
@@ -19,6 +20,10 @@ enum ClipboardRegression {
         }
         Task { @MainActor in
             do {
+                if CommandLine.arguments.contains("--availability") {
+                    try await verifyAvailability()
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--delete-shortcut") {
                     try await verifyDeleteShortcut()
                     exit(0)
@@ -951,6 +956,61 @@ enum ClipboardRegression {
             } catch { fputs("Clipboard regression failed: \(error)\n", stderr); exit(1) }
         }
         application.run()
+    }
+
+    private static func verifyAvailability() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-availability-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let store = ClipboardStore(app.store)
+        let file = root.appending(path: "fixture.txt")
+        let item = ClipboardItem(kind: .file, text: "fixture.txt", filePaths: [file.path], byteSize: 1, contentHash: "file")
+        let text = ClipboardItem(kind: .text, text: "fixture text", byteSize: 1, contentHash: "text",
+                                 createdAt: Date().addingTimeInterval(-1))
+        try store.insert(item)
+        try store.insert(text)
+        let controller = ClipboardController(app: app, pasteTargetProvider: { .unavailable })
+        controller.pinned = true
+        for layout in [ClipboardLayout.list, .cards] {
+            app.preferences.clipboardLayout = layout
+            controller.show()
+            precondition(controller.items.map(\.id) == [text.id])
+            try await Task.sleep(for: .milliseconds(150))
+            let panel = NSApp.windows.first { $0.title == "剪贴板历史" }!
+            let view = panel.contentView!
+            view.layoutSubtreeIfNeeded()
+            let capture = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+            view.cacheDisplay(in: view.bounds, to: capture)
+            try capture.representation(using: .png, properties: [:])!.write(
+                to: URL(filePath: "build/clipboard-availability-\(layout).png"))
+            try Data("restored".utf8).write(to: file)
+            controller.refresh()
+            precondition(controller.items.count == 2 && controller.selectedItem?.id == text.id,
+                         "returning file must not change the selected text")
+            controller.selection = controller.items.firstIndex { $0.id == item.id }!
+            // Disappear after display but before copy: remove stale row and preserve pasteboard.
+            try FileManager.default.removeItem(at: file)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString("keep", forType: .string)
+            controller.copySelection()
+            precondition(controller.items.map(\.id) == [text.id])
+            precondition(NSPasteboard.general.string(forType: .string) == "keep")
+            controller.query = "fixture.txt"
+            controller.refresh()
+            precondition(controller.items.isEmpty)
+            precondition(store.recent(limit: 10).count == 2, "hidden rows must remain recoverable")
+            controller.hide()
+        }
+        let results = await ClipboardProvider(store: store).search("fixture", limit: 1)
+        precondition(results.map { $0.target.identifier } == [text.id], "launcher filters before limiting")
+        let monitor = ClipboardMonitor(app: app)
+        monitor.start()
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([file as NSURL])
+        try await Task.sleep(for: .milliseconds(1500))
+        monitor.stop()
+        precondition(store.recent(limit: 10).count == 2, "monitor must not record missing file references")
+        print("PASS: unavailable originals hidden in list/cards and search; recovery, selection, copy race and monitor verified")
     }
 
     private static func verifyDeleteShortcut() async throws {

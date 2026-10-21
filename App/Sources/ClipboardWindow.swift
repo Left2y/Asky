@@ -337,8 +337,14 @@ final class ClipboardController {
     func refresh() {
         let store = ClipboardStore(app.store)
         let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let next = value.isEmpty ? store.recent(limit: 100) : ClipboardAccess.search(in: store, query: value, limit: 100)
-        if next != items { isActionsMenuPresented = false; items = next; selection = min(selection, max(0, next.count - 1)) }
+        let next = ClipboardAccess.search(in: store, query: value, limit: 100)
+        if next != items {
+            let selectedID = selectedItem?.id
+            isActionsMenuPresented = false
+            dismissPreview()
+            items = next
+            selection = next.firstIndex { $0.id == selectedID } ?? min(selection, max(0, next.count - 1))
+        }
     }
 
     func moveSelection(_ delta: Int) {
@@ -359,7 +365,11 @@ final class ClipboardController {
     /// Release keyboard focus for the original app before dispatching its paste shortcut.
     func pasteSelection(keepingOpen: Bool = false) {
         guard items.indices.contains(selection) else { return }
-        guard ClipboardAccess.copy(items[selection]) else { status = NSLocalizedString("无法复制：原始内容已不可用", comment: ""); return }
+        guard ClipboardAccess.copy(items[selection]) else {
+            refresh()
+            status = NSLocalizedString("无法复制：原始内容已不可用", comment: "")
+            return
+        }
         guard let pasteTarget else { showPasteFallback(.unavailable); return }
         let ready = pasteTarget.prepare()
         guard ready == .posted else { showPasteFallback(ready); return }
@@ -408,7 +418,9 @@ final class ClipboardController {
     }
 
     func copy(_ item: ClipboardItem) {
-        status = ClipboardAccess.copy(item) ? NSLocalizedString("已复制", comment: "") : NSLocalizedString("无法复制：原始内容已不可用", comment: "")
+        let copied = ClipboardAccess.copy(item)
+        if !copied { refresh() }
+        status = copied ? NSLocalizedString("已复制", comment: "") : NSLocalizedString("无法复制：原始内容已不可用", comment: "")
     }
 
     /// AppKit drag with eagerly written pasteboard data; SwiftUI `.onDrag` promises are ignored by Chromium/Electron targets.

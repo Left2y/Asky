@@ -111,8 +111,6 @@ private struct CommandKeywordEditor: View {
     var focus: FocusState<String?>.Binding
     private var focused: Bool { focus.wrappedValue == id }
 
-    private var isCustomized: Bool { app.preferences.commandKeywords[id] != nil }
-
     private var defaultValue: String {
         AppModel.searchCommands.first { $0.0 == id }?.2 ?? id
     }
@@ -128,17 +126,7 @@ private struct CommandKeywordEditor: View {
                     .frame(width: 90)
                     .accessibilityIdentifier("command-keyword-" + id)
                     .onSubmit(save)
-                if isCustomized {
-                    Button(action: reset) {
-                        Image(mingCute: "arrow.clockwise", size: 13)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 22, height: 22)
-                            .contentShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                    .help(NSLocalizedString("恢复默认", comment: ""))
-                    .accessibilityLabel(NSLocalizedString("恢复默认", comment: ""))
-                }
+                SettingsButton(NSLocalizedString("恢复默认", comment: "")) { reset() }
             }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }

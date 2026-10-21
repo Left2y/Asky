@@ -73,13 +73,13 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var defaultShortcut: LauncherActionShortcut {
         switch self {
-        case .reveal: .init(code: 3, modifiers: 256, label: "⌘ F")
+        case .reveal: .revealInFinder
         case .copyPath: .init(code: 8, modifiers: 2304, label: "⌥⌘ C")
         case .copyFile: .init(code: 8, modifiers: 256, label: "⌘ C")
         case .copyName: .init(code: 47, modifiers: 768, label: "⌘⇧ .")
         case .fileInfo: .init(code: 34, modifiers: 256, label: "⌘ I")
         case .execute: .init(code: 36, modifiers: 0, label: "↵")
-        case .askAI: .init(code: 36, modifiers: 256, label: "⌘ ↵")
+        case .askAI: .init(code: 36, modifiers: 4096, label: "⌃ ↵")
         case .launcherMore: .init(code: 40, modifiers: 256, label: "⌘ K")
         case .launcherUp: .init(code: 126, modifiers: 0, label: "↑")
         case .launcherDown: .init(code: 125, modifiers: 0, label: "↓")

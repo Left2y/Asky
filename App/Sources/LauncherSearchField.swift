@@ -17,7 +17,7 @@ struct LauncherSearchField: NSViewRepresentable {
     var submit: (Bool) -> Void
     /// ⌥⌘C; return false to let the shortcut fall through.
     var copyPath: (() -> Bool)? = nil
-    /// ⌘F; reveals the selected file/app in Finder.
+    /// ⌘Return; reveals the selected file/app in Finder.
     var revealInFinder: (() -> Bool)? = nil
     var copyPathShortcut = LauncherActionShortcut.copyPath
     var revealInFinderShortcut = LauncherActionShortcut.revealInFinder

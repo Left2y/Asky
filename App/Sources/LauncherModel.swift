@@ -849,7 +849,7 @@ final class LauncherModel {
         }
     }
 
-    /// ⌘F reveals the selected file/app in Finder.
+    /// ⌘Return reveals the selected file/app in Finder.
     func revealSelectionInFinder() -> Bool {
         guard currencyConversion == nil, unitConversion == nil, results.indices.contains(selection),
               results[selection].actions.contains(.revealInFinder) else { return false }

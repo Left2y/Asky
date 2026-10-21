@@ -22,6 +22,23 @@ enum LocalShortcutsRegression {
                 for action in LocalShortcutAction.allCases {
                     precondition(legacy.shortcut(action) == action.defaultShortcut)
                 }
+                let oldDefaults = Data(#"{"revealInFinderHotKey":{"code":3,"modifiers":256,"label":"⌘ F"},"localShortcuts":{"askAI":{"code":36,"modifiers":256,"label":"⌘ ↵"}}}"#.utf8)
+                let migrated = try JSONDecoder().decode(SettingsPreferences.self, from: oldDefaults)
+                precondition(migrated.shortcut(.reveal) == .revealInFinder)
+                precondition(migrated.shortcut(.askAI) == LocalShortcutAction.askAI.defaultShortcut)
+                let migratedReloaded = try JSONDecoder().decode(SettingsPreferences.self, from: JSONEncoder().encode(migrated))
+                precondition(migratedReloaded == migrated)
+                var custom = SettingsPreferences()
+                precondition(custom.setShortcut(.reveal, .init(code: 3, modifiers: 768, label: "⌘⇧ F")))
+                precondition(custom.setShortcut(.askAI, .init(code: 38, modifiers: 4096, label: "⌃ J")))
+                let customReloaded = try JSONDecoder().decode(SettingsPreferences.self, from: JSONEncoder().encode(custom))
+                precondition(customReloaded == custom)
+                for code: UInt16 in [36, 76] {
+                    precondition(migrated.shortcut(.reveal).matches(event(code, .command)))
+                    precondition(!migrated.shortcut(.askAI).matches(event(code, .command)))
+                    precondition(migrated.shortcut(.askAI).matches(event(code, .control)))
+                    precondition(!migrated.shortcut(.reveal).matches(event(code, .control)))
+                }
                 // Reject conflicts only where actions can run in the same window.
                 precondition(!app.preferences.setShortcut(.execute, app.preferences.shortcut(.askAI)))
                 precondition(!app.preferences.setShortcut(.clipboardCopy, app.preferences.shortcut(.settings)))
@@ -70,6 +87,14 @@ enum LocalShortcutsRegression {
                 var prompts: [String] = []
                 launcher.onAskAI = { prompts.append($0) }
                 launcher.query = "hello shortcut"
+                precondition(launcher.handleActionKey(event(36, .control)))
+                precondition(prompts == ["hello shortcut"])
+                prompts.removeAll()
+                var reveals = 0
+                let field = CompletionTextField(frame: .zero)
+                field.revealInFinder = { reveals += 1; return true }
+                precondition(field.performKeyEquivalent(with: event(36, .command)))
+                precondition(reveals == 1 && prompts.isEmpty)
                 precondition(app.preferences.setShortcut(.askAI, .init(code: 38, modifiers: 4096, label: "⌃ J")))
                 precondition(launcher.handleActionKey(event(38, .control)))
                 precondition(prompts == ["hello shortcut"])

@@ -71,6 +71,14 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         commandKeywords = try c.decodeIfPresent([String: String].self, forKey: .commandKeywords) ?? [:]
         disabledBuiltInCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledBuiltInCommands) ?? d.disabledBuiltInCommands
         disabledSearchCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledSearchCommands) ?? d.disabledSearchCommands
+        // Move saved legacy defaults without overwriting custom bindings or creating conflicts.
+        if let saved = localShortcuts[LocalShortcutAction.askAI.rawValue],
+           saved.hasSameKeys(as: .init(code: 36, modifiers: 256, label: "")) {
+            _ = setShortcut(.askAI, LocalShortcutAction.askAI.defaultShortcut)
+        }
+        if revealInFinderHotKey.hasSameKeys(as: .init(code: 3, modifiers: 256, label: "")) {
+            _ = setShortcut(.reveal, .revealInFinder)
+        }
     }
 }
 
@@ -80,7 +88,7 @@ struct LauncherActionShortcut: Codable, Equatable, Sendable {
     var modifiers: UInt32
     var label: String
 
-    static let revealInFinder = Self(code: UInt32(kVK_ANSI_F), modifiers: UInt32(cmdKey), label: "⌘ F")
+    static let revealInFinder = Self(code: UInt32(kVK_Return), modifiers: UInt32(cmdKey), label: "⌘ ↵")
     static let copyPath = Self(code: UInt32(kVK_ANSI_C), modifiers: UInt32(optionKey | cmdKey), label: "⌥⌘ C")
 
     func matches(_ event: NSEvent) -> Bool {

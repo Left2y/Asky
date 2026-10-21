@@ -606,7 +606,7 @@
 "未找到匹配的指令" = "No matching commands";
 "清除搜索" = "Clear search";
 
-"搜索指令" = "Search commands";
+"搜索指令" = "Search Commands";
 "搜索链接" = "Search links";
 "AI 搜索" = "AI search";
 "指令不能为空或包含空格。" = "Commands cannot be empty or contain whitespace.";
@@ -759,7 +759,6 @@
 
 "搜索应用" = "Search Applications";
 
-"搜索指令" = "Search Commands";
 
 "搜索快捷指令" = "Search Shortcuts";
 

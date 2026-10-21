@@ -447,6 +447,7 @@ enum SettingsRegression {
                         view.cacheDisplay(in: view.bounds, to: bitmap)
                         try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/search-commands-\(appearance).png"))
                     }
+                    try await assertCommandTabsAndGlobalSearch(window, model: model)
                     window.setContentSize(SettingsWindow.minimumSize)
                     try await Task.sleep(for: .milliseconds(400))
                     window.contentView?.layoutSubtreeIfNeeded()
@@ -830,6 +831,57 @@ enum SettingsRegression {
               viewport.height > 400 else {
             fatalError("settings scroll viewport overlaps toolbar: \(viewport), layout: \(window.contentLayoutRect)")
         }
+    }
+
+    private static func assertCommandTabsAndGlobalSearch(_ window: NSWindow, model: AppModel) async throws {
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        func fields() -> [NSTextField] {
+            descendants(window.contentView!).compactMap { $0 as? NSTextField }.filter { $0.isEditable }
+        }
+        func keywords() -> Set<String> { Set(fields().map(\.stringValue)) }
+        func capture(_ name: String) throws {
+            let view = window.contentView!
+            view.layoutSubtreeIfNeeded()
+            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/command-tabs-\(name).png"))
+        }
+        guard let tabs = descendants(window.contentView!).compactMap({ $0 as? NSSegmentedControl }).first else {
+            fatalError("missing native command tabs")
+        }
+        precondition(tabs.segmentCount == 2)
+        precondition(keywords().contains("ql") && !keywords().contains("go"))
+        precondition(AppModel.searchCommands.first { $0.0 == "quickLinks" }?.1 == "搜索指令")
+        try capture("search")
+        tabs.selectedSegment = 1
+        NSApp.sendAction(tabs.action!, to: tabs.target, from: tabs)
+        try await Task.sleep(for: .milliseconds(200))
+        precondition(keywords().contains("go") && !keywords().contains("ql"))
+        try capture("built-in")
+        guard let search = fields().first(where: { $0.placeholderString == NSLocalizedString("搜索指令或名称", comment: "") }) else {
+            fatalError("missing global command search")
+        }
+        precondition(fields().filter { $0.placeholderString == search.placeholderString }.count == 1)
+        window.makeFirstResponder(search)
+        let editor = search.currentEditor()!
+        editor.selectAll(nil)
+        editor.insertText("搜索")
+        try await Task.sleep(for: .milliseconds(200))
+        precondition(keywords().contains("ql") && keywords().contains("go"), "search must include both groups")
+        try capture("global-search")
+        editor.selectAll(nil)
+        editor.insertText("no-command-matches-179259")
+        try await Task.sleep(for: .milliseconds(200))
+        precondition(fields().count == 1, "unmatched search must hide every command editor")
+        model.editCommand("quickLinks")
+        try await Task.sleep(for: .milliseconds(250))
+        precondition(keywords().contains("ql") && !keywords().contains("go"))
+        precondition(fields().first(where: { $0.stringValue == "ql" })?.currentEditor() != nil)
+        model.editCommand("go")
+        try await Task.sleep(for: .milliseconds(250))
+        precondition(keywords().contains("go") && !keywords().contains("ql"))
+        precondition(fields().first(where: { $0.stringValue == "go" })?.currentEditor() != nil)
+        print("Command tabs, ql label, global cross-tab search, empty results and edit focus passed")
     }
 
     private static func assertSettingsClickOutsideEndsEditing(_ window: NSWindow) {

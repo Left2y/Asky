@@ -4,13 +4,12 @@ import DirectActions
 struct CommandSettings: View {
     @Bindable var app: AppModel
     @State private var query = ""
-    @State private var searchCommandQuery = ""
+    @State private var selectedTab = "search"
     @FocusState private var searchFocused: Bool
-    @FocusState private var searchCommandFocused: Bool
     @FocusState private var focusedCommand: String?
 
     private var filteredSearchCommands: [(String, String, String)] {
-        let term = searchCommandQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return AppModel.searchCommands.filter {
             term.isEmpty || app.commandKeyword($0.0).localizedStandardContains(term) || $0.0.localizedStandardContains(term)
                 || $0.1.localizedStandardContains(term)
@@ -27,82 +26,98 @@ struct CommandSettings: View {
         }
     }
 
+    private var isSearching: Bool {
+        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
-            SettingsForm {
-                Section {
-                    if filteredSearchCommands.isEmpty {
-                        Text(NSLocalizedString("未找到匹配的指令", comment: ""))
-                            .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                VStack(spacing: 12) {
+                    CommandSearchField(query: $query, focus: $searchFocused,
+                                       placeholder: "搜索指令或名称", identifier: "command-search")
+                    Picker(NSLocalizedString("指令", comment: ""), selection: $selectedTab) {
+                        Text(NSLocalizedString("搜索指令", comment: "")).tag("search")
+                        Text(NSLocalizedString("内置指令", comment: "")).tag("builtIn")
                     }
-                    ForEach(filteredSearchCommands, id: \.0) { item in
-                        LabeledContent {
-                            CommandKeywordEditor(app: app, id: item.0, focus: $focusedCommand)
-                                .id(item.0)
-                        } label: {
-                            HStack(spacing: 10) {
-                                Toggle(NSLocalizedString(item.1, comment: ""), isOn: Binding(
-                                    get: { app.isSearchCommandEnabled(item.0) },
-                                    set: { enabled in
-                                        if enabled { app.preferences.disabledSearchCommands.remove(item.0) }
-                                        else { app.preferences.disabledSearchCommands.insert(item.0) }
-                                    }
-                                ))
-                                .toggleStyle(.checkbox)
-                                .labelsHidden()
-                                .accessibilityIdentifier("search-command-enabled-" + item.0)
-                                LauncherFunctionIcon(kind: .searchCommand(item.0))
-                                    .accessibilityHidden(true)
-                                Text(NSLocalizedString(item.1, comment: ""))
-                            }
-                        }
-                    }
-                } header: {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(NSLocalizedString("搜索指令", comment: ""))
-                        CommandSearchField(query: $searchCommandQuery, focus: $searchCommandFocused,
-                                           placeholder: "搜索指令或名称", identifier: "search-command-search")
-                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .accessibilityIdentifier("command-tabs")
                 }
-                Section {
-                    if filteredCommands.isEmpty {
-                        Text(NSLocalizedString("未找到匹配的指令", comment: ""))
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(filteredCommands) { command in
-                        LabeledContent {
-                            CommandKeywordEditor(app: app, id: command.keyword, focus: $focusedCommand)
-                                .id(command.keyword)
-                        } label: {
-                            HStack(spacing: 10) {
-                                Toggle(NSLocalizedString(command.name, comment: ""), isOn: Binding(
-                                    get: { !app.preferences.disabledBuiltInCommands.contains(command.keyword) },
-                                    set: { enabled in
-                                        if enabled { app.preferences.disabledBuiltInCommands.remove(command.keyword) }
-                                        else { app.preferences.disabledBuiltInCommands.insert(command.keyword) }
-                                    }
-                                ))
-                                .toggleStyle(.checkbox)
-                                .labelsHidden()
-                                .accessibilityIdentifier("command-enabled-" + command.keyword)
-                                CommandIcon(keyword: command.keyword)
-                                    .accessibilityHidden(true)
-                                Text(NSLocalizedString(command.name, comment: ""))
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 16)
+                SettingsForm {
+                    if isSearching || selectedTab == "search" {
+                        Section {
+                            if filteredSearchCommands.isEmpty {
+                                Text(NSLocalizedString("未找到匹配的指令", comment: ""))
+                                    .foregroundStyle(.secondary)
                             }
+                            ForEach(filteredSearchCommands, id: \.0) { item in
+                                LabeledContent {
+                                    CommandKeywordEditor(app: app, id: item.0, focus: $focusedCommand)
+                                        .id(item.0)
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Toggle(NSLocalizedString(item.1, comment: ""), isOn: Binding(
+                                            get: { app.isSearchCommandEnabled(item.0) },
+                                            set: { enabled in
+                                                if enabled { app.preferences.disabledSearchCommands.remove(item.0) }
+                                                else { app.preferences.disabledSearchCommands.insert(item.0) }
+                                            }
+                                        ))
+                                        .toggleStyle(.checkbox)
+                                        .labelsHidden()
+                                        .accessibilityIdentifier("search-command-enabled-" + item.0)
+                                        LauncherFunctionIcon(kind: .searchCommand(item.0))
+                                            .accessibilityHidden(true)
+                                        Text(NSLocalizedString(item.1, comment: ""))
+                                    }
+                                }
+                            }
+                        } header: {
+                            if isSearching { Text(NSLocalizedString("搜索指令", comment: "")) }
                         }
                     }
-                } header: {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(NSLocalizedString("内置指令", comment: ""))
-                        CommandSearchField(query: $query, focus: $searchFocused,
-                                           placeholder: "搜索指令或名称", identifier: "command-search")
+                    if isSearching || selectedTab == "builtIn" {
+                        Section {
+                            if filteredCommands.isEmpty {
+                                Text(NSLocalizedString("未找到匹配的指令", comment: ""))
+                                    .foregroundStyle(.secondary)
+                            }
+                            ForEach(filteredCommands) { command in
+                                LabeledContent {
+                                    CommandKeywordEditor(app: app, id: command.keyword, focus: $focusedCommand)
+                                        .id(command.keyword)
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Toggle(NSLocalizedString(command.name, comment: ""), isOn: Binding(
+                                            get: { !app.preferences.disabledBuiltInCommands.contains(command.keyword) },
+                                            set: { enabled in
+                                                if enabled { app.preferences.disabledBuiltInCommands.remove(command.keyword) }
+                                                else { app.preferences.disabledBuiltInCommands.insert(command.keyword) }
+                                            }
+                                        ))
+                                        .toggleStyle(.checkbox)
+                                        .labelsHidden()
+                                        .accessibilityIdentifier("command-enabled-" + command.keyword)
+                                        CommandIcon(keyword: command.keyword)
+                                            .accessibilityHidden(true)
+                                        Text(NSLocalizedString(command.name, comment: ""))
+                                    }
+                                }
+                            }
+                        } header: {
+                            if isSearching { Text(NSLocalizedString("内置指令", comment: "")) }
+                        }
                     }
                 }
             }
             .task(id: app.commandEditRequest?.token) {
                 guard let request = app.commandEditRequest else { return }
                 query = ""
-                searchCommandQuery = ""
+                selectedTab = AppModel.searchCommands.contains { $0.0 == request.id } ? "search" : "builtIn"
                 await Task.yield()
                 guard !Task.isCancelled else { return }
                 proxy.scrollTo(request.id, anchor: .center)

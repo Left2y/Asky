@@ -8,9 +8,86 @@ import ToolService
 @main
 @MainActor
 enum AgentReplyRegression {
+    static func mathPreview() async throws {
+        let formulas = [
+            #"E = mc^2"#,
+            #"\int_{-\infty}^{\infty} e^{-x^2}\,\mathrm{d}x = \sqrt{\pi}"#,
+            #"f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!}(x-a)^n"#,
+            #"\begin{aligned} \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\ \nabla \times \mathbf{B} &= \mu_0 \mathbf{J} + \mu_0 \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t} \end{aligned}"#,
+            #"A = \begin{pmatrix} a & b \\ c & d \end{pmatrix},\quad |x| = \begin{cases} x, & x \ge 0 \\ -x, & x < 0 \end{cases}"#
+        ]
+        for formula in formulas {
+            for color in [NSColor.white, .black] {
+                guard let rendered = ChatMathRenderer.render(.init(source: formula, display: true), color: color),
+                      let bitmap = rendered.image.representations.first as? NSBitmapImageRep else {
+                    preconditionFailure(formula)
+                }
+                // Glyphs must fit inside the transparent top/bottom padding, including descenders.
+                for x in 0..<bitmap.pixelsWide {
+                    precondition(bitmap.colorAt(x: x, y: 0)!.alphaComponent < 0.01, formula)
+                    precondition(bitmap.colorAt(x: x, y: bitmap.pixelsHigh - 1)!.alphaComponent < 0.01, formula)
+                }
+            }
+        }
+        precondition(ChatMathRenderer.render(.init(source: #"\unknowncommand{x}"#, display: true), color: .black) == nil)
+        for literal in [#"`$x$`"#, "```tex\n$$x$$\n```", #"\$20 and \$30"#, "$20 and $30", #"[price](https://example.com/$x$)"#, "$unfinished", "$$unfinished", "    $$code$$"] {
+            precondition(ChatMath.markdown(literal) == literal, literal)
+        }
+        for input in [#"$x^2$"#, #"$2x$"#, #"$20$"#, #"$$x^2$$"#, #"\(x^2\)"#, #"\[x^2\]"#] {
+            precondition(ChatMath.markdown(input).contains("asky-math://"), input)
+        }
+        let explanatory = "独立公式（使用 $$ 包裹）：\n\n$$x^2$$"
+        precondition(ChatMath.markdown(explanatory).hasPrefix("独立公式（使用 $$ 包裹）："))
+        precondition(ChatMath.markdown(explanatory).contains("asky-math://display/"))
+        let markdown = """
+        ## 公式示例
+        行内公式：质能方程 $E = mc^2$，圆的面积 $S = \\pi r^2$。
+
+        """ + formulas.dropFirst().map { "$$" + $0 + "$$" }.joined(separator: "\n\n") + """
+
+        **粗体**、`$code$`、价格 $20 and $30 保持原样。
+        """
+        let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 760, height: 640),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.title = "Asky Math Regression"
+        for (name, scheme, appearance, width) in [("light", ColorScheme.light, NSAppearance.Name.aqua, 760.0),
+                                                   ("dark", .dark, .darkAqua, 760.0),
+                                                   ("dark-narrow", .dark, .darkAqua, 420.0)] {
+            window.setContentSize(NSSize(width: width, height: 640))
+            window.appearance = NSAppearance(named: appearance)
+            let view = NSHostingView(rootView: ChatMarkdownView(text: markdown).padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(scheme == .dark ? Color(white: 0.15) : .white).environment(\.colorScheme, scheme))
+            window.contentView = view
+            window.makeKeyAndOrderFront(nil)
+            try await Task.sleep(for: .milliseconds(800))
+            view.layoutSubtreeIfNeeded()
+            func checkTextWidth(_ node: NSView) {
+                if let text = node as? NSTextView, let container = text.textContainer, let manager = text.layoutManager,
+                   String(describing: type(of: manager)) == "ChatInlineLayoutManager" {
+                    manager.ensureLayout(for: container)
+                    precondition(text.bounds.width <= width - 48 + 1, "Paragraph must fit inside the window")
+                    precondition(manager.usedRect(for: container).width <= text.bounds.width + 1,
+                                 "Inline text must wrap: used=\(manager.usedRect(for: container)) bounds=\(text.bounds) container=\(container.containerSize)")
+                }
+                node.subviews.forEach(checkTextWidth)
+            }
+            checkTextWidth(view)
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("capture") }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/math-" + name + ".png"))
+        }
+        window.orderOut(nil)
+        print("Math parsing, native layout, invalid-source fallback and light/dark window captures passed")
+    }
+
     static func main() async throws {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
+        if CommandLine.arguments.contains("--math-preview") {
+            try await mathPreview()
+            return
+        }
         let root = FileManager.default.temporaryDirectory.appending(path: "Asky-reply-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)

@@ -14,6 +14,9 @@ packages:
   MarkdownUI:
     url: https://github.com/gonzalezreal/swift-markdown-ui
     exactVersion: 2.4.1
+  SwiftMath:
+    url: https://github.com/mgriebling/SwiftMath
+    exactVersion: 1.7.3
   KulaCore:
     path: Packages/KulaCore
 targets:
@@ -76,6 +79,7 @@ targets:
         basedOnDependencyAnalysis: false
     dependencies:
       - package: MarkdownUI
+      - package: SwiftMath
       - package: KulaCore
         products: [Contracts, Theme, Router, DirectActions, Resources, LocalStore, ToolService,
                    AgentHost, Memory, Scheduler, Search, Adapters, MCPLink, MCPGateway]

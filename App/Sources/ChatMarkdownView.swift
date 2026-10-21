@@ -12,7 +12,7 @@ struct ChatMarkdownView: View {
     private static let headingStyle = TextStyle(size: 16, weight: 500, mode: .paragraph)
 
     var body: some View {
-        Markdown(text)
+        Markdown(ChatMath.markdown(text))
             // The default theme is basic; setting it here would override the block styles below.
             .markdownTextStyle {
                 FontSize(Self.bodyStyle.size)
@@ -95,7 +95,7 @@ struct ChatMarkdownView: View {
             .markdownTableBorderStyle(.init(.horizontalBorders,
                 color: ThemeColor("border").color(for: colorScheme), width: 0))
             .markdownImageProvider(ChatImageProvider())
-            .markdownInlineImageProvider(ChatInlineImageProvider())
+            .markdownInlineImageProvider(ChatInlineImageProvider(color: NSColor(ThemeColor("text").color(for: colorScheme))))
             .textSelection(.enabled)
     }
 
@@ -218,6 +218,7 @@ private struct ChatInlineText: View {
                 var loaded: [URL: Data] = [:]
                 for url in Set(Self.parsed(markdown).runs.compactMap(\.imageURL)) {
                     guard !Task.isCancelled else { return }
+                    if ChatMath.formula(url) != nil { continue }
                     if let data = try? await ChatImageService.shared.imageData(from: url) { loaded[url] = data }
                 }
                 guard !Task.isCancelled else { return }
@@ -238,7 +239,8 @@ private struct ChatInlineNativeText: NSViewRepresentable {
         let manager = ChatInlineLayoutManager()
         let container = NSTextContainer(size: NSSize(width: 600, height: CGFloat.greatestFiniteMagnitude))
         container.lineFragmentPadding = 0
-        container.widthTracksTextView = true
+        // SwiftUI supplies the paragraph width in sizeThatFits; avoid stale AppKit widths on resize.
+        container.widthTracksTextView = false
         storage.addLayoutManager(manager)
         manager.addTextContainer(container)
         let view = NSTextView(frame: .zero, textContainer: container)
@@ -271,6 +273,18 @@ private struct ChatInlineNativeText: NSViewRepresentable {
             }
             if intent.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             if let url = run.imageURL {
+                if let formula = ChatMath.formula(url) {
+                    if let rendered = ChatMathRenderer.render(formula, color: foreground) {
+                        let attachment = NSTextAttachment()
+                        attachment.image = rendered.image
+                        attachment.bounds = NSRect(x: 0, y: -rendered.descent,
+                            width: rendered.image.size.width, height: rendered.image.size.height)
+                        result.append(NSAttributedString(attachment: attachment))
+                    } else {
+                        result.append(NSAttributedString(string: formula.source, attributes: attributes))
+                    }
+                    continue
+                }
                 let image = images[url].flatMap(NSImage.init(data:)) ?? MingCute.image("photo")
                 let attachment = NSTextAttachment()
                 attachment.image = image
@@ -293,8 +307,13 @@ private struct ChatInlineNativeText: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView view: NSTextView, context: Context) -> CGSize? {
+        // SwiftUI probes minimum and maximum widths before choosing the actual paragraph width.
+        // Falling back to NSTextView for the zero-width probe makes its current width a hard minimum.
+        if proposal.width == 0 { return .zero }
+        if let width = proposal.width, !width.isFinite { return CGSize(width: 100_000, height: 0) }
         guard let width = proposal.width, width > 0, let container = view.textContainer,
               let manager = view.layoutManager else { return nil }
+        view.setFrameSize(NSSize(width: width, height: view.frame.height))
         container.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         manager.ensureLayout(for: container)
         return CGSize(width: width, height: ceil(manager.usedRect(for: container).height) + 4)
@@ -351,7 +370,10 @@ private struct ChatCodeBlock: View {
 }
 
 private struct ChatImageProvider: ImageProvider {
-    func makeImage(url: URL?) -> some View { ChatRemoteImage(url: url) }
+    @ViewBuilder func makeImage(url: URL?) -> some View {
+        if let formula = ChatMath.formula(url) { ChatMathBlock(formula: formula) }
+        else { ChatRemoteImage(url: url) }
+    }
 }
 
 private struct ChatRemoteImage: View {
@@ -433,7 +455,14 @@ private struct ChatRemoteImage: View {
 }
 
 private struct ChatInlineImageProvider: InlineImageProvider {
+    let color: NSColor
     func image(with url: URL, label: String) async throws -> Image {
+        if let formula = ChatMath.formula(url) {
+            return await MainActor.run {
+                if let rendered = ChatMathRenderer.render(formula, color: color) { return Image(nsImage: rendered.image) }
+                return Image(nsImage: ChatMathRenderer.sourceImage(formula.source, color: color))
+            }
+        }
         do {
             let data = try await ChatImageService.shared.imageData(from: url)
             guard let image = NSImage(data: data) else { throw URLError(.cannotDecodeContentData) }

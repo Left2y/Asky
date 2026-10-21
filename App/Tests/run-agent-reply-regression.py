@@ -17,7 +17,7 @@ if not (products / "Search.o").exists():
 
 sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
            if path.stem != "AskyApp"]
-command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
+command = ["xcrun", "swiftc", "-parse-as-library", "-whole-module-optimization", "-swift-version", "6",
            "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
 command += ["-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
 maps = derived_data / "Build/Intermediates.noindex/GeneratedModuleMaps"
@@ -39,6 +39,7 @@ bundle = artifacts / "AgentReplyRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)
 (bundle / "Resources").mkdir(exist_ok=True)
 copy_core_resources(products, bundle / "Resources")
+shutil.copytree(products / "SwiftMath_SwiftMath.bundle", bundle / "Resources/SwiftMath_SwiftMath.bundle", dirs_exist_ok=True)
 executable = bundle / "MacOS/AgentReplyRegression"
 executable.unlink(missing_ok=True)
 shutil.copy2(binary, executable)

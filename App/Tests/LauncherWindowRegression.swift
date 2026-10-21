@@ -205,6 +205,7 @@ enum LauncherWindowRegression {
         }
         let model = LauncherModel(app: app, searchProviders: [provider, AppCopyProvider()])
         let controller = LauncherController(model: model)
+        NSApp.activate(ignoringOtherApps: true)
         model.query = "Design"
         controller.show()
         guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
@@ -365,12 +366,28 @@ enum LauncherWindowRegression {
         model.query = "Notes"
         try await Task.sleep(for: .milliseconds(400))
         model.selection = 0
-        try require(model.finderLauncherAction != nil && model.secondaryActions.count == 2,
-                    "app must expose Finder in action bar and keep copies in menu")
+        try require(model.finderLauncherAction != nil && model.secondaryActions.count == 4,
+                    "app must expose Finder in action bar and all file operations in menu")
         try capture("app")
         editor.setSelectedRange(NSRange(location: 0, length: 0))
         key(8, modifiers: .command)
         try require(copiedURLs() == [appURL], "Cmd C on app must copy app bundle URL")
+        try require(model.secondaryActions.contains {
+            if case .showFileInfo = $0.kind { return $0.shortcut == "⌘ I" }; return false
+        }, "app info action must advertise Cmd I")
+        try require(!model.secondaryActions.contains {
+            if case .enterFolder = $0.kind { return true }; return false
+        }, "app bundles must not offer folder search")
+        key(47, modifiers: [.command, .shift])
+        try require(NSPasteboard.general.string(forType: .string) == appURL.lastPathComponent && copiedURLs().isEmpty,
+                    "app filename shortcut must copy the bundle name including .app")
+        key(40, modifiers: .command)
+        key(125)
+        key(125)
+        key(36)
+        try require(!model.isActionsMenuPresented && controller.isVisible && model.inputText == "Notes" &&
+                    NSPasteboard.general.string(forType: .string) == appURL.lastPathComponent,
+                    "app Copy filename menu action must retain the launcher query: visible=\(controller.isVisible), query=\(model.inputText), clipboard=\(NSPasteboard.general.string(forType: .string) ?? "nil")")
         model.query = "Design"
         try await Task.sleep(for: .milliseconds(400))
         model.selection = 1

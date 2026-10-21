@@ -751,7 +751,7 @@ final class LauncherModel {
 
     @discardableResult
     func copySelectedFileName() -> Bool {
-        guard let result = selectedActionResult, result.source == .file,
+        guard let result = selectedActionResult, [.file, .app].contains(result.source),
               result.actions.contains(.revealInFinder) else { return false }
         closeActionsMenu()
         if ClipboardAccess.copyFileName(at: URL(fileURLWithPath: result.target.identifier)) {
@@ -762,7 +762,7 @@ final class LauncherModel {
 
     @discardableResult
     func showSelectedFileInfo() -> Bool {
-        guard let result = selectedActionResult, result.source == .file,
+        guard let result = selectedActionResult, [.file, .app].contains(result.source),
               result.actions.contains(.revealInFinder) else { return false }
         closeActionsMenu()
         Task { @MainActor [weak self] in
@@ -1034,7 +1034,7 @@ extension LauncherModel {
             actions.append(LauncherAction(title: "复制路径", icon: "doc.on.clipboard",
                                           shortcut: actionPreferences.copyPathHotKey.label, kind: .copyPath))
         }
-        if result.source == .file, result.actions.contains(.revealInFinder) {
+        if [.file, .app].contains(result.source), result.actions.contains(.revealInFinder) {
             actions.append(LauncherAction(title: "复制文件名", icon: "doc.on.clipboard",
                                           shortcut: "⇧⌘ .", kind: .copyFileName))
             actions.append(LauncherAction(title: "展示文件信息", icon: "info.circle",

@@ -57,7 +57,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`x 关键词`（X 搜索）、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
 
-文件结果的“更多”菜单提供“复制文件名”（`⌘⇧.`，包含扩展名）与“展示文件信息”（`⌘I`，打开访达简介窗口，首次使用可能需要自动化授权）；菜单关闭时也可使用这两个快捷键。
+文件与应用结果的“更多”菜单提供“复制文件名”（`⌘⇧.`，包含扩展名）与“展示文件信息”（`⌘I`，打开访达简介窗口，首次使用可能需要自动化授权）；菜单关闭时也可使用这两个快捷键。
 
 内置网页指令（如 `go`）的“更多”提供“编辑快捷指令”（打开设置并聚焦对应命令输入框）和“停用”（同步取消设置中的勾选）。
 
@@ -176,7 +176,7 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `x keyword` (X search), `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
 
-The More menu for file results offers Copy filename (`⌘⇧.`, including the extension) and Show file info (`⌘I`, opens Finder’s Get Info window and may require Automation permission on first use). Both shortcuts also work while the menu is closed.
+The More menu for file and application results offers Copy filename (`⌘⇧.`, including the extension) and Show file info (`⌘I`, opens Finder’s Get Info window and may require Automation permission on first use). Both shortcuts also work while the menu is closed.
 
 More for built-in web commands such as `go` offers Edit shortcut (opens Settings and focuses its trigger field) and Disable (clears its checkbox in Settings).
 

@@ -252,6 +252,15 @@ public struct ClipboardItem: Sendable, Hashable, Identifiable {
     public var contentHash: String
     public var createdAt: Date
 
+    /// Image display name based on the record's copy time in the current time zone.
+    public var imageTitle: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy_MM_dd_HH_mm_ss"
+        return formatter.string(from: createdAt)
+    }
+
     public init(id: String = UUID().uuidString, kind: ClipboardKind, text: String? = nil, filePath: String? = nil,
                 thumbPath: String? = nil, filePaths: [String] = [], byteSize: Int, sourceApp: String? = nil, sourceBundleID: String? = nil,
                 pinned: Bool = false, contentHash: String, createdAt: Date = Date()) {

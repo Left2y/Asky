@@ -276,7 +276,7 @@ public struct ClipboardProvider: SearchProvider {
             let title: String
             switch item.kind {
             case .text: title = String((item.text ?? "").prefix(120)).replacingOccurrences(of: "\n", with: " ")
-            case .image: title = CoreLocalization.text("图片")
+            case .image: title = item.imageTitle
             case .file: title = item.text ?? URL(fileURLWithPath: item.filePath ?? "").lastPathComponent
             }
             return SearchResult(source: .clipboard, target: TargetRef(kind: "clipboard", identifier: item.id), title: title,

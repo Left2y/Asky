@@ -952,7 +952,7 @@ private struct ClipboardHistoryCard: View {
         }
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(item.kind == .image ? "\(NSLocalizedString("图片", comment: "")), \(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))" : String((item.text ?? "").prefix(200)))
+        .accessibilityLabel(item.kind == .image ? "\(item.imageTitle), \(item.sourceApp ?? NSLocalizedString("未知来源", comment: ""))" : String((item.text ?? "").prefix(200)))
         .accessibilityAction(named: NSLocalizedString("复制", comment: "")) { controller.copy(item) }
     }
 
@@ -1033,7 +1033,7 @@ private struct ClipboardHistoryRow: View {
     @State private var hovering = false
     private var selected: Bool { controller.selectedItem?.id == item.id }
     private var title: String {
-        if item.kind == .image { return NSLocalizedString("图片", comment: "") }
+        if item.kind == .image { return item.imageTitle }
         return item.text ?? item.filePaths.map { URL(filePath: $0).lastPathComponent }.joined(separator: ", ")
     }
 

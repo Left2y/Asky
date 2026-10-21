@@ -36,7 +36,7 @@ struct LauncherFunctionIcon: View {
             case .link: "link"
             case .quit: "power"
             case .conversion: "arrow.left.arrow.right"
-            case .tabs: "web"
+            case .tabs: "layout_4_line"
             case .ai: nil
             case .calculator: "equal.square"
             case .files: "folder"

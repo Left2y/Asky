@@ -74,7 +74,8 @@
     "tool": "tool",
     "video": "video",
     "power": "power",
-    "web": "web"
+    "web": "web",
+    "layout_4_line": "layout_4"
   },
   "assets": {
     "Calculator": "counter_2",

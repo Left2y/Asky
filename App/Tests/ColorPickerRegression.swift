@@ -15,7 +15,7 @@ private enum ColorPickerRegression {
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [])
-        for query in ["color", "COLOR", "取色", "屏幕取色"] {
+        for query in ["co", "CO", "取色", "屏幕取色"] {
             model.query = query
             try require(model.results.first?.target.identifier == "colorPicker", "query must prioritize color picker: \(query)")
             try require(model.primaryLauncherAction?.title == "屏幕取色", "primary action must describe color picking")

@@ -79,6 +79,18 @@ final class AppModel {
     private var mcpServer: MCPLinkServer?
     private(set) var mcpServerError: String?
 
+    struct CommandEditRequest: Equatable {
+        let id: String
+        let token = UUID()
+    }
+    var commandEditRequest: CommandEditRequest?
+
+    func editCommand(_ id: String) {
+        commandEditRequest = CommandEditRequest(id: id)
+        settingsTab = SettingsPage.keywords.rawValue
+        openSettings()
+    }
+
     var settingsTab = SettingsPage.general.rawValue
     let credentialSession = ModelCredentialSession()
     var hotKeyStatus = ""

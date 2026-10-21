@@ -3,7 +3,11 @@ import Contracts
 import Theme
 
 struct LauncherAction {
-    enum Kind { case result(ResultAction), copyPath, copyFile, copyFileName, showFileInfo, enterFolder }
+    enum Kind { case editCommand(String), disableCommand(String), result(ResultAction), copyPath, copyFile, copyFileName, showFileInfo, enterFolder }
+    var isNegative: Bool {
+        if case .disableCommand = kind { return true }
+        return false
+    }
     let title: String
     let icon: String
     let shortcut: String?
@@ -131,6 +135,7 @@ struct LauncherActionsMenu: View {
                         if let shortcut = action.shortcut { LauncherActionKeyCap(value: shortcut) }
                     }
                     .font(.system(size: 13))
+                    .foregroundStyle(action.isNegative ? ThemeColor.kTextNegative : ThemeColor.kText)
                     .padding(.horizontal, 10)
                     .frame(height: 36)
                     .contentShape(Rectangle())

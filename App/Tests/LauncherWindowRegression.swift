@@ -47,6 +47,8 @@ enum LauncherWindowRegression {
                         try await checkResultMotion()
                     } else if CommandLine.arguments.contains("--alias-results") {
                         try await checkAliasResults()
+                    } else if CommandLine.arguments.contains("--command-actions") {
+                        try await checkCommandActions()
                     } else if CommandLine.arguments.contains("--action-bar") {
                         try await checkActionBar()
                     } else if CommandLine.arguments.contains("--compact-results") {
@@ -89,6 +91,92 @@ enum LauncherWindowRegression {
         let source: SearchSource
         let results: [SearchResult]
         func search(_ query: String, limit: Int) async -> [SearchResult] { Array(results.prefix(limit)) }
+    }
+
+    private static func checkCommandActions() async throws {
+        let appearance = NSApp.appearance?.name ?? .aqua
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-command-actions-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        app.preferences.appearance = appearance == .darkAqua ? "dark" : "light"
+        let model = LauncherModel(app: app, searchProviders: [])
+        let controller = LauncherController(model: model)
+        var settings: NSWindow?
+        app.onOpenSettings = {
+            if settings == nil {
+                settings = SettingsWindow.make(app: app)
+                settings?.isReleasedWhenClosed = false
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            settings?.makeKeyAndOrderFront(nil)
+        }
+        defer { controller.hide(); settings?.close() }
+        func selectGoogle() throws {
+            guard let index = model.results.firstIndex(where: { $0.title.contains("Google") }) else {
+                throw NSError(domain: "CommandActions", code: 1, userInfo: [NSLocalizedDescriptionKey: "missing Google query=\(model.query) results=\(model.results.map(\.title))"])
+            }
+            model.selection = index
+        }
+        func action(_ editing: Bool) throws -> LauncherAction {
+            guard let action = model.secondaryActions.first(where: {
+                if editing, case .editCommand("go") = $0.kind { return true }
+                if !editing, case .disableCommand("go") = $0.kind { return true }
+                return false
+            }) else { throw NSError(domain: "CommandActions", code: 2) }
+            return action
+        }
+        func focusedTrigger() -> String? {
+            (settings?.firstResponder as? NSTextView)?.string
+        }
+        for keyword in ["go", "google"] {
+            app.preferences.commandKeywords["go"] = keyword == "go" ? nil : keyword
+            NSApp.activate(ignoringOtherApps: true)
+            controller.show()
+            (NSApp.windows.first { $0 is LauncherPanel && $0.isVisible } as? LauncherPanel)?.onBlur = {}
+            try await Task.sleep(for: .milliseconds(350))
+            model.query = keyword
+            try await Task.sleep(for: .milliseconds(200))
+            try selectGoogle()
+            try require(model.toggleActionsMenu(), "command must offer More")
+            let disable = try action(false)
+            try require(disable.isNegative, "Disable must use negative presentation")
+            try await Task.sleep(for: .milliseconds(250))
+            let panel = NSApp.windows.first { $0 is LauncherPanel && $0.isVisible }!
+            let capture = Process()
+            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                                 "build/command-actions-\(NSApp.appearance!.name.rawValue)-\(keyword).png"]
+            try capture.run(); capture.waitUntilExit()
+            try require(capture.terminationStatus == 0, "command menu screenshot must succeed")
+            model.performLauncherAction(try action(true))
+            try await Task.sleep(for: .milliseconds(500))
+            try require(app.settingsTab == SettingsPage.keywords.rawValue, "Edit must open command settings")
+            let settingsCapture = Process()
+            settingsCapture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            settingsCapture.arguments = ["-x", "-l", String(settings!.windowNumber),
+                                 "build/command-settings-\(NSApp.appearance!.name.rawValue)-\(keyword).png"]
+            try settingsCapture.run(); settingsCapture.waitUntilExit()
+            try require(settingsCapture.terminationStatus == 0, "settings screenshot must succeed")
+            try require(focusedTrigger() == keyword, "Edit must focus the matching trigger field")
+            // Requesting the same command again must also focus an existing settings window.
+            settings?.makeFirstResponder(nil)
+            app.editCommand("go")
+            try await Task.sleep(for: .milliseconds(250))
+            try require(focusedTrigger() == keyword, "repeat Edit must restore focus")
+            settings?.orderOut(nil)
+            model.query = keyword + " SwiftUI"
+            try await Task.sleep(for: .milliseconds(200))
+            try selectGoogle()
+            model.performLauncherAction(try action(false))
+            try require(app.preferences.disabledBuiltInCommands.contains("go"), "Disable must clear settings checkbox state")
+            try require(!model.results.contains { $0.title.contains("Google") }, "Disable must refresh search results")
+            let saved = app.store.codableSetting(SettingsPreferences.key, as: SettingsPreferences.self)
+            try require(saved?.disabledBuiltInCommands.contains("go") == true, "Disable must persist")
+            app.preferences.disabledBuiltInCommands.remove("go")
+            settings?.close()
+            settings = nil
+        }
+        print("command actions: default/custom trigger, negative Disable, settings focus/repeat focus, scoped disable and persistence passed")
     }
 
     private static func checkActionBar() async throws {

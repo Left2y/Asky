@@ -161,6 +161,7 @@ final class LauncherModel {
     private var remainingSearchProviders = 0
     private var batches: [SearchBatch] = []
     private var direct: [SearchResult] = []
+    private var builtInCommandIDs: [String: String] = [:]
     private var chromeAccessTask: Task<Void, Never>?
     private let chromeAccessOverride: Bool?
     private(set) var chromeBookmarkAccessAllowed = false
@@ -409,6 +410,7 @@ final class LauncherModel {
 
     private func update() {
         closeActionsMenu()
+        builtInCommandIDs = [:]
         if inputState.bookmarks && !canSearchBookmarks {
             let rawQuery = inputState.rawQuery
             inputState.replaceRawQuery(rawQuery, keywords: app.keywords, bookmarksEnabled: false)
@@ -461,6 +463,9 @@ final class LauncherModel {
             let name = NSLocalizedString(command.name, comment: "Built-in website command")
             direct = direct.map { result in
                 var result = result
+                if let preset = KeywordCommand.builtIn.first(where: { $0.urlTemplate == command.urlTemplate }) {
+                    builtInCommandIDs[result.id] = preset.keyword
+                }
                 result.title = command.supportsQuery
                     ? String(format: NSLocalizedString("%@：%@", comment: "Website search result"), name, text)
                     : String(format: NSLocalizedString("打开 %@", comment: "Open website"), name)
@@ -491,8 +496,12 @@ final class LauncherModel {
                 let exact = command.keyword.caseInsensitiveCompare(text.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
                 guard exact || command.urlTemplate.contains("{query}"),
                       let url = command.url(for: exact ? "" : text) else { return nil }
-                return SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
-                                    title: NSLocalizedString(command.name, comment: "Built-in website command"), actions: [.openURL(url)], score: 0)
+                let result = SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
+                                          title: NSLocalizedString(command.name, comment: "Built-in website command"), actions: [.openURL(url)], score: 0)
+                if let preset = KeywordCommand.builtIn.first(where: { $0.urlTemplate == command.urlTemplate }) {
+                    builtInCommandIDs[result.id] = preset.keyword
+                }
+                return result
             }
             let aliasQuery = text.trimmingCharacters(in: .whitespacesAndNewlines)
             direct += app.preferences.aliases.compactMap { item in
@@ -1035,6 +1044,10 @@ extension LauncherModel {
         if [.link, .bookmark, .chromeTab].contains(result.source), LauncherWebURL.parse(link) != nil {
             actions.append(LauncherAction(title: "复制链接", icon: "link", shortcut: nil, kind: .result(.copy(link))))
         }
+        if let id = builtInCommandIDs[result.id] {
+            actions.append(LauncherAction(title: "编辑快捷指令", icon: "pencil", shortcut: nil, kind: .editCommand(id)))
+            actions.append(LauncherAction(title: "停用", icon: "xmark", shortcut: nil, kind: .disableCommand(id)))
+        }
         return actions
     }
 
@@ -1064,6 +1077,15 @@ extension LauncherModel {
         let result = selectedActionResult
         closeActionsMenu()
         switch action.kind {
+        case .editCommand(let id):
+            guard let result, builtInCommandIDs[result.id] == id else { return }
+            onHide()
+            app.editCommand(id)
+        case .disableCommand(let id):
+            guard let result, builtInCommandIDs[result.id] == id else { return }
+            app.preferences.disabledBuiltInCommands.insert(id)
+            inputState.replaceRawQuery(inputState.rawQuery, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks)
+            update()
         case .enterFolder: _ = enterSelectedFolder()
         case .copyFile: _ = copySelectedFile()
         case .copyPath: _ = copySelectedPath()

@@ -59,6 +59,8 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 文件结果的“更多”菜单提供“复制文件名”（`⌘⇧.`，包含扩展名）与“展示文件信息”（`⌘I`，打开访达简介窗口，首次使用可能需要自动化授权）；菜单关闭时也可使用这两个快捷键。
 
+内置网页指令（如 `go`）的“更多”提供“编辑快捷指令”（打开设置并聚焦对应命令输入框）和“停用”（同步取消设置中的勾选）。
+
 文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。普通搜索每个来源最多显示 8 条；通过指令进入应用、文件、快捷方式或快捷指令模式后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
 
 搜索框右侧常驻静态搜索图标，仅作装饰，没有点击、悬停或固定窗口功能；输入前后保持相同布局。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
@@ -113,6 +115,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar --more-motion
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --command-actions
 ```
 
 核心错误与工具说明使用 `CoreLocalization` 及 SwiftPM 共享中英文资源，App 和独立 MCP Bridge 共用；检查规则同时覆盖未接入翻译的固定错误文案。
@@ -176,6 +179,8 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 
 The More menu for file results offers Copy filename (`⌘⇧.`, including the extension) and Show file info (`⌘I`, opens Finder’s Get Info window and may require Automation permission on first use). Both shortcuts also work while the menu is closed.
 
+More for built-in web commands such as `go` offers Edit shortcut (opens Settings and focuses its trigger field) and Disable (clears its checkbox in Settings).
+
 File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. Root search shows up to 8 hits per source; entering Applications, Files, Quick Links, or Shortcuts through a command reruns the current query for up to 200 results in that category, accessible by scrolling.
 
 A static search icon remains on the right of the search field. It is decorative, with no click, hover, or window-pinning behavior, and the layout stays the same while typing. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
@@ -230,6 +235,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar --more-motion
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --command-actions
 ```
 
 Core errors and tool descriptions use `CoreLocalization` and shared SwiftPM language resources in both the app and the standalone MCP Bridge. The checks also reject fixed error text that bypasses localization.

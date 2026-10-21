@@ -59,22 +59,27 @@ private struct HotKeySettings: View {
                 Text(NSLocalizedString("全局快捷键", comment: ""))
             }
             Section {
+                localRows([.settings])
+            } header: {
+                Text(NSLocalizedString("通用", comment: ""))
+            }
+            Section {
                 localRows([.reveal, .copyPath, .copyFile, .copyName, .fileInfo])
             } header: {
                 Text(NSLocalizedString("文件与应用", comment: ""))
             }
             Section {
-                localRows([.execute, .askAI, .launcherMore, .launcherUp, .launcherDown, .enterFolder, .back, .launcherEscape, .settings])
+                localRows([.askAI, .launcherMore])
             } header: {
                 Text(NSLocalizedString("启动器", comment: ""))
             }
             Section {
-                localRows([.paste, .clipboardCopy, .delete, .clipboardMore, .clipboardUp, .clipboardDown, .clipboardLeft, .clipboardRight, .clipboardEscape])
+                localRows([.clipboardCopy, .delete, .clipboardMore])
             } header: {
                 Text(NSLocalizedString("剪贴板历史", comment: ""))
             }
             Section {
-                localRows([.send, .newline, .newChat, .history, .closeChat, .agentEscape, .settings])
+                localRows([.newChat, .history, .closeChat])
             } header: {
                 Text(NSLocalizedString("AI 对话", comment: ""))
             }

@@ -48,10 +48,17 @@ enum LocalShortcutsRegression {
                 precondition(!app.preferences.setShortcut(.clipboardCopy, app.preferences.shortcut(.settings)))
                 precondition(app.preferences.setShortcut(.newChat, app.preferences.shortcut(.launcherMore)))
                 app.preferences = SettingsPreferences()
-                // Every action round-trips; two legacy fields retain their existing storage.
+                // Configurable actions round-trip; two legacy fields retain their existing storage.
                 for (index, action) in LocalShortcutAction.allCases.enumerated() {
                     let value = LauncherActionShortcut(code: UInt32(index), modifiers: 6912, label: "⌃⌥⇧⌘ \(index)")
-                    precondition(app.preferences.setShortcut(action, value), "failed to edit \(action)")
+                    if action.isConfigurable {
+                        precondition(app.preferences.setShortcut(action, value), "failed to edit \(action)")
+                    } else {
+                        precondition(!app.preferences.setShortcut(action, value))
+                        app.preferences.localShortcuts[action.rawValue] = value
+                        precondition(app.preferences.shortcut(action) == action.defaultShortcut,
+                                     "saved overrides must not remap fixed keyboard operations")
+                    }
                 }
                 let reloaded = try AppModel(root: root)
                 precondition(reloaded.preferences == app.preferences)
@@ -66,6 +73,9 @@ enum LocalShortcutsRegression {
                       let recorder = views(content).compactMap({ $0 as? NSButton }).first(where: { $0.title == "⌘ C" }) else {
                     fatalError("Copy file must have a native editable recorder")
                 }
+                let buttons = views(content).compactMap { $0 as? NSButton }
+                precondition(!buttons.contains { ["↑", "↓", "←", "→", "↵", "Tab", "⌫", "Esc", "⇧ ↵"].contains($0.title) },
+                             "fixed keyboard operations must not appear as editable shortcuts")
                 recorder.performClick(nil)
                 precondition(window.firstResponder === recorder)
                 recorder.keyDown(with: event(38, [.command, .shift], window: window))
@@ -113,8 +123,8 @@ enum LocalShortcutsRegression {
                 var draft = "message"
                 var sends = 0
                 var agentPreferences = SettingsPreferences()
-                precondition(agentPreferences.setShortcut(.send, .init(code: 38, modifiers: 4096, label: "⌃ J")))
-                precondition(agentPreferences.setShortcut(.newline, .init(code: 40, modifiers: 4096, label: "⌃ K")))
+                precondition(!agentPreferences.setShortcut(.send, .init(code: 38, modifiers: 4096, label: "⌃ J")))
+                precondition(!agentPreferences.setShortcut(.newline, .init(code: 40, modifiers: 4096, label: "⌃ K")))
                 let composer = ComposerTextEditor(text: Binding(get: { draft }, set: { draft = $0 }),
                     height: .constant(44), isFocused: .constant(false), pasteAttachment: { false },
                     submit: { sends += 1 }, shortcuts: agentPreferences)
@@ -126,13 +136,13 @@ enum LocalShortcutsRegression {
                 try await Task.sleep(for: .milliseconds(200))
                 host.layoutSubtreeIfNeeded()
                 let editor = views(host).compactMap { $0 as? NSTextView }.first!
-                precondition(editor.performKeyEquivalent(with: event(38, .control, window: composerWindow)))
+                precondition(editor.performKeyEquivalent(with: event(36, window: composerWindow)))
                 precondition(sends == 1)
-                precondition(editor.performKeyEquivalent(with: event(40, .control, window: composerWindow)))
+                precondition(editor.performKeyEquivalent(with: event(36, .shift, window: composerWindow)))
                 precondition(editor.string.contains("\n") && sends == 1)
                 editor.keyDown(with: event(36, window: composerWindow))
-                precondition(sends == 1, "old Return must stop sending after remapping")
-                print("All 29 local actions: migration, conflict scopes, persistence, native recording, reset, launcher, clipboard and AI composer dispatch passed")
+                precondition(sends == 2, "Return must retain the fixed send action")
+                print("Local actions and fixed keyboard operations: migration, conflict scopes, persistence, native recording, reset, launcher, clipboard and AI composer dispatch passed")
                 exit(0)
             } catch { fatalError("\(error)") }
         }

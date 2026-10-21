@@ -5,6 +5,14 @@ import SwiftUI
 enum LocalShortcutAction: String, CaseIterable, Identifiable {
     case reveal, copyPath, copyFile, copyName, fileInfo, execute, askAI, launcherMore, launcherUp, launcherDown, enterFolder, back, launcherEscape, settings, paste, clipboardCopy, delete, clipboardMore, clipboardUp, clipboardDown, clipboardLeft, clipboardRight, clipboardEscape, send, newline, newChat, history, closeChat, agentEscape
     var id: String { rawValue }
+    var isConfigurable: Bool {
+        switch self {
+        case .execute, .launcherUp, .launcherDown, .enterFolder, .back, .launcherEscape,
+             .paste, .clipboardUp, .clipboardDown, .clipboardLeft, .clipboardRight, .clipboardEscape,
+             .send, .newline, .agentEscape: false
+        default: true
+        }
+    }
     var title: String {
         switch self {
         case .reveal: "在访达中显示"
@@ -109,12 +117,14 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
 
 extension SettingsPreferences {
     func shortcut(_ action: LocalShortcutAction) -> LauncherActionShortcut {
+        guard action.isConfigurable else { return action.defaultShortcut }
         if action == .reveal { return revealInFinderHotKey }
         if action == .copyPath { return copyPathHotKey }
         return localShortcuts[action.rawValue] ?? action.defaultShortcut
     }
 
     mutating func setShortcut(_ action: LocalShortcutAction, _ shortcut: LauncherActionShortcut) -> Bool {
+        guard action.isConfigurable else { return false }
         let global = [(hotKeyCode, hotKeyModifiers), (clipboardHotKeyCode, clipboardHotKeyModifiers),
                       (agentHotKeyCode, agentHotKeyModifiers)]
         guard !global.contains(where: { $0.0 == shortcut.code && $0.1 == shortcut.modifiers }),

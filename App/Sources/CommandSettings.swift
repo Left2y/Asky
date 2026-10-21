@@ -33,15 +33,19 @@ struct CommandSettings: View {
     var body: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
-                VStack(spacing: 12) {
+                HStack(spacing: 24) {
                     CommandSearchField(query: $query, focus: $searchFocused,
                                        placeholder: "搜索指令或名称", identifier: "command-search")
+                        .frame(height: 28)
                     Picker(NSLocalizedString("指令", comment: ""), selection: $selectedTab) {
                         Text(NSLocalizedString("搜索指令", comment: "")).tag("search")
                         Text(NSLocalizedString("内置指令", comment: "")).tag("builtIn")
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
+                    .controlSize(.large)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(height: 28)
                     .accessibilityIdentifier("command-tabs")
                 }
                 .padding(.horizontal, 20)
@@ -154,7 +158,8 @@ private struct CommandSearchField: View {
             }
         }
         .font(.system(size: 14))
-        .padding(8)
+        .padding(.horizontal, 8)
+        .frame(height: 28)
         .settingsInputChrome(scheme: scheme, focused: focus.wrappedValue, cornerRadius: 8)
     }
 }

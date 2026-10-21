@@ -74,7 +74,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 四个分类触发词可在“设置 › 指令”修改并恢复默认。
 
-“设置 › 指令”通过“搜索指令”和“内置指令”两个 Tab 切换；顶部搜索框搜索全部指令，搜索时同时显示两组匹配结果。`ql` 对应行显示为“搜索指令”。
+“设置 › 指令”通过“搜索指令”和“内置指令”两个 Tab 切换；顶部搜索框在左、Tab 在右，横向间距 24 pt、等高；搜索框搜索全部指令，搜索时同时显示两组匹配结果。`ql` 对应行显示为“搜索指令”。
 
 网站指令默认仅开启 `go`、`chat`、`dy`、`tb`、`jd`、`bl`、`gh`、`x`；其余默认关闭，已有启停配置保留。仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
 
@@ -114,6 +114,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-c
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion --list-drag --pinned-drag
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --command-layout
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --settings-focus
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --sources-only
@@ -207,7 +208,7 @@ Unit and currency conversions share two horizontal cards for the input and conve
 
 Customize or reset the four category trigger tokens in Settings › Commands.
 
-Settings › Commands has Search Commands and Built-in Commands tabs. The shared search field searches every command and shows matching results from both groups. The `ql` row is named “Search Commands”.
+Settings › Commands has Search Commands and Built-in Commands tabs. The shared search field sits to the left of the tabs with a 24 pt gap and matching heights. It searches every command and shows matching results from both groups. The `ql` row is named “Search Commands”.
 
 Website commands enable only `go`, `chat`, `dy`, `tb`, `jd`, `bl`, `gh`, and `x` by default; the others start disabled. Existing saved choices are preserved. Commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
 
@@ -247,6 +248,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-c
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion --list-drag --pinned-drag
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --command-layout
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --settings-focus
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --sources-only

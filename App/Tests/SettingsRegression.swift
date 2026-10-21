@@ -58,6 +58,15 @@ enum SettingsRegression {
                     ["keyword": "go", "name": "Custom", "urlTemplate": "https://example.com"],
                 ]])
                 let model = try AppModel(root: root)
+                if CommandLine.arguments.contains("--command-layout") {
+                    defer { try? FileManager.default.removeItem(at: root) }
+                    model.settingsTab = "keywords"
+                    let window = SettingsWindow.make(app: model)
+                    window.makeKeyAndOrderFront(nil)
+                    try await Task.sleep(for: .milliseconds(400))
+                    try await assertCommandTabsAndGlobalSearch(window, model: model)
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--settings-focus") {
                     defer { try? FileManager.default.removeItem(at: root) }
                     model.settingsTab = "keywords"
@@ -559,7 +568,8 @@ enum SettingsRegression {
                 _ = try model.gateway.register(name: "Settings layout fixture")
                 for appearance in ["light", "dark"] {
                     model.preferences.appearance = appearance
-                    let pages: [SettingsPage] = CommandLine.arguments.contains("--sources-only")
+                    let pages: [SettingsPage] = CommandLine.arguments.contains("--hotkeys-only")
+                        ? [.hotkey] : CommandLine.arguments.contains("--sources-only")
                         ? [.sources] : CommandLine.arguments.contains("--navigation-settings")
                         ? [.general, .search, .clipboard] : SettingsPage.allCases
                     for page in pages {
@@ -596,22 +606,27 @@ enum SettingsRegression {
                         view.cacheDisplay(in: view.bounds, to: bitmap)
                         guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("missing settings snapshot") }
                         try png.write(to: URL(filePath: "build/settings-\(appearance)-\(tab).png"))
-                        if page == .sources {
+                        if page == .sources || page == .hotkey {
                             guard let scroll = findScrollView(in: split.splitViewItems[1].viewController.view),
                                   let document = scroll.documentView else {
                                 fatalError("missing settings scroll view")
                             }
                             let bottom = max(0, document.bounds.height - scroll.contentView.bounds.height)
-                            guard bottom > 0 else { fatalError("data sources no longer scrolls") }
+                            guard bottom > 0 else { fatalError("settings reference no longer scrolls: \(tab)") }
                             scroll.contentView.scroll(to: NSPoint(x: 0, y: document.isFlipped ? bottom : 0))
                             scroll.reflectScrolledClipView(scroll.contentView)
                             try await Task.sleep(for: .milliseconds(250))
                             assertDetailBelowToolbar(split, window: window)
                             view.cacheDisplay(in: view.bounds, to: bitmap)
                             let scrolled = bitmap.representation(using: .png, properties: [:])!
-                            try scrolled.write(to: URL(filePath: "build/settings-\(appearance)-sources-scrolled.png"))
+                            try scrolled.write(to: URL(filePath: "build/settings-\(appearance)-\(tab)-scrolled.png"))
                         }
                     }
+                }
+                if CommandLine.arguments.contains("--hotkeys-only") {
+                    try? FileManager.default.removeItem(at: root)
+                    print("Shortcut reference native snapshots and scrolling passed")
+                    exit(0)
                 }
                 if CommandLine.arguments.contains("--sources-only") {
                     try? FileManager.default.removeItem(at: root)

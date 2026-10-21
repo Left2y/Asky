@@ -771,6 +771,7 @@ private struct ResultList: View {
 
     private static func section(for result: SearchResult) -> String {
         if QuitAskyCommand.isResult(result) { return title(.app) }
+        if result.target.kind == "search-command", result.target.identifier == "colorPicker" { return NSLocalizedString("取色", comment: "") }
         if ["search-command", "tab-search"].contains(result.target.kind) { return NSLocalizedString("搜索指令", comment: "") }
         if ["keyword-match", "launcher-alias"].contains(result.target.kind) { return NSLocalizedString("别名匹配", comment: "") }
         switch result.source {

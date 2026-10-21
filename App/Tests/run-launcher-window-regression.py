@@ -25,7 +25,8 @@ for path in sorted(maps.glob("*.modulemap")):
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
     command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
-test_source = ("CalculatorHistoryRegression.swift" if "--calculator-history" in sys.argv else
+test_source = ("ColorPickerRegression.swift" if "--color-picker" in sys.argv else
+               "CalculatorHistoryRegression.swift" if "--calculator-history" in sys.argv else
                "LauncherFilterSearchRegression.swift" if "--filter-search" in sys.argv else
                "LauncherFileSearchRegression.swift" if "--file-search" in sys.argv else
                "LauncherFolderRegression.swift" if "--folders" in sys.argv else "LauncherWindowRegression.swift")

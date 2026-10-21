@@ -540,7 +540,7 @@ final class LauncherModel {
             if filter == .all {
                 for command in AppModel.searchCommands {
                     let exact = app.commandKeyword(command.0).caseInsensitiveCompare(trimmed) == .orderedSame
-                    let categoryName = LauncherFilter(commandID: command.0) != nil && !trimmed.isEmpty &&
+                    let categoryName = (LauncherFilter(commandID: command.0) != nil || command.0 == "colorPicker") && !trimmed.isEmpty &&
                         (command.1.localizedStandardContains(trimmed) ||
                          NSLocalizedString(command.1, comment: "").localizedStandardContains(trimmed))
                     guard exact || categoryName,
@@ -873,6 +873,23 @@ final class LauncherModel {
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
         if r.target.kind == "search-command" {
             guard AppModel.searchCommands.contains(where: { $0.0 == r.target.identifier }) else { return }
+            if r.target.identifier == "colorPicker" {
+                onHide()
+                Task { @MainActor in
+                    // Let the launcher finish disappearing before sampling the screen.
+                    try? await Task.sleep(for: .milliseconds(250))
+                    ToolService.pickScreenColor { copied in
+                        guard copied == false else { return }
+                        Task { @MainActor in
+                            let alert = AppDialog.make()
+                            alert.messageText = NSLocalizedString("无法复制所选颜色，请重试。", comment: "")
+                            alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
+                            _ = await AppDialog.present(alert)
+                        }
+                    }
+                }
+                return
+            }
             if let category = LauncherFilter(commandID: r.target.identifier) {
                 setFilter(category, query: "")
                 return

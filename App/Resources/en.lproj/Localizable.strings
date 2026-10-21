@@ -801,3 +801,7 @@
 "7 天" = "7 days";
 
 "30 天" = "30 days";
+
+"屏幕取色" = "Pick Screen Color";
+"取色" = "Color Picker";
+"无法复制所选颜色，请重试。" = "Could not copy the selected color. Please try again.";

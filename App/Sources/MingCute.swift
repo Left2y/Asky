@@ -79,6 +79,7 @@ enum MingCute {
         "power": "MingCute-power",
         "web": "MingCute-web",
         "layout_4_line": "MingCute-layout_4",
+        "eyedropper": "MingCute-color_picker",
     ]
 
     static func image(_ symbol: String, size: CGFloat = 16, canvas: CGFloat? = nil) -> NSImage {

@@ -176,7 +176,7 @@ final class AppModel {
                         triggerKeywords: preferences.commandKeywords)
     }
 
-    static let searchCommands = [("tabs", "搜索开启的标签页", "st"), ("bookmark", "搜索书签", "bm"), ("link", "搜索链接", "link"), ("ai", "AI 搜索", "ai")] + LauncherFilter.commands
+    static let searchCommands = [("colorPicker", "屏幕取色", "color"), ("tabs", "搜索开启的标签页", "st"), ("bookmark", "搜索书签", "bm"), ("link", "搜索链接", "link"), ("ai", "AI 搜索", "ai")] + LauncherFilter.commands
 
     func commandKeyword(_ id: String) -> String {
         preferences.commandKeywords[id]

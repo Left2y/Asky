@@ -113,10 +113,20 @@ private final class SettingsContainerController: NSViewController {
     }
 }
 
+private final class SettingsHeadingField: NSTextField {
+    static let leadingInset: CGFloat = 12
+
+    override var intrinsicContentSize: NSSize {
+        var size = super.intrinsicContentSize
+        size.width += Self.leadingInset
+        return size
+    }
+}
+
 @MainActor
 private final class SettingsSplitViewController: NSSplitViewController, NSToolbarDelegate {
     private let app: AppModel
-    private let heading = NSTextField(labelWithString: "")
+    private let heading = SettingsHeadingField(labelWithString: "")
     private static let separator = NSToolbarItem.Identifier("settingsSeparator")
     private static let title = NSToolbarItem.Identifier("settingsTitle")
 
@@ -155,8 +165,15 @@ private final class SettingsSplitViewController: NSSplitViewController, NSToolba
     }
 
     func updateChrome() {
-        heading.stringValue = SettingsPage.resolve(app.settingsTab).title
+        let title = SettingsPage.resolve(app.settingsTab).title
+        let paragraph = NSMutableParagraphStyle()
+        // Include the label's optical inset when matching the form's leading edge.
+        paragraph.firstLineHeadIndent = SettingsHeadingField.leadingInset
+        heading.attributedStringValue = NSAttributedString(string: title, attributes: [
+            .font: heading.font!, .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph,
+        ])
         heading.sizeToFit()
+        heading.frame.size.width += paragraph.firstLineHeadIndent
         view.window?.title = "\(heading.stringValue) — \(NSLocalizedString("Asky 设置", comment: ""))"
         switch app.preferences.appearance {
         case "light": view.window?.appearance = NSAppearance(named: .aqua)

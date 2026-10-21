@@ -12,6 +12,7 @@ final class ClipboardMonitor {
 
     private let app: AppModel
     private var timer: Timer?
+    private var lastCleanup = Date.distantPast
     private var lastChange = ClipboardAccess.changeCount
 
     init(app: AppModel) { self.app = app }
@@ -33,6 +34,11 @@ final class ClipboardMonitor {
     }
 
     private func poll() {
+        let now = Date()
+        if now.timeIntervalSince(lastCleanup) >= 60 {
+            Self.cleanup(app.clipboardStore)
+            lastCleanup = now
+        }
         guard ClipboardAccess.changeCount != lastChange else { return }
         let snapshot = ClipboardAccess.snapshot()
         lastChange = snapshot.changeCount
@@ -41,7 +47,7 @@ final class ClipboardMonitor {
         if let bid = snapshot.sourceBundleID, settings.clipboardExcludedApps.contains(bid) { return }
         let sourceApp = snapshot.sourceName
         let sourceBundleID = snapshot.sourceBundleID
-        let store = ClipboardStore(app.store)
+        let store = app.clipboardStore
         let dir = app.store.clipboardDirectory
 
         if !snapshot.fileURLs.isEmpty {
@@ -77,7 +83,7 @@ final class ClipboardMonitor {
         SHA256.hash(data: d).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// 30-day / 200 MiB cleanup (pinned items kept); removes the files the store reports as dropped.
+    /// Configured retention for all rows; 200 MiB budget for unpinned rows. Removes only owned image assets.
     static func cleanup(_ store: ClipboardStore) {
         removeFiles((try? store.cleanup()) ?? [])
     }

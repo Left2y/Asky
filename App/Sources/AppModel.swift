@@ -18,6 +18,11 @@ struct AppSettings: Codable, Equatable, Sendable {
     var notesFolders: [NotesFolder] = []
     var chromeBookmarkFolderAccess: Data?
     var clipboardEnabled = true
+    var clipboardRetentionHours: Int?
+    var clipboardRetention: ClipboardRetention {
+        get { clipboardRetentionHours.flatMap(ClipboardRetention.init(rawValue:)) ?? .threeDays }
+        set { clipboardRetentionHours = newValue.rawValue }
+    }
     var clipboardExcludedApps: [String] = ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
                                             "com.apple.keychainaccess", "com.apple.Passwords"]
     /// Optional so settings written before terminal selection still decode without resetting.
@@ -155,9 +160,13 @@ final class AppModel {
         didSet {
             guard settings != oldValue else { return }
             store.setCodableSetting(AppSettings.key, settings)
+            if settings.clipboardRetention != oldValue.clipboardRetention {
+                ClipboardMonitor.cleanup(clipboardStore)
+            }
             onSettingsChange?()
         }
     }
+    var clipboardStore: ClipboardStore { ClipboardStore(store, retention: settings.clipboardRetention) }
     @ObservationIgnored var onSettingsChange: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationFinished: (() -> Void)?
     @ObservationIgnored var onModelAuthenticationStarted: (() -> Void)?
@@ -234,7 +243,7 @@ final class AppModel {
         await native.register(into: tools, memory: memory)
         agent = makeAgentHost()
         refreshMCPServer()
-        ClipboardMonitor.cleanup(ClipboardStore(store))
+        ClipboardMonitor.cleanup(clipboardStore)
         _ = try? ActivityStore(store).purgeExpired()
         updater.setAutomatic(preferences.automaticUpdates)
     }

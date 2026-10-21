@@ -4,6 +4,21 @@ import LocalStore
 @testable import ToolService
 
 @Suite @MainActor struct ClipboardSearchTests {
+    @Test(arguments: ClipboardRetention.allCases)
+    func expiredRowsAreHiddenBeforeCleanup(retention: ClipboardRetention) throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = ClipboardStore(try LocalStore(inMemoryWithRoot: root), retention: retention)
+        let cutoff = Date().addingTimeInterval(-retention.interval)
+        for (hash, date) in [("expired", cutoff.addingTimeInterval(-1)), ("recent", cutoff.addingTimeInterval(60))] {
+            try store.insert(ClipboardItem(kind: .text, text: "retention \(hash)", byteSize: 1,
+                pinned: true, contentHash: hash, createdAt: date))
+        }
+        #expect(store.recent(limit: 10).count == 2)
+        for query in ["", "retention"] {
+            #expect(ClipboardAccess.search(in: store, query: query).map(\.contentHash) == ["recent"])
+        }
+    }
     @Test func sourceAndTypeCanBeCombinedWithoutSearchingDimensions() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

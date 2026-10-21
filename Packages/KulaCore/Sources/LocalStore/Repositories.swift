@@ -279,11 +279,20 @@ public struct ClipboardItem: Sendable, Hashable, Identifiable {
     }
 }
 
+public enum ClipboardRetention: Int, Codable, CaseIterable, Sendable {
+    case eightHours = 8, oneDay = 24, threeDays = 72, sevenDays = 168, thirtyDays = 720
+    public var interval: TimeInterval { TimeInterval(rawValue) * 3600 }
+}
+
 public struct ClipboardStore: Sendable {
-    public static let retention: TimeInterval = 30 * 24 * 3600
+    public static let retention: TimeInterval = 3 * 24 * 3600
     public static let byteBudget = 200 * 1024 * 1024
     let db: Database
-    public init(_ store: LocalStore) { db = store.db }
+    public let retentionInterval: TimeInterval
+    public init(_ store: LocalStore, retention: ClipboardRetention = .threeDays) {
+        db = store.db
+        retentionInterval = retention.interval
+    }
 
     /// Inserts, or bumps the existing row with the same content hash to the top.
     public func insert(_ item: ClipboardItem) throws {
@@ -374,11 +383,11 @@ public struct ClipboardStore: Sendable {
         }
     }
 
-    /// Removes unpinned items older than retention, then oldest unpinned until under the byte budget.
+    /// Removes all expired items (including legacy pinned rows), then oldest unpinned items over budget.
     /// Returns file paths to remove.
     public func cleanup(now: Date = Date(), budget: Int = ClipboardStore.byteBudget) throws -> [String] {
-        let expired = try db.query("SELECT id FROM clipboard WHERE pinned = 0 AND created_at < ?",
-                                   [now.addingTimeInterval(-Self.retention)]).compactMap { $0.string("id") }
+        let expired = try db.query("SELECT id FROM clipboard WHERE created_at <= ?",
+                                   [now.addingTimeInterval(-retentionInterval)]).compactMap { $0.string("id") }
         var paths = try delete(ids: expired)
         var total = try db.scalarInt("SELECT COALESCE(SUM(byte_size), 0) FROM clipboard")
         guard total > budget else { return paths }

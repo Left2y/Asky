@@ -902,7 +902,7 @@ final class LauncherModel {
         switch action {
         case .open:
             if r.source == .clipboard {
-                if let item = ClipboardStore(app.store).recent(limit: 500).first(where: { $0.id == r.target.identifier }) {
+                if let item = app.clipboardStore.recent(limit: 500).first(where: { $0.id == r.target.identifier }) {
                     _ = ClipboardAccess.copy(item)
                 }
                 onHide()

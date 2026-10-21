@@ -335,7 +335,7 @@ final class ClipboardController {
     }
 
     func refresh() {
-        let store = ClipboardStore(app.store)
+        let store = app.clipboardStore
         let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let next = ClipboardAccess.search(in: store, query: value, limit: 100)
         if next != items {
@@ -528,7 +528,7 @@ final class ClipboardController {
         }
         guard await AppDialog.present(Self.makeClearAllAlert(), for: panel) == .alertFirstButtonReturn else { return }
         do {
-            let paths = try ClipboardStore(app.store).clearAll()
+            let paths = try app.clipboardStore.clearAll()
             ClipboardMonitor.removeFiles(paths)
             refresh()
         } catch {
@@ -538,7 +538,7 @@ final class ClipboardController {
 
     func delete(_ item: ClipboardItem) {
         do {
-            let paths = try ClipboardStore(app.store).delete(ids: [item.id])
+            let paths = try app.clipboardStore.delete(ids: [item.id])
             ClipboardMonitor.removeFiles(paths)
             dismissPreview()
             refresh()

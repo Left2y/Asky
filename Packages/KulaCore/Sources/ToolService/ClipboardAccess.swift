@@ -231,6 +231,7 @@ public enum ClipboardAccess {
     /// Validate before clearing, so unavailable originals cannot erase the user's clipboard.
     @discardableResult
     public static func copy(_ item: ClipboardItem, to pasteboard: NSPasteboard = .general) -> Bool {
+        guard isAvailable(item) else { return false }
         if item.kind == .file {
             guard let urls = availableFiles(for: item) else { return false }
             pasteboard.clearContents()
@@ -261,6 +262,7 @@ public enum ClipboardAccess {
     /// NSItemProvider promises and only accept plain text or a real file URL, so both are written up front.
     public static func dragItem(for item: ClipboardItem,
                                 exportDirectory: URL = FileManager.default.temporaryDirectory.appending(path: "AskyDrag")) -> NSPasteboardItem? {
+        guard isAvailable(item) else { return nil }
         // Files require NSURL writers; use dragItems to retain access grants and all selected files.
         guard item.kind != .file else { return nil }
         let pbItem = NSPasteboardItem()

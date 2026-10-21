@@ -300,11 +300,20 @@ private struct ClipboardSettings: View {
                     ]).fixedSize()
                 }
                 Toggle(NSLocalizedString("记录剪贴板历史", comment: ""), isOn: $app.settings.clipboardEnabled)
+                LabeledContent(NSLocalizedString("历史保留时间", comment: "")) {
+                    SettingsChoice(selection: $app.settings.clipboardRetention, options: [
+                        (ClipboardRetention.eightHours, NSLocalizedString("8 小时", comment: "")),
+                        (ClipboardRetention.oneDay, NSLocalizedString("1 天", comment: "")),
+                        (ClipboardRetention.threeDays, NSLocalizedString("3 天", comment: "")),
+                        (ClipboardRetention.sevenDays, NSLocalizedString("7 天", comment: "")),
+                        (ClipboardRetention.thirtyDays, NSLocalizedString("30 天", comment: ""))
+                    ]).fixedSize()
+                }
                 SettingsExclusionList(title: NSLocalizedString("排除的应用 Bundle ID", comment: ""),
                                       selection: .application,
                                       items: $app.settings.clipboardExcludedApps)
                 SettingsButton(NSLocalizedString("清空未固定的剪贴板历史", comment: ""), role: .destructive) {
-                    let store = ClipboardStore(app.store)
+                    let store = app.clipboardStore
                     let ids = store.recent(limit: 100_000).filter { !$0.pinned }.map(\.id)
                     ClipboardMonitor.removeFiles((try? store.delete(ids: ids)) ?? [])
                 }

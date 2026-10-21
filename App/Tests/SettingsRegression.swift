@@ -58,6 +58,67 @@ enum SettingsRegression {
                     ["keyword": "go", "name": "Custom", "urlTemplate": "https://example.com"],
                 ]])
                 let model = try AppModel(root: root)
+                if CommandLine.arguments.contains("--clipboard-retention") {
+                    defer { try? FileManager.default.removeItem(at: root) }
+                    precondition(model.settings.clipboardRetention == .threeDays)
+                    var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(model.settings)) as! [String: Any]
+                    legacy.removeValue(forKey: "clipboardRetentionHours")
+                    legacy["clipboardEnabled"] = false
+                    let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONSerialization.data(withJSONObject: legacy))
+                    precondition(decoded.clipboardRetention == .threeDays && !decoded.clipboardEnabled)
+                    var invalid = decoded
+                    invalid.clipboardRetentionHours = 99
+                    precondition(invalid.clipboardRetention == .threeDays)
+                    model.settingsTab = SettingsPage.clipboard.rawValue
+                    let window = SettingsWindow.make(app: model)
+                    let presentation = WindowPresentation()
+                    presentation.show(window)
+                    func retentionPopup(in view: NSView) -> NSPopUpButton? {
+                        if let button = view as? NSPopUpButton, button.numberOfItems == 5 { return button }
+                        return view.subviews.lazy.compactMap { retentionPopup(in: $0) }.first
+                    }
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(300))
+                        let popup = retentionPopup(in: window.contentView!)!
+                        precondition(popup.itemTitles == ["8 小时", "1 天", "3 天", "7 天", "30 天"].map { NSLocalizedString($0, comment: "") })
+                        for (index, retention) in ClipboardRetention.allCases.enumerated() {
+                            popup.selectItem(at: index)
+                            NSApp.sendAction(popup.action!, to: popup.target, from: popup)
+                            precondition(model.settings.clipboardRetention == retention)
+                            let reloaded = try AppModel(root: root)
+                            precondition(reloaded.settings.clipboardRetention == retention)
+                            precondition(model.clipboardStore.retentionInterval == retention.interval)
+                        }
+                        popup.selectItem(at: 2)
+                        NSApp.sendAction(popup.action!, to: popup.target, from: popup)
+                        try await Task.sleep(for: .milliseconds(100))
+                        let view = window.contentView!
+                        view.layoutSubtreeIfNeeded()
+                        let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(
+                            to: URL(filePath: "build/clipboard-retention-\(appearance).png"))
+                    }
+                    model.settings.clipboardRetention = .thirtyDays
+                    let recent = ClipboardItem(kind: .text, text: "retention recent", byteSize: 1, contentHash: "recent",
+                                               createdAt: Date().addingTimeInterval(-3600))
+                    let old = ClipboardItem(kind: .text, text: "retention old", byteSize: 1, pinned: true, contentHash: "old",
+                                            createdAt: Date().addingTimeInterval(-86400))
+                    try model.clipboardStore.insert(recent)
+                    try model.clipboardStore.insert(old)
+                    model.settings.clipboardRetention = .eightHours
+                    precondition(model.clipboardStore.recent(limit: 10).map(\.id) == [recent.id])
+                    let monitor = ClipboardMonitor(app: model)
+                    monitor.start()
+                    try model.clipboardStore.insert(ClipboardItem(kind: .text, text: "periodic expired", byteSize: 1,
+                        contentHash: "expired", createdAt: Date().addingTimeInterval(-9 * 3600)))
+                    try await Task.sleep(for: .milliseconds(1500))
+                    monitor.stop()
+                    precondition(model.clipboardStore.recent(limit: 10).map(\.id) == [recent.id])
+                    print("PASS: five retention choices, 3-day default, legacy/invalid settings, persistence, shortening cleanup and idle monitor cleanup; light/dark UI captured")
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--general-defaults") {
                     precondition(model.preferences.showMenuBarIcon && !model.preferences.showDockIcon)
                     precondition(model.preferences.appearance == "system" && model.preferences.language == .system)

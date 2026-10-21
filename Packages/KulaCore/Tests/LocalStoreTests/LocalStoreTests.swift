@@ -38,11 +38,11 @@ func tempRoot() -> URL {
         #expect(s.setting("k") == nil)
     }
 
-    @Test func clipboardCleanupKeepsPinnedAndRespectsBudget() throws {
+    @Test func clipboardCleanupExpiresLegacyPinnedAndRespectsBudget() throws {
         let s = try LocalStore(inMemoryWithRoot: tempRoot())
         let c = ClipboardStore(s)
         let now = Date()
-        let old = now.addingTimeInterval(-31 * 86400)
+        let old = now.addingTimeInterval(-4 * 86400)
         try c.insert(ClipboardItem(kind: .text, text: "old pinned", byteSize: 10, pinned: true, contentHash: "p", createdAt: old))
         try c.insert(ClipboardItem(kind: .text, text: "old", byteSize: 10, contentHash: "o", createdAt: old))
         for i in 0..<5 {
@@ -51,12 +51,45 @@ func tempRoot() -> URL {
         }
         let paths = try c.cleanup(now: now, budget: 250)
         let left = c.recent(limit: 50)
-        #expect(left.contains { $0.contentHash == "p" })
+        #expect(!left.contains { $0.contentHash == "p" })
         #expect(!left.contains { $0.contentHash == "o" })
         #expect(c.totalBytes() <= 250)
         // Oldest images go first.
         #expect(Set(paths) == ["/tmp/0.png", "/tmp/1.png", "/tmp/2.png"])
         #expect(left.contains { $0.contentHash == "i4" })
+    }
+
+    @Test func clipboardRetentionBoundaryRemovesAssetsAndIndexButPreservesOriginalFiles() throws {
+        let store = ClipboardStore(try LocalStore(inMemoryWithRoot: tempRoot()))
+        let now = Date()
+        let cutoff = now.addingTimeInterval(-3 * 86400)
+        #expect(ClipboardStore.retention == 3 * 86400)
+        for (hash, date) in [("expired", cutoff.addingTimeInterval(-1)), ("boundary", cutoff),
+                             ("recent", cutoff.addingTimeInterval(1))] {
+            try store.insert(ClipboardItem(kind: .text, text: "retention \(hash)", byteSize: 1,
+                pinned: true, contentHash: hash, createdAt: date))
+        }
+        try store.insert(ClipboardItem(kind: .image, filePath: "/owned/original.img", thumbPath: "/owned/thumb.png",
+            byteSize: 1, pinned: true, contentHash: "image", createdAt: cutoff))
+        try store.insert(ClipboardItem(kind: .file, text: "retention original", filePaths: ["/original/file"],
+            byteSize: 1, contentHash: "file", createdAt: cutoff))
+        #expect(Set(try store.cleanup(now: now)) == ["/owned/original.img", "/owned/thumb.png"])
+        #expect(store.recent(limit: 10).map(\.contentHash) == ["recent"])
+        #expect(store.search("retention").map(\.contentHash) == ["recent"])
+        #expect(try store.cleanup(now: now).isEmpty)
+    }
+
+    @Test(arguments: ClipboardRetention.allCases)
+    func clipboardCleanupUsesSelectedRetention(retention: ClipboardRetention) throws {
+        let store = ClipboardStore(try LocalStore(inMemoryWithRoot: tempRoot()), retention: retention)
+        let now = Date()
+        let cutoff = now.addingTimeInterval(-retention.interval)
+        for (hash, date) in [("expired", cutoff), ("recent", cutoff.addingTimeInterval(1))] {
+            try store.insert(ClipboardItem(kind: .text, text: hash, byteSize: 1,
+                contentHash: hash, createdAt: date))
+        }
+        _ = try store.cleanup(now: now)
+        #expect(store.recent(limit: 10).map(\.contentHash) == ["recent"])
     }
 
     @Test func clipboardDedupesByHashAndSearchesShortTokens() throws {

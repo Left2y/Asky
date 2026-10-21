@@ -210,6 +210,14 @@ enum ClipboardRegression {
                             controller.query = word
                             precondition(controller.items.contains { $0.id == literal.id }, "bare keywords show history results")
                         }
+                        for query in [String(picture.imageTitle.prefix(4)), String(picture.imageTitle.prefix(10)),
+                                      picture.imageTitle, "\(picture.imageTitle) Safari"] {
+                            controller.query = query
+                            precondition(controller.items.contains { $0.id == picture.id },
+                                         "image names must be searchable by year, partial/full timestamp and source")
+                        }
+                        try await Task.sleep(for: .milliseconds(250))
+                        try snapshot(panel(), layout == .cards ? "image-name-search-cards" : "image-name-search-list")
                         controller.query = ""
                         try await Task.sleep(for: .milliseconds(250))
                         try snapshot(panel(), layout == .cards ? "search-only-cards" : "search-only-list")

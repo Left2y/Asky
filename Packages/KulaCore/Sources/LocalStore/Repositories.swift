@@ -310,25 +310,30 @@ public struct ClipboardStore: Sendable {
     public func search(_ text: String, limit: Int = 20) -> [ClipboardItem] {
         let tokens = FTSQuery.tokens(text)
         guard !tokens.isEmpty else { return recent(limit: limit) }
-        // Images have a visible title but often no stored text. Match that title too,
-        // before applying the result limit, without turning the query into a type filter.
+        // Match image names before limiting results, including records without stored text.
+        // Keep the existing localized type keywords searchable as well.
         let matchesImageTitle = ["图片", "Image"].contains { title in
             tokens.allSatisfy { title.localizedCaseInsensitiveContains($0) }
         }
+        let imageNameClause = tokens.map { _ in
+            "strftime('%Y_%m_%d_%H_%M_%S', CAST(c.created_at AS INTEGER), 'unixepoch', 'localtime') LIKE ? ESCAPE '\\'"
+        }.joined(separator: " AND ")
+        let imageNameArguments = tokens.map { FTSQuery.likePattern($0) }
         let rows: [Row]
         if FTSQuery.canUseIndex(tokens) {
             rows = (try? db.query("""
                 SELECT c.* FROM clipboard c
                 WHERE c.id IN (SELECT id FROM clipboard_fts WHERE clipboard_fts MATCH ?)
-                    OR (? AND c.kind = 'image')
+                    OR (c.kind = 'image' AND (? OR (\(imageNameClause))))
                 ORDER BY c.created_at DESC LIMIT ?
-                """, [FTSQuery.match(tokens), matchesImageTitle, limit])) ?? []
+                """, [FTSQuery.match(tokens), matchesImageTitle] + imageNameArguments + [limit])) ?? []
         } else {
             let clause = tokens.map { _ in "text LIKE ? ESCAPE '\\'" }.joined(separator: " AND ")
             rows = (try? db.query("""
-                SELECT * FROM clipboard WHERE (\(clause)) OR (? AND kind = 'image')
+                SELECT c.* FROM clipboard c WHERE (\(clause))
+                    OR (c.kind = 'image' AND (? OR (\(imageNameClause))))
                 ORDER BY created_at DESC LIMIT ?
-                """, tokens.map { FTSQuery.likePattern($0) } + [matchesImageTitle, limit])) ?? []
+                """, tokens.map { FTSQuery.likePattern($0) } + [matchesImageTitle] + imageNameArguments + [limit])) ?? []
         }
         return rows.map(Self.decode)
     }

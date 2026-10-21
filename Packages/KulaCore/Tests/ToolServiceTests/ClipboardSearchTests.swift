@@ -21,7 +21,7 @@ import LocalStore
             try store.insert(ClipboardItem(kind: .text, text: "unrelated \(i)", byteSize: 1,
                                           contentHash: "text-\(i)"))
         }
-        for query in ["图片", "微信", "TIFF", "tiff", "微信 TIFF", "图片 微信", "微信 TIFF 图片"] {
+        for query in ["图片", "微信", "TIFF", "tiff", "微信 TIFF", "图片 微信", "微信 TIFF 图片", image.imageTitle, String(image.imageTitle.prefix(4)), "\(image.imageTitle) 微信 TIFF"] {
             #expect(ClipboardAccess.search(in: store, query: query).map(\.id) == [image.id])
         }
         #expect(ClipboardAccess.search(in: store, query: "64 × 36").isEmpty)

@@ -13,7 +13,8 @@ import Testing
             try store.insert(ClipboardItem(kind: .text, text: "unrelated \(i)", byteSize: 1,
                 contentHash: "text-\(i)", createdAt: now.addingTimeInterval(Double(i))))
         }
-        for query in ["图片", "图", "Image", "IMAGE", "im", " 图片 \n"] {
+        for query in ["图片", "图", "Image", "IMAGE", "im", " 图片 \n", image.imageTitle,
+                      String(image.imageTitle.prefix(4)), String(image.imageTitle.prefix(10))] {
             #expect(store.search(query, limit: 100).map(\.id) == [image.id])
         }
         let literal = ClipboardItem(kind: .text, text: "图片 image caption", byteSize: 1,
@@ -27,6 +28,7 @@ import Testing
         #expect(store.search("image caption").map(\.id) == [literal.id])
         #expect(store.search("img").isEmpty)
         #expect(store.search("100%").isEmpty)
-        #expect(store.search("_").isEmpty)
+        #expect(store.search("_").map(\.id) == [image.id])
+        #expect(store.search(image.imageTitle + "_missing").isEmpty)
     }
 }

@@ -19,7 +19,7 @@ extension ClipboardAccess {
             case .image: kindNames = "图片 Image Images"
             case .file: kindNames = "文件 File Files"
             }
-            let basic = [item.text, item.sourceApp, kindNames].compactMap { $0 }.joined(separator: " ")
+            let basic = [item.text, item.kind == .image ? item.imageTitle : nil, item.sourceApp, kindNames].compactMap { $0 }.joined(separator: " ")
             let unmatched = tokens.filter { !basic.localizedCaseInsensitiveContains($0) }
             if unmatched.isEmpty { return true }
             guard item.kind != .text else { return false }

@@ -117,16 +117,28 @@ enum ClipboardRegression {
                 if CommandLine.arguments.contains("--colors") {
                     for (input, expected) in [("#f80", "#FF8800"), (" #aBcD\n", "#AABBCCDD"),
                                               ("#123456", "#123456"), ("#12345678", "#12345678"),
-                                              ("FF9317", "#FF9317"), ("34c467", "#34C467"),
-                                              (" 48a0ff80\n", "#48A0FF80"), ("123456", "#123456")] {
-                        precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input))?.hex == expected)
+                                              ("rgb(255, 147, 23)", "#FF9317"), ("RGB(100% 0% 0% / 50%)", "#FF000080"),
+                                              ("rgba(255, 0, 0, .5)", "#FF000080"), ("rgb(1e2 0 0)", "#640000"),
+                                              ("hsl(120, 100%, 50%)", "#00FF00"), ("hsla(240 100% 50% / .5)", "#0000FF80"),
+                                              ("hsl(-.5turn 100% 50%)", "#00FFFF"), ("hsl(200grad 100% 50%)", "#00FFFF"),
+                                              ("oklch(62.7955% 0.257683 29.2338)", "#FF0000"),
+                                              ("oklch(62.7955% 64.42075% 29.2338 / 50%)", "#FF000080")] {
+                        let original = ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input)
+                        let parsed = ClipboardColor(item: original)
+                        precondition(parsed?.hex == expected, "Wrong color for \(input): \(parsed?.hex ?? "nil")")
+                        precondition(parsed?.text == input && original.text == input, "Preview must preserve original notation")
                     }
-                    for input in ["hello #ff8800", "#12345", "#gg8800", "f80", "abcd", "hello FF9317", "FF9317 extra", "FF93G7", "#１２３", "#123456789"] {
-                        precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input)) == nil)
+                    for input in ["hello #ff8800", "#12345", "#gg8800", "FF9317", "34C467", "123456", "12345678",
+                                  "f80", "abcd", "#１２３", "rgb(nan 0 0)", "rgb(inf 0 0)", "rgb(0xFF 0 0)",
+                                  "rgb(255,,0,0)", "rgb(255 0 / .5)", "rgb(255 0 0 .5)", "rgb(1,2,3 / .5)",
+                                  "hsl(120 100 50)", "hsl(120% 100% 50%)", "oklch(50%, .1, 20)",
+                                  "rgb(255 0 0) extra", "red", String(repeating: " ", count: 2049) + "#fff"] {
+                        precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input)) == nil,
+                                     "Must stay plain text: \(input.prefix(100))")
                     }
                     precondition(ClipboardColor(item: ClipboardItem(kind: .file, text: "#FF8800", byteSize: 7, contentHash: "file-color")) == nil)
                     _ = try store.delete(ids: store.recent(limit: 20).map(\.id))
-                    for value in ["FF9317", "#FFFFFF", "#000000", "#48A0FF80", "ordinary text"] {
+                    for value in ["rgb(255, 147, 23)", "hsl(120 100% 50%)", "oklch(62.7955% .257683 29.2338)", "FF9317", "#FFFFFF", "#000000", "#48A0FF80", "ordinary text"] {
                         try store.insert(ClipboardItem(kind: .text, text: value, byteSize: value.utf8.count, sourceApp: "Asky", contentHash: value))
                     }
                 }
@@ -218,7 +230,7 @@ enum ClipboardRegression {
                         for layout in [ClipboardLayout.list, .cards] {
                             app.preferences.clipboardLayout = layout
                             controller.updateLayout()
-                            controller.query = "FF9317"
+                            controller.query = "rgb(255, 147, 23)"
                             try await Task.sleep(for: .milliseconds(350))
                             try snapshot(panel(), "color-\(appearance)-\(layout)")
                         }

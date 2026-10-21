@@ -6,29 +6,6 @@ import Theme
 import AVKit
 import UniformTypeIdentifiers
 
-/// Recognize complete hex values, including unprefixed values copied from design tools.
-struct ClipboardColor {
-    let hex: String
-    let color: Color
-
-    init?(item: ClipboardItem) {
-        guard item.kind == .text, let text = item.text else { return nil }
-        let literal = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefixed = literal.hasPrefix("#")
-        var digits = prefixed ? String(literal.dropFirst()) : literal
-        guard (prefixed ? [3, 4, 6, 8] : [6, 8]).contains(digits.count),
-              digits.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }) else { return nil }
-        if digits.count <= 4 { digits = digits.map { "\($0)\($0)" }.joined() }
-        guard let value = UInt32(digits, radix: 16) else { return nil }
-        let hasAlpha = digits.count == 8
-        let rgb = hasAlpha ? value >> 8 : value
-        hex = "#" + digits.uppercased()
-        color = Color(.sRGB, red: Double((rgb >> 16) & 255) / 255,
-                      green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255,
-                      opacity: hasAlpha ? Double(value & 255) / 255 : 1)
-    }
-}
-
 private struct ClipboardColorPreview: View {
     let value: ClipboardColor
     var diameter: CGFloat = 160
@@ -39,7 +16,8 @@ private struct ClipboardColorPreview: View {
                 .overlay { Circle().strokeBorder(ThemeColor.kBorderIntense, lineWidth: 1) }
                 .frame(width: diameter, height: diameter)
                 .accessibilityHidden(true)
-            Text(value.hex).textStyle(.resultPrimary).monospaced()
+            Text(value.text).textStyle(.resultPrimary).monospaced()
+                .lineLimit(2).multilineTextAlignment(.center)
                 .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

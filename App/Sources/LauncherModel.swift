@@ -33,7 +33,7 @@ enum LauncherFilter: String, CaseIterable, Identifiable {
     case all, applications, files, quickLinks, shortcuts, calculatorHistory, windows
     static let commands: [(String, String, String)] = [
         ("windows", "搜索窗口", "sw"), ("calculatorHistory", "计算历史", "calc"), ("files", "搜索文件", "file"), ("applications", "搜索应用", "app"),
-        ("quickLinks", "搜索快捷方式", "ql"), ("shortcuts", "搜索快捷指令", "sc")
+        ("quickLinks", "搜索指令", "ql"), ("shortcuts", "搜索快捷指令", "sc")
     ]
     init?(commandID: String) {
         guard commandID != "all", let value = Self(rawValue: commandID) else { return nil }

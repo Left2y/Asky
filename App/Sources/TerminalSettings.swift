@@ -15,6 +15,9 @@ struct TerminalSettings: View {
                         .accessibilityHidden(true)
                     SettingsTextField(NSLocalizedString("触发指令", comment: ""), text: keyword,
                                       prompt: Text(LauncherInputState.defaultTerminalKeyword))
+                    SettingsButton(NSLocalizedString("恢复默认", comment: "")) {
+                        app.settings.terminalKeyword = nil
+                    }
                 }
                 if let keywordProblem {
                     Text(keywordProblem).foregroundStyle(.red)

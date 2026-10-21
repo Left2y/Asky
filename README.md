@@ -86,7 +86,6 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 需要 Xcode 26 / Swift 6.2+、Node.js 22+ 和 XcodeGen。在仓库根目录执行：
 
 ```sh
-python3 scripts/setup-local-signing.py
 (cd AgentRuntime && npm ci && npm run build)
 xcodegen generate
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
@@ -120,7 +119,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 
 核心错误与工具说明使用 `CoreLocalization` 及 SwiftPM 共享中英文资源，App 和独立 MCP Bridge 共用；检查规则同时覆盖未接入翻译的固定错误文案。
 
-原生回归、Debug 预览和签名说明见[开发与发布指南](docs/development.md)。发布使用 `scripts/package-release.py`，以 Developer ID Application 正式签名、公证并装订票据后生成 DMG、更新 ZIP 和校验文件；需先将公证凭据存入 `Asky` 钥匙串配置，打包前提交源码并保持工作区干净。Debug 继续使用 `Asky Local Signing`。检查结果写入 `docs/validation/`。
+原生回归、Debug 预览和签名说明见[开发与发布指南](docs/development.md)。发布使用 `scripts/package-release.py`，以 Developer ID Application 正式签名、公证并装订票据后生成 DMG、更新 ZIP 和校验文件；需先将公证凭据存入 `Asky` 钥匙串配置，打包前提交源码并保持工作区干净。Debug 与 Release 使用同一 Developer ID Application 签名，构建前需在钥匙串中安装对应证书及私钥；从旧自签名 Debug 切换后可能需要重新授权一次。检查结果写入 `docs/validation/`。
 
 ### 代码与文档
 
@@ -206,7 +205,6 @@ The app has no interface for uploading user data to the author. AI messages, att
 Requires Xcode 26 / Swift 6.2+, Node.js 22+, and XcodeGen. Run from the repository root:
 
 ```sh
-python3 scripts/setup-local-signing.py
 (cd AgentRuntime && npm ci && npm run build)
 xcodegen generate
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
@@ -240,7 +238,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 
 Core errors and tool descriptions use `CoreLocalization` and shared SwiftPM language resources in both the app and the standalone MCP Bridge. The checks also reject fixed error text that bypasses localization.
 
-See the [development and release guide](docs/development.md) for native regressions, Debug previews, and signing details. Use `scripts/package-release.py` to sign with Developer ID Application, notarize, staple tickets, and produce a DMG, updater ZIP, and checksums. Store notarization credentials in the `Asky` Keychain profile first, then commit source changes and keep the working tree clean before packaging. Debug retains `Asky Local Signing`. Record checks in `docs/validation/`.
+See the [development and release guide](docs/development.md) for native regressions, Debug previews, and signing details. Use `scripts/package-release.py` to sign with Developer ID Application, notarize, staple tickets, and produce a DMG, updater ZIP, and checksums. Store notarization credentials in the `Asky` Keychain profile first, then commit source changes and keep the working tree clean before packaging. Debug and Release use the same Developer ID Application identity; install its certificate and private key in Keychain before building. Switching from an older self-signed Debug build may require authorization once more. Record checks in `docs/validation/`.
 
 ### Code and Docs
 

@@ -6,8 +6,8 @@ import tempfile
 import plistlib
 import re
 
-DEFAULT_IDENTITY = 'Asky Local Signing'
 RELEASE_IDENTITY = 'Developer ID Application: Niall Young (V8GVW783CK)'
+DEFAULT_IDENTITY = RELEASE_IDENTITY
 
 
 def is_macho(path):

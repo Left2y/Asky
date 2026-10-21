@@ -102,7 +102,7 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
-Release 构建与打包默认使用 `Developer ID Application: Niall Young (V8GVW783CK)`，Team ID 为 `V8GVW783CK`。需在钥匙串中安装证书及私钥；跨机器应安全迁移同一身份，私钥备份不得进入仓库或安装包。Debug 继续使用固定的 `Asky Local Signing` 自签名证书，首次开发时运行 `python3 scripts/setup-local-signing.py`，重复运行保留原证书。从旧自签名版本切换到正式签名后，系统权限可能需要重新授权；签名检查不能替代真实权限验收。
+Debug、Release 构建与打包默认使用 `Developer ID Application: Niall Young (V8GVW783CK)`，Team ID 为 `V8GVW783CK`。需在钥匙串中安装证书及私钥；跨机器应安全迁移同一身份，私钥备份不得进入仓库或安装包。`scripts/signing.py` 的本机重签名默认也使用同一正式身份。从旧自签名版本切换到正式签名后，系统权限可能需要重新授权；签名检查不能替代真实权限验收。
 
 首次公证前，在本机终端执行下列命令，并在隐藏输入提示中输入 Apple App 专用密码（不是 Apple 账户登录密码）：
 
@@ -225,7 +225,7 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
-Release builds and packages default to `Developer ID Application: Niall Young (V8GVW783CK)`, with Team ID `V8GVW783CK`. Install both the certificate and private key in Keychain. Securely migrate the same identity between build machines; keep private-key backups out of the repository and installers. Debug retains the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once for development; subsequent runs preserve it. Switching from self-signed releases to Developer ID may require granting system permissions again. Signature checks do not replace real permission acceptance tests.
+Debug and Release builds and packages default to `Developer ID Application: Niall Young (V8GVW783CK)`, with Team ID `V8GVW783CK`. Install both the certificate and private key in Keychain. Securely migrate the same identity between build machines; keep private-key backups out of the repository and installers. Local re-signing through `scripts/signing.py` also defaults to the same identity. Switching from self-signed builds to Developer ID may require granting system permissions again. Signature checks do not replace real permission acceptance tests.
 
 Before the first notarization, run this command in a local terminal and enter an Apple app-specific password at the hidden prompt (not your Apple Account login password):
 

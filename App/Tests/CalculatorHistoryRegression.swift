@@ -47,9 +47,9 @@ private enum CalculatorHistoryRegression {
         try require(NSPasteboard.general.string(forType: .string) == "5", "primary action must copy result")
         try require(ToolService.calculatorHistory(in: app.store).count == 2, "copying history must not add records")
         model.performLauncherAction(model.secondaryActions[0])
-        try require(model.filter == .all && model.inputText == "5", "continue must return result to root input")
+        try require(model.filter == .all && model.inputText == "2 + 3", "continue must return the original expression to root input")
         model.inputText += " * 2"
-        try require(model.calculation?.result == "10", "continued value must support arithmetic")
+        try require(model.calculation?.result == "8", "continued expression must retain its operators and arithmetic precedence")
         model.query = "calc "
         model.inputText = "108.8"
         try require(model.results.count == 1, "history must be searchable")

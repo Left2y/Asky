@@ -1166,8 +1166,8 @@ extension LauncherModel {
             update()
         case .continueCalculation:
             guard let result, result.target.kind == "calculator-history",
-                  case .copy(let value) = result.primaryAction else { return }
-            setFilter(.all, query: value)
+                  let record = ToolService.calculatorHistory(in: app.store).first(where: { $0.id == result.target.identifier }) else { return }
+            setFilter(.all, query: record.expression)
         case .deleteCalculation:
             guard let result, result.target.kind == "calculator-history" else { return }
             let previousSelection = selection

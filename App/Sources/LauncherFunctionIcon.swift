@@ -6,18 +6,23 @@ enum ToolIconPalette {
     static let orange = Color(.sRGB, red: 1, green: 154 / 255, blue: 2 / 255, opacity: 1)
     static let cyan = Color(.sRGB, red: 0, green: 145 / 255, blue: 1, opacity: 1)
     static let blue = Color(.sRGB, red: 45 / 255, green: 104 / 255, blue: 1, opacity: 1)
+    static let green = Color(.sRGB, red: 40 / 255, green: 167 / 255, blue: 69 / 255, opacity: 1)
+    static let teal = Color(.sRGB, red: 0, green: 158 / 255, blue: 154 / 255, opacity: 1)
+    static let pink = Color(.sRGB, red: 227 / 255, green: 79 / 255, blue: 140 / 255, opacity: 1)
+    static let indigo = Color(.sRGB, red: 88 / 255, green: 86 / 255, blue: 214 / 255, opacity: 1)
     static let purple = Color(.sRGB, red: 125 / 255, green: 64 / 255, blue: 1, opacity: 1)
 }
 
 /// Built-in tools share a white MingCute glyph and a solid, circular-cornered tile.
 struct LauncherFunctionIcon: View {
     enum Kind {
-        case clipboardImage, clipboardVideo, clipboardText, bookmark, link, quickLinks, quit, conversion, tabs, ai, calculator, files, applications, shortcuts
+        case clipboardImage, clipboardVideo, clipboardText, bookmark, link, quickLinks, quit, conversion, tabs, windows, ai, calculator, files, applications, shortcuts
 
         static func searchCommand(_ id: String) -> Self {
             switch id {
             case "calculatorHistory": .calculator
-            case "windows", "tabs": .tabs
+            case "windows": .windows
+            case "tabs": .tabs
             case "bookmark": .bookmark
             case "link": .link
             case "quickLinks": .quickLinks
@@ -37,7 +42,7 @@ struct LauncherFunctionIcon: View {
             case .link: "link"
             case .quit: "power"
             case .conversion: "arrow.left.arrow.right"
-            case .tabs: "layout_4_line"
+            case .tabs, .windows: "layout_4_line"
             case .ai: nil
             case .calculator: "equal.square"
             case .files: "folder"
@@ -55,8 +60,12 @@ struct LauncherFunctionIcon: View {
             case .bookmark: ToolIconPalette.orange
             case .quit: ToolIconPalette.red
             case .conversion, .calculator: ToolIconPalette.cyan
-            case .link, .quickLinks, .applications: ToolIconPalette.blue
-            case .tabs, .shortcuts: ToolIconPalette.purple
+            case .link: ToolIconPalette.teal
+            case .quickLinks: ToolIconPalette.green
+            case .applications: ToolIconPalette.blue
+            case .tabs: ToolIconPalette.purple
+            case .windows: ToolIconPalette.indigo
+            case .shortcuts: ToolIconPalette.pink
             case .files: ToolIconPalette.orange
             case .ai: .clear
             }

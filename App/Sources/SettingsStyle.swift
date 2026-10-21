@@ -170,7 +170,7 @@ private struct SettingsRegularGlass: NSViewRepresentable {
     func makeNSView(context: Context) -> NSGlassEffectView {
         let view = NSGlassEffectView()
         view.style = .regular
-        view.cornerRadius = 32
+        view.cornerRadius = LauncherLayout.shellCornerRadius
         updateNSView(view, context: context)
         return view
     }

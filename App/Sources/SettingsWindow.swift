@@ -96,7 +96,7 @@ private final class SettingsContainerController: NSViewController {
     override func loadView() {
         view = NSView()
         view.wantsLayer = true
-        view.layer?.cornerRadius = 32
+        view.layer?.cornerRadius = LauncherLayout.shellCornerRadius
         view.layer?.masksToBounds = true
         let backdrop = NSHostingView(rootView: SettingsBackdrop().ignoresSafeArea())
         addChild(panes)

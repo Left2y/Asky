@@ -7,9 +7,7 @@ struct DataSourceIcon: View {
     let source: DataSourceID
 
     @ViewBuilder var body: some View {
-        if source == .memory {
-            Image("AskyLogo").resizable().scaledToFit()
-        } else if let icon = ToolService.dataSourceApplicationIcon(source) {
+        if let icon = ToolService.dataSourceApplicationIcon(source) {
             Image(nsImage: icon).renderingMode(.original).resizable().scaledToFit()
         } else {
             Image(mingCute: fallbackSymbol).resizable().scaledToFit()

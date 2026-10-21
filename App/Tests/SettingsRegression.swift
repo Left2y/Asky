@@ -537,7 +537,8 @@ enum SettingsRegression {
                 _ = try model.gateway.register(name: "Settings layout fixture")
                 for appearance in ["light", "dark"] {
                     model.preferences.appearance = appearance
-                    let pages: [SettingsPage] = CommandLine.arguments.contains("--navigation-settings")
+                    let pages: [SettingsPage] = CommandLine.arguments.contains("--sources-only")
+                        ? [.sources] : CommandLine.arguments.contains("--navigation-settings")
                         ? [.general, .search, .clipboard] : SettingsPage.allCases
                     for page in pages {
                         let tab = page.rawValue
@@ -589,6 +590,11 @@ enum SettingsRegression {
                             try scrolled.write(to: URL(filePath: "build/settings-\(appearance)-sources-scrolled.png"))
                         }
                     }
+                }
+                if CommandLine.arguments.contains("--sources-only") {
+                    try? FileManager.default.removeItem(at: root)
+                    print("Data source native snapshots passed")
+                    exit(0)
                 }
                 if CommandLine.arguments.contains("--navigation-settings") {
                     try? FileManager.default.removeItem(at: root)

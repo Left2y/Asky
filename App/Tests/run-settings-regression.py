@@ -42,11 +42,13 @@ copy_core_resources(products, bundle / "Resources")
 executable = bundle / "MacOS/SettingsRegression"
 shutil.copy2(binary, executable)
 shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
+shutil.copy2(products / "Asky.app/Contents/Resources/AskyNative.icns", bundle / "Resources/AskyNative.icns")
 for localization in (products / "Asky.app/Contents/Resources").glob("*.lproj"):
     shutil.copytree(localization, bundle / "Resources" / localization.name, dirs_exist_ok=True)
 with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "SettingsRegression", "CFBundleIdentifier": "app.asky.settings-regression",
-                  "CFBundleName": "SettingsRegression", "CFBundleDevelopmentRegion": "zh-Hans", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+                  "CFBundleName": "SettingsRegression", "CFBundleIconFile": "AskyNative", "CFBundleIconName": "AskyNative",
+                  "CFBundleDevelopmentRegion": "zh-Hans", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 # Refresh the bundle signature after replacing its executable and resources.
 subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], check=True)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

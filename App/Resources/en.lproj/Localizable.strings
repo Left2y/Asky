@@ -769,3 +769,23 @@
 
 "开启 MapKit 后，地点搜索与路线查询会向地图服务发送必要地点；无需 API Key，不会自动获取当前位置" = "When MapKit is enabled, place searches and route queries send necessary locations to the map service. No API key is needed; your current location is not collected automatically.";
 "已复制文件名" = "Filename copied";
+
+"计算历史" = "Calculation History";
+
+"暂无计算记录" = "No calculation history";
+
+"基于此继续计算" = "Continue Calculating";
+
+"删除记录" = "Delete Record";
+
+"搜索窗口" = "Search Windows";
+
+"窗口" = "Windows";
+
+"切换窗口" = "Switch to Window";
+
+"没有匹配的窗口" = "No matching windows";
+
+"请在系统设置中授予 Asky 辅助功能权限后重新搜索窗口" = "Grant Asky Accessibility access in System Settings, then search windows again";
+
+"窗口已关闭或无法切换，请重新搜索并检查辅助功能权限" = "The window closed or could not be focused. Search again and check Accessibility access";

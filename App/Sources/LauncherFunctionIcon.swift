@@ -16,7 +16,8 @@ struct LauncherFunctionIcon: View {
 
         static func searchCommand(_ id: String) -> Self {
             switch id {
-            case "tabs": .tabs
+            case "calculatorHistory": .calculator
+            case "windows", "tabs": .tabs
             case "bookmark": .bookmark
             case "link": .link
             case "quickLinks": .quickLinks

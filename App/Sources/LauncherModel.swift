@@ -30,9 +30,9 @@ final class ShortcutsProvider: SearchProvider, @unchecked Sendable {
 }
 
 enum LauncherFilter: String, CaseIterable, Identifiable {
-    case all, applications, files, quickLinks, shortcuts
+    case all, applications, files, quickLinks, shortcuts, calculatorHistory, windows
     static let commands: [(String, String, String)] = [
-        ("files", "搜索文件", "file"), ("applications", "搜索应用", "app"),
+        ("windows", "搜索窗口", "sw"), ("calculatorHistory", "计算历史", "calc"), ("files", "搜索文件", "file"), ("applications", "搜索应用", "app"),
         ("quickLinks", "搜索快捷方式", "ql"), ("shortcuts", "搜索快捷指令", "sc")
     ]
     init?(commandID: String) {
@@ -45,6 +45,8 @@ enum LauncherFilter: String, CaseIterable, Identifiable {
     var displayLimit: Int { self == .all ? 40 : 200 }
     var title: String {
         switch self {
+        case .windows: "窗口"
+        case .calculatorHistory: "计算历史"
         case .all: "全部"
         case .applications: "应用"
         case .files: "文件"
@@ -54,6 +56,8 @@ enum LauncherFilter: String, CaseIterable, Identifiable {
     }
     func includes(_ source: SearchSource) -> Bool {
         switch self {
+        case .windows: source == .app
+        case .calculatorHistory: source == .calculator
         case .all: true
         case .applications: source == .app
         case .files: source == .file
@@ -76,6 +80,7 @@ struct TerminalSession: Identifiable {
 final class LauncherModel {
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
+    private var windowSnapshot: LauncherWindowSnapshot?
     private var folderStack: [(url: URL, previousText: String)] = []
     private var folderText = ""
     var folderScope: URL? { folderStack.last?.url }
@@ -84,6 +89,7 @@ final class LauncherModel {
         let text = query ?? inputText
         folderStack = []
         folderText = ""
+        windowSnapshot = nil
         filter = value
         filterText = text
         if value == .all { inputState.replaceRawQuery(text, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
@@ -269,6 +275,7 @@ final class LauncherModel {
 
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
+        windowSnapshot = nil
         folderStack = []
         folderText = ""
         closeActionsMenu()
@@ -427,6 +434,24 @@ final class LauncherModel {
             searchFolder(folder)
             return
         }
+        if filter == .windows {
+            searchWindows()
+            return
+        }
+        if filter == .calculatorHistory {
+            batches = []
+            isSearching = false
+            remainingSearchProviders = 0
+            direct = ToolService.calculatorHistory(in: app.store, query: inputText).map { record in
+                SearchResult(source: .calculator,
+                             target: TargetRef(kind: "calculator-history", identifier: record.id),
+                             title: "\(record.expression) = \(record.result)",
+                             actions: [.copy(record.result)], score: 100)
+            }
+            status = direct.isEmpty ? NSLocalizedString("暂无计算记录", tableName: "Launcher", comment: "") : nil
+            publish()
+            return
+        }
         if inputState.ai || inputState.links {
             batches = []
             isSearching = false
@@ -580,6 +605,40 @@ final class LauncherModel {
         publish()
     }
 
+    func windowApplicationPath(for result: SearchResult) -> String? {
+        guard result.target.kind == "application-window" else { return nil }
+        return windowSnapshot?.entries.first { $0.id == result.target.identifier }?.applicationPath
+    }
+
+    private func searchWindows() {
+        let text = inputText
+        direct = []
+        batches = []
+        isSearching = true
+        remainingSearchProviders = 1
+        publish()
+        searchTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(100))
+                guard let self else { return }
+                let snapshot: LauncherWindowSnapshot
+                if let cached = self.windowSnapshot { snapshot = cached }
+                else { snapshot = try await ToolService.launcherWindows() }
+                guard !Task.isCancelled, self.filter == .windows, self.inputText == text else { return }
+                self.windowSnapshot = snapshot
+                self.direct = LauncherWindowSnapshot.results(from: snapshot.entries, query: text)
+                self.status = self.direct.isEmpty ? NSLocalizedString("没有匹配的窗口", comment: "") : nil
+            } catch {
+                guard let self, !Task.isCancelled, self.filter == .windows else { return }
+                self.status = NSLocalizedString("请在系统设置中授予 Asky 辅助功能权限后重新搜索窗口", comment: "")
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.isSearching = false
+            self.remainingSearchProviders = 0
+            self.publish()
+        }
+    }
+
     private static let bookmarkSearchKind = "bookmark-search"
 
     private func searchFolder(_ folder: URL) {
@@ -711,7 +770,7 @@ final class LauncherModel {
             closeActionsMenu()
         }
         if merged.isEmpty { closeActionsMenu() }
-        if filter != .all { merged = Array(merged.prefix(filter.displayLimit)) }
+        if filter != .all && filter != .windows { merged = Array(merged.prefix(filter.displayLimit)) }
         results = merged
         selection = min(selection, max(0, results.count - 1))
     }
@@ -862,10 +921,22 @@ final class LauncherModel {
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: r.target.identifier)])
             onHide()
         case .switchTo:
-            switchChromeTab(r)
+            if r.target.kind == "application-window", let snapshot = windowSnapshot {
+                Task {
+                    do {
+                        try await ToolService.activateLauncherWindow(r.target.identifier, in: snapshot)
+                        onHide()
+                    } catch {
+                        windowSnapshot = nil
+                        status = NSLocalizedString("窗口已关闭或无法切换，请重新搜索并检查辅助功能权限", comment: "")
+                    }
+                }
+            } else { switchChromeTab(r) }
         case .copy(let s):
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(s, forType: .string)
+            if r.source == .calculator, r.target.kind != "calculator-history", let calculation {
+                ToolService.saveCalculatorHistory(expression: calculation.expression, result: calculation.result, in: app.store)
+            }
+            _ = ToolService.copyCalculatorResult(s)
             onHide()
         case .openURL(let url):
             if ToolService.openLauncherURL(url) { onHide() }
@@ -994,6 +1065,9 @@ extension LauncherModel {
         if QuitAskyCommand.isResult(result) {
             return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: "↵", kind: .result(action))
         }
+        if result.target.kind == "application-window" {
+            return LauncherAction(title: "切换窗口", icon: "web", shortcut: "↵", kind: .result(action))
+        }
         if result.target.kind == "search-command" {
             return LauncherAction(title: result.title, icon: "magnifyingglass", shortcut: "↵", kind: .result(action))
         }
@@ -1016,6 +1090,10 @@ extension LauncherModel {
 
     var secondaryActions: [LauncherAction] {
         guard let result = selectedActionResult, result.primaryAction != nil else { return [] }
+        if result.target.kind == "calculator-history" {
+            return [LauncherAction(title: "基于此继续计算", icon: "equal.square", shortcut: nil, kind: .continueCalculation),
+                    LauncherAction(title: "删除记录", icon: "trash", shortcut: nil, kind: .deleteCalculation)]
+        }
         var actions = result.actions.dropFirst().filter {
             finderLauncherAction == nil || $0 != .revealInFinder
         }.map {
@@ -1086,6 +1164,16 @@ extension LauncherModel {
             app.preferences.disabledBuiltInCommands.insert(id)
             inputState.replaceRawQuery(inputState.rawQuery, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks)
             update()
+        case .continueCalculation:
+            guard let result, result.target.kind == "calculator-history",
+                  case .copy(let value) = result.primaryAction else { return }
+            setFilter(.all, query: value)
+        case .deleteCalculation:
+            guard let result, result.target.kind == "calculator-history" else { return }
+            let previousSelection = selection
+            ToolService.deleteCalculatorHistory(id: result.target.identifier, in: app.store)
+            update()
+            selection = min(previousSelection, max(0, results.count - 1))
         case .enterFolder: _ = enterSelectedFolder()
         case .copyFile: _ = copySelectedFile()
         case .copyPath: _ = copySelectedPath()

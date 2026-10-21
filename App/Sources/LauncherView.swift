@@ -688,7 +688,8 @@ private struct ResultList: View {
                                         model.selection = i
                                         model.submit(.executeSelection)
                                     } label: {
-                                        ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r), terminalIcon: model.terminalIcon)
+                                        ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r),
+                                                  terminalIcon: model.terminalIcon, applicationIconPath: model.windowApplicationPath(for: r))
                                     }
                                     .buttonStyle(.plain)
                                     .accessibilityLabel(r.title)
@@ -800,6 +801,7 @@ private struct ResultRow: View {
     let selected: Bool
     let keyword: String?
     var terminalIcon: NSImage?
+    var applicationIconPath: String?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -836,6 +838,9 @@ private struct ResultRow: View {
     }
 
     private var typeLabel: String {
+        if result.target.kind == "application-window" {
+            return NSLocalizedString("窗口", tableName: "Launcher", comment: "Result type")
+        }
         let key: String
         switch result.source {
         case .app: key = "应用"
@@ -860,6 +865,8 @@ private struct ResultRow: View {
     @ViewBuilder private var icon: some View {
         if result.target.kind == "search-command" {
             LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
+        } else if result.target.kind == "application-window", let applicationIconPath, !applicationIconPath.isEmpty {
+            Image(nsImage: ToolService.launcherIcon(filePath: applicationIconPath)).resizable().scaledToFit()
         } else if QuitAskyCommand.isResult(result) {
             LauncherFunctionIcon(kind: .quit)
         } else {
@@ -899,6 +906,8 @@ private struct ResultRow: View {
                 Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
                 DataSourceIcon(source: .shortcuts)
+            } else if result.target.kind == "search-command" {
+                LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
             } else if result.target.kind == "bookmark-search" {
                 LauncherFunctionIcon(kind: .bookmark)
             } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {

@@ -30,7 +30,7 @@ Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI �
 
 macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共用无染色的 AppKit 原生 Regular 玻璃；关闭液态玻璃或启用辅助功能显示选项时保留对应回退。
 
-- **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。
+- **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。输入 `calc` 或搜索“计算历史”可进入计算记录；确认复制计算结果时保存，最近 200 条在本地保留，可复制结果、基于结果继续计算或删除单条记录。
 - **剪贴板**：文本、图片和文件历史，支持搜索、预览与拖放，可切换卡片或列表视图。完整的 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA`、`rgb()` / `rgba()`、`hsl()` / `hsla()` 与 `oklch()` 文本显示圆形颜色预览，下方保留原始颜色表达式；支持百分比、透明度与空格加斜线语法，无 `#` 的十六进制字符串保持普通文本，复制和粘贴保留原文。两种视图均支持按回车粘贴到原应用，`⌘ Return` 始终仅复制并保留面板。列表底栏检测到输入焦点时显示回车粘贴，更多菜单始终提供“复制到剪贴板”，并在有输入焦点时提供“粘贴并保持窗口开启”（粘贴后保留窗口、搜索词与选中项）；明确无输入焦点时显示 `⌘ Return` 复制，普通回车不执行。微信等应用若不提供完整的焦点信息，保留回车粘贴以兼容其自定义输入框。焦点检测及自动粘贴需要辅助功能权限；粘贴时若目标失效，保留复制结果并提示手动粘贴。列表单击选中、双击复制；底栏“更多”（`⌘K`）可删除记录；卡片与列表均支持 `⌘⌫` 删除当前选中记录。卡片与列表的更多菜单均提供“清空全部”，确认后删除所有历史（包括固定记录），原始文件保留。卡片保持单击复制，悬停时右上角显示更多操作按钮；右键不打开菜单。
 - **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆；上下文压缩时显示 loading 与状态提示。
 - **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
@@ -56,6 +56,8 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 | AI 新对话 | `Ctrl + Shift + /` |
 | 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`x 关键词`（X 搜索）、`> pwd` |
 | 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
+
+输入 `sw` 回车或 `sw 空格` 进入窗口搜索；空查询列出所有提供辅助功能窗口信息的应用窗口，按窗口标题或应用名筛选，同一应用的多个窗口分别显示，结果使用所属应用的真实图标，回车或点击切换到具体窗口（包括最小化窗口）。需要系统辅助功能权限；窗口列表仅在当前搜索面板保留，重新进入时刷新。触发词可在“设置 › 指令”修改，Esc 返回普通搜索，空查询退格退出。
 
 文件与应用结果的“更多”菜单提供“复制文件名”（`⌘⇧.`，包含扩展名）与“展示文件信息”（`⌘I`，打开访达简介窗口，首次使用可能需要自动化授权）；菜单关闭时也可使用这两个快捷键。
 
@@ -112,6 +114,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --file-search
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search-live
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --calculator-history
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar --more-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --command-actions
@@ -149,7 +154,7 @@ Asky is built with SwiftUI and AppKit. Search and clipboard history work indepen
 
 With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window backgrounds share untinted native AppKit Regular glass. Disabling Liquid Glass or enabling accessibility display options retains the corresponding fallbacks.
 
-- **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion.
+- **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion. Enter `calc` or search for “Calculation History” to view calculations saved when you confirm copying a result. The latest 200 records stay locally; copy a result, continue calculating from it, or delete a record.
 - **Clipboard**: text, image, and file history with search, previews, and drag and drop, in card or list view. Complete `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`, `rgb()` / `rgba()`, `hsl()` / `hsla()`, and `oklch()` text values show a circular color preview above the original color expression. Percentages, alpha, and space/slash syntax are supported. Unprefixed hex strings remain plain text; copying and pasting preserve the original text. In both views, Return pastes into the original app; `⌘ Return` always only copies and keeps the panel open. The list footer offers Return to paste when an input is detected, or `⌘ Return` to copy when focus is confirmed to be outside an input; plain Return does nothing in the latter case. More always includes Copy to Clipboard. With an input target, it also offers Paste and Keep Window Open, preserving the window, query, and selection. Apps such as WeChat that do not expose complete focus information retain Return to paste for compatibility with custom editors. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to delete a record. In either view, press `⌘⌫` to delete the selected record. Both card and list More menus offer Clear All; confirmation deletes all history, including pinned items, while preserving original files. Cards still copy on a single click and show a More button in the upper-right corner on hover; right-clicking does not open a menu.
 - **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory; context compaction shows a loading indicator and status.
 - **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
@@ -175,6 +180,8 @@ On first launch, Asky shows its menu bar icon, enables launch at login, and hide
 | New AI chat | `Ctrl + Shift + /` |
 | Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `x keyword` (X search), `> pwd` |
 | Settings | Press `⌘,` while search or clipboard has focus |
+
+Enter `sw` and press Return, or type `sw `, to search application windows. An empty query lists all windows exposed through macOS Accessibility; filter by window title or app name. Each window has its own result with its app’s actual icon, including multiple windows from one app. Click or press Return to focus that exact window, restoring it if minimized. Accessibility permission is required. The list lives only for the current panel session and refreshes when re-entering the mode. Customize the trigger in Settings › Commands. Escape returns to general search; Backspace exits an empty window query.
 
 The More menu for file and application results offers Copy filename (`⌘⇧.`, including the extension) and Show file info (`⌘I`, opens Finder’s Get Info window and may require Automation permission on first use). Both shortcuts also work while the menu is closed.
 
@@ -231,6 +238,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --file-search
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search-live
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --calculator-history
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar --more-motion
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --command-actions

@@ -16,3 +16,4 @@ App/KulaHere.entitlements
 # AgentRuntime
 AgentRuntime/node_modules/
 AgentRuntime/dist/
+/scripts/__pycache__/

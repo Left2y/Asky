@@ -63,6 +63,10 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_STRICT_CONCURRENCY: complete
       configs:
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application: Niall Young (V8GVW783CK)"
+          DEVELOPMENT_TEAM: V8GVW783CK
+          OTHER_CODE_SIGN_FLAGS: "$(inherited) --timestamp"
         Debug:
           # The local signing certificate has no Team ID; hardened library validation
           # rejects Xcode's separate debug dylib even when both signatures are valid.
@@ -93,6 +97,12 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_IDENTITY: "Asky Local Signing"
         SKIP_INSTALL: YES
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Developer ID Application: Niall Young (V8GVW783CK)"
+          DEVELOPMENT_TEAM: V8GVW783CK
+          OTHER_CODE_SIGN_FLAGS: "$(inherited) --timestamp"
     dependencies:
       - package: KulaCore
         products: [MCPLink, Contracts]

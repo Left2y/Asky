@@ -102,9 +102,18 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
-开发与后续打包默认使用固定的 `Asky Local Signing` 自签名证书。首次运行 `python3 scripts/setup-local-signing.py`，证书有效期为 10 年，仅包含名称，不填写姓名或邮箱；私钥保存在登录钥匙串，临时私钥文件自动删除。系统可能要求确认钥匙串操作。重复运行保留原证书，不能每次更新重新创建；跨机器发布应安全迁移同一签名身份，私钥备份不得进入仓库或安装包。证书丢失、过期或换用另一身份时可能需要重新授权。签名身份连续性不等于各项系统权限已实机验收；从旧 ad-hoc 版本切换后可能需要重新授权一次。
+Release 构建与打包默认使用 `Developer ID Application: Niall Young (V8GVW783CK)`，Team ID 为 `V8GVW783CK`。需在钥匙串中安装证书及私钥；跨机器应安全迁移同一身份，私钥备份不得进入仓库或安装包。Debug 继续使用固定的 `Asky Local Signing` 自签名证书，首次开发时运行 `python3 scripts/setup-local-signing.py`，重复运行保留原证书。从旧自签名版本切换到正式签名后，系统权限可能需要重新授权；签名检查不能替代真实权限验收。
 
-脚本生成 `build/releases/0.1.0/` 下的 DMG、更新用 ZIP 及各自的 `.sha256`，校验签名并检查随包 runtime 的启动协议。它使用固定自签名身份（可通过 `--signing-identity` 指定其他证书名称或 SHA-1），缺少证书或指定 ad-hoc 时直接失败；不执行公证、GitHub 发布或本机安装；每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局；打包会短暂打开 Finder 写入布局，终端需获准自动化 Finder。
+首次公证前，在本机终端执行下列命令，并在隐藏输入提示中输入 Apple App 专用密码（不是 Apple 账户登录密码）：
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun notarytool store-credentials Asky \
+  --apple-id YOUR_APPLE_ID --team-id V8GVW783CK
+```
+
+凭据保存在钥匙串，不写入源码。随后使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 scripts/package-release.py ...` 执行上面的打包参数。可通过 `--signing-identity` 指定其他 Developer ID Application 证书名称或 SHA-1，通过 `--notary-profile` 指定其他钥匙串配置。缺少有效证书、私钥或公证凭据时直接失败；发布不再接受自签名或 ad-hoc 身份。
+
+脚本先为应用、MCP Bridge、Node 与原生依赖（含无扩展名可执行文件）签名并附安全时间戳，检查随包 runtime 的启动协议，再提交应用 ZIP 公证、确认 Accepted、为应用装订并验证票据，然后生成更新 ZIP。DMG 完成 Finder 布局后单独签名、公证、装订并验证；两种产物的 SHA-256 都在最终内容完成后计算。公证回执与详细日志保存在 `build/release-<version>-{app,dmg}-notarization*.json`。输出位于 `build/releases/<version>/`；不执行 GitHub 发布或本机安装，每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局，终端需获准自动化 Finder。
 
 ### 短信日程配置回归
 
@@ -216,9 +225,18 @@ python3 scripts/package-release.py --version 0.1.0 --build 24 \
   --node-root build/release-node-0.0.16/node-v22.23.3-darwin-arm64
 ```
 
-Development and future packages default to the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once. The certificate lasts 10 years and contains only its name, with no personal name or email. The private key stays in the login keychain; temporary private-key files are removed automatically. macOS may ask you to confirm keychain operations. Re-running preserves the certificate; do not recreate it for each update. To publish from another machine, securely migrate the same signing identity and keep private-key backups out of the repository and installers. Losing, expiring, or replacing the identity may require authorization again. Stable signing identity does not establish live acceptance of every system permission; switching from an old ad-hoc build may require authorization once.
+Release builds and packages default to `Developer ID Application: Niall Young (V8GVW783CK)`, with Team ID `V8GVW783CK`. Install both the certificate and private key in Keychain. Securely migrate the same identity between build machines; keep private-key backups out of the repository and installers. Debug retains the persistent `Asky Local Signing` self-signed certificate. Run `python3 scripts/setup-local-signing.py` once for development; subsequent runs preserve it. Switching from self-signed releases to Developer ID may require granting system permissions again. Signature checks do not replace real permission acceptance tests.
 
-The script creates a DMG, an updater ZIP, and their `.sha256` files under `build/releases/0.1.0/`, verifies the signature, and checks the bundled runtime startup protocol. It uses a persistent self-signed identity (override with a certificate name or SHA-1 using `--signing-identity`) and fails if the identity is missing or ad-hoc signing is requested. It does not notarize, publish to GitHub, or install locally. Each packaging run requires a new staging directory. The DMG uses the Retina background in `scripts/dmg/background.tiff` and the fixed icon layout in `scripts/dmg/layout.applescript`. Packaging briefly opens Finder to save the layout and requires the terminal to have permission to automate Finder.
+Before the first notarization, run this command in a local terminal and enter an Apple app-specific password at the hidden prompt (not your Apple Account login password):
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun notarytool store-credentials Asky \
+  --apple-id YOUR_APPLE_ID --team-id V8GVW783CK
+```
+
+Credentials stay in Keychain, outside source control. Then run the packaging arguments above with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 scripts/package-release.py ...`. Override the Developer ID Application certificate name or SHA-1 with `--signing-identity`, and the Keychain profile with `--notary-profile`. Missing certificates, private keys, or notarization credentials fail immediately. Release packaging no longer accepts self-signed or ad-hoc identities.
+
+The script signs the app, MCP Bridge, Node, and native dependencies (including executables without extensions) with secure timestamps and checks the bundled runtime startup protocol. It submits an app ZIP for notarization, requires Accepted, staples and validates the app ticket, and only then creates the updater ZIP. After the Finder layout, it separately signs, notarizes, staples, and validates the DMG. Both SHA-256 checksums are computed from the final artifacts. Receipts and detailed logs are saved as `build/release-<version>-{app,dmg}-notarization*.json`. Outputs go to `build/releases/<version>/`. The script does not publish to GitHub or install locally, and each run needs a new staging directory. DMGs use the Retina background in `scripts/dmg/background.tiff` and fixed icon layout in `scripts/dmg/layout.applescript`; allow terminal automation of Finder.
 
 ### Message Calendar Editor Regression
 

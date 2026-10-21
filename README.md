@@ -120,7 +120,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 
 核心错误与工具说明使用 `CoreLocalization` 及 SwiftPM 共享中英文资源，App 和独立 MCP Bridge 共用；检查规则同时覆盖未接入翻译的固定错误文案。
 
-原生回归、Debug 预览和签名说明见[开发与发布指南](docs/development.md)。发布使用 `scripts/package-release.py` 生成 DMG、更新 ZIP 和校验文件；打包前提交源码并保持工作区干净，沿用固定的 `Asky Local Signing` 证书。检查结果写入 `docs/validation/`。
+原生回归、Debug 预览和签名说明见[开发与发布指南](docs/development.md)。发布使用 `scripts/package-release.py`，以 Developer ID Application 正式签名、公证并装订票据后生成 DMG、更新 ZIP 和校验文件；需先将公证凭据存入 `Asky` 钥匙串配置，打包前提交源码并保持工作区干净。Debug 继续使用 `Asky Local Signing`。检查结果写入 `docs/validation/`。
 
 ### 代码与文档
 
@@ -240,7 +240,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-l
 
 Core errors and tool descriptions use `CoreLocalization` and shared SwiftPM language resources in both the app and the standalone MCP Bridge. The checks also reject fixed error text that bypasses localization.
 
-See the [development and release guide](docs/development.md) for native regressions, Debug previews, and signing details. Use `scripts/package-release.py` to produce a DMG, updater ZIP, and checksums. Commit source changes and keep the working tree clean before packaging, retaining the persistent `Asky Local Signing` certificate. Record checks in `docs/validation/`.
+See the [development and release guide](docs/development.md) for native regressions, Debug previews, and signing details. Use `scripts/package-release.py` to sign with Developer ID Application, notarize, staple tickets, and produce a DMG, updater ZIP, and checksums. Store notarization credentials in the `Asky` Keychain profile first, then commit source changes and keep the working tree clean before packaging. Debug retains `Asky Local Signing`. Record checks in `docs/validation/`.
 
 ### Code and Docs
 

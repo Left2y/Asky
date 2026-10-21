@@ -1,7 +1,8 @@
 from pathlib import Path
 import hashlib, json, plistlib, shutil, subprocess, tempfile
 
-from signing import DEFAULT_IDENTITY, check_identity, sign_bundle
+from signing import RELEASE_IDENTITY, check_identity, sign_bundle
+from notarization import DEFAULT_PROFILE, check_profile, notarize, staple
 
 import argparse
 parser = argparse.ArgumentParser(description="Package a built Asky release as DMG and updater ZIP")
@@ -10,22 +11,25 @@ parser.add_argument('--build', required=True)
 parser.add_argument('--derived-data', required=True, type=Path)
 parser.add_argument('--runtime', required=True, type=Path)
 parser.add_argument('--node-root', required=True, type=Path)
-parser.add_argument('--signing-identity', default=DEFAULT_IDENTITY)
+parser.add_argument('--signing-identity', default=RELEASE_IDENTITY)
+parser.add_argument('--notary-profile', default=DEFAULT_PROFILE)
 args = parser.parse_args()
-check_identity(args.signing_identity)
+if not check_identity(args.signing_identity).startswith('Developer ID Application:'):
+    raise SystemExit('Release packaging requires a Developer ID Application certificate.')
 repo = Path(__file__).resolve().parent.parent
 root = repo / 'build'
 commit = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True).strip()
 if subprocess.check_output(['git', '-C', str(repo), 'status', '--porcelain'], text=True).strip():
     raise SystemExit('Commit source changes before packaging a release')
+check_profile(args.notary_profile)
 app = root / f'release-staging-{args.version}/Asky.app'
 app.parent.mkdir(parents=True, exist_ok=True)
 if app.exists():
     raise SystemExit(f'Staging bundle already exists: {app}')
-shutil.copytree(args.derived_data / 'Build/Products/Release/Asky.app', app)
+shutil.copytree(args.derived_data / 'Build/Products/Release/Asky.app', app, symlinks=True)
 resources = app / 'Contents/Resources'
 shutil.copy2(repo / 'LICENSE', resources / 'LICENSE')
-shutil.copytree(args.runtime, resources / 'AgentRuntime')
+shutil.copytree(args.runtime, resources / 'AgentRuntime', symlinks=True)
 node_dir = resources / 'node'
 (node_dir / 'bin').mkdir(parents=True)
 shutil.copy2(args.node_root / 'bin/node', node_dir / 'bin/node')
@@ -46,6 +50,12 @@ with tempfile.TemporaryDirectory(prefix='kulahere-release-smoke-') as data_dir:
     assert result.returncode == 0, result.stderr
     frames = [json.loads(line) for line in result.stdout.splitlines()]
     assert any(frame.get('type') == 'ready' and frame.get('protocol') == 2 for frame in frames), result.stdout
+with tempfile.TemporaryDirectory(prefix='asky-notarize-') as temporary:
+    archive = Path(temporary) / 'Asky.zip'
+    subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(app), str(archive)], check=True)
+    notarize(archive, args.notary_profile, root / f'release-{args.version}-app-notarization.json')
+staple(app)
+subprocess.run(['spctl', '--assess', '--type', 'execute', '--verbose=2', str(app)], check=True)
 release_dir = root / f'releases/{args.version}'
 release_dir.mkdir(parents=True, exist_ok=True)
 zip_path = release_dir / f'Asky-{args.version}-macos-arm64.zip'
@@ -81,6 +91,11 @@ with tempfile.TemporaryDirectory(prefix='asky-dmg-') as temp:
     finally:
         subprocess.run(['hdiutil', 'detach', str(mount)], check=True)
     subprocess.run(['hdiutil', 'convert', str(writable), '-format', 'UDZO', '-o', str(dmg)], check=True)
+    subprocess.run(['codesign', '--force', '--sign', args.signing_identity,
+                    '--timestamp', str(dmg)], check=True)
+    notarize(dmg, args.notary_profile, root / f'release-{args.version}-dmg-notarization.json')
+    staple(dmg)
+    subprocess.run(['codesign', '--verify', '--strict', '--verbose=2', str(dmg)], check=True)
     checksum = hashlib.sha256(dmg.read_bytes()).hexdigest()
     (release_dir / (dmg.name + '.sha256')).write_text(f'{checksum}  {dmg.name}\n')
     subprocess.run(['hdiutil', 'verify', str(dmg)], check=True)

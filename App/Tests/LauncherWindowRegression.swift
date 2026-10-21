@@ -43,7 +43,9 @@ enum LauncherWindowRegression {
                     ? [.darkAqua] : [.aqua, .darkAqua]
                 for appearance in appearances {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--result-motion") {
+                    if CommandLine.arguments.contains("--first-presentation") {
+                        try await checkFirstPresentation()
+                    } else if CommandLine.arguments.contains("--result-motion") {
                         try await checkResultMotion()
                     } else if CommandLine.arguments.contains("--alias-results") {
                         try await checkAliasResults()
@@ -1298,6 +1300,47 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(panel.frame.height - 52) <= 1, "reopen must not resume a stale reveal")
         print("result motion: intermediateSamples=\(intermediateHeights.count), inputDrift=\(maxDrift), keyboard/clear/interruption/reopen passed")
+    }
+
+    private static func checkFirstPresentation() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-first-presentation-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [])
+        let controller = LauncherController(model: model)
+        defer { controller.hide() }
+        for iteration in 0..<10 {
+            controller.show()
+            guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
+                  let surface = panel.contentView, let field = searchField(in: surface) else {
+                throw NSError(domain: "LauncherWindowRegression", code: 2,
+                              userInfo: [NSLocalizedDescriptionKey: "first presentation must already contain the search field"])
+            }
+            panel.onBlur = {}
+            try require(panel.animationBehavior == .none, "shell presentation must not use an AppKit window transition")
+            try require(panel.frame.width == LauncherLayout.toolbarWidth && panel.frame.height == LauncherLayout.inputHeight,
+                        "first presentation must already have final shell geometry")
+            for view in [surface, surface.superview].compactMap({ $0 }) {
+                try require(view.layer?.masksToBounds == true && view.layer?.cornerRadius == LauncherLayout.shellCornerRadius,
+                            "content and frame must be clipped before first presentation")
+            }
+            try await Task.sleep(for: .milliseconds(80))
+            try require(field.currentEditor() != nil, "search must acquire its editor after presentation")
+            if iteration == 0 {
+                let capture = Process()
+                capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                                     "build/launcher-first-presentation-\(NSApp.appearance!.name.rawValue).png"]
+                try capture.run()
+                capture.waitUntilExit()
+                try require(capture.terminationStatus == 0, "first presentation screenshot must succeed")
+            }
+            controller.show()
+            try require(panel.isVisible, "a repeated show request must keep the shell visible")
+            controller.hide()
+            try require(!panel.isVisible && panel.contentView == nil, "hide must release the presented tree")
+        }
+        print("first presentation: 10 rebuilt trees, initial geometry/clipping, editor and repeated show passed")
     }
 
     private static func checkWindow() async throws {

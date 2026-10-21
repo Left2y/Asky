@@ -59,6 +59,9 @@ final class LauncherPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         isOpaque = false
         backgroundColor = .clear
+        // The shell is presented fully laid out; AppKit's default window
+        // transition must not expose an intermediate borderless backing store.
+        animationBehavior = .none
         // The frame is exactly the glass shell, so the system shadow follows it.
         hasShadow = true
         hidesOnDeactivate = false
@@ -243,6 +246,16 @@ final class LauncherController {
             hosting = view
         }
         layoutSurfaces()
+        // Cold SwiftUI/glass construction can leave the first backing-store
+        // update pending. Finish layout, including AppKit's frame view, while
+        // the window is still off screen rather than ordering an empty frame.
+        panel.contentView?.superview?.layoutSubtreeIfNeeded()
+        panel.contentView?.layoutSubtreeIfNeeded()
+        if let surface = panel.contentView {
+            WindowSurface.updateCorners(of: surface,
+                radius: LauncherLayout.shellCornerRadius, circular: true)
+        }
+        panel.displayIfNeeded()
         panel.makeKeyAndOrderFront(nil)
         updateOutsideClickDismissal()
     }

@@ -58,6 +58,26 @@ enum SettingsRegression {
                     ["keyword": "go", "name": "Custom", "urlTemplate": "https://example.com"],
                 ]])
                 let model = try AppModel(root: root)
+                if CommandLine.arguments.contains("--settings-focus") {
+                    defer { try? FileManager.default.removeItem(at: root) }
+                    model.settingsTab = "keywords"
+                    let window = SettingsWindow.make(app: model)
+                    window.makeKeyAndOrderFront(nil)
+                    for appearance in ["light", "dark"] {
+                        model.preferences.appearance = appearance
+                        try await Task.sleep(for: .milliseconds(400))
+                        window.contentView?.layoutSubtreeIfNeeded()
+                        assertSettingsClickOutsideEndsEditing(window)
+                        guard let view = window.contentView,
+                              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                            fatalError("missing settings focus view")
+                        }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(
+                            to: URL(filePath: "build/settings-focus-\(appearance).png"))
+                    }
+                    exit(0)
+                }
                 if CommandLine.arguments.contains("--clipboard-retention") {
                     defer { try? FileManager.default.removeItem(at: root) }
                     precondition(model.settings.clipboardRetention == .threeDays)
@@ -421,6 +441,7 @@ enum SettingsRegression {
                         model.preferences.appearance = appearance
                         try await Task.sleep(for: .milliseconds(400))
                         window.contentView?.layoutSubtreeIfNeeded()
+                        if appearance == "light" { assertSettingsClickOutsideEndsEditing(window) }
                         guard let view = window.contentView,
                               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing commands view") }
                         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -809,6 +830,39 @@ enum SettingsRegression {
               viewport.height > 400 else {
             fatalError("settings scroll viewport overlaps toolbar: \(viewport), layout: \(window.contentLayoutRect)")
         }
+    }
+
+    private static func assertSettingsClickOutsideEndsEditing(_ window: NSWindow) {
+        func fields(in view: NSView) -> [NSTextField] {
+            (view as? NSTextField).map { $0.isEditable ? [$0] : [] } ?? view.subviews.flatMap { fields(in: $0) }
+        }
+        guard let content = window.contentView else { fatalError("missing settings content") }
+        let inputs = fields(in: content).filter { !$0.isHiddenOrHasHiddenAncestor }
+        precondition(inputs.count >= 2, "expected actual command inputs")
+        let first = inputs[0], second = inputs[1]
+        func click(_ point: NSPoint) {
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                    context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+                window.sendEvent(event)
+            }
+        }
+        func center(_ field: NSTextField) -> NSPoint {
+            field.convert(NSPoint(x: field.bounds.midX, y: field.bounds.midY), to: nil)
+        }
+        window.makeFirstResponder(first)
+        precondition(first.currentEditor() != nil, "input must start editing")
+        click(center(first))
+        precondition(first.currentEditor() != nil, "clicking inside must preserve editing")
+        click(center(second))
+        precondition(second.currentEditor() != nil, "clicking another input must transfer editing")
+        let original = second.stringValue
+        // The sidebar gutter is outside every input and contains no action.
+        click(content.convert(NSPoint(x: 3, y: content.bounds.midY), to: nil))
+        precondition(!(window.firstResponder is NSTextView), "outside click must end editing")
+        precondition(second.stringValue == original, "ending editing must preserve the value")
+        print("Settings inputs: inside click, input switching, outside blur and value preservation passed")
     }
 
     private static func assertMCPCheckboxLayout(in view: NSView) {

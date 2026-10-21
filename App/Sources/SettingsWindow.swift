@@ -62,7 +62,7 @@ enum SettingsWindow {
 
     static func make(app: AppModel) -> NSWindow {
         let controller = SettingsContainerController(app: app)
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: initialSize),
+        let window = SettingsEditingWindow(contentRect: NSRect(origin: .zero, size: initialSize),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
         window.isOpaque = false

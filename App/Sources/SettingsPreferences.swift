@@ -73,7 +73,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         disabledSearchCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledSearchCommands) ?? d.disabledSearchCommands
         // Move saved legacy defaults without overwriting custom bindings or creating conflicts.
         if let saved = localShortcuts[LocalShortcutAction.askAI.rawValue],
-           saved.hasSameKeys(as: .init(code: 36, modifiers: 256, label: "")) {
+           saved.code == 36, [UInt32(256), UInt32(4096)].contains(saved.modifiers) {
             _ = setShortcut(.askAI, LocalShortcutAction.askAI.defaultShortcut)
         }
         if revealInFinderHotKey.hasSameKeys(as: .init(code: 3, modifiers: 256, label: "")) {

@@ -79,7 +79,7 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
         case .copyName: .init(code: 47, modifiers: 768, label: "⌘⇧ .")
         case .fileInfo: .init(code: 34, modifiers: 256, label: "⌘ I")
         case .execute: .init(code: 36, modifiers: 0, label: "↵")
-        case .askAI: .init(code: 36, modifiers: 4096, label: "⌃ ↵")
+        case .askAI: .init(code: 36, modifiers: 768, label: "⇧⌘ ↵")
         case .launcherMore: .init(code: 40, modifiers: 256, label: "⌘ K")
         case .launcherUp: .init(code: 126, modifiers: 0, label: "↑")
         case .launcherDown: .init(code: 125, modifiers: 0, label: "↓")

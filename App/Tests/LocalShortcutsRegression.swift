@@ -26,6 +26,9 @@ enum LocalShortcutsRegression {
                 let migrated = try JSONDecoder().decode(SettingsPreferences.self, from: oldDefaults)
                 precondition(migrated.shortcut(.reveal) == .revealInFinder)
                 precondition(migrated.shortcut(.askAI) == LocalShortcutAction.askAI.defaultShortcut)
+                let controlDefault = Data(#"{"localShortcuts":{"askAI":{"code":36,"modifiers":4096,"label":"⌃ ↵"}}}"#.utf8)
+                let controlMigrated = try JSONDecoder().decode(SettingsPreferences.self, from: controlDefault)
+                precondition(controlMigrated.shortcut(.askAI) == LocalShortcutAction.askAI.defaultShortcut)
                 let migratedReloaded = try JSONDecoder().decode(SettingsPreferences.self, from: JSONEncoder().encode(migrated))
                 precondition(migratedReloaded == migrated)
                 var custom = SettingsPreferences()
@@ -36,7 +39,8 @@ enum LocalShortcutsRegression {
                 for code: UInt16 in [36, 76] {
                     precondition(migrated.shortcut(.reveal).matches(event(code, .command)))
                     precondition(!migrated.shortcut(.askAI).matches(event(code, .command)))
-                    precondition(migrated.shortcut(.askAI).matches(event(code, .control)))
+                    precondition(!migrated.shortcut(.askAI).matches(event(code, .control)))
+                    precondition(migrated.shortcut(.askAI).matches(event(code, [.shift, .command])))
                     precondition(!migrated.shortcut(.reveal).matches(event(code, .control)))
                 }
                 // Reject conflicts only where actions can run in the same window.
@@ -87,7 +91,8 @@ enum LocalShortcutsRegression {
                 var prompts: [String] = []
                 launcher.onAskAI = { prompts.append($0) }
                 launcher.query = "hello shortcut"
-                precondition(launcher.handleActionKey(event(36, .control)))
+                precondition(!launcher.handleActionKey(event(36, .control)))
+                precondition(launcher.handleActionKey(event(36, [.shift, .command])))
                 precondition(prompts == ["hello shortcut"])
                 prompts.removeAll()
                 var reveals = 0

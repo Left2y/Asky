@@ -116,15 +116,17 @@ enum ClipboardRegression {
                 try store.insert(ClipboardItem(kind: .text, text: "Another clipboard card", byteSize: 22, contentHash: "fourth"))
                 if CommandLine.arguments.contains("--colors") {
                     for (input, expected) in [("#f80", "#FF8800"), (" #aBcD\n", "#AABBCCDD"),
-                                              ("#123456", "#123456"), ("#12345678", "#12345678")] {
+                                              ("#123456", "#123456"), ("#12345678", "#12345678"),
+                                              ("FF9317", "#FF9317"), ("34c467", "#34C467"),
+                                              (" 48a0ff80\n", "#48A0FF80"), ("123456", "#123456")] {
                         precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input))?.hex == expected)
                     }
-                    for input in ["hello #ff8800", "#12345", "#gg8800", "FF8800", "#１２３", "#123456789"] {
+                    for input in ["hello #ff8800", "#12345", "#gg8800", "f80", "abcd", "hello FF9317", "FF9317 extra", "FF93G7", "#１２３", "#123456789"] {
                         precondition(ClipboardColor(item: ClipboardItem(kind: .text, text: input, byteSize: input.utf8.count, contentHash: input)) == nil)
                     }
                     precondition(ClipboardColor(item: ClipboardItem(kind: .file, text: "#FF8800", byteSize: 7, contentHash: "file-color")) == nil)
                     _ = try store.delete(ids: store.recent(limit: 20).map(\.id))
-                    for value in ["#FF8800", "#FFFFFF", "#000000", "#48A0FF80", "ordinary text"] {
+                    for value in ["FF9317", "#FFFFFF", "#000000", "#48A0FF80", "ordinary text"] {
                         try store.insert(ClipboardItem(kind: .text, text: value, byteSize: value.utf8.count, sourceApp: "Asky", contentHash: value))
                     }
                 }
@@ -216,7 +218,7 @@ enum ClipboardRegression {
                         for layout in [ClipboardLayout.list, .cards] {
                             app.preferences.clipboardLayout = layout
                             controller.updateLayout()
-                            controller.query = "#FF8800"
+                            controller.query = "FF9317"
                             try await Task.sleep(for: .milliseconds(350))
                             try snapshot(panel(), "color-\(appearance)-\(layout)")
                         }

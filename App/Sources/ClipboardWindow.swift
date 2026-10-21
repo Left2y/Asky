@@ -6,7 +6,7 @@ import Theme
 import AVKit
 import UniformTypeIdentifiers
 
-/// Recognize only a complete CSS hex literal, never a color embedded in prose.
+/// Recognize complete hex values, including unprefixed values copied from design tools.
 struct ClipboardColor {
     let hex: String
     let color: Color
@@ -14,9 +14,9 @@ struct ClipboardColor {
     init?(item: ClipboardItem) {
         guard item.kind == .text, let text = item.text else { return nil }
         let literal = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard literal.hasPrefix("#") else { return nil }
-        var digits = String(literal.dropFirst())
-        guard [3, 4, 6, 8].contains(digits.count),
+        let prefixed = literal.hasPrefix("#")
+        var digits = prefixed ? String(literal.dropFirst()) : literal
+        guard (prefixed ? [3, 4, 6, 8] : [6, 8]).contains(digits.count),
               digits.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }) else { return nil }
         if digits.count <= 4 { digits = digits.map { "\($0)\($0)" }.joined() }
         guard let value = UInt32(digits, radix: 16) else { return nil }

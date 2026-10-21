@@ -12,3 +12,13 @@
 截图：[浅色列表](../../build/color-preview-validation/build/clipboard-color-light-list.png)、[浅色卡片](../../build/color-preview-validation/build/clipboard-color-light-cards.png)、[深色列表](../../build/color-preview-validation/build/clipboard-color-dark-list.png)、[深色卡片](../../build/color-preview-validation/build/clipboard-color-dark-cards.png)。
 
 隔离回归命令：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 build/color-preview-validation/App/Tests/run-clipboard-regression.py --colors`。同一回归入口已在 README 中以正常工作区路径列出。
+
+## 兼容设计工具复制的无前缀色值
+
+此前只接受带 `#` 的文字，导致用户截图中的 `FF9317`、`34C467` 显示为普通文本。现支持不带 `#` 的六位 RGB 与八位 RGBA（大小写均可），预览统一补 `#` 并大写；源文本保持不变。此规则取代上文的“无 `#` 的文本不识别”。无前缀三位、四位短文本仍不识别，带其他文字的字符串仍不识别。
+
+- `xcodegen generate` 通过。
+- README Debug 构建命令加 `CODE_SIGNING_ALLOWED=NO` 通过，未执行签名或公证。
+- `cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` 通过。
+- 正常工作区 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --colors` 通过，覆盖 `FF9317`、`34c467`、无前缀八位透明色值、纯数字色值及非法输入。
+- 已检查 `build/clipboard-color-light-list.png` 与 `build/clipboard-color-dark-cards.png` 的实际原生窗口截图：来源文本 `FF9317` 保留六位原文，预览显示橙色圆形与 `#FF9317`。回归同时生成另两种主题/布局截图。本次未验证真实 Figma 复制操作，使用与用户截图一致的纯文本输入。

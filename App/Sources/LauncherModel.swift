@@ -105,7 +105,7 @@ final class LauncherModel {
               let separator = value.firstIndex(where: \.isWhitespace) else { return false }
         let token = String(value[..<separator])
         guard let command = LauncherFilter.commands.first(where: {
-            app.commandKeyword($0.0).caseInsensitiveCompare(token) == .orderedSame
+            app.isSearchCommandEnabled($0.0) && app.commandKeyword($0.0).caseInsensitiveCompare(token) == .orderedSame
         }), let category = LauncherFilter(commandID: command.0) else { return false }
         setFilter(category, query: String(value[value.index(after: separator)...]))
         return true
@@ -117,10 +117,10 @@ final class LauncherModel {
         get {
             var state = storedInputState
             state.terminalKeyword = app.settings.terminalCommandKeyword
-            state.tabToken = app.commandKeyword("tabs")
-            state.bookmarkToken = app.commandKeyword("bookmark")
-            state.linkToken = app.commandKeyword("link")
-            state.aiToken = app.commandKeyword("ai")
+            state.tabToken = app.isSearchCommandEnabled("tabs") ? app.commandKeyword("tabs") : ""
+            state.bookmarkToken = app.isSearchCommandEnabled("bookmark") ? app.commandKeyword("bookmark") : ""
+            state.linkToken = app.isSearchCommandEnabled("link") ? app.commandKeyword("link") : ""
+            state.aiToken = app.isSearchCommandEnabled("ai") ? app.commandKeyword("ai") : ""
             return state
         }
         set { storedInputState = newValue }
@@ -538,7 +538,9 @@ final class LauncherModel {
             }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             if filter == .all {
-                for command in AppModel.searchCommands {
+                // An exact trigger must outrank a command whose name merely contains the query.
+                var nameMatches: [SearchResult] = []
+                for command in AppModel.searchCommands where app.isSearchCommandEnabled(command.0) {
                     let exact = app.commandKeyword(command.0).caseInsensitiveCompare(trimmed) == .orderedSame
                     let categoryName = (LauncherFilter(commandID: command.0) != nil || command.0 == "colorPicker") && !trimmed.isEmpty &&
                         (command.1.localizedStandardContains(trimmed) ||
@@ -546,9 +548,11 @@ final class LauncherModel {
                     guard exact || categoryName,
                           command.0 != "bookmark" || canSearchBookmarks,
                           command.0 != "tabs" || tabCoordinator != nil else { continue }
-                    direct.append(SearchResult(source: .keyword, target: TargetRef(kind: "search-command", identifier: command.0),
-                                               title: NSLocalizedString(command.1, comment: ""), actions: [.open], score: 100))
+                    let result = SearchResult(source: .keyword, target: TargetRef(kind: "search-command", identifier: command.0),
+                                              title: NSLocalizedString(command.1, comment: ""), actions: [.open], score: 100)
+                    if exact { direct.append(result) } else { nameMatches.append(result) }
                 }
+                direct += nameMatches
             }
             let hasExactSearchCommand = direct.contains { $0.target.kind == "search-command" }
             if filter == .all, !hasExactSearchCommand, tabCoordinator != nil, !trimmed.isEmpty {
@@ -872,7 +876,8 @@ final class LauncherModel {
         guard let action else { return }
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
         if r.target.kind == "search-command" {
-            guard AppModel.searchCommands.contains(where: { $0.0 == r.target.identifier }) else { return }
+            guard AppModel.searchCommands.contains(where: { $0.0 == r.target.identifier }),
+                  app.isSearchCommandEnabled(r.target.identifier) else { return }
             if r.target.identifier == "colorPicker" {
                 onHide()
                 Task { @MainActor in

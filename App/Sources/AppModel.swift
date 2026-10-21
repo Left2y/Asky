@@ -183,6 +183,10 @@ final class AppModel {
             ?? Self.searchCommands.first(where: { $0.0 == id })?.2 ?? id
     }
 
+    func isSearchCommandEnabled(_ id: String) -> Bool {
+        !preferences.disabledSearchCommands.contains(id)
+    }
+
     func commandKeywordProblem(_ value: String, id: String) -> String? {
         guard !value.isEmpty, !value.contains(where: \.isWhitespace) else {
             return NSLocalizedString("指令不能为空或包含空格。", comment: "")

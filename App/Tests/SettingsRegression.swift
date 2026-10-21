@@ -204,6 +204,11 @@ enum SettingsRegression {
                 let defaults: Set<String> = ["ds", "yt", "bd", "hb", "zh", "xhs", "wb"]
                 precondition(SettingsPreferences().disabledBuiltInCommands == defaults)
                 precondition(legacyCommands.disabledBuiltInCommands == defaults)
+                precondition(SettingsPreferences().disabledSearchCommands.isEmpty)
+                precondition(legacyCommands.disabledSearchCommands.isEmpty)
+                let disabledTabCommand = try JSONDecoder().decode(SettingsPreferences.self,
+                    from: Data(#"{"disabledSearchCommands":["tabs"]}"#.utf8))
+                precondition(disabledTabCommand.disabledSearchCommands == ["tabs"])
                 let explicitlyEnabled = try JSONDecoder().decode(SettingsPreferences.self,
                     from: Data(#"{"disabledBuiltInCommands":[]}"#.utf8))
                 precondition(explicitlyEnabled.disabledBuiltInCommands.isEmpty)
@@ -248,6 +253,19 @@ enum SettingsRegression {
                 precondition(tabLauncher.results.first?.target.kind == "search-command")
                 precondition(tabLauncher.results.filter { $0.source == .app }.count == 8)
                 precondition(tabLauncher.results.filter { $0.source == .shortcut }.count == 3)
+                model.preferences.disabledSearchCommands.insert("tabs")
+                tabLauncher.query = "st"
+                try await Task.sleep(for: .milliseconds(300))
+                precondition(!tabLauncher.results.contains {
+                    $0.target.kind == "search-command" && $0.target.identifier == "tabs"
+                })
+                tabLauncher.query = "st fixture"
+                precondition(!tabLauncher.isTabScope && tabLauncher.inputText == "st fixture")
+                let disabledTabs = try AppModel(root: root)
+                precondition(disabledTabs.preferences.disabledSearchCommands.contains("tabs"))
+                model.preferences.disabledSearchCommands.remove("tabs")
+                tabLauncher.query = "st"
+                print("Search command defaults, disabled routing and persistence passed")
                 if CommandLine.arguments.contains("--search-commands") {
                     let controller = LauncherController(model: tabLauncher)
                     controller.show()
@@ -316,7 +334,8 @@ enum SettingsRegression {
                         if customized { model.preferences.commandKeywords[command.0] = token }
                         searchLauncher.query = token.uppercased()
                         try await Task.sleep(for: .milliseconds(300))
-                        precondition(searchLauncher.results.first?.target == TargetRef(kind: "search-command", identifier: command.0))
+                        precondition(searchLauncher.results.first?.target == TargetRef(kind: "search-command", identifier: command.0),
+                                     "missing \(command.0) entry for \(customized ? "custom" : "default") token; got \(String(describing: searchLauncher.results.prefix(3).map { "\($0.target.kind):\($0.target.identifier)" }))")
                         precondition(!searchLauncher.results.contains { ["tab-search", "bookmark-search"].contains($0.target.kind) })
                         if !customized, CommandLine.arguments.contains("--search-commands") {
                             guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else { fatalError("missing search commands panel") }
@@ -330,17 +349,20 @@ enum SettingsRegression {
                                 try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/search-entry-\(command.0)-\(appearance).png"))
                             }
                         }
-                        searchLauncher.submit(.executeSelection)
-                        precondition(searchLauncher.hasScope && searchLauncher.inputText.isEmpty)
-                        precondition(searchLauncher.isTabScope == (command.0 == "tabs"))
-                        precondition(searchLauncher.isBookmarkScope == (command.0 == "bookmark"))
-                        precondition(searchLauncher.isLinkScope == (command.0 == "link"))
-                        precondition(searchLauncher.isAIScope == (command.0 == "ai"))
-                        precondition(unexpectedPrompts.isEmpty)
-                        precondition(searchLauncher.backspaceOnEmptyInput() && !searchLauncher.hasScope)
-                        searchLauncher.query = token + " "
-                        precondition(searchLauncher.hasScope && searchLauncher.inputText.isEmpty)
-                        searchLauncher.leaveCommand()
+                        // The screen picker is a one-shot action, not an input scope.
+                        if command.0 != "colorPicker" {
+                            searchLauncher.submit(.executeSelection)
+                            precondition(searchLauncher.hasScope && searchLauncher.inputText.isEmpty)
+                            precondition(searchLauncher.isTabScope == (command.0 == "tabs"))
+                            precondition(searchLauncher.isBookmarkScope == (command.0 == "bookmark"))
+                            precondition(searchLauncher.isLinkScope == (command.0 == "link"))
+                            precondition(searchLauncher.isAIScope == (command.0 == "ai"))
+                            precondition(unexpectedPrompts.isEmpty)
+                            precondition(searchLauncher.backspaceOnEmptyInput() && !searchLauncher.hasScope)
+                            searchLauncher.query = token + " "
+                            precondition(searchLauncher.hasScope && searchLauncher.inputText.isEmpty)
+                            searchLauncher.leaveCommand()
+                        }
                         model.preferences.commandKeywords.removeValue(forKey: command.0)
                     }
                 }

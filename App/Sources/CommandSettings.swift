@@ -4,9 +4,19 @@ import DirectActions
 struct CommandSettings: View {
     @Bindable var app: AppModel
     @State private var query = ""
-    @Environment(\.colorScheme) private var scheme
+    @State private var searchCommandQuery = ""
     @FocusState private var searchFocused: Bool
+    @FocusState private var searchCommandFocused: Bool
     @FocusState private var focusedCommand: String?
+
+    private var filteredSearchCommands: [(String, String, String)] {
+        let term = searchCommandQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return AppModel.searchCommands.filter {
+            term.isEmpty || app.commandKeyword($0.0).localizedStandardContains(term) || $0.0.localizedStandardContains(term)
+                || $0.1.localizedStandardContains(term)
+                || NSLocalizedString($0.1, comment: "").localizedStandardContains(term)
+        }
+    }
 
     private var filteredCommands: [KeywordCommand] {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -21,20 +31,38 @@ struct CommandSettings: View {
         ScrollViewReader { proxy in
             SettingsForm {
                 Section {
-                    ForEach(AppModel.searchCommands.filter { item in
-                        query.isEmpty || app.commandKeyword(item.0).localizedStandardContains(query)
-                            || NSLocalizedString(item.1, comment: "").localizedStandardContains(query)
-                    }, id: \.0) { item in
-                        HStack(spacing: 10) {
-                            LauncherFunctionIcon(kind: .searchCommand(item.0))
-                            Text(NSLocalizedString(item.1, comment: ""))
-                            Spacer()
+                    if filteredSearchCommands.isEmpty {
+                        Text(NSLocalizedString("未找到匹配的指令", comment: ""))
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(filteredSearchCommands, id: \.0) { item in
+                        LabeledContent {
                             CommandKeywordEditor(app: app, id: item.0, focus: $focusedCommand)
                                 .id(item.0)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Toggle(NSLocalizedString(item.1, comment: ""), isOn: Binding(
+                                    get: { app.isSearchCommandEnabled(item.0) },
+                                    set: { enabled in
+                                        if enabled { app.preferences.disabledSearchCommands.remove(item.0) }
+                                        else { app.preferences.disabledSearchCommands.insert(item.0) }
+                                    }
+                                ))
+                                .toggleStyle(.checkbox)
+                                .labelsHidden()
+                                .accessibilityIdentifier("search-command-enabled-" + item.0)
+                                LauncherFunctionIcon(kind: .searchCommand(item.0))
+                                    .accessibilityHidden(true)
+                                Text(NSLocalizedString(item.1, comment: ""))
+                            }
                         }
                     }
                 } header: {
-                    Text(NSLocalizedString("搜索指令", comment: ""))
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(NSLocalizedString("搜索指令", comment: ""))
+                        CommandSearchField(query: $searchCommandQuery, focus: $searchCommandFocused,
+                                           placeholder: "搜索指令或名称", identifier: "search-command-search")
+                    }
                 }
                 Section {
                     if filteredCommands.isEmpty {
@@ -66,32 +94,15 @@ struct CommandSettings: View {
                 } header: {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(NSLocalizedString("内置指令", comment: ""))
-                        HStack(spacing: 8) {
-                            Image(mingCute: "magnifyingglass").foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                            TextField(NSLocalizedString("搜索指令或名称", comment: ""), text: $query)
-                                .textFieldStyle(.plain)
-                                .focused($searchFocused)
-                                .accessibilityIdentifier("command-search")
-                            if !query.isEmpty {
-                                Button {
-                                    query = ""
-                                } label: {
-                                    Image(mingCute: "xmark.circle.fill").foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(NSLocalizedString("清除搜索", comment: ""))
-                            }
-                        }
-                        .font(.system(size: 14))
-                        .padding(8)
-                        .settingsInputChrome(scheme: scheme, focused: searchFocused, cornerRadius: 8)
+                        CommandSearchField(query: $query, focus: $searchFocused,
+                                           placeholder: "搜索指令或名称", identifier: "command-search")
                     }
                 }
             }
             .task(id: app.commandEditRequest?.token) {
                 guard let request = app.commandEditRequest else { return }
                 query = ""
+                searchCommandQuery = ""
                 await Task.yield()
                 guard !Task.isCancelled else { return }
                 proxy.scrollTo(request.id, anchor: .center)
@@ -99,6 +110,37 @@ struct CommandSettings: View {
                 app.commandEditRequest = nil
             }
         }
+    }
+}
+
+private struct CommandSearchField: View {
+    @Binding var query: String
+    let focus: FocusState<Bool>.Binding
+    let placeholder: String
+    let identifier: String
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(mingCute: "magnifyingglass").foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField(NSLocalizedString(placeholder, comment: ""), text: $query)
+                .textFieldStyle(.plain)
+                .focused(focus)
+                .accessibilityIdentifier(identifier)
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(mingCute: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(NSLocalizedString("清除搜索", comment: ""))
+            }
+        }
+        .font(.system(size: 14))
+        .padding(8)
+        .settingsInputChrome(scheme: scheme, focused: focus.wrappedValue, cornerRadius: 8)
     }
 }
 

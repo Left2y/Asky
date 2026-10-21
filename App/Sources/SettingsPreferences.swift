@@ -33,6 +33,8 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var commandKeywords: [String: String] = [:]
     static let defaultDisabledBuiltInCommands: Set<String> = ["ds", "yt", "bd", "hb", "zh", "xhs", "wb"]
     var disabledBuiltInCommands = Self.defaultDisabledBuiltInCommands
+    /// Search commands (screen picker, tabs, categories…) stay enabled by default.
+    var disabledSearchCommands: Set<String> = []
     static let key = "app.preferences.v1"
     static let defaultClipboardHotKey = (code: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | shiftKey), label: "⌃⇧ C")
 
@@ -70,6 +72,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
         commandKeywords = try c.decodeIfPresent([String: String].self, forKey: .commandKeywords) ?? [:]
         disabledBuiltInCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledBuiltInCommands) ?? d.disabledBuiltInCommands
+        disabledSearchCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledSearchCommands) ?? d.disabledSearchCommands
     }
 }
 

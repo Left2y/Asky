@@ -54,6 +54,8 @@ struct ChatItem: Identifiable, Hashable {
 final class AgentModel {
     func openSettings(permissions: Bool = false) { app.openSettings(permissions: permissions) }
 
+    var shortcutPreferences: SettingsPreferences { app.preferences }
+
     var pluginManager: PluginManager { app.tools.plugins }
 
     /// Global setting shared by every conversation; ToolService reads it on each call.

@@ -4,6 +4,8 @@ import Theme
 
 private final class ComposerTextView: NSTextView {
     var pasteAttachment: () -> Bool = { false }
+    var shortcuts = SettingsPreferences()
+    var submit: () -> Void = {}
     var focusChanged: (Bool) -> Void = { _ in }
     var placeholderColor: NSColor = .placeholderTextColor {
         didSet { needsDisplay = true }
@@ -47,6 +49,12 @@ private final class ComposerTextView: NSTextView {
     // paste shortcut directly, including image-only pasteboards that plain
     // NSTextView would otherwise mark as unavailable.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if !hasMarkedText(), shortcuts.shortcut(.send).matches(event) {
+            submit(); return true
+        }
+        if !hasMarkedText(), shortcuts.shortcut(.newline).matches(event) {
+            insertNewlineIgnoringFieldEditor(nil); return true
+        }
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
            event.charactersIgnoringModifiers?.lowercased() == "v" {
             paste(nil)
@@ -56,6 +64,10 @@ private final class ComposerTextView: NSTextView {
     }
 
     override func keyDown(with event: NSEvent) {
+        if !hasMarkedText(), shortcuts.shortcut(.send).matches(event) { submit(); return }
+        if !hasMarkedText(), shortcuts.shortcut(.newline).matches(event) {
+            insertNewlineIgnoringFieldEditor(nil); return
+        }
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
            event.charactersIgnoringModifiers?.lowercased() == "v" {
             paste(nil)
@@ -79,6 +91,7 @@ struct ComposerTextEditor: NSViewRepresentable {
     @Binding var isFocused: Bool
     var pasteAttachment: () -> Bool
     var submit: () -> Void
+    var shortcuts = SettingsPreferences()
     @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -120,6 +133,8 @@ struct ComposerTextEditor: NSViewRepresentable {
         context.coordinator.parent = self
         editor.setFrameSize(NSSize(width: scroll.contentSize.width, height: max(44, editor.frame.height)))
         editor.pasteAttachment = pasteAttachment
+        editor.shortcuts = shortcuts
+        editor.submit = submit
         editor.textColor = NSColor(ThemeColor.kText.color(for: colorScheme))
         editor.placeholderColor = NSColor(ThemeColor.kTextSubtlest.color(for: colorScheme))
         editor.insertionPointColor = editor.textColor ?? .labelColor
@@ -148,11 +163,6 @@ struct ComposerTextEditor: NSViewRepresentable {
             }
         }
         func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-            if selector == #selector(NSResponder.insertNewline(_:)),
-               !textView.hasMarkedText(), !(NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false) {
-                parent.submit()
-                return true
-            }
             return false
         }
     }

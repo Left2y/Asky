@@ -22,6 +22,8 @@ struct LauncherSearchField: NSViewRepresentable {
     var copyPathShortcut = LauncherActionShortcut.copyPath
     var revealInFinderShortcut = LauncherActionShortcut.revealInFinder
     var enterFolder: (() -> Bool)? = nil
+    var shortcuts = SettingsPreferences()
+    var shortcutScope = "launcher"
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -95,28 +97,42 @@ struct LauncherSearchField: NSViewRepresentable {
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
             guard !textView.hasMarkedText() else { return false }
+            let event = NSApp.currentEvent
+            let clipboard = parent.shortcutScope == "clipboard"
+            func matches(_ action: LocalShortcutAction) -> Bool {
+                let shortcut = parent.shortcuts.shortcut(action)
+                if let event { return shortcut.matches(event) }
+                return shortcut.hasSameKeys(as: action.defaultShortcut)
+            }
+            if selector == #selector(NSResponder.cancelOperation(_:)),
+               !matches(clipboard ? .clipboardEscape : .launcherEscape) { return true }
             switch selector {
             case #selector(NSResponder.insertTab(_:)):
-                guard parent.enterFolder?() == true else { return false }
+                guard matches(.enterFolder), parent.enterFolder?() == true else { return false }
                 if let field = control as? NSTextField { synchronize(field) }
                 return true
             case #selector(NSResponder.deleteBackward(_:)):
-                guard parent.text.isEmpty, parent.backspaceOnEmpty() else { return false }
+                guard matches(.back), parent.text.isEmpty, parent.backspaceOnEmpty() else { return false }
                 if let field = control as? NSTextField { synchronize(field) }
                 return true
             case #selector(NSResponder.moveUp(_:)):
+                guard matches(clipboard ? .clipboardUp : .launcherUp) else { return false }
                 parent.move(-1)
                 return true
             case #selector(NSResponder.moveDown(_:)):
+                guard matches(clipboard ? .clipboardDown : .launcherDown) else { return false }
                 parent.move(1)
                 return true
             case #selector(NSResponder.moveLeft(_:)), #selector(NSResponder.moveRight(_:)):
-                guard let moveHorizontal = parent.moveHorizontal else { return false }
+                guard matches(selector == #selector(NSResponder.moveLeft(_:)) ? .clipboardLeft : .clipboardRight),
+                      let moveHorizontal = parent.moveHorizontal else { return false }
                 moveHorizontal(selector == #selector(NSResponder.moveLeft(_:)) ? -1 : 1)
                 return true
             case #selector(NSResponder.insertNewline(_:)),
                  #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)):
-                parent.submit(NSApp.currentEvent?.modifierFlags.contains(.command) == true)
+                let secondary = matches(clipboard ? .clipboardCopy : .askAI)
+                guard secondary || matches(clipboard ? .paste : .execute) else { return false }
+                parent.submit(secondary)
                 return true
             default:
                 return false

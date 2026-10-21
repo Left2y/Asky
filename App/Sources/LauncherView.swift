@@ -68,7 +68,9 @@ final class LauncherPanel: NSPanel {
 
     override func sendEvent(_ event: NSEvent) {
         if onActionKey(event) { return }
-        if SettingsShortcut.matches(event) { onOpenSettings(); return }
+        if actionPreferences().shortcut(.settings).matches(event) { onOpenSettings(); return }
+        if actionPreferences().shortcut(.launcherEscape).matches(event),
+           (firstResponder as? NSTextView)?.hasMarkedText() != true { onEscape(); return }
         // Intercept before SwiftUI/field editor routing so ⌥⌘C never degrades to ⌘C.
         if actionPreferences().copyPathHotKey.matches(event),
            (firstResponder as? NSTextView)?.hasMarkedText() != true,
@@ -102,7 +104,10 @@ final class LauncherPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
-    override func cancelOperation(_ sender: Any?) { onEscape() }
+    override func cancelOperation(_ sender: Any?) {
+        if let event = NSApp.currentEvent, !actionPreferences().shortcut(.launcherEscape).matches(event) { return }
+        onEscape()
+    }
     override func becomeKey() {
         super.becomeKey()
         onKeyChange(true)
@@ -403,7 +408,8 @@ struct LauncherView: View {
                     revealInFinder: model.revealSelectionInFinder,
                     copyPathShortcut: model.actionPreferences.copyPathHotKey,
                     revealInFinderShortcut: model.actionPreferences.revealInFinderHotKey,
-                    enterFolder: model.enterSelectedFolder
+                    enterFolder: model.enterSelectedFolder,
+                    shortcuts: model.actionPreferences, shortcutScope: "launcher"
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)

@@ -1049,29 +1049,35 @@ extension LauncherModel {
         }
         guard event.type == .keyDown,
               (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }
-        let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        if event.keyCode == 40, modifiers == .command {
-            // Reserve ⌘K consistently, even for results without secondary actions.
+        func matches(_ action: LocalShortcutAction) -> Bool { actionPreferences.shortcut(action).matches(event) }
+        if matches(.launcherEscape) {
+            guard isActionsMenuPresented else { return false }
+            closeActionsMenu(); return true
+        }
+        if matches(.launcherMore) {
             if !event.isARepeat { toggleActionsMenu() }
             return true
         }
-        if event.keyCode == 8, modifiers == .command,
+        if matches(.copyFile),
            ((NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().length ?? 0) == 0,
            copySelectedFile() { return true }
-        if event.keyCode == 47, modifiers == [.command, .shift],
-           copySelectedFileName() { return true }
-        if event.keyCode == 34, modifiers == .command,
-           showSelectedFileInfo() { return true }
-        guard isActionsMenuPresented else { return false }
-        if modifiers.isEmpty {
-            switch event.keyCode {
-            case 125: move(1); return true
-            case 126: move(-1); return true
-            case 36, 76: performHighlightedAction(); return true
-            case 53: closeActionsMenu(); return true
-            default: break
+        if matches(.copyName), copySelectedFileName() { return true }
+        if matches(.fileInfo), showSelectedFileInfo() { return true }
+        if matches(.reveal), revealSelectionInFinder() { return true }
+        if matches(.copyPath), copySelectedPath() { return true }
+        if matches(.launcherUp) { move(-1); return true }
+        if matches(.launcherDown) { move(1); return true }
+        if matches(.execute) {
+            if !event.isARepeat {
+                if isActionsMenuPresented { performHighlightedAction() }
+                else { submit(.executeSelection) }
             }
+            return true
         }
+        if matches(.askAI) { if !event.isARepeat { submit(.submitToAI) }; return true }
+        if matches(.enterFolder), enterSelectedFolder() { return true }
+        if matches(.back), inputText.isEmpty, backspaceOnEmptyInput() { return true }
+        guard isActionsMenuPresented else { return false }
         // Typing resumes search; editing is still handled by the native field editor.
         if event.characters?.isEmpty == false { closeActionsMenu() }
         return false
@@ -1085,21 +1091,21 @@ extension LauncherModel {
     var primaryLauncherAction: LauncherAction? {
         guard let result = selectedActionResult, let action = result.primaryAction else { return nil }
         if QuitAskyCommand.isResult(result) {
-            return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: "↵", kind: .result(action))
+            return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == "application-window" {
-            return LauncherAction(title: "切换窗口", icon: "web", shortcut: "↵", kind: .result(action))
+            return LauncherAction(title: "切换窗口", icon: "web", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == "search-command" {
-            return LauncherAction(title: result.title, icon: "magnifyingglass", shortcut: "↵", kind: .result(action))
+            return LauncherAction(title: result.title, icon: "magnifyingglass", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == "tab-search" {
-            return LauncherAction(title: "搜索开启的标签页", icon: "globe", shortcut: "↵", kind: .result(action))
+            return LauncherAction(title: "搜索开启的标签页", icon: "globe", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == Self.bookmarkSearchKind {
-            return LauncherAction(title: "搜索书签", icon: "bookmark", shortcut: "↵", kind: .result(action))
+            return LauncherAction(title: "搜索书签", icon: "bookmark", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
-        return LauncherAction(action: action, source: result.source, shortcut: "↵")
+        return LauncherAction(action: action, source: result.source, shortcut: actionPreferences.shortcut(.execute).label)
     }
 
     var finderLauncherAction: LauncherAction? {
@@ -1124,21 +1130,21 @@ extension LauncherModel {
         }
         if canEnterSelectedFolder {
             actions.append(LauncherAction(title: "搜索文件夹", icon: "folder",
-                                          shortcut: "⇥", kind: .enterFolder))
+                                          shortcut: actionPreferences.shortcut(.enterFolder).label, kind: .enterFolder))
         }
         if result.actions.contains(.revealInFinder) {
             if [.file, .app].contains(result.source) {
                 actions.append(LauncherAction(title: "拷贝", icon: "doc.on.clipboard",
-                                              shortcut: "⌘ C", kind: .copyFile))
+                                              shortcut: actionPreferences.shortcut(.copyFile).label, kind: .copyFile))
             }
             actions.append(LauncherAction(title: "复制路径", icon: "doc.on.clipboard",
                                           shortcut: actionPreferences.copyPathHotKey.label, kind: .copyPath))
         }
         if [.file, .app].contains(result.source), result.actions.contains(.revealInFinder) {
             actions.append(LauncherAction(title: "复制文件名", icon: "doc.on.clipboard",
-                                          shortcut: "⇧⌘ .", kind: .copyFileName))
+                                          shortcut: actionPreferences.shortcut(.copyName).label, kind: .copyFileName))
             actions.append(LauncherAction(title: "展示文件信息", icon: "info.circle",
-                                          shortcut: "⌘ I", kind: .showFileInfo))
+                                          shortcut: actionPreferences.shortcut(.fileInfo).label, kind: .showFileInfo))
         }
         let link = result.source == .chromeTab ? result.subtitle : result.target.identifier
         if [.link, .bookmark, .chromeTab].contains(result.source), LauncherWebURL.parse(link) != nil {

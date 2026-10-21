@@ -78,7 +78,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 网站指令默认仅开启 `go`、`chat`、`dy`、`tb`、`jd`、`bl`、`gh`、`x`；其余默认关闭，已有启停配置保留。仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
 
-“设置 › 触发快捷键”按全局、文件与应用、启动器、剪贴板和 AI 对话分组展示快捷键；现有 5 项支持录制修改，其余显示固定按键供查阅。Chrome 搜索与系统工具需要相应授权。完整操作见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
+“设置 › 触发快捷键”按全局、文件与应用、启动器、剪贴板和 AI 对话分组展示快捷键；所有项目均支持点击录制、保存和恢复默认；方向键可分别修改，同一窗口内的冲突组合会被拒绝。Chrome 搜索与系统工具需要相应授权。完整操作见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
 
 ### AI 配置与隐私
 
@@ -117,6 +117,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-s
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --command-layout
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --settings-focus
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --hotkeys-only
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --local-shortcuts
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --sources-only
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
@@ -213,7 +214,7 @@ Settings › Commands has Search Commands and Built-in Commands tabs. The shared
 
 Website commands enable only `go`, `chat`, `dy`, `tb`, `jd`, `bl`, `gh`, and `x` by default; the others start disabled. Existing saved choices are preserved. Commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
 
-Settings › Keyboard Shortcuts groups global, file and application, launcher, clipboard, and AI conversation shortcuts. The existing five shortcuts can be customized; the others display their fixed keys for reference. Chrome search and system tools require the relevant permissions. See the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs) for full instructions.
+Settings › Keyboard Shortcuts groups global, file and application, launcher, clipboard, and AI conversation shortcuts. Every shortcut supports click-to-record customization, persistence, and resetting to its default. Arrow keys can be customized individually; conflicting combinations within the same window are rejected. Chrome search and system tools require the relevant permissions. See the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs) for full instructions.
 
 ### AI Configuration and Privacy
 
@@ -252,6 +253,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-s
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --command-layout
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --settings-focus
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --hotkeys-only
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --local-shortcuts
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --sources-only
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories

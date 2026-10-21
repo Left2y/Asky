@@ -30,7 +30,8 @@ for path in sorted(maps.glob("*.modulemap")):
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
     command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
-command += [str(root / "App/Tests/SettingsRegression.swift")]
+test_source = "LocalShortcutsRegression.swift" if "--local-shortcuts" in sys.argv else "SettingsRegression.swift"
+command += [str(root / "App/Tests" / test_source)]
 command += [str(path) for path in sorted(products.glob("*.o"))]
 binary = root / "build/settings-regression"
 command += ["-lsqlite3", "-o", str(binary)]

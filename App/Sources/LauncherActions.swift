@@ -56,7 +56,7 @@ struct LauncherActionBar: View {
             }
             Spacer(minLength: 12)
             if !model.secondaryActions.isEmpty {
-                LauncherActionLabel(title: "更多", shortcut: "⌘ K")
+                LauncherActionLabel(title: "更多", shortcut: model.actionPreferences.shortcut(.launcherMore).label)
                     .hidden()
                     .accessibilityHidden(true)
                     .anchorPreference(key: LauncherMoreAnchorKey.self, value: .bounds) { $0 }
@@ -210,7 +210,7 @@ struct LauncherMorphingActions: View {
 
     private var button: some View {
         Button { model.toggleActionsMenu() } label: {
-            LauncherActionLabel(title: "更多", shortcut: "⌘ K")
+            LauncherActionLabel(title: "更多", shortcut: model.actionPreferences.shortcut(.launcherMore).label)
         }
         .buttonStyle(LauncherActionButtonStyle())
         .fixedSize()

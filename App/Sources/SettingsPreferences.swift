@@ -29,6 +29,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var agentHotKeyLabel = Self.defaultAgentHotKey.label
     var revealInFinderHotKey = LauncherActionShortcut.revealInFinder
     var copyPathHotKey = LauncherActionShortcut.copyPath
+    var localShortcuts: [String: LauncherActionShortcut] = [:]
     var aliases: [LauncherAlias] = []
     var commandKeywords: [String: String] = [:]
     static let defaultDisabledBuiltInCommands: Set<String> = ["ds", "yt", "bd", "hb", "zh", "xhs", "wb"]
@@ -69,6 +70,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         agentHotKeyLabel = try c.decodeIfPresent(String.self, forKey: .agentHotKeyLabel) ?? d.agentHotKeyLabel
         revealInFinderHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .revealInFinderHotKey) ?? d.revealInFinderHotKey
         copyPathHotKey = try c.decodeIfPresent(LauncherActionShortcut.self, forKey: .copyPathHotKey) ?? d.copyPathHotKey
+        localShortcuts = try c.decodeIfPresent([String: LauncherActionShortcut].self, forKey: .localShortcuts) ?? [:]
         aliases = try c.decodeIfPresent([LauncherAlias].self, forKey: .aliases) ?? d.aliases
         commandKeywords = try c.decodeIfPresent([String: String].self, forKey: .commandKeywords) ?? [:]
         disabledBuiltInCommands = try c.decodeIfPresent(Set<String>.self, forKey: .disabledBuiltInCommands) ?? d.disabledBuiltInCommands
@@ -90,7 +92,7 @@ struct LauncherActionShortcut: Codable, Equatable, Sendable {
         for (carbon, flag) in [(cmdKey, NSEvent.ModifierFlags.command), (optionKey, .option), (controlKey, .control), (shiftKey, .shift)] {
             if modifiers & UInt32(carbon) != 0 { flags.insert(flag) }
         }
-        return event.type == .keyDown && UInt32(event.keyCode) == code
+        return event.type == .keyDown && (UInt32(event.keyCode) == code || (code == 36 && event.keyCode == 76))
             && event.modifierFlags.intersection([.command, .option, .control, .shift]) == flags
     }
 }

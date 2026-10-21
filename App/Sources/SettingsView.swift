@@ -59,77 +59,47 @@ private struct HotKeySettings: View {
                 Text(NSLocalizedString("全局快捷键", comment: ""))
             }
             Section {
-                shortcutRow("在访达中显示", label: app.preferences.revealInFinderHotKey.label,
-                            apply: { setLocal($0, $1, $2, keyPath: \.revealInFinderHotKey) }) {
-                    let d = LauncherActionShortcut.revealInFinder
-                    return setLocal(d.code, d.modifiers, d.label, keyPath: \.revealInFinderHotKey)
-                }
-                shortcutRow("复制文件路径", label: app.preferences.copyPathHotKey.label,
-                            apply: { setLocal($0, $1, $2, keyPath: \.copyPathHotKey) }) {
-                    let d = LauncherActionShortcut.copyPath
-                    return setLocal(d.code, d.modifiers, d.label, keyPath: \.copyPathHotKey)
-                }
-                referenceRow("复制文件", keys: "⌘ C")
-                referenceRow("复制文件名", keys: "⌘⇧ .")
-                referenceRow("展示文件信息", keys: "⌘ I")
+                localRows([.reveal, .copyPath, .copyFile, .copyName, .fileInfo])
             } header: {
                 Text(NSLocalizedString("文件与应用", comment: ""))
             }
             Section {
-                referenceRow("执行选中结果", keys: "↵")
-                referenceRow("询问 AI", keys: "⌘ ↵")
-                referenceRow("更多", keys: "⌘ K")
-                referenceRow("选择结果或操作", keys: "↑ / ↓")
-                referenceRow("进入选中文件夹", keys: "Tab")
-                referenceRow("返回上级或退出导航", keys: "⌫")
-                referenceRow("关闭菜单、退出导航或隐藏窗口", keys: "Esc")
-                referenceRow("打开设置", keys: "⌘ ,")
+                localRows([.execute, .askAI, .launcherMore, .launcherUp, .launcherDown, .enterFolder, .back, .launcherEscape, .settings])
             } header: {
                 Text(NSLocalizedString("启动器", comment: ""))
             }
             Section {
-                referenceRow("粘贴到光标位置", keys: "↵")
-                referenceRow("复制到剪贴板", keys: "⌘ ↵")
-                referenceRow("删除记录", keys: "⌘ ⌫")
-                referenceRow("更多（列表布局）", keys: "⌘ K")
-                referenceRow("选择记录", keys: "↑ / ↓ / ← / →")
-                referenceRow("关闭菜单或剪贴板", keys: "Esc")
+                localRows([.paste, .clipboardCopy, .delete, .clipboardMore, .clipboardUp, .clipboardDown, .clipboardLeft, .clipboardRight, .clipboardEscape])
             } header: {
                 Text(NSLocalizedString("剪贴板历史", comment: ""))
             }
             Section {
-                referenceRow("发送消息", keys: "↵")
-                referenceRow("输入换行", keys: "⇧ ↵")
-                referenceRow("新对话", keys: "⌘ N")
-                referenceRow("历史对话", keys: "⌘⇧ H")
-                referenceRow("关闭对话窗口", keys: "⌘ W")
-                referenceRow("返回对话或关闭窗口", keys: "Esc")
-                referenceRow("打开设置", keys: "⌘ ,")
+                localRows([.send, .newline, .newChat, .history, .closeChat, .agentEscape, .settings])
             } header: {
                 Text(NSLocalizedString("AI 对话", comment: ""))
             }
         }.formStyle(.grouped)
     }
 
-    private func referenceRow(_ title: String, keys: String) -> some View {
-        HStack(spacing: 24) {
-            Text(NSLocalizedString(title, comment: ""))
-            Spacer(minLength: 12)
-            Text(keys)
-                .monospaced()
-                .foregroundStyle(.secondary)
-                .fixedSize()
+    private func localRows(_ actions: [LocalShortcutAction]) -> some View {
+        ForEach(actions) { action in
+            shortcutRow(action.title, label: app.preferences.shortcut(action).label,
+                        allowsPlainKey: true, apply: { code, modifiers, label in
+                app.preferences.setShortcut(action, .init(code: code, modifiers: modifiers, label: label))
+            }, reset: {
+                app.preferences.setShortcut(action, action.defaultShortcut)
+            })
         }
     }
 
-    private func shortcutRow(_ title: String, label: String, status: String = "",
+    private func shortcutRow(_ title: String, label: String, status: String = "", allowsPlainKey: Bool = false,
                              apply: @escaping (UInt32, UInt32, String) -> Bool,
                              reset: @escaping () -> Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(NSLocalizedString(title, comment: ""))
                 Spacer()
-                HotKeyRecorder(label: label, apply: apply).frame(width: 180, height: 30)
+                HotKeyRecorder(label: label, allowsPlainKey: allowsPlainKey, apply: apply).frame(width: 180, height: 30)
                 SettingsButton(NSLocalizedString("恢复默认", comment: "")) { _ = reset() }
             }
             if !status.isEmpty, status != NSLocalizedString("已注册", comment: "") {
@@ -139,22 +109,10 @@ private struct HotKeySettings: View {
     }
 
     private func conflictsWithLocal(_ code: UInt32, _ modifiers: UInt32) -> Bool {
-        [app.preferences.revealInFinderHotKey, app.preferences.copyPathHotKey]
-            .contains { $0.code == code && $0.modifiers == modifiers }
-    }
-
-    @discardableResult private func setLocal(_ code: UInt32, _ modifiers: UInt32, _ label: String,
-                                             keyPath: WritableKeyPath<SettingsPreferences, LauncherActionShortcut>) -> Bool {
-        let p = app.preferences
-        let other = keyPath == \.copyPathHotKey ? p.revealInFinderHotKey : p.copyPathHotKey
-        let reserved: [(UInt32, UInt32)] = [
-            (p.hotKeyCode, p.hotKeyModifiers), (p.clipboardHotKeyCode, p.clipboardHotKeyModifiers),
-            (p.agentHotKeyCode, p.agentHotKeyModifiers), (other.code, other.modifiers),
-            (UInt32(kVK_ANSI_Comma), UInt32(cmdKey)), (UInt32(kVK_Return), UInt32(cmdKey))
-        ]
-        guard !reserved.contains(where: { $0.0 == code && $0.1 == modifiers }) else { return false }
-        app.preferences[keyPath: keyPath] = LauncherActionShortcut(code: code, modifiers: modifiers, label: label)
-        return true
+        LocalShortcutAction.allCases.contains {
+            let shortcut = app.preferences.shortcut($0)
+            return shortcut.code == code && shortcut.modifiers == modifiers
+        }
     }
 
     @discardableResult private func setAgent(_ code: UInt32, _ modifiers: UInt32, _ label: String) -> Bool {
@@ -184,21 +142,25 @@ private struct HotKeySettings: View {
 
 private struct HotKeyRecorder: NSViewRepresentable {
     let label: String
+    let allowsPlainKey: Bool
     let apply: (UInt32, UInt32, String) -> Bool
-    func makeNSView(context: Context) -> Recorder { Recorder(label: label, apply: apply) }
+    func makeNSView(context: Context) -> Recorder { Recorder(label: label, allowsPlainKey: allowsPlainKey, apply: apply) }
     func updateNSView(_ view: Recorder, context: Context) {
         view.label = label
         view.apply = apply
+        view.allowsPlainKey = allowsPlainKey
         if !view.recording { view.title = label }
         view.setAccessibilityLabel(String(format: NSLocalizedString("快捷键 %@，点击录制", comment: ""), label))
     }
     final class Recorder: NSButton {
         var label: String
         var apply: (UInt32, UInt32, String) -> Bool
+        var allowsPlainKey: Bool
         var recording = false
         override var acceptsFirstResponder: Bool { true }
-        init(label: String, apply: @escaping (UInt32, UInt32, String) -> Bool) {
+        init(label: String, allowsPlainKey: Bool, apply: @escaping (UInt32, UInt32, String) -> Bool) {
             self.label = label
+            self.allowsPlainKey = allowsPlainKey
             self.apply = apply
             super.init(frame: .zero)
             bezelStyle = .rounded
@@ -224,7 +186,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
             guard recording else { return }
             if event.keyCode == 53 { window?.makeFirstResponder(nil); return }
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard !flags.intersection([.command, .option, .control]).isEmpty else {
+            guard allowsPlainKey || !flags.intersection([.command, .option, .control]).isEmpty else {
                 title = NSLocalizedString("请包含 ⌘、⌥ 或 ⌃", comment: ""); return
             }
             var modifiers: UInt32 = 0
@@ -232,8 +194,8 @@ private struct HotKeyRecorder: NSViewRepresentable {
             for (flag, carbon, symbol) in [(NSEvent.ModifierFlags.control, controlKey, "⌃"), (.option, optionKey, "⌥"), (.shift, shiftKey, "⇧"), (.command, cmdKey, "⌘")] {
                 if flags.contains(flag) { modifiers |= UInt32(carbon); label += symbol }
             }
-            label += " " + Self.keyName(event)
-            if apply(UInt32(event.keyCode), modifiers, label) {
+            label += (label.isEmpty ? "" : " ") + Self.keyName(event)
+            if apply(event.keyCode == 76 ? 36 : UInt32(event.keyCode), modifiers, label) {
                 window?.makeFirstResponder(nil)
             } else {
                 title = NSLocalizedString("已被占用，换一个组合键", comment: "")
@@ -241,7 +203,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
         }
         // charactersIgnoringModifiers is mangled by ⌥ (e.g. ⌥V → √), so use the layout-independent key name where possible.
         static func keyName(_ event: NSEvent) -> String {
-            let special: [Int: String] = [kVK_Space: "Space", kVK_Return: "Return", kVK_Tab: "Tab", kVK_Delete: "Delete",
+            let special: [Int: String] = [kVK_Space: "Space", kVK_Return: "Return", kVK_ANSI_KeypadEnter: "Return", kVK_Tab: "Tab", kVK_Delete: "Delete",
                                           kVK_LeftArrow: "←", kVK_RightArrow: "→", kVK_UpArrow: "↑", kVK_DownArrow: "↓",
                                           kVK_F1: "F1", kVK_F2: "F2", kVK_F3: "F3", kVK_F4: "F4", kVK_F5: "F5", kVK_F6: "F6",
                                           kVK_F7: "F7", kVK_F8: "F8", kVK_F9: "F9", kVK_F10: "F10", kVK_F11: "F11", kVK_F12: "F12"]

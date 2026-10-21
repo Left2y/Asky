@@ -28,17 +28,23 @@ private final class ClipboardPanel: NSPanel {
     var dismiss: () -> Void = {}
     var onOpenSettings: () -> Void = {}
     var handleKey: (NSEvent) -> Bool = { _ in false }
+    var shortcuts: () -> SettingsPreferences = { SettingsPreferences() }
     var scrollsHorizontally = true
     var onMouseDown: (NSEvent) -> Void = { _ in }
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
-    override func cancelOperation(_ sender: Any?) { dismiss() }
+    override func cancelOperation(_ sender: Any?) {
+        if let event = NSApp.currentEvent, !shortcuts().shortcut(.clipboardEscape).matches(event) { return }
+        dismiss()
+    }
 
     /// Cards only scroll horizontally, so a vertical wheel/trackpad gesture scrolls them too (no Shift needed).
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown { onMouseDown(event) }
         if event.type == .keyDown, handleKey(event) { return }
-        if SettingsShortcut.matches(event) { onOpenSettings(); return }
+        if shortcuts().shortcut(.settings).matches(event) { onOpenSettings(); return }
+        if shortcuts().shortcut(.clipboardEscape).matches(event),
+           (firstResponder as? NSTextView)?.hasMarkedText() != true { dismiss(); return }
         if scrollsHorizontally, event.type == .scrollWheel, let converted = ClipboardScroll.horizontal(event) { super.sendEvent(converted) }
         else { super.sendEvent(event) }
     }
@@ -197,6 +203,7 @@ final class ClipboardController {
         }
         panel.handleKey = { [weak self] in self?.handleActionKey($0) ?? false }
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
+        panel.shortcuts = { [weak app] in app?.preferences ?? SettingsPreferences() }
         // Keyboard application switching must also release the outside-click shield.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active, !self.keepingOpenForPaste, !self.isConfirmingClearAll { self.hide() } }
@@ -308,31 +315,41 @@ final class ClipboardController {
     }
 
     func handleActionKey(_ event: NSEvent) -> Bool {
-        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
-        if event.keyCode == 40, modifiers == .command, layout == .list {
-            toggleActionsMenu()
-            return true
-        }
-        if [36, 76].contains(event.keyCode), modifiers == .command {
+        guard event.type == .keyDown,
+              (panel.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }
+        func matches(_ action: LocalShortcutAction) -> Bool { app.preferences.shortcut(action).matches(event) }
+        if matches(.clipboardMore), layout == .list { toggleActionsMenu(); return true }
+        if matches(.clipboardCopy) {
             isActionsMenuPresented = false
             if !event.isARepeat { submitSelection(copyOnly: true) }
             return true
         }
-        if event.keyCode == 51, modifiers == .command {
+        if matches(.delete) {
             isActionsMenuPresented = false
             if !event.isARepeat, let item = selectedItem { delete(item) }
             return true
         }
-        guard isActionsMenuPresented else { return false }
-        switch event.keyCode {
-        case 53: isActionsMenuPresented = false
-        case 125: actionSelection = min(actionKinds.count - 1, actionSelection + 1)
-        case 126: actionSelection = max(0, actionSelection - 1)
-        case 36, 76: performSelectedAction(actionSelection)
-        default: return false
+        if matches(.clipboardEscape) { escape(); return true }
+        if matches(.clipboardUp) || matches(.clipboardDown) {
+            let delta = matches(.clipboardUp) ? -1 : 1
+            if isActionsMenuPresented { actionSelection = min(max(0, actionSelection + delta), actionKinds.count - 1) }
+            else { moveSelection(delta) }
+            return true
         }
-        return true
+        if matches(.clipboardLeft) || matches(.clipboardRight) {
+            moveSelection(matches(.clipboardLeft) ? -1 : 1); return true
+        }
+        if matches(.paste) {
+            if !event.isARepeat {
+                if isActionsMenuPresented { performSelectedAction(actionSelection) }
+                else { submitSelection(copyOnly: false) }
+            }
+            return true
+        }
+        return false
     }
+
+    var shortcutPreferences: SettingsPreferences { app.preferences }
 
     func refresh() {
         let store = app.clipboardStore
@@ -648,7 +665,8 @@ private struct ClipboardHistoryView: View {
                                     placeholderColor: NSColor(ThemeColor.kTextSubtlest.color(for: scheme)),
                                     backspaceOnEmpty: { false }, move: controller.moveSelection,
                                     moveHorizontal: controller.moveSelection,
-                                    submit: { controller.submitSelection(copyOnly: $0) })
+                                    submit: { controller.submitSelection(copyOnly: $0) },
+                                    shortcuts: controller.shortcutPreferences, shortcutScope: "clipboard")
                     .frame(maxWidth: .infinity)
                     .frame(height: 26)
                 HStack(spacing: LauncherLayout.inputSpacing) {
@@ -725,14 +743,14 @@ private struct ClipboardActionBar: View {
         HStack {
             Button { controller.hasPasteTarget ? controller.pasteSelection() : controller.copySelection() } label: {
                 if controller.hasPasteTarget {
-                    label("粘贴到光标位置", shortcut: "↵")
+                    label("粘贴到光标位置", shortcut: controller.shortcutPreferences.shortcut(.paste).label)
                 } else {
-                    label("复制到剪贴板", shortcut: "⌘ ↵")
+                    label("复制到剪贴板", shortcut: controller.shortcutPreferences.shortcut(.clipboardCopy).label)
                 }
             }
             .buttonStyle(LauncherActionButtonStyle())
             Spacer(minLength: 12)
-            label("更多", shortcut: "⌘ K")
+            label("更多", shortcut: controller.shortcutPreferences.shortcut(.clipboardMore).label)
                 .hidden()
                 .accessibilityHidden(true)
                 .anchorPreference(key: LauncherMoreAnchorKey.self, value: .bounds) { $0 }
@@ -794,7 +812,7 @@ private struct ClipboardMorphingActions: View {
 
     private var button: some View {
         Button { controller.toggleActionsMenu() } label: {
-            LauncherActionLabel(title: "更多", shortcut: "⌘ K")
+            LauncherActionLabel(title: "更多", shortcut: controller.shortcutPreferences.shortcut(.clipboardMore).label)
         }
         .buttonStyle(LauncherActionButtonStyle())
         .fixedSize()
@@ -833,9 +851,9 @@ private struct ClipboardActionsMenu: View {
                             .foregroundStyle(kind == .delete || kind == .clearAll ? ThemeColor.kTextNegative : ThemeColor.kText)
                         Spacer(minLength: 8)
                         if kind == .copy {
-                            LauncherActionKeyCap(value: "⌘ ↵")
+                            LauncherActionKeyCap(value: controller.shortcutPreferences.shortcut(.clipboardCopy).label)
                         } else if kind == .delete {
-                            LauncherActionKeyCap(value: "⌘ ⌫")
+                            LauncherActionKeyCap(value: controller.shortcutPreferences.shortcut(.delete).label)
                         }
                     }
                     .font(.system(size: 13))

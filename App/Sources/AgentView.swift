@@ -147,10 +147,16 @@ struct AgentView: View {
         .clipShape(shape)
         .ignoresSafeArea()
         .onChange(of: model.newConversationRevision) { showingHistory = false; historyQuery = "" }
-        .onExitCommand { if showingHistory { showingHistory = false } else { close() } }
+        .background {
+            Button("") { if showingHistory { showingHistory = false } else { close() } }
+                .keyboardShortcut(model.shortcutPreferences.shortcut(.agentEscape).keyEquivalent,
+                                  modifiers: model.shortcutPreferences.shortcut(.agentEscape).eventModifiers)
+                .hidden().accessibilityHidden(true)
+        }
         .background {
             Button("") { model.openSettings() }
-                .keyboardShortcut(",", modifiers: .command).hidden().accessibilityHidden(true)
+                .keyboardShortcut(model.shortcutPreferences.shortcut(.settings).keyEquivalent,
+                                  modifiers: model.shortcutPreferences.shortcut(.settings).eventModifiers).hidden().accessibilityHidden(true)
         }
     }
 
@@ -161,13 +167,15 @@ struct AgentView: View {
                     headerIcon(showingHistory ? "chevron.left" : "list.bullet")
                 }
                 .accessibilityLabel(showingHistory ? NSLocalizedString("返回对话", comment: "") : NSLocalizedString("历史对话", comment: ""))
-                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .keyboardShortcut(model.shortcutPreferences.shortcut(.history).keyEquivalent,
+                                  modifiers: model.shortcutPreferences.shortcut(.history).eventModifiers)
                 Button { model.open(nil); showingHistory = false } label: {
                     headerIcon("pencil")
                 }
                 .disabled(model.isRunning)
                 .accessibilityLabel(NSLocalizedString("新对话", comment: ""))
-                .keyboardShortcut("n", modifiers: .command)
+                .keyboardShortcut(model.shortcutPreferences.shortcut(.newChat).keyEquivalent,
+                                  modifiers: model.shortcutPreferences.shortcut(.newChat).eventModifiers)
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
             ZStack {
@@ -205,7 +213,8 @@ struct AgentView: View {
                 .accessibilityValue(pinned ? NSLocalizedString("已置顶", comment: "") : NSLocalizedString("未置顶", comment: ""))
                 Button(action: close) { headerIcon("xmark") }
                     .accessibilityLabel(NSLocalizedString("关闭对话窗口", comment: ""))
-                    .keyboardShortcut("w", modifiers: .command)
+                    .keyboardShortcut(model.shortcutPreferences.shortcut(.closeChat).keyEquivalent,
+                                  modifiers: model.shortcutPreferences.shortcut(.closeChat).eventModifiers)
             }
             .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
         }
@@ -687,7 +696,7 @@ private struct Composer: View {
             }
             ComposerTextEditor(text: $model.draft, height: $editorHeight,
                 isFocused: $editorFocused,
-                pasteAttachment: { model.pasteAttachments() }, submit: { model.send() })
+                pasteAttachment: { model.pasteAttachments() }, submit: { model.send() }, shortcuts: model.shortcutPreferences)
                 .frame(height: editorHeight)
             .padding(.horizontal, 20)
             HStack {

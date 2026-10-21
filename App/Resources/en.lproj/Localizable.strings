@@ -844,3 +844,11 @@
 "粘贴到光标位置" = "Paste at cursor";
 
 "复制到剪贴板" = "Copy to clipboard";
+
+"选择上一项" = "Select previous item";
+
+"选择下一项" = "Select next item";
+
+"选择左侧记录" = "Select item to the left";
+
+"选择右侧记录" = "Select item to the right";

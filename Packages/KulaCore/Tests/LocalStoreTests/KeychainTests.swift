@@ -29,4 +29,35 @@ import Security
         #expect(!keychain.contains(account: "model"))
         #expect(try keychain.read(account: "model", allowInteraction: false) == nil)
     }
+    @Test func legacyReadMigratesAndNewSavesTakePrecedence() throws {
+        let service = "app.asky.tests.\(UUID().uuidString)"
+        let keychain = Keychain(service: service)
+        defer { keychain.delete(account: "model") }
+        let legacy: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: "model",
+            kSecValueData as String: Data("legacy-synthetic".utf8),
+        ]
+        #expect(SecItemAdd(legacy as CFDictionary, nil) == errSecSuccess)
+        #expect(keychain.contains(account: "model"))
+        #expect(try keychain.read(account: "model", allowInteraction: false) == "legacy-synthetic")
+
+        // Remove only the fixture: further reads must come from the migrated item.
+        let legacyQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: "model",
+        ]
+        #expect(SecItemDelete(legacyQuery as CFDictionary) == errSecSuccess)
+        #expect(try keychain.read(account: "model", allowInteraction: false) == "legacy-synthetic")
+        #expect(SecItemAdd(legacy as CFDictionary, nil) == errSecSuccess)
+        try keychain.set("new-synthetic", account: "model")
+        try keychain.set("updated-synthetic", account: "model")
+        #expect(try keychain.read(account: "model", allowInteraction: false) == "updated-synthetic")
+        keychain.delete(account: "model")
+        #expect(!keychain.contains(account: "model"))
+        #expect(try keychain.read(account: "model", allowInteraction: false) == nil)
+    }
+
 }

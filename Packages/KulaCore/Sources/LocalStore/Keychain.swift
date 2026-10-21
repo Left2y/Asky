@@ -7,6 +7,10 @@ import LocalAuthentication
 public struct Keychain: Sendable {
     public let service: String
 
+    // A fresh namespace lets the signed app own migrated items without changing
+    // legacy ACLs (which requires a separate system authorization).
+    private var ownedService: String { service + ".signed.v1" }
+
     public init(service: String = "app.kulahere.credentials") { self.service = service }
 
     public enum KeychainError: LocalizedError {
@@ -32,17 +36,29 @@ public struct Keychain: Sendable {
     }
 
     public func set(_ secret: String, account: String) throws {
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(base as CFDictionary)
+        try persist(secret, account: account, updateExisting: true)
+    }
+
+    private func persist(_ secret: String, account: String, updateExisting: Bool) throws {
+        let base = query(service: ownedService, account: account)
+        let data = Data(secret.utf8)
+        // Add first so new items inherit the creating app's trusted identity.
+        // Update existing items without deleting the user's only saved value.
         var add = base
-        add[kSecValueData as String] = Data(secret.utf8)
+        add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(add as CFDictionary, nil)
+        var status = SecItemAdd(add as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            guard updateExisting else { return }
+            status = SecItemUpdate(base as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        }
         guard status == errSecSuccess else { throw KeychainError.status(status) }
+    }
+
+    private func query(service: String, account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: service,
+         kSecAttrAccount as String: account]
     }
 
     public func get(account: String) -> String? {
@@ -51,28 +67,36 @@ public struct Keychain: Sendable {
 
     /// Metadata checks must never decrypt a secret or present authentication UI.
     public func contains(account: String) -> Bool {
-        let context = LAContext()
-        context.interactionNotAllowed = true
-        let q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnAttributes as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecUseAuthenticationContext as String: context,
-        ]
-        return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
+        [ownedService, service].contains { itemService in
+            let context = LAContext()
+            context.interactionNotAllowed = true
+            var q = query(service: itemService, account: account)
+            q[kSecReturnAttributes as String] = true
+            q[kSecMatchLimit as String] = kSecMatchLimitOne
+            q[kSecUseAuthenticationContext as String] = context
+            return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
+        }
     }
 
     /// Call interactive reads off the main thread, only for an explicit credential use.
     public func read(account: String, allowInteraction: Bool = true) throws -> String? {
-        var q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+        if let value = try readItem(service: ownedService, account: account, allowInteraction: allowInteraction) {
+            return value
+        }
+        guard let legacy = try readItem(service: service, account: account, allowInteraction: allowInteraction) else {
+            return nil
+        }
+        // A successful one-time legacy read is enough to migrate. Never change its
+        // ACL or remove it: failed persistence must not destroy a working credential.
+        // Failure here does not block this request; a later read retries migration.
+        try? persist(legacy, account: account, updateExisting: false)
+        return legacy
+    }
+
+    private func readItem(service: String, account: String, allowInteraction: Bool) throws -> String? {
+        var q = query(service: service, account: account)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
         // Interactive reads use Keychain's default authorization UI. A fresh LAContext
         // is only needed to explicitly suppress interaction for the first attempt.
         if !allowInteraction {
@@ -89,11 +113,8 @@ public struct Keychain: Sendable {
     }
 
     public func delete(account: String) {
-        let q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(q as CFDictionary)
+        for itemService in [ownedService, service] {
+            SecItemDelete(query(service: itemService, account: account) as CFDictionary)
+        }
     }
 }

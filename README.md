@@ -77,7 +77,7 @@ macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共�
 
 ### AI 配置与隐私
 
-在“设置 › 智能配置”选择模型服务商，填写 API Key 并保存；也可自定义 OpenAI 兼容地址和模型。Key 保存在 macOS 钥匙串，本地数据位于 `~/Library/Application Support/KulaHere/`。
+在“设置 › 智能配置”选择模型服务商，填写 API Key 并保存；也可自定义 OpenAI 兼容地址和模型。Key 保存在 macOS 钥匙串；旧签名凭据在首次成功读取后自动迁移，后续读取使用当前签名创建的记录，无需依赖“始终允许”。首次读取旧记录仍可能出现系统确认，迁移失败保留原记录。本地数据位于 `~/Library/Application Support/KulaHere/`。
 
 应用没有向作者上传用户数据的接口。AI 消息、附件、所需工具结果及启用的记忆处理内容会发送至你配置的模型服务；联网搜索词发送至 Bing。详见[隐私政策草案](PRIVACY.md)。
 
@@ -196,7 +196,7 @@ Customize shortcuts in Settings. Chrome search and system tools require the rele
 
 ### AI Configuration and Privacy
 
-Choose a provider in Settings › Model Settings, enter your API key, and save. Custom OpenAI-compatible URLs and models are also supported. Keys stay in the macOS keychain; local data lives in `~/Library/Application Support/KulaHere/`.
+Choose a provider in Settings › Model Settings, enter your API key, and save. Custom OpenAI-compatible URLs and models are also supported. Keys stay in the macOS keychain. After the first successful read, legacy credentials migrate automatically to an item created by the current signing identity, so later reads do not depend on choosing Always Allow. The initial legacy read may still require system confirmation; migration failure preserves the original item. Local data lives in `~/Library/Application Support/KulaHere/`.
 
 The app has no interface for uploading user data to the author. AI messages, attachments, required tool results, and content used by enabled memory processing go to your configured model provider; web search queries go to Bing. See the [draft privacy policy](PRIVACY.md).
 

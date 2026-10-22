@@ -26,6 +26,26 @@ enum ChatFormParserRegression {
         for value in ["24:00", "12:60", "9:05", "上午九点", "14:30:00", " 14:30", "14:30 "] {
             precondition(!timeForm.accepts(["start": [value]]), value)
         }
+        func temporalForm(_ type: String, _ components: String) -> ChatForm? {
+            ChatFormParser.form(in: "```asky-form\n{\"title\":\"测试\"}\n{\"id\":\"value\",\"type\":\"\(type)\",\"label\":\"值\",\"components\":\(components)}\n```")
+        }
+        let fullClock = temporalForm("time", "[\"hour\",\"minute\",\"second\"]")!
+        precondition(fullClock.accepts(["value": ["23:59:59"]]))
+        precondition(!fullClock.accepts(["value": ["24:00:00"]]))
+        precondition(!fullClock.accepts(["value": ["14:30"]]))
+        let countdown = temporalForm("duration", "[\"minute\",\"second\"]")!
+        precondition(countdown.accepts(["value": ["90:30"]]))
+        precondition(!countdown.accepts(["value": ["03:60"]]))
+        precondition(countdown.reply(["value": ["03:30"]]).contains("3 分钟 30 秒钟"))
+        for unit in ["hour", "minute", "second"] {
+            let single = temporalForm("duration", "[\"\(unit)\"]")!
+            precondition(single.fields[0].timeUnits.count == 1)
+            precondition(single.accepts(["value": ["90"]]))
+            precondition(!single.accepts(["value": ["90:00"]]))
+        }
+        for invalidUnits in ["[]", "[\"second\",\"minute\"]", "[\"minute\",\"minute\"]", "[\"day\"]"] {
+            precondition(temporalForm("time", invalidUnits) == nil)
+        }
         let values = ["title": ["评审"], "duration": ["30 分钟"], "topics": ["设计"], "day": ["2026-10-22"]]
         precondition(complete.accepts(values))
         precondition(complete.reply(values).contains("时长：30 分钟"))

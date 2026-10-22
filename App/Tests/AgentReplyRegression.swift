@@ -93,9 +93,19 @@ enum AgentReplyRegression {
         {"id":"day","type":"date","label":"会议日期","required":true}
         ```
         """
-        let testingTime = CommandLine.arguments.contains("--time-preview")
+        let testingComponents = CommandLine.arguments.contains("--components-preview")
+        let testingTime = CommandLine.arguments.contains("--time-preview") || testingComponents
         if testingTime {
             rest = rest.replacingOccurrences(of: "\n```", with: "\n{\"id\":\"time\",\"type\":\"time\",\"label\":\"具体时间\",\"required\":true}\n```")
+        }
+        if testingComponents {
+            rest = """
+            {"id":"duration","type":"select","label":"会议时长","options":["30 分钟","60 分钟"],"required":true}
+            {"id":"time","type":"time","label":"时分秒","components":["hour","minute","second"],"required":true}
+            {"id":"countdown","type":"duration","label":"仅分秒","components":["minute","second"],"required":true}
+            {"id":"seconds","type":"duration","label":"仅秒钟","components":["second"],"required":true}
+            ```
+            """
         }
         let controller = AgentWindowController(model: model, presentation: WindowPresentation())
         controller.show()
@@ -145,14 +155,30 @@ enum AgentReplyRegression {
             }
             let pickers = choices(window.contentView!)
             let hour = pickers.first { $0.numberOfItems == 24 }!
-            let minute = pickers.first { $0.numberOfItems == 60 }!
-            hour.selectItem(at: 14)
-            NSApplication.shared.sendAction(hour.action!, to: hour.target, from: hour)
-            try await Task.sleep(for: .milliseconds(50))
-            minute.selectItem(at: 30)
-            NSApplication.shared.sendAction(minute.action!, to: minute.target, from: minute)
-            try await Task.sleep(for: .milliseconds(50))
-            precondition(model.formValues["streaming"]?["time"] == ["14:30"], "hour/minute menus must write HH:mm")
+            func rect(_ picker: NSPopUpButton) -> NSRect { window.contentView!.convert(picker.bounds, from: picker) }
+            func row(_ picker: NSPopUpButton) -> [NSPopUpButton] {
+                pickers.filter { abs(rect($0).midY - rect(picker).midY) < 2 }.sorted { rect($0).minX < rect($1).minX }
+            }
+            func choose(_ picker: NSPopUpButton, _ value: Int) async throws {
+                picker.selectItem(at: value)
+                NSApplication.shared.sendAction(picker.action!, to: picker.target, from: picker)
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            let clock = row(hour)
+            try await choose(clock[0], 14)
+            try await choose(clock[1], 30)
+            if testingComponents {
+                try await choose(clock[2], 45)
+                let leading = pickers.filter { $0.numberOfItems == 100 }.sorted {
+                    window.contentView!.isFlipped ? rect($0).minY < rect($1).minY : rect($0).maxY > rect($1).maxY
+                }
+                try await choose(leading[0], 3)
+                try await choose(row(leading[0])[1], 30)
+                try await choose(leading[1], 30)
+                precondition(model.formValues["streaming"]?["countdown"] == ["03:30"])
+                precondition(model.formValues["streaming"]?["seconds"] == ["30"])
+            }
+            precondition(model.formValues["streaming"]?["time"] == [testingComponents ? "14:30:45" : "14:30"], "only requested time components must be submitted")
         }
         precondition(!model.submitForm("streaming"), "cannot submit a running response")
         model.handle(.message(taskID: "form-stream", prefix + rest), conversationID: cid)

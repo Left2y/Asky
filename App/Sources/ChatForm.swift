@@ -2,13 +2,54 @@ import Foundation
 
 /// A bounded, declarative form carried in the existing text stream. Never executes model code.
 struct ChatForm: Equatable {
+    enum TimeUnit: String, Decodable, CaseIterable, Identifiable {
+        case hour, minute, second
+        var id: String { rawValue }
+        var label: String {
+            switch self { case .hour: "小时"; case .minute: "分钟"; case .second: "秒钟" }
+        }
+        var calendarComponent: Calendar.Component {
+            switch self { case .hour: .hour; case .minute: .minute; case .second: .second }
+        }
+    }
+
     struct Field: Decodable, Equatable, Identifiable {
-        enum Kind: String, Decodable { case text, select, multi, date, time }
+        enum Kind: String, Decodable { case text, select, multi, date, time, duration }
         let id: String
         let type: Kind
         let label: String
         let required: Bool?
         let options: [String]?
+        let components: [TimeUnit]?
+
+        var timeUnits: [TimeUnit] { components ?? (type == .duration ? [.minute, .second] : [.hour, .minute]) }
+        func maximum(at index: Int) -> Int {
+            type == .duration && index == 0 ? 99 : timeUnits[index] == .hour ? 23 : 59
+        }
+        func temporalValues(_ value: String) -> [Int]? {
+            let parts = value.split(separator: ":", omittingEmptySubsequences: false)
+            guard parts.count == timeUnits.count else { return nil }
+            var result: [Int] = []
+            for (index, part) in parts.enumerated() {
+                guard part.utf8.count == 2, part.utf8.allSatisfy({ (48...57).contains($0) }),
+                      let number = Int(part), number <= maximum(at: index) else { return nil }
+                result.append(number)
+            }
+            return result
+        }
+        func temporalString(_ values: [Int]) -> String {
+            values.map { String(format: "%02d", $0) }.joined(separator: ":")
+        }
+        func initialTemporalValues(now: Date = Date()) -> [Int] {
+            timeUnits.map { type == .duration ? 0 : Calendar.current.component($0.calendarComponent, from: now) }
+        }
+        func describedAnswer(_ answer: [String]) -> String {
+            guard let value = answer.first, let numbers = temporalValues(value),
+                  type == .duration || (type == .time && timeUnits != [.hour, .minute] && timeUnits != [.hour, .minute, .second]) else {
+                return answer.joined(separator: "、")
+            }
+            return zip(numbers, timeUnits).map { "\($0.0) \(NSLocalizedString($0.1.label, comment: ""))" }.joined(separator: " ")
+        }
 
         var isValid: Bool {
             guard !id.isEmpty, id.count <= 64, !label.isEmpty, label.count <= 200 else { return false }
@@ -16,6 +57,9 @@ struct ChatForm: Equatable {
                 guard let options, (1...20).contains(options.count), Set(options).count == options.count,
                       options.allSatisfy({ !$0.isEmpty && $0.count <= 200 }) else { return false }
             }
+            if type == .time || type == .duration {
+                guard !timeUnits.isEmpty, timeUnits == TimeUnit.allCases.filter({ timeUnits.contains($0) }) else { return false }
+            } else if components != nil { return false }
             return true
         }
     }
@@ -32,14 +76,14 @@ struct ChatForm: Equatable {
             case .select: return answer.count <= 1 && answer.allSatisfy { field.options!.contains($0) }
             case .multi: return Set(answer).count == answer.count && answer.allSatisfy { field.options!.contains($0) }
             case .date: return answer.count <= 1 && answer.allSatisfy { Self.date($0) != nil }
-            case .time: return answer.count <= 1 && answer.allSatisfy { Self.time($0) != nil }
+            case .time, .duration: return answer.count <= 1 && answer.allSatisfy { field.temporalValues($0) != nil }
             }
         }
     }
 
     func reply(_ values: [String: [String]]) -> String {
         ([title] + fields.map { field in
-            "\(field.label)：\((values[field.id] ?? []).joined(separator: "、"))"
+            "\(field.label)：\(field.describedAnswer(values[field.id] ?? []))"
         }).joined(separator: "\n")
     }
 
@@ -48,12 +92,6 @@ struct ChatForm: Equatable {
         return date
     }
     static func dateString(_ date: Date) -> String { formatter().string(from: date) }
-    static func time(_ value: String) -> Date? {
-        guard value.utf8.count == 5, let date = formatter("HH:mm").date(from: value), timeString(date) == value else { return nil }
-        return date
-    }
-    static func timeString(_ date: Date) -> String { formatter("HH:mm").string(from: date) }
-
     private static func formatter(_ format: String = "yyyy-MM-dd") -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

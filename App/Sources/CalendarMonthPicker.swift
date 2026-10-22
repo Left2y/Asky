@@ -103,30 +103,48 @@ struct CalendarDateSelection: View {
 }
 
 
-/// Shared hour/minute row used by the event-creation popover and native chat forms.
+/// The creation dialog uses the same configurable component picker as chat forms.
 struct CalendarTimePicker: View {
     @Binding var selection: Date
 
     var body: some View {
+        TimeComponentsPicker(units: [.hour, .minute], values: Binding(get: {
+            [Calendar.current.component(.hour, from: selection), Calendar.current.component(.minute, from: selection)]
+        }, set: { numbers in
+            if let updated = Calendar.current.date(bySettingHour: numbers[0], minute: numbers[1], second: 0, of: selection) {
+                selection = updated
+            }
+        }))
+    }
+}
+
+/// Only requested units appear. Duration's leading component may exceed a clock component's range.
+struct TimeComponentsPicker: View {
+    let units: [ChatForm.TimeUnit]
+    @Binding var values: [Int]
+    var duration = false
+
+    var body: some View {
         HStack(spacing: 8) {
-            Text(NSLocalizedString("时间", comment: "")).foregroundStyle(.secondary)
-            Spacer()
-            SettingsChoice(selection: component(.hour), options: (0..<24).map { ($0, String(format: "%02d", $0)) })
-                .accessibilityLabel(NSLocalizedString("小时", comment: "")).frame(width: 68)
-            Text(verbatim: ":").foregroundStyle(.secondary)
-            SettingsChoice(selection: component(.minute), options: (0..<60).map { ($0, String(format: "%02d", $0)) })
-                .accessibilityLabel(NSLocalizedString("分钟", comment: "")).frame(width: 68)
+            Text(NSLocalizedString(duration ? "时长" : "时间", comment: "")).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            ForEach(Array(units.enumerated()), id: \.element) { index, unit in
+                SettingsChoice(selection: component(index), options: (0...maximum(index)).map { ($0, String(format: "%02d", $0)) })
+                    .accessibilityLabel(NSLocalizedString(unit.label, comment: "")).frame(width: 60)
+                Text(NSLocalizedString(unit.label, comment: "")).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
         }.controlSize(.regular)
     }
 
-    private func component(_ component: Calendar.Component) -> Binding<Int> {
-        Binding(get: { Calendar.current.component(component, from: selection) }, set: { value in
-            let calendar = Calendar.current
-            let hour = component == .hour ? value : calendar.component(.hour, from: selection)
-            let minute = component == .minute ? value : calendar.component(.minute, from: selection)
-            if let updated = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: selection) {
-                selection = updated
-            }
+    private func maximum(_ index: Int) -> Int {
+        duration && index == 0 ? 99 : units[index] == .hour ? 23 : 59
+    }
+    private func component(_ index: Int) -> Binding<Int> {
+        Binding(get: { values.indices.contains(index) ? values[index] : 0 }, set: { value in
+            var updated = values
+            if updated.count != units.count { updated = Array(repeating: 0, count: units.count) }
+            updated[index] = value
+            values = updated
         })
     }
 }

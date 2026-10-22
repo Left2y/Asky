@@ -80,11 +80,12 @@ Asky 使用应用专属配置、资源目录和自定义 ResourceLoader，只加
 {"id":"duration","type":"select","label":"时长","options":["30 分钟","60 分钟"],"required":true}
 {"id":"topics","type":"multi","label":"议题","options":["设计","开发"]}
 {"id":"day","type":"date","label":"日期","required":true}
-{"id":"start","type":"time","label":"开始时间","required":true}
+{"id":"start","type":"time","label":"开始时间","components":["hour","minute","second"],"required":true}
+{"id":"countdown","type":"duration","label":"倒计时","components":["minute","second"]}
 ```
 ````
 
-标题最长 120 字；最多 16 个字段；字段 ID 非空、唯一且最长 64 字；标签最长 200 字；选择字段须有 1–20 个不重复且非空的选项，每项最长 200 字。围栏内容最多 32 KiB。`required` 缺省为 false；日期默认本地今天，以 `yyyy-MM-dd` 提交；`time` 为具体时刻，复用创建日程的小时/分钟选择行，默认当前本地时分，以严格的 24 小时 `HH:mm` 提交。具体时刻使用 `time`，时间段仍可使用 `select`；文本答案最多 4000 字。未知类型、重复 ID 或不合规结构回退为普通代码。普通 Markdown 代码围栏内的示例不转换为表单。
+标题最长 120 字；最多 16 个字段；字段 ID 非空、唯一且最长 64 字；标签最长 200 字；选择字段须有 1–20 个不重复且非空的选项，每项最长 200 字。围栏内容最多 32 KiB。`required` 缺省为 false；日期默认本地今天，以 `yyyy-MM-dd` 提交；`time` 为具体时刻，`duration` 为时长，两者复用创建日程的组件选择器。`components` 为 `["hour","minute","second"]` 的非空有序子集，可只显示需要的单位，禁止重复或逆序。time 缺省为时分且初值为当前本地时间；duration 缺省为分秒且初值为零。内部值按所选单位顺序以冒号分隔，每段两位；time 小时 00–23、分秒 00–59，duration 首段 00–99、后续段 00–59。默认时分回复仍为 `HH:mm`，完整时分秒为 `HH:mm:ss`；时长及省略单位的组合在用户回复中带明确单位，避免把分秒当作钟点。时间段仍可使用 `select`；文本答案最多 4000 字。未知类型、重复 ID 或不合规结构回退为普通代码。普通 Markdown 代码围栏内的示例不转换为表单。
 
 不完整行在流式阶段隐藏；完整字段立即显示且可填写，围栏完整并且当前任务结束后才允许提交。停止或断开留下的未闭合表单不可提交。生成结束时字段值从流式消息移交到持久化消息；提交会重新验证存储的表单和选项，再走普通用户消息提交路径，保留输入框草稿与待发送附件。操作仍经 ToolService 按现有授权、确认与执行规则处理。
 

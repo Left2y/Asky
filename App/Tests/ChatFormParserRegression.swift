@@ -17,6 +17,15 @@ enum ChatFormParserRegression {
         let complete = ChatFormParser.form(in: source)!
         precondition(complete.fields.count == 4 && complete.isComplete)
         precondition(!complete.accepts([:]))
+        let timeForm = ChatFormParser.form(in: "```asky-form\n{\"title\":\"时间\"}\n{\"id\":\"start\",\"type\":\"time\",\"label\":\"开始时间\",\"required\":true}\n```")!
+        precondition(!timeForm.accepts([:]))
+        for value in ["00:00", "09:05", "14:30", "23:59"] {
+            precondition(timeForm.accepts(["start": [value]]))
+            precondition(timeForm.reply(["start": [value]]).contains(value))
+        }
+        for value in ["24:00", "12:60", "9:05", "上午九点", "14:30:00", " 14:30", "14:30 "] {
+            precondition(!timeForm.accepts(["start": [value]]), value)
+        }
         let values = ["title": ["评审"], "duration": ["30 分钟"], "topics": ["设计"], "day": ["2026-10-22"]]
         precondition(complete.accepts(values))
         precondition(complete.reply(values).contains("时长：30 分钟"))

@@ -87,12 +87,16 @@ enum AgentReplyRegression {
         try store.append(conversationID: cid, role: "user", text: "帮我安排会议，先让我选择时间和议题。")
         model.open(cid)
         let prefix = "请补充会议信息：\n\n```asky-form\n{\"title\":\"会议安排\"}\n{\"id\":\"title\",\"type\":\"text\",\"label\":\"会议名称\",\"required\":true}\n"
-        let rest = """
+        var rest = """
         {"id":"duration","type":"select","label":"会议时长","options":["30 分钟","60 分钟"],"required":true}
         {"id":"topics","type":"multi","label":"讨论议题","options":["设计方案","开发计划"]}
         {"id":"day","type":"date","label":"会议日期","required":true}
         ```
         """
+        let testingTime = CommandLine.arguments.contains("--time-preview")
+        if testingTime {
+            rest = rest.replacingOccurrences(of: "\n```", with: "\n{\"id\":\"time\",\"type\":\"time\",\"label\":\"具体时间\",\"required\":true}\n```")
+        }
         let controller = AgentWindowController(model: model, presentation: WindowPresentation())
         controller.show()
         let window = NSApplication.shared.windows.first { $0.title == "Asky AI" }!
@@ -126,7 +130,7 @@ enum AgentReplyRegression {
         model.handle(.textDelta(taskID: "form-stream", rest), conversationID: cid)
         try await Task.sleep(for: .milliseconds(100))
         func popup(_ view: NSView) -> NSPopUpButton? {
-            if let button = view as? NSPopUpButton { return button }
+            if let button = view as? NSPopUpButton, button.numberOfItems == 3 { return button }
             return view.subviews.compactMap { popup($0) }.first
         }
         let picker = popup(window.contentView!)!
@@ -135,6 +139,21 @@ enum AgentReplyRegression {
         precondition(model.formValues["streaming"]?["duration"] == ["30 分钟"], "native popup selection must update the answer")
         model.formValues["streaming"]?["topics"] = ["设计方案"]
         model.formValues["streaming"]?["day"] = ["2026-10-22"]
+        if testingTime {
+            func choices(_ view: NSView) -> [NSPopUpButton] {
+                (view as? NSPopUpButton).map { [$0] } ?? view.subviews.flatMap(choices)
+            }
+            let pickers = choices(window.contentView!)
+            let hour = pickers.first { $0.numberOfItems == 24 }!
+            let minute = pickers.first { $0.numberOfItems == 60 }!
+            hour.selectItem(at: 14)
+            NSApplication.shared.sendAction(hour.action!, to: hour.target, from: hour)
+            try await Task.sleep(for: .milliseconds(50))
+            minute.selectItem(at: 30)
+            NSApplication.shared.sendAction(minute.action!, to: minute.target, from: minute)
+            try await Task.sleep(for: .milliseconds(50))
+            precondition(model.formValues["streaming"]?["time"] == ["14:30"], "hour/minute menus must write HH:mm")
+        }
         precondition(!model.submitForm("streaming"), "cannot submit a running response")
         model.handle(.message(taskID: "form-stream", prefix + rest), conversationID: cid)
         let messageID = model.items.last!.id
@@ -227,7 +246,7 @@ enum AgentReplyRegression {
         try await Task.sleep(for: .milliseconds(150))
         try capture("field-dark-disabled")
         precondition(model.items.last!.text == reply)
-        precondition(ChatFormParser.form(in: model.items[1].text)?.fields.count == 4)
+        precondition(ChatFormParser.form(in: model.items[1].text)?.fields.count == (testingTime ? 5 : 4))
         // New session and opening history are native-only; no model calls are needed for rendering.
         await model.startNewConversation()
         precondition(model.formValues.isEmpty)

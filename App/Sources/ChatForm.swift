@@ -3,7 +3,7 @@ import Foundation
 /// A bounded, declarative form carried in the existing text stream. Never executes model code.
 struct ChatForm: Equatable {
     struct Field: Decodable, Equatable, Identifiable {
-        enum Kind: String, Decodable { case text, select, multi, date }
+        enum Kind: String, Decodable { case text, select, multi, date, time }
         let id: String
         let type: Kind
         let label: String
@@ -32,6 +32,7 @@ struct ChatForm: Equatable {
             case .select: return answer.count <= 1 && answer.allSatisfy { field.options!.contains($0) }
             case .multi: return Set(answer).count == answer.count && answer.allSatisfy { field.options!.contains($0) }
             case .date: return answer.count <= 1 && answer.allSatisfy { Self.date($0) != nil }
+            case .time: return answer.count <= 1 && answer.allSatisfy { Self.time($0) != nil }
             }
         }
     }
@@ -47,11 +48,17 @@ struct ChatForm: Equatable {
         return date
     }
     static func dateString(_ date: Date) -> String { formatter().string(from: date) }
-    private static func formatter() -> DateFormatter {
+    static func time(_ value: String) -> Date? {
+        guard value.utf8.count == 5, let date = formatter("HH:mm").date(from: value), timeString(date) == value else { return nil }
+        return date
+    }
+    static func timeString(_ date: Date) -> String { formatter("HH:mm").string(from: date) }
+
+    private static func formatter(_ format: String = "yyyy-MM-dd") -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.dateFormat = format
         formatter.isLenient = false
         return formatter
     }

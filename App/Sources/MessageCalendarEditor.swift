@@ -174,17 +174,7 @@ struct MessageCalendarEditorView: View {
                                     Text("结束").tag(true)
                                 }.pickerStyle(.segmented).labelsHidden()
                                 CalendarMonthPicker(selection: editingEnd ? $model.end : $model.start)
-                                HStack(spacing: 8) {
-                                    Text("时间").foregroundStyle(.secondary)
-                                    Spacer()
-                                    Picker("小时", selection: timeComponent(.hour)) {
-                                        ForEach(0..<24) { Text(String(format: "%02d", $0)).tag($0) }
-                                    }.labelsHidden().frame(width: 68)
-                                    Text(":").foregroundStyle(.secondary)
-                                    Picker("分钟", selection: timeComponent(.minute)) {
-                                        ForEach(0..<60) { Text(String(format: "%02d", $0)).tag($0) }
-                                    }.labelsHidden().frame(width: 68)
-                                }.pickerStyle(.menu).controlSize(.regular)
+                                CalendarTimePicker(selection: editingEnd ? $model.end : $model.start)
                             }.frame(width: 280).padding(16).fixedSize()
                         }
                     }
@@ -223,17 +213,7 @@ struct MessageCalendarEditorView: View {
         .windowSurfaceBackground(in: RoundedRectangle(cornerRadius: 24))
     }
 
-    private func timeComponent(_ component: Calendar.Component) -> Binding<Int> {
-        let date = editingEnd ? $model.end : $model.start
-        return Binding(get: { Calendar.current.component(component, from: date.wrappedValue) }, set: { value in
-            let calendar = Calendar.current
-            let hour = component == .hour ? value : calendar.component(.hour, from: date.wrappedValue)
-            let minute = component == .minute ? value : calendar.component(.minute, from: date.wrappedValue)
-            if let updated = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date.wrappedValue) {
-                date.wrappedValue = updated
-            }
-        })
-    }
+
 }
 
 extension View {

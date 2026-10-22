@@ -80,6 +80,18 @@ struct ChatFormView: View {
                     }))
                 }
             }
+        case .time:
+            if !active, values[field.id] == nil {
+                Text(verbatim: "—").foregroundStyle(ThemeColor.kTextSubtle)
+            } else {
+                CalendarTimePicker(selection: Binding(get: {
+                    ChatForm.time(values[field.id]?.first ?? "") ?? Date()
+                }, set: { values[field.id] = [ChatForm.timeString($0)] }))
+                    .padding(14).calendarEditorRow()
+                    .onChange(of: active, initial: true) {
+                        if active, values[field.id] == nil { values[field.id] = [ChatForm.timeString(Date())] }
+                    }
+            }
         case .date:
             if !active, values[field.id] == nil {
                 Text(verbatim: "—").foregroundStyle(ThemeColor.kTextSubtle)

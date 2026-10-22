@@ -101,3 +101,32 @@ struct CalendarDateSelection: View {
         }
     }
 }
+
+
+/// Shared hour/minute row used by the event-creation popover and native chat forms.
+struct CalendarTimePicker: View {
+    @Binding var selection: Date
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(NSLocalizedString("时间", comment: "")).foregroundStyle(.secondary)
+            Spacer()
+            SettingsChoice(selection: component(.hour), options: (0..<24).map { ($0, String(format: "%02d", $0)) })
+                .accessibilityLabel(NSLocalizedString("小时", comment: "")).frame(width: 68)
+            Text(verbatim: ":").foregroundStyle(.secondary)
+            SettingsChoice(selection: component(.minute), options: (0..<60).map { ($0, String(format: "%02d", $0)) })
+                .accessibilityLabel(NSLocalizedString("分钟", comment: "")).frame(width: 68)
+        }.controlSize(.regular)
+    }
+
+    private func component(_ component: Calendar.Component) -> Binding<Int> {
+        Binding(get: { Calendar.current.component(component, from: selection) }, set: { value in
+            let calendar = Calendar.current
+            let hour = component == .hour ? value : calendar.component(.hour, from: selection)
+            let minute = component == .minute ? value : calendar.component(.minute, from: selection)
+            if let updated = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: selection) {
+                selection = updated
+            }
+        })
+    }
+}

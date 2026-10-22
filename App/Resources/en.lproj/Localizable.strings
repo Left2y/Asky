@@ -849,3 +849,13 @@
 "选择左侧记录" = "Select item to the left";
 
 "选择右侧记录" = "Select item to the right";
+
+"必填" = "Required";
+
+"正在生成表单…" = "Generating form…";
+
+"表单未生成完整，请在输入框回复。" = "The form is incomplete. Reply in the message field.";
+
+"提交回复" = "Submit reply";
+
+"此表单已结束，可在输入框继续对话。" = "This form has ended. Continue in the message field.";

@@ -529,10 +529,9 @@ private struct ResponseGroupView: View {
                     .accessibilityHidden(!expanded)
                 }
             }
-            ForEach(group.content) { item in message(item) }
-            if !group.streaming.isEmpty {
-                ChatBubble(item: ChatItem(id: "streaming", kind: .assistant, text: group.streaming))
-            }
+            // A streaming reply and its final stored message occupy the same view slot.
+            // Keep native fields (including focus/IME composition) alive at completion.
+            ForEach(Array(visibleContent.enumerated()), id: \.offset) { _, item in message(item) }
             if group.isRunning, let state = group.state {
                 HStack(spacing: 8) {
                     if state == .compacting {
@@ -551,9 +550,13 @@ private struct ResponseGroupView: View {
         }
     }
 
+    private var visibleContent: [ChatItem] {
+        group.content + (group.streaming.isEmpty ? [] : [ChatItem(id: "streaming", kind: .assistant, text: group.streaming)])
+    }
+
     private func message(_ item: ChatItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            ChatBubble(item: item)
+            ChatBubble(item: item, model: model)
             if item.needsPermissionSettings {
                 Button(NSLocalizedString("管理权限…", comment: "")) { model.openSettings(permissions: true) }
                     .buttonStyle(.link)
@@ -564,6 +567,7 @@ private struct ResponseGroupView: View {
 
 private struct ChatBubble: View {
     let item: ChatItem
+    let model: AgentModel
     @State private var hovering = false
     @State private var copyHovering = false
     @State private var copyFeedbackID: UUID?
@@ -598,7 +602,10 @@ private struct ChatBubble: View {
             .onHover { hovering = $0 }
         case .assistant:
             VStack(alignment: .leading, spacing: 16) {
-                ChatMarkdownView(text: item.text)
+                ChatReplyView(text: item.text, streaming: model.isRunning && (item.id == "streaming" || item.responseID == model.taskID),
+                    values: Binding(get: { model.formValues[item.id] ?? [:] },
+                                    set: { model.formValues[item.id] = $0 }),
+                    active: model.formIsActive(item.id), submit: { model.submitForm(item.id) })
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if item.id != "streaming" {
                     HStack(spacing: 16) {

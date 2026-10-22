@@ -352,3 +352,47 @@ test("MapKit tools reach the model, route results return, and disabling removes 
     assert.ok(!(mock.requests[2].body.tools ?? []).some((t: any) => t.function.name.startsWith("maps_")));
   } finally { p.child.stdin.end(); assert.equal(await p.exit, 0); mock.server.close(); }
 });
+
+
+test("native form content streams before completion and its answer continues the same session", async () => {
+  const form = [
+    "请填写：\n```asky-form\n", '{"title":"会议安排"}\n',
+    '{"id":"title","type":"text","label":"名称","required":true}\n',
+    '{"id":"duration","type":"select","label":"时长","options":["30 分钟","60 分钟"]}\n', "```",
+  ];
+  const mock = await startMock([
+    (body) => {
+      assert.ok(JSON.stringify(body.messages).includes("asky-form"), "the model receives native form instructions");
+      return sse([
+        ...form.map((content, index) => ({ ...base, choices: [{ index: 0, delta: { ...(index === 0 ? { role: "assistant" } : {}), content } }] })),
+        { ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    },
+    (body) => {
+      const messages = JSON.stringify(body.messages);
+      assert.ok(messages.includes("会议安排\\n名称：评审\\n时长：30 分钟") || messages.includes("名称：评审"));
+      assert.ok(messages.includes("asky-form"), "the form remains in the conversation context");
+      return textReply("收到，继续处理。");
+    },
+  ]);
+  const p = launch(mkdtempSync(join(tmpdir(), "asky-form-")));
+  try {
+    await handshake(p, mock);
+    p.send({ type: "prompt", request: request("form-1", "用表单询问会议安排") });
+    await p.next((f) => f.type === "taskState" && f.taskID === "form-1" && f.state === "completed");
+    const deltas = p.frames.filter((f) => f.type === "textDelta" && f.taskID === "form-1");
+    assert.equal(deltas.map((f) => f.text).join(""), form.join(""));
+    assert.ok(deltas.length >= form.length, "individual fields arrive as text deltas");
+    const firstField = p.frames.findIndex((f) => f.type === "textDelta" && f.text.includes('"id":"title"'));
+    const complete = p.frames.findIndex((f) => f.type === "message" && f.taskID === "form-1");
+    assert.ok(firstField >= 0 && firstField < complete);
+    assert.ok(!p.frames.some((f) => f.type === "clarification"));
+    p.send({ type: "prompt", request: request("form-2", "会议安排\n名称：评审\n时长：30 分钟") });
+    await p.next((f) => f.type === "message" && f.taskID === "form-2");
+    assert.equal(mock.requests.length, 2);
+  } finally {
+    p.child.stdin.end();
+    await p.exit;
+    mock.server.close();
+  }
+});

@@ -81,6 +81,107 @@ enum AgentReplyRegression {
         print("Math parsing, native layout, invalid-source fallback and light/dark window captures passed")
     }
 
+    static func formPreview(app: AppModel, model: AgentModel) async throws {
+        let store = ConversationStore(app.store)
+        let cid = try store.create(title: "原生流式表单")
+        try store.append(conversationID: cid, role: "user", text: "帮我安排会议，先让我选择时间和议题。")
+        model.open(cid)
+        let prefix = "请补充会议信息：\n\n```asky-form\n{\"title\":\"会议安排\"}\n{\"id\":\"title\",\"type\":\"text\",\"label\":\"会议名称\",\"required\":true}\n"
+        let rest = """
+        {"id":"duration","type":"select","label":"会议时长","options":["30 分钟","60 分钟"],"required":true}
+        {"id":"topics","type":"multi","label":"讨论议题","options":["设计方案","开发计划"]}
+        {"id":"day","type":"date","label":"会议日期","required":true}
+        ```
+        """
+        let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+        controller.show()
+        let window = NSApplication.shared.windows.first { $0.title == "Asky AI" }!
+        window.setContentSize(NSSize(width: 760, height: 800))
+        defer { window.orderOut(nil) }
+        func capture(_ name: String) throws {
+            let view = window.contentView!
+            view.layoutSubtreeIfNeeded()
+            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/form-" + name + ".png"))
+        }
+        model.beginResponse(taskID: "form-stream")
+        model.handle(.textDelta(taskID: "form-stream", prefix), conversationID: cid)
+        try await Task.sleep(for: .milliseconds(500))
+        precondition(ChatFormParser.parse(model.streaming, streaming: true).contains {
+            if case .form(let f) = $0.content { f.fields.count == 1 && !f.isComplete } else { false }
+        })
+        func editableField(_ view: NSView) -> NSTextField? {
+            if let field = view as? NSTextField, field.isEditable { return field }
+            return view.subviews.compactMap { editableField($0) }.first
+        }
+        // Edit the real native field while the reply is still streaming.
+        let streamingField = editableField(window.contentView!)
+        if let field = editableField(window.contentView!), window.makeFirstResponder(field), let editor = field.currentEditor() {
+            editor.insertText("原生输入回归")
+            try await Task.sleep(for: .milliseconds(100))
+            precondition(model.formValues["streaming"]?["title"] == ["原生输入回归"])
+        } else { preconditionFailure("the streaming form must expose an editable native text field") }
+        try capture("streaming")
+        model.handle(.textDelta(taskID: "form-stream", rest), conversationID: cid)
+        try await Task.sleep(for: .milliseconds(100))
+        func popup(_ view: NSView) -> NSPopUpButton? {
+            if let button = view as? NSPopUpButton { return button }
+            return view.subviews.compactMap { popup($0) }.first
+        }
+        let picker = popup(window.contentView!)!
+        picker.selectItem(at: 1)
+        NSApplication.shared.sendAction(picker.action!, to: picker.target, from: picker)
+        precondition(model.formValues["streaming"]?["duration"] == ["30 分钟"], "native popup selection must update the answer")
+        model.formValues["streaming"]?["topics"] = ["设计方案"]
+        model.formValues["streaming"]?["day"] = ["2026-10-22"]
+        precondition(!model.submitForm("streaming"), "cannot submit a running response")
+        model.handle(.message(taskID: "form-stream", prefix + rest), conversationID: cid)
+        let messageID = model.items.last!.id
+        precondition(model.formValues[messageID]?["title"] == ["原生输入回归"], "completion must preserve typed input")
+        precondition(!model.submitForm(messageID), "wait for task completion before submitting")
+        model.finishTask(conversationID: cid)
+        try await Task.sleep(for: .milliseconds(150))
+        precondition(editableField(window.contentView!) === streamingField, "completion must preserve the native field instance")
+        precondition(streamingField?.currentEditor() != nil, "completion must preserve input focus")
+        precondition(model.formIsActive(messageID))
+        precondition(ChatFormParser.form(in: model.items.last!.text)!.accepts(model.formValues[messageID]!))
+        for (name, appearance, width) in [("light", NSAppearance.Name.aqua, 760.0),
+                                           ("dark", .darkAqua, 760.0), ("narrow", .darkAqua, 560.0)] {
+            window.appearance = NSAppearance(named: appearance)
+            window.setContentSize(NSSize(width: width, height: 800))
+            try await Task.sleep(for: .milliseconds(400))
+            try capture(name)
+        }
+        // Exercise the actual submit path with an intentionally absent test credential. No model
+        // request can leave the machine; the normal user-message append happens before that failure.
+        let reply = ChatFormParser.form(in: prefix + rest)!.reply(model.formValues[messageID]!)
+        app.preferences.automaticUpdates = false
+        await app.start()
+        precondition(app.agent != nil, "test bundle must locate the actual runtime")
+        app.modelConfiguration = ModelConfiguration(baseURL: URL(string: "http://127.0.0.1:1/v1")!,
+            modelName: "form-regression", credentialRef: "Asky-form-unset-" + UUID().uuidString)
+        model.draft = "保留输入框草稿"
+        let attachment = AttachmentRef(id: "draft-only", kind: .file, path: "/draft-only", mimeType: "text/plain", byteSize: 0, temporary: false)
+        model.attachments = [attachment]
+        precondition(model.submitForm(messageID), "valid form must enter the normal submit path")
+        precondition(model.conversationID == cid && model.items.last!.text == reply)
+        precondition(model.items.last!.attachments.isEmpty, "form submission must not send composer attachments")
+        precondition(model.draft == "保留输入框草稿" && model.attachments == [attachment])
+        precondition(!model.submitForm(messageID), "double submission must be rejected")
+        for _ in 0..<100 where model.isRunning { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!model.isRunning)
+        model.open(cid)
+        precondition(!model.formIsActive(messageID) && !model.submitForm(messageID))
+        precondition(model.items.last!.text == reply)
+        precondition(ChatFormParser.form(in: model.items[1].text)?.fields.count == 4)
+        // New session and opening history are native-only; no model calls are needed for rendering.
+        await model.startNewConversation()
+        precondition(model.formValues.isEmpty)
+        await app.shutdown()
+        print("Native form UI: early editable field, real native typing, completion transfer, light/dark/narrow captures, history, replay prevention and conversation cleanup passed")
+    }
+
     static func main() async throws {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
@@ -92,6 +193,10 @@ enum AgentReplyRegression {
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = AgentModel(app: app)
+        if CommandLine.arguments.contains("--forms-preview") {
+            try await formPreview(app: app, model: model)
+            return
+        }
         if CommandLine.arguments.contains("--window-glass") {
             func capture(_ window: NSWindow, name: String) throws {
                 let frame = window.frame

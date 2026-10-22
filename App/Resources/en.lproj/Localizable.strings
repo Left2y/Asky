@@ -784,7 +784,7 @@
 
 "请在系统设置中授予 Asky 辅助功能权限后重新搜索窗口" = "Grant Asky Accessibility access in System Settings, then search windows again";
 
-"窗口已关闭或无法切换，请重新搜索并检查辅助功能权限" = "The window closed or could not be focused. Search again and check Accessibility access";
+"窗口已关闭或无法切换，请重新搜索" = "The window closed or could not be focused. Search again.";
 
 "历史保留时间" = "Keep History For";
 
@@ -864,4 +864,6 @@
 
 "秒钟" = "Seconds";
 
-"窗口操作失败，请重新搜索并检查辅助功能权限" = "Window action failed. Search again and check Accessibility access.";
+"窗口已关闭或无法操作，请重新搜索" = "The window closed or does not support this action. Search again.";
+
+"窗口操作需要辅助功能权限，请在系统设置中允许 Asky" = "Window actions require Accessibility access. Allow Asky in System Settings.";

@@ -1,8 +1,17 @@
 import Testing
 import Contracts
+import ApplicationServices
 @testable import ToolService
 
 struct LauncherWindowsTests {
+    @Test func excludesChromeHelperSurfacesWithoutDroppingUntitledDocumentWindows() {
+        #expect(!LauncherWindowSnapshot.isSearchableWindow(subrole: kAXUnknownSubrole, title: "", hasCloseButton: false))
+        #expect(!LauncherWindowSnapshot.isSearchableWindow(subrole: nil, title: " \n", hasCloseButton: false))
+        #expect(LauncherWindowSnapshot.isSearchableWindow(subrole: kAXStandardWindowSubrole, title: "", hasCloseButton: false))
+        #expect(LauncherWindowSnapshot.isSearchableWindow(subrole: kAXDialogSubrole, title: "", hasCloseButton: false))
+        #expect(LauncherWindowSnapshot.isSearchableWindow(subrole: kAXUnknownSubrole, title: "网页", hasCloseButton: false))
+        #expect(LauncherWindowSnapshot.isSearchableWindow(subrole: kAXUnknownSubrole, title: "", hasCloseButton: true))
+    }
     private let entries: [LauncherWindowSnapshot.Entry] = [
         .init(id: "editor-1", title: "README.md", application: "Editor", applicationPath: "/Applications/Editor.app"),
         .init(id: "editor-2", title: "README.md", application: "Editor", applicationPath: "/Applications/Editor.app"),

@@ -36,6 +36,13 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
         }
     }
 
+    /// Chrome also exposes untitled AXUnknown helper surfaces as AXWindow objects.
+    /// Keep real untitled windows and dialogs, but do not offer inert helper surfaces.
+    static func isSearchableWindow(subrole: String?, title: String, hasCloseButton: Bool) -> Bool {
+        subrole == kAXStandardWindowSubrole || subrole == kAXDialogSubrole
+            || !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasCloseButton
+    }
+
     fileprivate static func capture() throws -> LauncherWindowSnapshot {
         guard AXIsProcessTrusted() else { throw WindowSearchError.accessibility }
         var entries: [Entry] = []
@@ -54,6 +61,13 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
                       role as? String == kAXWindowRole else { continue }
                 var title: CFTypeRef?
                 AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &title)
+                var subrole: CFTypeRef?
+                AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole)
+                var closeButton: CFTypeRef?
+                AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &closeButton)
+                guard isSearchableWindow(subrole: subrole as? String, title: title as? String ?? "",
+                                         hasCloseButton: closeButton.map { CFGetTypeID($0) == AXUIElementGetTypeID() } ?? false)
+                else { continue }
                 let id = UUID().uuidString
                 entries.append(Entry(id: id, title: title as? String ?? "", application: app.localizedName ?? "",
                                      applicationPath: app.bundleURL?.path ?? ""))

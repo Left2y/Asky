@@ -948,9 +948,12 @@ final class LauncherModel {
                     do {
                         try await ToolService.activateLauncherWindow(r.target.identifier, in: snapshot)
                         onHide()
+                    } catch WindowSearchError.accessibility {
+                        windowSnapshot = nil
+                        status = NSLocalizedString("窗口操作需要辅助功能权限，请在系统设置中允许 Asky", comment: "")
                     } catch {
                         windowSnapshot = nil
-                        status = NSLocalizedString("窗口已关闭或无法切换，请重新搜索并检查辅助功能权限", comment: "")
+                        status = NSLocalizedString("窗口已关闭或无法切换，请重新搜索", comment: "")
                     }
                 }
             } else { switchChromeTab(r) }
@@ -1198,8 +1201,12 @@ extension LauncherModel {
                     try ToolService.quitLauncherWindowApplication(result.target.identifier, in: snapshot)
                     onHide()
                 }
+            } catch WindowSearchError.accessibility {
+                windowSnapshot = nil
+                status = NSLocalizedString("窗口操作需要辅助功能权限，请在系统设置中允许 Asky", comment: "")
             } catch {
-                status = NSLocalizedString("窗口操作失败，请重新搜索并检查辅助功能权限", comment: "")
+                windowSnapshot = nil
+                status = NSLocalizedString("窗口已关闭或无法操作，请重新搜索", comment: "")
             }
         case .editCommand(let id):
             guard let result, builtInCommandIDs[result.id] == id else { return }

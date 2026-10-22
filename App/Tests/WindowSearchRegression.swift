@@ -1,6 +1,8 @@
 import AppKit
 import ApplicationServices
 import ToolService
+import Contracts
+import Search
 
 @main @MainActor
 private enum WindowSearchRegression {
@@ -51,6 +53,7 @@ private enum WindowSearchRegression {
         model.reset()
         try await Task.sleep(for: .milliseconds(300))
         try require(model.filter == .all && model.results.isEmpty, "Cancelled search must not repopulate results")
+        try await checkActions(app: app)
         // The native permission branch runs without requesting or changing permissions.
         if !AXIsProcessTrusted() {
             model.inputText = "win "
@@ -61,4 +64,54 @@ private enum WindowSearchRegression {
             print("PASS: missing Accessibility permission feedback")
         }
     }
+    struct MenuProvider: SearchProvider {
+        let source = SearchSource.app
+        func search(_ query: String, limit: Int) async -> [SearchResult] {
+            LauncherWindowSnapshot.results(from: [
+                .init(id: "fixture-window", title: "下载", application: "Finder", applicationPath: "/System/Library/CoreServices/Finder.app")
+            ], query: "")
+        }
+    }
+
+    static func checkActions(app: AppModel) async throws {
+        let model = LauncherModel(app: app, searchProviders: [MenuProvider()])
+        model.query = "fixture"
+        for _ in 0..<60 {
+            if !model.isSearching && !model.results.isEmpty { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try require(model.secondaryActions.map(\.title) == ["关闭窗口", "退出应用"], "window menu must expose both actions in order")
+        try require(model.secondaryActions.allSatisfy(\.isNegative), "both window actions must be red")
+        let controller = LauncherController(model: model)
+        NSApp.activate(ignoringOtherApps: true)
+        controller.show()
+        try await Task.sleep(for: .milliseconds(600))
+        defer { controller.hide() }
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) else {
+            throw NSError(domain: "WindowActionsPanel", code: 1)
+        }
+        (panel as? LauncherPanel)?.onBlur = {}
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            NSApp.appearance = NSAppearance(named: appearance)
+            try await Task.sleep(for: .milliseconds(500))
+            let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                timestamp: 0, windowNumber: panel.windowNumber, context: nil,
+                characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
+            try require(model.handleActionKey(event) && model.isActionsMenuPresented, "Command K must open window menu")
+            model.move(1)
+            try require(model.actionSelection == 1, "down must select Quit Application")
+            try await Task.sleep(for: .milliseconds(350))
+            let capture = Process()
+            capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            capture.arguments = ["-x", "-l", String(panel.windowNumber), "build/window-actions-\(appearance.rawValue).png"]
+            try capture.run(); capture.waitUntilExit()
+            try require(capture.terminationStatus == 0, "window menu screenshot must succeed")
+            let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                timestamp: 0, windowNumber: panel.windowNumber, context: nil,
+                characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53)!
+            try require(model.handleActionKey(escape) && !model.isActionsMenuPresented, "Escape must dismiss menu")
+        }
+        print("PASS: window actions, negative styling, Command K, menu navigation, Escape, light/dark screenshots")
+    }
+
 }

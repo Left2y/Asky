@@ -63,7 +63,7 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
         return LauncherWindowSnapshot(entries: entries, targets: targets)
     }
 
-    @MainActor fileprivate func activate(_ id: String) async throws {
+    @MainActor fileprivate func validatedTarget(_ id: String) throws -> (NSRunningApplication, AXUIElement) {
         guard AXIsProcessTrusted() else { throw WindowSearchError.accessibility }
         guard let (pid, window) = targets[id], let app = NSRunningApplication(processIdentifier: pid) else {
             throw WindowSearchError.unavailable
@@ -74,6 +74,27 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
               let windows = value as? [AXUIElement], windows.contains(where: { CFEqual($0, window) }) else {
             throw WindowSearchError.unavailable
         }
+        return (app, window)
+    }
+
+    @MainActor fileprivate func close(_ id: String) throws {
+        let (_, window) = try validatedTarget(id)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID(),
+              AXUIElementPerformAction(value as! AXUIElement, kAXPressAction as CFString) == .success else {
+            throw WindowSearchError.unavailable
+        }
+    }
+
+    @MainActor fileprivate func quitApplication(_ id: String) throws {
+        let (app, _) = try validatedTarget(id)
+        guard app.terminate() else { throw WindowSearchError.unavailable }
+    }
+
+    @MainActor fileprivate func activate(_ id: String) async throws {
+        let (app, window) = try validatedTarget(id)
+        let pid = app.processIdentifier
         var minimized: CFTypeRef?
         if AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimized) == .success,
            minimized as? Bool == true {
@@ -108,5 +129,15 @@ extension ToolService {
 
     @MainActor public static func activateLauncherWindow(_ id: String, in snapshot: LauncherWindowSnapshot) async throws {
         try await snapshot.activate(id)
+    }
+}
+
+extension ToolService {
+    @MainActor public static func closeLauncherWindow(_ id: String, in snapshot: LauncherWindowSnapshot) throws {
+        try snapshot.close(id)
+    }
+
+    @MainActor public static func quitLauncherWindowApplication(_ id: String, in snapshot: LauncherWindowSnapshot) throws {
+        try snapshot.quitApplication(id)
     }
 }

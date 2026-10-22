@@ -56,12 +56,20 @@ import ToolService
                         focused.append(try String(contentsOf: root.appendingPathComponent("focused"), encoding: .utf8))
                     }
                     guard Set(focused).count == 2 else { throw NSError(domain: "WindowSearchLiveRegression-wrong-focus", code: 2) }
-                    try focused[0].write(to: root.appendingPathComponent("close"), atomically: true, encoding: .utf8)
+                    try ToolService.closeLauncherWindow(rows[0].target.identifier, in: snapshot)
                     try await Task.sleep(for: .milliseconds(400))
                     do {
                         try await ToolService.activateLauncherWindow(rows[0].target.identifier, in: snapshot)
                         throw NSError(domain: "WindowSearchLiveRegression-stale-target-accepted", code: 3)
                     } catch WindowSearchError.unavailable {}
+                    do {
+                        try ToolService.closeLauncherWindow(rows[0].target.identifier, in: snapshot)
+                        throw NSError(domain: "WindowSearchLiveRegression-stale-close-accepted", code: 4)
+                    } catch WindowSearchError.unavailable {}
+                    try ToolService.quitLauncherWindowApplication(rows[1].target.identifier, in: snapshot)
+                    try await Task.sleep(for: .milliseconds(500))
+                    guard !process.isRunning else { throw NSError(domain: "WindowSearchLiveRegression-quit-failed", code: 5) }
+                    print("PASS: exact close, stale close rejected, normal app quit")
                     print("PASS: live same-title windows stay distinct, exact focus switches between both, minimized restoration, closed target rejected")
                     cleanUp()
                     exit(0)

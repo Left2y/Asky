@@ -863,3 +863,5 @@
 "时长" = "Duration";
 
 "秒钟" = "Seconds";
+
+"窗口操作失败，请重新搜索并检查辅助功能权限" = "Window action failed. Search again and check Accessibility access.";

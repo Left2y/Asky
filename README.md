@@ -72,7 +72,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 | **新建 AI 对话** | `Ctrl + Shift + /` | 唤出按需 AI 对话界面 |
 | **分类检索** | `file ` / `app ` / `ql ` / `sc ` | 仅搜索指定分类（文件/应用/快捷方式/快捷指令），`Esc` 退出 |
 | **文件夹浏览** | 选中文件夹按 `Tab` | 在搜索框内直接浏览或搜索该文件夹目录内容 |
-| **窗口搜索** | `sw ` 或 `sw` 后回车 | 检索当前所有运行中的应用窗口并一键切换聚焦 |
+| **窗口搜索** | `sw ` 或 `sw` 后回车 | 检索当前所有运行中的应用窗口并一键切换聚焦；`⌘K` 菜单提供红色“关闭窗口”和“退出应用” |
 | **屏幕取色** | `co` 后回车 | 开启屏幕取色放大镜，点击后自动复制色值到剪贴板 |
 | **计算历史** | `calc` 后回车 | 浏览最近 200 条计算结果，回车回填算式继续编辑 |
 | **网页指令** | `go 关键词`、`yt 关键词` 等 | 快速调用对应搜索引擎打开浏览器 |
@@ -204,7 +204,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 | **New AI Chat** | `Ctrl + Shift + /` | Open the on-demand AI conversation panel |
 | **Category Search** | `file ` / `app ` / `ql ` / `sc ` | Filter results by category (files/apps/quick links/shortcuts); `Esc` to exit |
 | **Folder Browse** | Select folder + `Tab` | Browse or search folder contents directly in launcher |
-| **Window Search** | `sw ` or `sw` + Return | Find and focus running application windows |
+| **Window Search** | `sw ` or `sw` + Return | Find and focus running application windows; `⌘K` offers red Close Window and Quit Application actions |
 | **Color Picker** | `co` + Return | Open screen color sampler and copy hex value to clipboard |
 | **Calculation History** | `calc` + Return | View last 200 calculations and restore expressions |
 | **Web Commands** | `go keyword`, `yt keyword`, etc. | Search directly on target websites in your browser |

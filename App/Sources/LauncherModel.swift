@@ -1118,6 +1118,10 @@ extension LauncherModel {
 
     var secondaryActions: [LauncherAction] {
         guard let result = selectedActionResult, result.primaryAction != nil else { return [] }
+        if result.target.kind == "application-window" {
+            return [LauncherAction(title: "关闭窗口", icon: "xmark", shortcut: nil, kind: .closeWindow),
+                    LauncherAction(title: "退出应用", icon: "power", shortcut: nil, kind: .quitWindowApplication)]
+        }
         if result.target.kind == "calculator-history" {
             return [LauncherAction(title: "基于此继续计算", icon: "equal.square", shortcut: nil, kind: .continueCalculation),
                     LauncherAction(title: "删除记录", icon: "trash", shortcut: nil, kind: .deleteCalculation)]
@@ -1183,6 +1187,20 @@ extension LauncherModel {
         let result = selectedActionResult
         closeActionsMenu()
         switch action.kind {
+        case .closeWindow, .quitWindowApplication:
+            guard let result, result.target.kind == "application-window", let snapshot = windowSnapshot else { return }
+            do {
+                if case .closeWindow = action.kind {
+                    try ToolService.closeLauncherWindow(result.target.identifier, in: snapshot)
+                    windowSnapshot = nil
+                    update()
+                } else {
+                    try ToolService.quitLauncherWindowApplication(result.target.identifier, in: snapshot)
+                    onHide()
+                }
+            } catch {
+                status = NSLocalizedString("窗口操作失败，请重新搜索并检查辅助功能权限", comment: "")
+            }
         case .editCommand(let id):
             guard let result, builtInCommandIDs[result.id] == id else { return }
             onHide()

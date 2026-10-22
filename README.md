@@ -10,8 +10,9 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 [![macOS](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white)](project.yml)
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Packages/KulaCore/Package.swift)
 [![MCP](https://img.shields.io/badge/MCP-Bridge-6A1B9A)](docs/native-tools-and-mcp.md)
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[🌐 官方网站 / Website](https://asky.niallyoung2002.workers.dev/) · [📖 使用教程 / Docs](https://asky.niallyoung2002.workers.dev/docs) · [📦 立即下载 / Releases](https://github.com/Niall-Young/Asky/releases)
 
 [中文](#中文) | [English](#english)
 
@@ -24,138 +25,130 @@ A native macOS launcher for local search, clipboard history, and an on-demand AI
 <a id="中文"></a>
 ## 中文
 
-### 简介与功能
+Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全局搜索与剪贴板历史可完全独立离线使用，AI 助手按需唤起，兼具极致轻量的系统体验与强大的扩展能力。
 
-Asky 使用 SwiftUI 与 AppKit 构建，搜索和剪贴板可独立使用，AI 助手按需启动。项目仍在开发中，验收状态见[验证记录](docs/validation/)。
+🌐 **官方网站**：[https://asky.niallyoung2002.workers.dev/](https://asky.niallyoung2002.workers.dev/)  
+📖 **使用教程**：[功能指南与操作手册](https://asky.niallyoung2002.workers.dev/docs)
 
-macOS 26+ 开启液态玻璃时，搜索、AI 对话与剪贴板整窗背景共用无染色的 AppKit 原生 Regular 玻璃；关闭液态玻璃或启用辅助功能显示选项时保留对应回退。
+### ✨ 核心功能
 
-- **搜索**：应用、文件、Chrome 标签与书签，支持网页指令、终端、计算和汇率换算。输入 `calc` 或搜索“计算历史”可进入计算记录；确认复制计算结果时保存，最近 200 条在本地保留，可复制结果、将原算式填回输入框继续计算或删除单条记录。
-- **屏幕取色**：输入 `co` 或搜索“取色”，回车打开 macOS 原生取色器；点击屏幕颜色后自动将大写 sRGB `#RRGGBB` 写入剪贴板，Esc 取消并保留原内容。启用剪贴板历史时，色值会按现有记录规则显示颜色预览；可在指令设置中修改触发词。
-- **剪贴板**：文本、图片和文件历史，支持搜索、预览与拖放，统一使用列表视图，移除显示方式设置；旧版卡片配置自动忽略。图片名称使用复制时间，格式为 `yyyy_MM_dd_HH_mm_ss`（本地时区），可按年份、部分或完整时间戳检索，并与来源和类型组合搜索。完整的 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA`、`rgb()` / `rgba()`、`hsl()` / `hsla()` 与 `oklch()` 文本显示圆形颜色预览，下方保留原始颜色表达式；支持百分比、透明度与空格加斜线语法，无 `#` 的十六进制字符串保持普通文本，复制和粘贴保留原文。支持按回车粘贴到原应用，`⌘ Return` 始终仅复制并保留面板。列表底栏检测到输入焦点时显示回车粘贴，更多菜单始终提供“复制到剪贴板”，并在有输入焦点时提供“粘贴并保持窗口开启”（粘贴后保留窗口、搜索词与选中项）；明确无输入焦点时显示 `⌘ Return` 复制，普通回车不执行。微信等应用若不提供完整的焦点信息，保留回车粘贴以兼容其自定义输入框。焦点检测及自动粘贴需要辅助功能权限；粘贴时若目标失效，保留复制结果并提示手动粘贴。列表单击选中、双击复制；底栏“更多”（`⌘K`）可删除记录；支持 `⌘⌫` 删除当前选中记录。更多菜单提供“清空全部”，确认后删除所有历史（包括固定记录），原始文件保留。历史保留时间默认为 3 天，可在“设置 › 剪贴板”选择 8 小时、1 天、3 天、7 天或 30 天。到期记录（包括旧版固定项）退出列表与搜索，启动时及运行期间约每分钟清理；缩短期限立即清理过期历史，原始文件保留。原文件丢失、不可读或图片原件损坏的记录会自动隐藏，在保留期内恢复可用后重新显示。
-- **原生交互回复（试用）**：AI 可随文字流逐字段生成文本输入、单选、多选和日期表单；完成后提交到同一会话，支持必填校验与历史重开。需要模型遵循组件格式，实际出现速度取决于模型响应。
-- **AI 与记忆**：OpenAI 兼容接口、附件、对话历史、联网搜索，以及本地 Markdown 记忆；上下文压缩时显示 loading 与状态提示。聊天支持本地 LaTeX 行内与独立公式排版（`$…$`、`$$…$$`、`\(…\)`、`\[…\]`），无法解析时保留公式源码。
-- **系统与扩展**：按授权访问日历、提醒事项、备忘录和通讯录，支持情境提醒、可信 GitHub 插件和 MCP。插件默认不安装，手动安装后默认关闭，需要用户开启。官方插件：[飞书](https://github.com/Niall-Young/asky-plugin-lark)、[Orca](https://github.com/Niall-Young/asky-plugin-orca)。
+- 🔍 **全局快速搜索**
+  - **全能检索**：秒级检索应用程序、本地文件、Chrome 标签页与书签，以及当前运行的应用窗口（`sw`）。
+  - **分类过滤与下钻**：支持 `app `（应用）、`file `（文件）、`ql `（快捷方式）、`sc `（快捷指令）专属分类过滤；选中文件夹按 `Tab` 可直接下钻浏览或检索子目录。
+  - **即时计算与换算**：支持数学表达式计算、单位换算与实时汇率换算；输入 `calc` 查看计算历史并支持一键回填算式。
+  - **屏幕取色器**：输入 `co` 快速调用 macOS 原生取色工具，点击即复制大写 sRGB 十六进制色值。
+  - **快捷指令与终端**：集成网页搜索指令（`go`、`yt`、`x` 等预设）与终端命令执行（`> 命令`）。
 
-开启“设置 › AI 与工具可使用的来源 › 路线时间（MapKit）”后，AI 可搜索地点并比较驾车、公交、步行耗时，逐段规划当天日程、计算含到场缓冲的建议出发时间。无需地图 API Key；查询会向地图服务发送必要地点，不自动获取当前位置。未指定方式时比较三种交通方式，合理可行的步行、公交优先考虑；机动车方案默认优先考虑打车；仅在用户明确选择且车辆可用时规划自驾，并考虑停车及停车后的步行时间。打车行驶时间与未知的等车时间分开说明。起点或地点有歧义时先补充确认；公交仅提供预计耗时，不提供线路与换乘详情。此能力用于主动对话，不代表后台提醒已自动接入路线耗时。
+- 📋 **强大的剪贴板历史**
+  - **多类型支持**：完整记录文本、富文本、图片与文件历史，支持关键词与来源应用组合检索。
+  - **智能颜色预览**：自动识别 `#RGB`、`rgb()`、`hsl()`、`oklch()` 等颜色代码并显示直观的圆形色盘预览。
+  - **无缝粘贴体验**：`Return` 自动粘贴到目标应用（需辅助功能权限），`⌘ Return` 仅复制并保留窗口；支持文件与图片的平滑拖拽。
+  - **灵活历史管理**：支持自定义保留期限（8 小时 ~ 30 天）与自动清理，支持快捷键 `⌘⌫` 单条删除或 `⌘K` 菜单清空历史。
 
-拖放优先使用目标应用的原生接收；若目标拒绝拖放，但松手位置可识别为输入框，则将该记录复制后粘贴到目标输入框。Esc 取消或拖到非输入区域不会触发补粘贴。飞书文本拖放即使报告已接收，也会核对同一输入框的前后内容；确认未变化才补粘贴，已有变化则保留原生结果。固定窗口也会在补粘贴前释放键盘焦点，投递后恢复显示。该兜底需要辅助功能权限及可用的拖拽事件观察。
+- 🤖 **按需 AI 助手与本地记忆**
+  - **轻量按需启动**：无需常驻后台 AI 进程；兼容任意 OpenAI 协议模型服务商与自定义端点。
+  - **原生交互表单**：支持 AI 在对话流中渲染单选、多选、文本输入与日期选择等原生表单控件，填写后直接提交至同一会话。
+  - **本地记忆与上下文**：基于本地 Markdown 存储用户偏好与记忆，支持长上下文智能压缩与网络实时检索。
+  - **本地数学公式排版**：原生支持行内与独立 LaTeX 公式（`$…$`、`$$…$$`）排版。
+  - **日程与路线规划**：集成系统 MapKit 能力，对比驾车、公交与步行耗时，自动为日程计算含缓冲时间的建议出发时间。
 
-剪贴板顶部使用主搜索样式：整行输入区内保留窗口固定按钮，不显示搜索图标；所有输入均作为普通搜索词，可匹配正文、来源应用和类型名称（如“图片”“微信”“TIFF”），多个词可组合匹配；固定使用无常驻背景的纯图标按钮，底部分割线两侧留白；列表中间竖线在上下留白。主搜索与剪贴板输入区同为 52 pt 高，右侧图标大小与边距一致。
+- 🧩 **系统生态与扩展**
+  - **macOS 系统集成**：按授权安全访问系统日历、提醒事项、备忘录与通讯录。
+  - **MCP 协议支持**：内置 MCP（Model Context Protocol）桥接，可无缝连接外部工具生态。
+  - **可信插件体系**：支持用户主动安装 GitHub 插件，官方提供 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca)。
 
-### 安装与使用
+- 🎨 **纯正 macOS 原生体验与隐私优先**
+  - **现代视觉语言**：采用 AppKit 原生 Regular 玻璃与液态视觉质感，窗口平滑展开，严格适配系统“减少动态效果”。
+  - **严格隐私保护**：不向作者服务器上传任何用户数据；API 密钥安全存放在 macOS 系统钥匙串中，数据完全归用户所有。详见[隐私政策](PRIVACY.md)。
 
-[下载 Asky](https://github.com/Niall-Young/Asky/releases)（macOS 15+，Apple Silicon）。打开 DMG，将 `Asky.app` 拖入“应用程序”后启动。安装包已包含 Node.js 和 AgentRuntime；ZIP 用于应用内更新。自动更新默认开启，可在“设置 › 关于 Asky › 软件更新”关闭。
+---
 
-首次启动默认显示菜单栏图标、登录时启动并隐藏 Dock 图标；主题与语言跟随系统，液态玻璃默认开启（受系统版本支持限制）。已有安装保留原设置。可在“设置 › 通用”调整。文件搜索范围与文件夹导航位于“搜索与导航”；剪贴板相关选项位于独立的“剪贴板”页面，样式默认为列表式，已保存的样式选择保持不变。
+### ⌨️ 快捷键与常用入口
 
-| 入口 | 用法 |
-| --- | --- |
-| 搜索 | 从菜单栏打开，输入关键词，方向键选择、回车打开 |
-| 分类搜索 | `file 空格` 搜文件、`app 空格` 搜应用、`ql 空格` 搜快捷方式、`sc 空格` 搜快捷指令；也可输入“搜索文件”等命令名称后选中回车；Esc 或空输入退格退出 |
-| 文件夹内搜索 | 选中文件夹按 `Tab`，空输入浏览目录，输入文件名搜索当前目录及 Spotlight 已索引的子目录；空输入退格默认返回上一层，可在“搜索与导航”改为退出全部层级；`Esc` 返回上一层 |
-| 剪贴板 | `Ctrl + Shift + C` |
-| AI 新对话 | `Ctrl + Shift + /` |
-| 网页与终端 | `go 关键词`、`ds 问题`（填入后手动发送）、`yt 关键词`、`x 关键词`（X 搜索）、`> pwd` |
-| 设置 | 搜索或剪贴板获得焦点时按 `⌘,` |
+| 功能 | 触发方式 / 快捷键 | 说明 |
+| :--- | :--- | :--- |
+| **快速搜索** | 菜单栏图标 / 自定义全局快捷键 | 键入关键词，方向键选择，`Return` 打开 |
+| **剪贴板历史** | `Ctrl + Shift + C` | 浏览历史记录，`Return` 粘贴，`⌘ Return` 仅复制 |
+| **新建 AI 对话** | `Ctrl + Shift + /` | 唤出按需 AI 对话界面 |
+| **分类检索** | `file ` / `app ` / `ql ` / `sc ` | 仅搜索指定分类（文件/应用/快捷方式/快捷指令），`Esc` 退出 |
+| **文件夹浏览** | 选中文件夹按 `Tab` | 在搜索框内直接浏览或搜索该文件夹目录内容 |
+| **窗口搜索** | `sw ` 或 `sw` 后回车 | 检索当前所有运行中的应用窗口并一键切换聚焦 |
+| **屏幕取色** | `co` 后回车 | 开启屏幕取色放大镜，点击后自动复制色值到剪贴板 |
+| **计算历史** | `calc` 后回车 | 浏览最近 200 条计算结果，回车回填算式继续编辑 |
+| **网页指令** | `go 关键词`、`yt 关键词` 等 | 快速调用对应搜索引擎打开浏览器 |
+| **终端执行** | `> pwd` | 直接在启动器中执行 Shell 命令 |
+| **项操作菜单** | `⌘K` | 打开当前项的更多操作菜单（如展示文件简介 `⌘I`、复制文件名 `⌘⇧.` 等） |
+| **打开设置** | `⌘,`（窗口获焦时） | 呼出 Asky 设置面板 |
 
-输入 `sw` 回车或 `sw 空格` 进入窗口搜索；空查询列出所有提供辅助功能窗口信息的应用窗口，按窗口标题或应用名筛选，同一应用的多个窗口分别显示，结果使用所属应用的真实图标，回车或点击切换到具体窗口（包括最小化窗口）。需要系统辅助功能权限；窗口列表仅在当前搜索面板保留，重新进入时刷新。触发词可在“设置 › 指令”修改，Esc 返回普通搜索，空查询退格退出。
+*完整快捷键配置与高级技巧见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。*
 
-文件与应用结果的“更多”菜单提供“复制文件名”（`⌘⇧.`，包含扩展名）与“展示文件信息”（`⌘I`，打开访达简介窗口，首次使用可能需要自动化授权）；菜单关闭时也可使用这两个快捷键。
+---
 
-内置网页指令（如 `go`）的“更多”提供“编辑快捷指令”（打开设置并聚焦对应命令输入框）和“停用”（同步取消设置中的勾选）。
+### 📦 安装与配置
 
-文件搜索先过滤隐藏项和排除目录，再按文件名匹配度取结果；同名匹配优先于最近修改的部分匹配。普通搜索每个来源最多显示 8 条；通过指令进入应用、文件、快捷方式或快捷指令模式后，保留搜索词重新查询，最多显示该分类的 200 条结果，可滚动查看。
+#### 下载安装
+- 前往 [GitHub Releases](https://github.com/Niall-Young/Asky/releases) 或 [官方网站](https://asky.niallyoung2002.workers.dev/) 下载最新 DMG 安装包（支持 macOS 15+，Apple Silicon）。
+- 打开 DMG，将 `Asky.app` 拖入“应用程序”目录即可。安装包已预置 Node.js 与 AgentRuntime，无需手动配置外部环境。
+- 应用默认开启静默自动更新，可在“设置 › 关于 Asky › 软件更新”中管理。
 
-搜索框右侧常驻静态搜索图标，仅作装饰，没有点击、悬停或固定窗口功能；输入前后保持相同布局。搜索结果出现时，玻璃窗口向下平滑展开，列表轻微淡入；输入框保持原位，并适配系统“减少动态效果”。
+#### 权限与 AI 配置
+- **系统权限**：自动粘贴与窗口搜索功能需要 macOS **辅助功能**（Accessibility）权限；访问日历、备忘录等需在首次使用时授权。
+- **智能配置**：在“设置 › 智能配置”中填入对应模型服务商的 API Key，或自定义兼容 OpenAI 协议的 Base URL 及模型名。API 密钥安全存放在 macOS 系统钥匙串中。
 
-搜索和剪贴板列表底栏的“更多”（`⌘K`）在 macOS 26+ 开启液态玻璃时原位变形成菜单，关闭后缩回按钮；旧系统保留材质回退，系统“减少动态效果”开启时立即切换。菜单支持方向键、回车与 Esc，保持搜索词和输入焦点。
+---
 
-单位换算与汇率换算共用横向双卡片，分别显示输入值与目标值，中间以双向箭头连接；卡片只读，不提供选中、悬停或复制操作。
+### 🛠️ 开发与构建
 
-四个分类触发词可在“设置 › 指令”修改并恢复默认。
+#### 环境要求
+- macOS 15+ (Apple Silicon)
+- Xcode 16+ / Swift 6.2+
+- Node.js 22+
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
-“设置 › 指令”通过“搜索指令”和“内置指令”两个 Tab 切换；顶部搜索框在左、Tab 在右，横向间距 24 pt、等高；搜索框搜索全部指令，搜索时同时显示两组匹配结果。`ql` 对应行显示为“搜索指令”。
-
-网站指令默认仅开启 `go`、`chat`、`dy`、`tb`、`jd`、`bl`、`gh`、`x`；其余默认关闭，已有启停配置保留。仅提供内置预设，可在“设置 › 指令”中启停或修改触发词，不支持新增自定义网站。
-
-“设置 › 触发快捷键”按全局、通用、文件与应用、启动器、剪贴板和 AI 对话分组展示快捷键；“打开设置”仅在通用分组配置一次，所有窗口共用；所有项目均支持点击录制、保存和恢复默认；方向键、回车执行或发送、Tab 进入文件夹、退格返回、Esc 退出和 Shift-Return 换行为固定键盘操作，不列入快捷键配置；同一窗口内的冲突组合会被拒绝。启动器默认用 `⌘ Return` 在访达中显示选中项，`⇧⌘ Return` 将输入提交给 AI；旧默认配置自动迁移，自定义组合保持不变。Chrome 搜索与系统工具需要相应授权。完整操作见[使用教程](https://asky.niallyoung2002.workers.dev/docs)。
-
-### AI 配置与隐私
-
-在“设置 › 智能配置”选择模型服务商，填写 API Key 并保存；也可自定义 OpenAI 兼容地址和模型。Key 保存在 macOS 钥匙串；旧签名凭据在首次成功读取后自动迁移，后续读取使用当前签名创建的记录，无需依赖“始终允许”。首次读取旧记录仍可能出现系统确认，迁移失败保留原记录。本地数据位于 `~/Library/Application Support/KulaHere/`。
-
-应用没有向作者上传用户数据的接口。AI 消息、附件、所需工具结果及启用的记忆处理内容会发送至你配置的模型服务；联网搜索词发送至 Bing。详见[隐私政策草案](PRIVACY.md)。
-
-### 开发
-
-需要 Xcode 26 / Swift 6.2+、Node.js 22+ 和 XcodeGen。在仓库根目录执行：
+#### 构建与运行
+在仓库根目录执行：
 
 ```sh
+# 1. 安装 Agent 运行时依赖并构建
 (cd AgentRuntime && npm ci && npm run build)
+
+# 2. 生成 Xcode 工程
 xcodegen generate
+
+# 3. 编译并启动 Debug 版本
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
-常用检查（先构建 MCP Bridge，再测试核心包）：
-
+#### 运行测试
 ```sh
+# 核心测试套件
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
-(cd Packages/KulaCore && ASKY_LIVE_MAPS=1 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter MapToolsTests)
-python3 App/Tests/check-localization.py
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --clear-all
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --availability
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --clipboard-retention
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --colors
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion --list-drag --pinned-drag
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --command-layout
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --settings-focus
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --hotkeys-only
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --local-shortcuts
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --sources-only
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --file-search
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search-live
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --calculator-history
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --color-picker
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar --more-motion
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --command-actions
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-agent-reply-regression.py --math-preview
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ChatForm.swift App/Tests/ChatFormParserRegression.swift -o build/chat-form-parser-regression
-build/chat-form-parser-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-agent-reply-regression.py --forms-preview
 ```
 
-核心错误与工具说明使用 `CoreLocalization` 及 SwiftPM 共享中英文资源，App 和独立 MCP Bridge 共用；检查规则同时覆盖未接入翻译的固定错误文案。
+> [!NOTE]
+> 完整的 UI 自动化回归脚本、Debug 交互预览参数以及 Developer ID 签名与公证打包流程，详见[开发与发布指南](docs/development.md)。
 
-原生回归、Debug 预览和签名说明见[开发与发布指南](docs/development.md)。发布使用 `scripts/package-release.py`，以 Developer ID Application 正式签名、公证并装订票据后生成 DMG、更新 ZIP 和校验文件；需先将公证凭据存入 `Asky` 钥匙串配置，打包前提交源码并保持工作区干净。Debug 与 Release 使用同一 Developer ID Application 签名，构建前需在钥匙串中安装对应证书及私钥；从旧自签名 Debug 切换后可能需要重新授权一次。检查结果写入 `docs/validation/`。
+---
 
-### 代码与文档
+### 📂 代码结构与文档
 
-| 目录 | 职责 |
-| --- | --- |
-| `App/` | SwiftUI / AppKit 原生界面 |
-| `Packages/KulaCore/` | 核心能力与统一系统访问入口 ToolService |
-| `AgentRuntime/` | TypeScript AI 宿主 |
-| `MCPBridge/` | 外部工具桥接 |
+| 目录 | 职责说明 |
+| :--- | :--- |
+| `App/` | 基于 SwiftUI 与 AppKit 的原生客户端界面与交互实现 |
+| `Packages/KulaCore/` | 核心业务模型与统一系统访问入口 `ToolService` |
+| `AgentRuntime/` | 基于 TypeScript 构建的轻量 AI 运行时宿主 |
+| `MCPBridge/` | Model Context Protocol 原生桥接服务 |
 
-[文档索引](docs/README.md) · [产品需求](docs/PRD.md) · [架构](docs/framework.md) · [设计系统](docs/design-system.md) · [插件指南](docs/plugins.md)
+- [文档索引](docs/README.md) · [产品需求 (PRD)](docs/PRD.md) · [系统架构](docs/framework.md) · [设计规范](docs/design-system.md) · [插件开发](docs/plugins.md) · [隐私政策](PRIVACY.md)
 
-### 许可证
+---
 
-[MIT](LICENSE)。第三方依赖遵循各自的许可证。
+### 📄 许可证
+
+本项目采用 [MIT 许可证](LICENSE)。第三方依赖项遵循其各自的开源协议。
 
 [English](#english) · [返回顶部](#asky)
 
@@ -164,137 +157,129 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-a
 <a id="english"></a>
 ## English
 
-### Overview and Features
+Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local global search and clipboard history work completely offline without relying on AI, while the AI assistant runs on-demand—delivering both lightweight performance and extensive expandability.
 
-Asky is built with SwiftUI and AppKit. Search and clipboard history work independently; the AI assistant starts on demand. The project is in development; see [validation records](docs/validation/) for acceptance status.
+🌐 **Website**: [https://asky.niallyoung2002.workers.dev/](https://asky.niallyoung2002.workers.dev/)  
+📖 **Documentation**: [User Guide & Manual](https://asky.niallyoung2002.workers.dev/docs)
 
-With Liquid Glass enabled on macOS 26+, search, AI chat, and clipboard window backgrounds share untinted native AppKit Regular glass. Disabling Liquid Glass or enabling accessibility display options retains the corresponding fallbacks.
+### ✨ Key Features
 
-- **Search**: apps, files, Chrome tabs and bookmarks, web commands, terminal commands, calculations, and currency conversion. Enter `calc` or search for “Calculation History” to view calculations saved when you confirm copying a result. The latest 200 records stay locally; copy a result, restore the original expression to continue calculating, or delete a record.
-- **Screen color picker**: enter `co` or search “Pick Screen Color”, then press Return to open the native macOS sampler. Click a screen color to copy uppercase sRGB `#RRGGBB`; Esc cancels and preserves the clipboard. With clipboard history enabled, the value appears with a color preview under the existing recording rules. Customize the keyword in command settings.
-- **Clipboard**: text, image, and file history with search, previews, and drag and drop, in a single list view. The layout setting has been removed; legacy card preferences are ignored. Image names use the copy time in `yyyy_MM_dd_HH_mm_ss` format (local time zone). Search by year, a partial or full timestamp, and combine it with source or type terms. Complete `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`, `rgb()` / `rgba()`, `hsl()` / `hsla()`, and `oklch()` text values show a circular color preview above the original color expression. Percentages, alpha, and space/slash syntax are supported. Unprefixed hex strings remain plain text; copying and pasting preserve the original text. Return pastes into the original app; `⌘ Return` always only copies and keeps the panel open. The list footer offers Return to paste when an input is detected, or `⌘ Return` to copy when focus is confirmed to be outside an input; plain Return does nothing in the latter case. More always includes Copy to Clipboard. With an input target, it also offers Paste and Keep Window Open, preserving the window, query, and selection. Apps such as WeChat that do not expose complete focus information retain Return to paste for compatibility with custom editors. Focus detection and automatic paste require Accessibility access; if the target becomes unavailable during paste, the copied content remains available with a manual-paste message. In list view, click to select and double-click to copy; use More (`⌘K`) in the footer to delete a record. Press `⌘⌫` to delete the selected record. The More menu offers Clear All; confirmation deletes all history, including pinned items, while preserving original files. History defaults to 3 days; choose 8 hours, 1 day, 3 days, 7 days, or 30 days in Settings › Clipboard. Expired records, including legacy pinned items, leave history and search; cleanup runs at launch and about once per minute while running. Shortening the period immediately removes expired history while preserving original files. Records with missing or unreadable originals, or corrupt images, are hidden and reappear if restored within the retention period.
-- **Native interactive replies (preview)**: AI can stream text fields, single and multiple choices, and date pickers alongside prose. Submit completed forms into the same conversation, with required-field validation and history rendering. Models must follow the component format; latency depends on the provider.
-- **AI and memory**: OpenAI-compatible providers, attachments, conversation history, web search, and local Markdown memory; context compaction shows a loading indicator and status. Chat renders inline and display LaTeX locally (`$…$`, `$$…$$`, `\(…\)`, `\[…\]`) and keeps the formula source visible when parsing fails.
-- **System and extensions**: authorized access to calendars, reminders, Notes, and contacts, plus contextual reminders, trusted GitHub plugins, and MCP. Plugins are not installed automatically and remain disabled after manual installation until the user enables them. Official plugins: [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
+- 🔍 **Global Fast Search**
+  - **Comprehensive Retrieval**: Instantly search applications, local files, Chrome tabs and bookmarks, and active application windows (`sw`).
+  - **Category Filtering & Deep Dive**: Use dedicated filters like `app `, `file `, `ql ` (quick links), and `sc ` (shortcuts). Press `Tab` on any folder to browse or search its subdirectories directly.
+  - **Instant Calculations & Conversions**: Support for mathematical formulas, unit conversions, and live currency rates. Enter `calc` to view calculation history and restore expressions with one click.
+  - **Screen Color Picker**: Enter `co` to launch macOS's native color sampler; click to copy the sRGB uppercase hex value.
+  - **Web Commands & Terminal**: Quick web search presets (`go`, `yt`, `x`, etc.) and terminal command execution (`> command`).
 
-Enable “Travel time (MapKit)” under Settings › sources available to AI and tools to search places and compare driving, transit, and walking estimates in chat. The agent can query each leg of a day’s calendar and suggest departure times with an arrival buffer. No map API key is needed; necessary locations are sent to the map service, without automatically collecting your current location. Without an explicit preference, compare all three modes and favor practical walking or transit options. For motorized travel, consider taxis before self-driving. Plan self-driving only when explicitly chosen and a vehicle is available, accounting for parking and the walk from parking. Distinguish estimated taxi driving time from unknown waiting time. Missing origins or ambiguous places require clarification. Transit provides estimates only, without line or transfer details. This chat capability does not automatically enable route estimates in background reminders.
+- 📋 **Robust Clipboard History**
+  - **Multi-Type Support**: Records text, rich text, images, and files with combined keyword and source app search.
+  - **Smart Color Previews**: Automatically detects `#RGB`, `rgb()`, `hsl()`, `oklch()`, and other CSS color formats, rendering circular color previews.
+  - **Seamless Pasting**: Press `Return` to paste into the active target app (requires Accessibility permission); `⌘ Return` copies while keeping the panel open. Supports smooth drag-and-drop for files and images.
+  - **Flexible Retention**: Configure history retention (8 hours to 30 days) with automatic cleanup. Delete single entries with `⌘⌫` or clear all via the More menu (`⌘K`).
 
-Dragging first uses the destination’s native drop handling. If it rejects the drop and the release position identifies an editor, Asky copies the record and pastes into that editor. Escape cancellation and non-input regions do not trigger paste. For Feishu text drops that report acceptance, Asky compares the same editor’s contents before and after the drop, pasting only when they remain unchanged; changed contents retain the native result. A pinned window releases keyboard focus before the fallback paste and reappears after dispatch. This fallback requires Accessibility access and available drag event observation.
+- 🤖 **On-Demand AI Assistant & Local Memory**
+  - **On-Demand Lifecycle**: Keeps background resource usage minimal; connects to any OpenAI-compatible provider and custom endpoints.
+  - **Native Interactive Forms**: AI can stream structured form controls (text fields, radio buttons, checklists, date pickers) directly in chat, which submit straight back into the conversation.
+  - **Local Memory & Context**: Stores user preferences and context in local Markdown files with automatic context compaction and web search.
+  - **Native LaTeX Rendering**: Renders inline and block LaTeX formulas (`$…$`, `$$…$$`) locally.
+  - **Smart Travel & Calendar Planning**: Built-in MapKit support to compare driving, transit, and walking times, suggesting arrival-buffered departure times for your day.
 
-The clipboard uses the launcher search style: the full-row input keeps the window pin button and omits the search icon. All input is treated as ordinary search text and matches content, source apps, and type names (such as Image, WeChat, or TIFF); multiple terms can be combined. The pin is an icon-only button without a persistent background. The bottom divider has horizontal insets, and the list column divider has vertical insets. Launcher and clipboard input rows are both 52 pt tall and share the same trailing icon size and alignment.
+- 🧩 **System Integration & Extensibility**
+  - **macOS Native Access**: Authorized access to system Calendars, Reminders, Notes, and Contacts.
+  - **MCP Protocol**: Built-in Model Context Protocol bridge for broad compatibility with external tooling ecosystems.
+  - **Trusted Plugin System**: Install community plugins from GitHub on demand, featuring official plugins for [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 
-### Install and Use
+- 🎨 **Pure macOS Native Experience & Privacy First**
+  - **Modern Interface**: Engineered with AppKit Regular Liquid Glass, smooth window transitions, and full support for Reduce Motion.
+  - **Privacy First**: Zero telemetry sent to author servers. Sensitive credentials and API keys are stored securely in the macOS Keychain. See [Privacy Policy](PRIVACY.md).
 
-[Download Asky](https://github.com/Niall-Young/Asky/releases) (macOS 15+, Apple Silicon). Open the DMG, drag `Asky.app` into Applications, then launch it. Node.js and AgentRuntime are bundled; ZIP packages are for in-app updates. Automatic updates are enabled by default; disable them in Settings › About Asky › Software Update.
+---
 
-On first launch, Asky shows its menu bar icon, enables launch at login, and hides its Dock icon. Theme and language follow the system; Liquid Glass is enabled where supported. Existing installations retain their settings. Change these options in Settings › General. File search scope and folder navigation are in Search & Navigation; clipboard options have their own Clipboard page. Clipboard style defaults to list view; saved style choices are preserved.
+### ⌨️ Shortcuts & Key Entries
 
-| Entry | Usage |
-| --- | --- |
-| Search | Open from the menu bar, type a keyword, select with arrow keys, press Return |
-| Category search | Type `file ` for files, `app ` for apps, `ql ` for quick links, or `sc ` for shortcuts; alternatively find a category search command and press Return. Escape or Backspace on empty input exits |
-| Search within a folder | Select a folder and press `Tab`; browse its contents or type a filename to search it and Spotlight-indexed subfolders. Backspace on empty input returns one level by default; choose to exit all levels in Search & Navigation. `Esc` returns one level |
-| Clipboard | `Ctrl + Shift + C` |
-| New AI chat | `Ctrl + Shift + /` |
-| Web and terminal | `go keyword`, `ds question` (prefills; send manually), `yt keyword`, `x keyword` (X search), `> pwd` |
-| Settings | Press `⌘,` while search or clipboard has focus |
+| Feature | Trigger / Shortcut | Description |
+| :--- | :--- | :--- |
+| **Quick Search** | Menu bar icon / Global hotkey | Type keywords, navigate with arrow keys, press `Return` to open |
+| **Clipboard History** | `Ctrl + Shift + C` | Browse history, `Return` to paste, `⌘ Return` to copy |
+| **New AI Chat** | `Ctrl + Shift + /` | Open the on-demand AI conversation panel |
+| **Category Search** | `file ` / `app ` / `ql ` / `sc ` | Filter results by category (files/apps/quick links/shortcuts); `Esc` to exit |
+| **Folder Browse** | Select folder + `Tab` | Browse or search folder contents directly in launcher |
+| **Window Search** | `sw ` or `sw` + Return | Find and focus running application windows |
+| **Color Picker** | `co` + Return | Open screen color sampler and copy hex value to clipboard |
+| **Calculation History** | `calc` + Return | View last 200 calculations and restore expressions |
+| **Web Commands** | `go keyword`, `yt keyword`, etc. | Search directly on target websites in your browser |
+| **Terminal** | `> pwd` | Execute shell commands directly from the search bar |
+| **Action Menu** | `⌘K` | Open context menu (Show Get Info `⌘I`, Copy filename `⌘⇧.`, etc.) |
+| **Settings** | `⌘,` (when window is focused) | Open Asky Settings |
 
-Enter `sw` and press Return, or type `sw `, to search application windows. An empty query lists all windows exposed through macOS Accessibility; filter by window title or app name. Each window has its own result with its app’s actual icon, including multiple windows from one app. Click or press Return to focus that exact window, restoring it if minimized. Accessibility permission is required. The list lives only for the current panel session and refreshes when re-entering the mode. Customize the trigger in Settings › Commands. Escape returns to general search; Backspace exits an empty window query.
+*See the [User Guide](https://asky.niallyoung2002.workers.dev/docs) for advanced configuration and full shortcut listings.*
 
-The More menu for file and application results offers Copy filename (`⌘⇧.`, including the extension) and Show file info (`⌘I`, opens Finder’s Get Info window and may require Automation permission on first use). Both shortcuts also work while the menu is closed.
+---
 
-More for built-in web commands such as `go` offers Edit shortcut (opens Settings and focuses its trigger field) and Disable (clears its checkbox in Settings).
+### 📦 Installation & Setup
 
-File search filters hidden items and excluded directories before limiting results, ranking exact filename matches ahead of recently modified partial matches. Root search shows up to 8 hits per source; entering Applications, Files, Quick Links, or Shortcuts through a command reruns the current query for up to 200 results in that category, accessible by scrolling.
+#### Download & Install
+- Download the latest DMG release from [GitHub Releases](https://github.com/Niall-Young/Asky/releases) or the [Official Website](https://asky.niallyoung2002.workers.dev/) (macOS 15+, Apple Silicon).
+- Open the DMG and drag `Asky.app` into Applications. Node.js and AgentRuntime are bundled—no extra setup required.
+- In-app automatic updates are enabled by default; configure in Settings › About Asky › Software Update.
 
-A static search icon remains on the right of the search field. It is decorative, with no click, hover, or window-pinning behavior, and the layout stays the same while typing. Search results gently fade in as the glass window expands downward, keeping the input anchored and respecting Reduce Motion.
+#### Permissions & AI Configuration
+- **Permissions**: Automatic pasting and window search require macOS **Accessibility** access. Calendar and Notes access require user authorization on first use.
+- **Model Setup**: Go to Settings › Model Settings to configure your API Key or custom OpenAI-compatible endpoint. Keys are stored safely in the macOS Keychain.
 
-With Liquid Glass enabled on macOS 26+, More (`⌘K`) in the search and clipboard list footers morphs in place into its menu and contracts back into the button. Older systems retain the material fallback; Reduce Motion switches immediately. Arrow keys, Return, and Escape work without changing the query or input focus.
+---
 
-Unit and currency conversions share two horizontal cards for the input and converted values, joined by a bidirectional arrow. Both are read-only, with no selection, hover, or copy actions.
+### 🛠️ Development & Building
 
-Customize or reset the four category trigger tokens in Settings › Commands.
+#### Prerequisites
+- macOS 15+ (Apple Silicon)
+- Xcode 16+ / Swift 6.2+
+- Node.js 22+
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
-Settings › Commands has Search Commands and Built-in Commands tabs. The shared search field sits to the left of the tabs with a 24 pt gap and matching heights. It searches every command and shows matching results from both groups. The `ql` row is named “Search Commands”.
-
-Website commands enable only `go`, `chat`, `dy`, `tb`, `jd`, `bl`, `gh`, and `x` by default; the others start disabled. Existing saved choices are preserved. Commands use built-in presets only. Enable or disable them and change their trigger tokens in Settings › Commands; adding custom websites is not supported.
-
-Settings › Keyboard Shortcuts groups global, general, file and application, launcher, clipboard, and AI conversation shortcuts. Open Settings is configured once under General and shared by every window. Every shortcut supports click-to-record customization, persistence, and resetting to its default. Arrow navigation, Return to execute or send, Tab to enter folders, Backspace to go back, Esc to dismiss, and Shift-Return for a newline remain fixed keyboard controls and are excluded from shortcut configuration; conflicting combinations within the same window are rejected. The launcher defaults to `⌘ Return` to reveal the selection in Finder and `⇧⌘ Return` to submit input to AI. Saved legacy defaults migrate automatically; custom bindings are preserved. Chrome search and system tools require the relevant permissions. See the [user guide (Chinese)](https://asky.niallyoung2002.workers.dev/docs) for full instructions.
-
-### AI Configuration and Privacy
-
-Choose a provider in Settings › Model Settings, enter your API key, and save. Custom OpenAI-compatible URLs and models are also supported. Keys stay in the macOS keychain. After the first successful read, legacy credentials migrate automatically to an item created by the current signing identity, so later reads do not depend on choosing Always Allow. The initial legacy read may still require system confirmation; migration failure preserves the original item. Local data lives in `~/Library/Application Support/KulaHere/`.
-
-The app has no interface for uploading user data to the author. AI messages, attachments, required tool results, and content used by enabled memory processing go to your configured model provider; web search queries go to Bing. See the [draft privacy policy](PRIVACY.md).
-
-### Development
-
-Requires Xcode 26 / Swift 6.2+, Node.js 22+, and XcodeGen. Run from the repository root:
+#### Build & Run
+Run from the repository root:
 
 ```sh
+# 1. Install AgentRuntime dependencies and build
 (cd AgentRuntime && npm ci && npm run build)
+
+# 2. Generate Xcode project
 xcodegen generate
+
+# 3. Build and launch Debug app
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug -derivedDataPath build/DerivedData build
 open build/DerivedData/Build/Products/Debug/Asky.app
 ```
 
-Common checks (build MCP Bridge before testing the core package):
-
+#### Running Tests
 ```sh
+# Core test suites
 (cd AgentRuntime && npm test)
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
-(cd Packages/KulaCore && ASKY_LIVE_MAPS=1 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter MapToolsTests)
-python3 App/Tests/check-localization.py
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --paste-target
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --clear-all
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --availability
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --clipboard-retention
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --colors
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --drag-paste-target
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-clipboard-regression.py --layouts --more-motion --list-drag --pinned-drag
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --website-commands
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --command-layout
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --settings-focus
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --hotkeys-only
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --local-shortcuts
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --navigation-settings
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-settings-regression.py --sources-only
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --accessories
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --folders
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --file-search
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --filter-search
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --window-search-live
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --calculator-history
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --color-picker
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --result-motion
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --action-bar --more-motion
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-launcher-window-regression.py --command-actions
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-agent-reply-regression.py --math-preview
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc App/Sources/ChatForm.swift App/Tests/ChatFormParserRegression.swift -o build/chat-form-parser-regression
-build/chat-form-parser-regression
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 App/Tests/run-agent-reply-regression.py --forms-preview
 ```
 
-Core errors and tool descriptions use `CoreLocalization` and shared SwiftPM language resources in both the app and the standalone MCP Bridge. The checks also reject fixed error text that bypasses localization.
+> [!NOTE]
+> For UI automation regression scripts, Debug interactive preview arguments, and Developer ID code-signing and packaging, see the [Development and Release Guide](docs/development.md).
 
-See the [development and release guide](docs/development.md) for native regressions, Debug previews, and signing details. Use `scripts/package-release.py` to sign with Developer ID Application, notarize, staple tickets, and produce a DMG, updater ZIP, and checksums. Store notarization credentials in the `Asky` Keychain profile first, then commit source changes and keep the working tree clean before packaging. Debug and Release use the same Developer ID Application identity; install its certificate and private key in Keychain before building. Switching from an older self-signed Debug build may require authorization once more. Record checks in `docs/validation/`.
+---
 
-### Code and Docs
+### 📂 Codebase & Docs
 
 | Directory | Responsibility |
-| --- | --- |
-| `App/` | Native SwiftUI / AppKit UI |
-| `Packages/KulaCore/` | Core capabilities and unified system access through ToolService |
-| `AgentRuntime/` | TypeScript AI host |
-| `MCPBridge/` | External tool bridge |
+| :--- | :--- |
+| `App/` | Native macOS user interface and interactions (SwiftUI & AppKit) |
+| `Packages/KulaCore/` | Core business logic and unified system access through `ToolService` |
+| `AgentRuntime/` | TypeScript-based lightweight AI host runtime |
+| `MCPBridge/` | Native Model Context Protocol bridge |
 
-[Docs index](docs/README.md) · [Product requirements](docs/PRD.md) · [Architecture](docs/framework.md) · [Design system](docs/design-system.md) · [Plugin guide](docs/plugins.md)
+- [Docs Index](docs/README.md) · [Product Requirements (PRD)](docs/PRD.md) · [Architecture](docs/framework.md) · [Design System](docs/design-system.md) · [Plugins](docs/plugins.md) · [Privacy](PRIVACY.md)
 
-### License
+---
 
-[MIT](LICENSE). Third-party dependencies retain their own licenses.
+### 📄 License
+
+Distributed under the [MIT License](LICENSE). Third-party dependencies retain their respective licenses.
 
 [中文](#中文) · [Back to top](#asky)

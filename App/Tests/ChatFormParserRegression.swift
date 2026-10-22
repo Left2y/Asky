@@ -46,6 +46,12 @@ enum ChatFormParserRegression {
         for invalidUnits in ["[]", "[\"second\",\"minute\"]", "[\"minute\",\"minute\"]", "[\"day\"]"] {
             precondition(temporalForm("time", invalidUnits) == nil)
         }
+        let radio = ChatFormParser.form(in: "```asky-form\n{\"title\":\"单选\"}\n{\"id\":\"drink\",\"type\":\"radio\",\"label\":\"饮品\",\"options\":[\"茶\",\"咖啡\",\"水\"],\"required\":true}\n```")!
+        precondition(!radio.accepts([:]))
+        precondition(radio.accepts(["drink": ["茶"]]))
+        precondition(!radio.accepts(["drink": ["茶", "水"]]))
+        precondition(!radio.accepts(["drink": ["不存在的选项"]]))
+        precondition(radio.reply(["drink": ["咖啡"]]).contains("饮品：咖啡"))
         let values = ["title": ["评审"], "duration": ["30 分钟"], "topics": ["设计"], "day": ["2026-10-22"]]
         precondition(complete.accepts(values))
         precondition(complete.reply(values).contains("时长：30 分钟"))

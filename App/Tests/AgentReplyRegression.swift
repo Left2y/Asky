@@ -93,6 +93,7 @@ enum AgentReplyRegression {
         {"id":"day","type":"date","label":"会议日期","required":true}
         ```
         """
+        let testingRadio = CommandLine.arguments.contains("--radio-preview")
         let testingComponents = CommandLine.arguments.contains("--components-preview")
         let testingTime = CommandLine.arguments.contains("--time-preview") || testingComponents
         if testingTime {
@@ -104,6 +105,15 @@ enum AgentReplyRegression {
             {"id":"time","type":"time","label":"时分秒","components":["hour","minute","second"],"required":true}
             {"id":"countdown","type":"duration","label":"仅分秒","components":["minute","second"],"required":true}
             {"id":"seconds","type":"duration","label":"仅秒钟","components":["second"],"required":true}
+            ```
+            """
+        }
+        if testingRadio {
+            rest = """
+            {"id":"duration","type":"select","label":"会议时长（下拉单选）","options":["30 分钟","60 分钟"],"required":true}
+            {"id":"plan","type":"radio","label":"选择方案（单选）","options":["方案 A","方案 B","方案 C"],"required":true}
+            {"id":"when","type":"radio","label":"执行时间（独立单选组）","options":["现在","稍后"],"required":true}
+            {"id":"topics","type":"multi","label":"讨论议题（多选）","options":["设计方案","开发计划"]}
             ```
             """
         }
@@ -149,6 +159,33 @@ enum AgentReplyRegression {
         precondition(model.formValues["streaming"]?["duration"] == ["30 分钟"], "native popup selection must update the answer")
         model.formValues["streaming"]?["topics"] = ["设计方案"]
         model.formValues["streaming"]?["day"] = ["2026-10-22"]
+        if testingRadio {
+            func radio(_ title: String, in view: NSView) -> NSButton? {
+                if let button = view as? NSButton, button.title == title { return button }
+                return view.subviews.compactMap { radio(title, in: $0) }.first
+            }
+            let a = radio("方案 A", in: window.contentView!)!
+            let b = radio("方案 B", in: window.contentView!)!
+            let c = radio("方案 C", in: window.contentView!)!
+            let later = radio("稍后", in: window.contentView!)!
+            precondition(a.accessibilityRole() == .radioButton, "single choice must expose native radio semantics")
+            precondition([a, b, c, later].allSatisfy { $0.state == .off }, "radio must not silently preselect an answer")
+            // Dispatch native actions without performClick's nested event loop in async main.
+            func choose(_ button: NSButton) {
+                button.state = .on
+                NSApplication.shared.sendAction(button.action!, to: button.target, from: button)
+            }
+            choose(a)
+            try await Task.sleep(for: .milliseconds(50))
+            precondition(model.formValues["streaming"]?["plan"] == ["方案 A"])
+            choose(c)
+            try await Task.sleep(for: .milliseconds(50))
+            precondition(model.formValues["streaming"]?["plan"] == ["方案 C"])
+            precondition(a.state == .off && b.state == .off && c.state == .on, "a radio group must keep only one selection")
+            choose(later)
+            try await Task.sleep(for: .milliseconds(50))
+            precondition(c.state == .on && later.state == .on, "separate groups must not clear each other")
+        }
         if testingTime {
             func choices(_ view: NSView) -> [NSPopUpButton] {
                 (view as? NSPopUpButton).map { [$0] } ?? view.subviews.flatMap(choices)
@@ -272,7 +309,7 @@ enum AgentReplyRegression {
         try await Task.sleep(for: .milliseconds(150))
         try capture("field-dark-disabled")
         precondition(model.items.last!.text == reply)
-        precondition(ChatFormParser.form(in: model.items[1].text)?.fields.count == (testingTime ? 5 : 4))
+        precondition(ChatFormParser.form(in: model.items[1].text)?.fields.count == (testingTime || testingRadio ? 5 : 4))
         // New session and opening history are native-only; no model calls are needed for rendering.
         await model.startNewConversation()
         precondition(model.formValues.isEmpty)

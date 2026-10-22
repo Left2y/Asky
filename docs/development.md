@@ -51,6 +51,7 @@ python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Ha
 python3 App/Tests/run-agent-reply-regression.py
 python3 App/Tests/run-agent-reply-regression.py --forms-preview --time-preview
 python3 App/Tests/run-agent-reply-regression.py --forms-preview --components-preview
+python3 App/Tests/run-agent-reply-regression.py --forms-preview --radio-preview
 python3 App/Tests/run-application-termination-regression.py
 ```
 
@@ -178,6 +179,7 @@ python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Ha
 python3 App/Tests/run-agent-reply-regression.py
 python3 App/Tests/run-agent-reply-regression.py --forms-preview --time-preview
 python3 App/Tests/run-agent-reply-regression.py --forms-preview --components-preview
+python3 App/Tests/run-agent-reply-regression.py --forms-preview --radio-preview
 python3 App/Tests/run-application-termination-regression.py
 ```
 

@@ -77,13 +77,15 @@ Asky 使用应用专属配置、资源目录和自定义 ResourceLoader，只加
 ```asky-form
 {"title":"会议安排"}
 {"id":"title","type":"text","label":"会议名称","required":true}
-{"id":"duration","type":"select","label":"时长","options":["30 分钟","60 分钟"],"required":true}
+{"id":"duration","type":"radio","label":"时长","options":["30 分钟","60 分钟"],"required":true}
 {"id":"topics","type":"multi","label":"议题","options":["设计","开发"]}
 {"id":"day","type":"date","label":"日期","required":true}
 {"id":"start","type":"time","label":"开始时间","components":["hour","minute","second"],"required":true}
 {"id":"countdown","type":"duration","label":"倒计时","components":["minute","second"]}
 ```
 ````
+
+`radio` 使用原生圆形单选按钮组，`select` 保留下拉单选，`multi` 为复选框多选。radio 初始不默认选中，不同字段的单选组互相隔离；与 select 共用选项和提交校验，只接受一个合法选项。模型按场景选控件：选项少、适合直接比较时优先 radio；选项多、文字长或需要节省空间时选择 select，用户明确指定时遵循用户要求。
 
 标题最长 120 字；最多 16 个字段；字段 ID 非空、唯一且最长 64 字；标签最长 200 字；选择字段须有 1–20 个不重复且非空的选项，每项最长 200 字。围栏内容最多 32 KiB。`required` 缺省为 false；日期默认本地今天，以 `yyyy-MM-dd` 提交；`time` 为具体时刻，`duration` 为时长，两者复用创建日程的组件选择器。`components` 为 `["hour","minute","second"]` 的非空有序子集，可只显示需要的单位，禁止重复或逆序。time 缺省为时分且初值为当前本地时间；duration 缺省为分秒且初值为零。内部值按所选单位顺序以冒号分隔，每段两位；time 小时 00–23、分秒 00–59，duration 首段 00–99、后续段 00–59。默认时分回复仍为 `HH:mm`，完整时分秒为 `HH:mm:ss`；时长及省略单位的组合在用户回复中带明确单位，避免把分秒当作钟点。时间段仍可使用 `select`；文本答案最多 4000 字。未知类型、重复 ID 或不合规结构回退为普通代码。普通 Markdown 代码围栏内的示例不转换为表单。
 

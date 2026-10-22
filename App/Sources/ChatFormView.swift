@@ -69,6 +69,8 @@ struct ChatFormView: View {
                 [("", NSLocalizedString("请选择", comment: ""))] + (field.options ?? []).map { ($0, $0) })
                 .accessibilityLabel(field.label)
                 .fixedSize(horizontal: false, vertical: true)
+        case .radio:
+            SettingsRadioGroup(label: field.label, options: field.options ?? [], selection: scalar(field.id))
         case .multi:
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(field.options ?? [], id: \.self) { option in

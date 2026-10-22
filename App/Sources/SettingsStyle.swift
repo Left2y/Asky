@@ -422,3 +422,75 @@ private struct SettingsChoiceControl<Value: Hashable>: NSViewRepresentable {
         }
     }
 }
+
+
+/// A native radio group: its own AppKit container isolates selection and keyboard navigation.
+struct SettingsRadioGroup: NSViewRepresentable {
+    let label: String
+    let options: [String]
+    @Binding var selection: String
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> RadioStack {
+        let stack = RadioStack()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
+        stack.setAccessibilityElement(true)
+        stack.setAccessibilityRole(.radioGroup)
+        return stack
+    }
+    func updateNSView(_ stack: RadioStack, context: Context) {
+        context.coordinator.selection = $selection
+        if stack.options != options {
+            stack.arrangedSubviews.forEach { stack.removeArrangedSubview($0); $0.removeFromSuperview() }
+            stack.options = options
+            stack.heights = []
+            for option in options {
+                let button = NSButton(radioButtonWithTitle: option, target: context.coordinator, action: #selector(Coordinator.choose(_:)))
+                button.setAccessibilityRole(.radioButton)
+                button.setAccessibilityLabel(option)
+                button.font = .systemFont(ofSize: 14)
+                button.cell?.wraps = true
+                button.cell?.usesSingleLineMode = false
+                button.cell?.lineBreakMode = .byWordWrapping
+                button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                stack.addArrangedSubview(button)
+                button.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor).isActive = true
+                let height = button.heightAnchor.constraint(equalToConstant: 18)
+                height.isActive = true
+                stack.heights.append(height)
+            }
+        }
+        stack.setAccessibilityLabel(label)
+        for case let button as NSButton in stack.arrangedSubviews {
+            button.state = button.title == selection ? .on : .off
+            button.isEnabled = context.environment.isEnabled
+        }
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: RadioStack, context: Context) -> CGSize? {
+        nsView.measure(width: proposal.width)
+    }
+
+    @MainActor final class RadioStack: NSStackView {
+        var options: [String] = []
+        var heights: [NSLayoutConstraint] = []
+        func measure(width: CGFloat?) -> CGSize {
+            let buttons = arrangedSubviews.compactMap { $0 as? NSButton }
+            let ideal = buttons.map { $0.cell?.cellSize.width ?? 0 }.max() ?? 0
+            let width = min(ideal, width ?? ideal)
+            var height: CGFloat = 0
+            for (index, button) in buttons.enumerated() {
+                let measured = button.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: 10000)).height ?? 18
+                let rowHeight = ceil(max(18, measured))
+                heights[index].constant = rowHeight
+                height += rowHeight
+            }
+            return CGSize(width: width, height: height + CGFloat(max(0, buttons.count - 1)) * spacing)
+        }
+    }
+    @MainActor final class Coordinator: NSObject {
+        var selection: Binding<String> = .constant("")
+        @objc func choose(_ sender: NSButton) { selection.wrappedValue = sender.title }
+    }
+}

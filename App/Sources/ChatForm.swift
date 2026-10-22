@@ -14,7 +14,7 @@ struct ChatForm: Equatable {
     }
 
     struct Field: Decodable, Equatable, Identifiable {
-        enum Kind: String, Decodable { case text, select, multi, date, time, duration }
+        enum Kind: String, Decodable { case text, select, radio, multi, date, time, duration }
         let id: String
         let type: Kind
         let label: String
@@ -53,7 +53,7 @@ struct ChatForm: Equatable {
 
         var isValid: Bool {
             guard !id.isEmpty, id.count <= 64, !label.isEmpty, label.count <= 200 else { return false }
-            if type == .select || type == .multi {
+            if type == .select || type == .radio || type == .multi {
                 guard let options, (1...20).contains(options.count), Set(options).count == options.count,
                       options.allSatisfy({ !$0.isEmpty && $0.count <= 200 }) else { return false }
             }
@@ -73,7 +73,7 @@ struct ChatForm: Equatable {
             if field.required == true && answer.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { return false }
             switch field.type {
             case .text: return answer.count <= 1 && answer.allSatisfy { $0.count <= 4000 }
-            case .select: return answer.count <= 1 && answer.allSatisfy { field.options!.contains($0) }
+            case .select, .radio: return answer.count <= 1 && answer.allSatisfy { field.options!.contains($0) }
             case .multi: return Set(answer).count == answer.count && answer.allSatisfy { field.options!.contains($0) }
             case .date: return answer.count <= 1 && answer.allSatisfy { Self.date($0) != nil }
             case .time, .duration: return answer.count <= 1 && answer.allSatisfy { field.temporalValues($0) != nil }

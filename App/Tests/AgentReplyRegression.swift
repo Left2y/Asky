@@ -151,7 +151,15 @@ enum AgentReplyRegression {
             window.appearance = NSAppearance(named: appearance)
             window.setContentSize(NSSize(width: width, height: 800))
             try await Task.sleep(for: .milliseconds(400))
+            NSApplication.shared.activate()
+            window.makeKeyAndOrderFront(nil)
+            if let field = editableField(window.contentView!) { window.makeFirstResponder(field) }
+            try await Task.sleep(for: .milliseconds(150))
             try capture(name)
+            try capture("field-" + name + "-focused")
+            window.makeFirstResponder(nil)
+            try await Task.sleep(for: .milliseconds(100))
+            try capture("field-" + name + "-idle")
         }
         // Exercise the actual submit path with an intentionally absent test credential. No model
         // request can leave the machine; the normal user-message append happens before that failure.
@@ -173,6 +181,8 @@ enum AgentReplyRegression {
         precondition(!model.isRunning)
         model.open(cid)
         precondition(!model.formIsActive(messageID) && !model.submitForm(messageID))
+        try await Task.sleep(for: .milliseconds(150))
+        try capture("field-dark-disabled")
         precondition(model.items.last!.text == reply)
         precondition(ChatFormParser.form(in: model.items[1].text)?.fields.count == 4)
         // New session and opening history are native-only; no model calls are needed for rendering.

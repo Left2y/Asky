@@ -67,8 +67,7 @@ struct ChatFormView: View {
     @ViewBuilder private func control(_ field: ChatForm.Field) -> some View {
         switch field.type {
         case .text:
-            TextField(field.label, text: scalar(field.id)).labelsHidden()
-                .textFieldStyle(.roundedBorder).accessibilityLabel(field.label)
+            ChatFormTextField(label: field.label, text: scalar(field.id))
         case .select:
             ChatFormPicker(label: field.label, options: field.options ?? [], selection: scalar(field.id))
                 .fixedSize(horizontal: false, vertical: true)
@@ -143,5 +142,21 @@ private struct ChatFormPicker: NSViewRepresentable {
             let index = button.indexOfSelectedItem - 1
             selection.wrappedValue = options.indices.contains(index) ? options[index] : ""
         }
+    }
+}
+
+
+/// Use the same translucent field surface as Settings, while keeping native editing and IME.
+private struct ChatFormTextField: View {
+    let label: String
+    @Binding var text: String
+    @Environment(\.colorScheme) private var scheme
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(label, text: $text).labelsHidden()
+            .textFieldStyle(.plain).focused($focused)
+            .settingsInputSurface(scheme: scheme, focused: focused)
+            .accessibilityLabel(label)
     }
 }

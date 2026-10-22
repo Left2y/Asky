@@ -47,7 +47,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 
 - 🤖 **按需 AI 助手与本地记忆**
   - **轻量按需启动**：无需常驻后台 AI 进程；兼容任意 OpenAI 协议模型服务商与自定义端点。
-  - **原生交互表单**：支持 AI 在对话流中渲染单选、多选、文本输入与日期选择等原生表单控件，填写后直接提交至同一会话。
+  - **原生交互表单**：支持 AI 在对话流中渲染单选、多选、文本输入与日期选择等原生表单控件，填写后直接提交至同一会话。控件复用设置页组件，日期选择复用创建日程弹窗的月历。
   - **本地记忆与上下文**：基于本地 Markdown 存储用户偏好与记忆，支持长上下文智能压缩与网络实时检索。
   - **本地数学公式排版**：原生支持行内与独立 LaTeX 公式（`$…$`、`$$…$$`）排版。
   - **日程与路线规划**：集成系统 MapKit 能力，对比驾车、公交与步行耗时，自动为日程计算含缓冲时间的建议出发时间。
@@ -179,7 +179,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 
 - 🤖 **On-Demand AI Assistant & Local Memory**
   - **On-Demand Lifecycle**: Keeps background resource usage minimal; connects to any OpenAI-compatible provider and custom endpoints.
-  - **Native Interactive Forms**: AI can stream structured form controls (text fields, radio buttons, checklists, date pickers) directly in chat, which submit straight back into the conversation.
+  - **Native Interactive Forms**: AI can stream structured form controls (text fields, radio buttons, checklists, date pickers) directly in chat, which submit straight back into the conversation. Controls reuse the Settings components; date selection uses the calendar from the event creation dialog.
   - **Local Memory & Context**: Stores user preferences and context in local Markdown files with automatic context compaction and web search.
   - **Native LaTeX Rendering**: Renders inline and block LaTeX formulas (`$…$`, `$$…$$`) locally.
   - **Smart Travel & Calendar Planning**: Built-in MapKit support to compare driving, transit, and walking times, suggesting arrival-buffered departure times for your day.

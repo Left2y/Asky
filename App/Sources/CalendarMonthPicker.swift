@@ -78,3 +78,26 @@ struct CalendarMonthPicker: View {
                       second: calendar.component(.second, from: date), of: day)
     }
 }
+
+
+/// Date-only variant of the creation dialog's date row and its existing month picker.
+struct CalendarDateSelection: View {
+    let label: String
+    @Binding var selection: Date
+    @State private var showingCalendar = false
+
+    var body: some View {
+        Button { showingCalendar = true } label: {
+            HStack(spacing: 8) {
+                Text(selection, format: .dateTime.year().month().day())
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 14)).padding(14).calendarEditorRow()
+        }
+        .buttonStyle(.plain).accessibilityLabel(label)
+        .popover(isPresented: $showingCalendar) {
+            CalendarMonthPicker(selection: $selection)
+                .frame(width: 280).padding(16).fixedSize()
+        }
+    }
+}

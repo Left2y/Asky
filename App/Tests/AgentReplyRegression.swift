@@ -156,10 +156,53 @@ enum AgentReplyRegression {
             if let field = editableField(window.contentView!) { window.makeFirstResponder(field) }
             try await Task.sleep(for: .milliseconds(150))
             try capture(name)
+            if CommandLine.arguments.contains("--forms-inspect") {
+                let capture = Process()
+                capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-o", "-l", String(window.windowNumber), "build/form-glass-" + name + ".png"]
+                try capture.run(); capture.waitUntilExit()
+                precondition(capture.terminationStatus == 0)
+            }
             try capture("field-" + name + "-focused")
             window.makeFirstResponder(nil)
             try await Task.sleep(for: .milliseconds(100))
             try capture("field-" + name + "-idle")
+        }
+        if CommandLine.arguments.contains("--forms-inspect") {
+            // Reproduce a bright desktop showing through dark glass instead of validating only black wallpaper.
+            let underlay = NSWindow(contentRect: window.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            underlay.isReleasedWhenClosed = false
+            underlay.backgroundColor = NSColor(white: 0.78, alpha: 1)
+            underlay.isOpaque = true
+            underlay.order(.below, relativeTo: window.windowNumber)
+            defer { underlay.orderOut(nil) }
+            window.makeFirstResponder(nil)
+            window.makeKeyAndOrderFront(nil)
+            try await Task.sleep(for: .milliseconds(400))
+            let brightCapture = Process()
+            brightCapture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            brightCapture.arguments = ["-x", "-o", "-l", String(window.windowNumber), "build/form-glass-bright.png"]
+            try brightCapture.run(); brightCapture.waitUntilExit()
+            precondition(brightCapture.terminationStatus == 0)
+            // Click the date row in the fixed 560x800 fixture using native window events.
+            func click(_ point: NSPoint) {
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                        context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0)!
+                    NSApplication.shared.sendEvent(event)
+                }
+            }
+            click(NSPoint(x: 200, y: 278))
+            try await Task.sleep(for: .milliseconds(300))
+            let calendarWindow = NSApplication.shared.windows.first { $0 !== window && $0.isVisible && String(describing: type(of: $0)).contains("Popover") }!
+            let screenshot = Process()
+            screenshot.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            screenshot.arguments = ["-x", "-o", "-l", String(calendarWindow.windowNumber), "build/form-calendar-popover.png"]
+            try screenshot.run(); screenshot.waitUntilExit()
+            precondition(screenshot.terminationStatus == 0)
+            click(NSPoint(x: 20, y: 20))
+            window.makeKeyAndOrderFront(nil)
         }
         // Exercise the actual submit path with an intentionally absent test credential. No model
         // request can leave the machine; the normal user-message append happens before that failure.

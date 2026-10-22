@@ -84,8 +84,6 @@ private let SettingsInputWidth: CGFloat = 260
 struct SettingsTextField: View {
     let title: String
     @Binding var text: String
-    @Environment(\.colorScheme) private var scheme
-    @FocusState private var focused: Bool
     var prompt: Text? = nil
     init(_ title: String, text: Binding<String>, prompt: Text? = nil) {
         self.title = title; _text = text; self.prompt = prompt
@@ -94,11 +92,29 @@ struct SettingsTextField: View {
         HStack(spacing: 24) {
             Text(title)
             Spacer(minLength: 24)
-            TextField(title, text: $text, prompt: prompt).labelsHidden()
-                .textFieldStyle(.plain).focused($focused)
-                .settingsInputSurface(scheme: scheme, focused: focused)
+            SettingsInputField(title, text: $text, prompt: prompt)
                 .frame(width: SettingsInputWidth)
         }
+    }
+}
+
+/// The actual Settings input, reusable without its labeled-row layout or fixed column width.
+struct SettingsInputField: View {
+    let title: String
+    @Binding var text: String
+    var prompt: Text?
+    @Environment(\.colorScheme) private var scheme
+    @FocusState private var focused: Bool
+
+    init(_ title: String, text: Binding<String>, prompt: Text? = nil) {
+        self.title = title; _text = text; self.prompt = prompt
+    }
+    var body: some View {
+        TextField(title, text: $text,
+                  prompt: prompt ?? Text(title).foregroundStyle(ThemeColor.kTextSubtlest)).labelsHidden()
+            .textFieldStyle(.plain).focused($focused)
+            .settingsInputSurface(scheme: scheme, focused: focused)
+            .accessibilityLabel(title)
     }
 }
 
@@ -346,7 +362,22 @@ struct SettingsCheckbox: NSViewRepresentable {
     }
 }
 
-struct SettingsChoice<Value: Hashable>: NSViewRepresentable {
+/// Choices and text inputs share one surface, including when composited over bright glass.
+struct SettingsChoice<Value: Hashable>: View {
+    @Binding var selection: Value
+    let options: [(Value, String)]
+    var images: [Value: NSImage] = [:]
+    @Environment(\.colorScheme) private var scheme
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        SettingsChoiceControl(selection: $selection, options: options, images: images)
+            .focused($focused)
+            .settingsInputSurface(scheme: scheme, focused: focused)
+    }
+}
+
+private struct SettingsChoiceControl<Value: Hashable>: NSViewRepresentable {
     @Binding var selection: Value
     let options: [(Value, String)]
     var images: [Value: NSImage] = [:]
@@ -354,7 +385,8 @@ struct SettingsChoice<Value: Hashable>: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(selection: $selection, options: options) }
     func makeNSView(context: Context) -> NSPopUpButton {
         let button = NSPopUpButton(frame: .zero, pullsDown: false)
-        button.bezelStyle = .rounded
+        button.isBordered = false
+        button.focusRingType = .none
         button.font = .systemFont(ofSize: 14)
         button.target = context.coordinator
         button.action = #selector(Coordinator.select(_:))
@@ -377,7 +409,8 @@ struct SettingsChoice<Value: Hashable>: NSViewRepresentable {
         if let index = options.firstIndex(where: { $0.0 == selection }) { button.selectItem(at: index) }
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSPopUpButton, context: Context) -> CGSize? {
-        nsView.intrinsicContentSize
+        let ideal = nsView.intrinsicContentSize
+        return CGSize(width: min(ideal.width, proposal.width ?? ideal.width), height: ideal.height)
     }
     final class Coordinator: NSObject {
         var selection: Binding<Value>

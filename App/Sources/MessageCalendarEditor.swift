@@ -152,7 +152,7 @@ struct MessageCalendarEditorView: View {
                         TextField("日程标题", text: $model.title)
                             .font(.system(size: 20, weight: .semibold))
                             .accessibilityLabel("日程标题")
-                            .padding(14).frame(maxWidth: .infinity, alignment: .leading).editorRow()
+                            .padding(14).frame(maxWidth: .infinity, alignment: .leading).calendarEditorRow()
                         Button { datePopover = true } label: {
                             HStack(spacing: 8) {
                                 Text(model.start, format: .dateTime.year().month().day())
@@ -164,7 +164,7 @@ struct MessageCalendarEditorView: View {
                                 Text(model.end, style: .time)
                                 Spacer(minLength: 0)
                             }
-                            .font(.system(size: 14)).padding(14).editorRow()
+                            .font(.system(size: 14)).padding(14).calendarEditorRow()
                         }
                         .buttonStyle(.plain).accessibilityLabel("修改日期和时间")
                         .popover(isPresented: $datePopover) {
@@ -189,15 +189,15 @@ struct MessageCalendarEditorView: View {
                         }
                     }
                     TextField("添加地点", text: $model.location)
-                        .accessibilityLabel("地点").padding(14).editorRow()
+                        .accessibilityLabel("地点").padding(14).calendarEditorRow()
                     HStack(spacing: 10) {
                         Circle().fill(Color.accentColor).frame(width: 10, height: 10)
                         CalendarDestinationPicker(selection: $model.calendarID, calendars: model.calendars)
                             .frame(maxWidth: .infinity).frame(height: 24)
-                    }.padding(12).editorRow()
+                    }.padding(12).calendarEditorRow()
                     TextField("添加备注", text: $model.notes, axis: .vertical)
                         .lineLimit(3...5).accessibilityLabel("备注")
-                        .padding(14).frame(maxWidth: .infinity, alignment: .topLeading).editorRow()
+                        .padding(14).frame(maxWidth: .infinity, alignment: .topLeading).calendarEditorRow()
                 }
                 .textFieldStyle(.plain)
                 .disabled(model.saving || model.uncertain)
@@ -236,8 +236,8 @@ struct MessageCalendarEditorView: View {
     }
 }
 
-private extension View {
-    func editorRow() -> some View {
+extension View {
+    func calendarEditorRow() -> some View {
         background(ThemeColor.kBackgroundNeutral.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
     }
 }

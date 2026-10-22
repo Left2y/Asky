@@ -24,7 +24,7 @@ for path in sorted((derived / "Build/Intermediates.noindex/GeneratedModuleMaps")
     command += ["-Xcc", "-fmodule-map-file=" + str(path)]
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
     command += ["-I", str(derived / "SourcePackages/checkouts" / relative)]
-for name in ["MessageCalendarEditor", "CalendarMonthPicker", "SurfaceWindow", "NativeGlassBackground"]:
+for name in ["MessageCalendarEditor", "CalendarMonthPicker", "SurfaceWindow", "NativeGlassBackground", "MingCute"]:
     command += [str(root / "App/Sources" / (name + ".swift"))]
 command += [str(root / "App/Tests/CalendarEditorRegression.swift")]
 command += [str(path) for path in sorted(products.glob("*.o"))]
@@ -35,11 +35,11 @@ copy_core_resources(products, bundle / "Resources")
 executable = bundle / "MacOS/CalendarEditorRegression"
 command += ["-lsqlite3", "-o", str(executable)]
 subprocess.run(command, env=environment, cwd=root, check=True)
-for name in ["Assets.car", "AppIcon.icns"]:
+for name in ["Assets.car", "AskyNative.icns"]:
     shutil.copy2(products / "Asky.app/Contents/Resources" / name, bundle / "Resources" / name)
 with (bundle / "Info.plist").open("wb") as output:
     plistlib.dump({"CFBundleExecutable": "CalendarEditorRegression", "CFBundleIdentifier": "app.asky.calendar-editor-regression",
-                  "CFBundleName": "Asky 日程配置预览", "CFBundleIconFile": "AppIcon", "CFBundleDevelopmentRegion": "zh-Hans",
+                  "CFBundleName": "Asky 日程配置预览", "CFBundleIconFile": "AskyNative", "CFBundleDevelopmentRegion": "zh-Hans",
                   "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 subprocess.run(["codesign", "--force", "--sign", "-", str(bundle.parent)], check=True)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

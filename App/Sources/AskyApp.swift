@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var newAgentHotKey: HotKey?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
+    private var welcomeWindow: WelcomeWindowController?
     private var pressure: MemoryPressureMonitor?
     private let termination = ApplicationTermination()
     private let dockVisibility = DockVisibilityController()
@@ -39,6 +40,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--test-welcome") {
+            if CommandLine.arguments.contains("--welcome-light") { NSApp.appearance = NSAppearance(named: .aqua) }
+            if CommandLine.arguments.contains("--welcome-dark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
+            welcomeWindow = WelcomeWindowController {
+                print("welcome-preview-started")
+                NSApp.terminate(nil)
+            }
+            welcomeWindow?.show()
+            return
+        }
         if CommandLine.arguments.contains("--diagnose-launcher") {
             runLauncherPresentationDiagnostic()
             return
@@ -171,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             clipboardWindow.query = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TEST_QUERY"] ?? ""
         }
         #endif
+        if !model.preferences.hasCompletedWelcome { showWelcome() }
         Task {
             await model.start()
             reminders.start()
@@ -222,13 +234,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Silent relaunch only when nothing is open, running or waiting for the user.
     private var isQuietForUpdate: Bool {
         !launcher.isVisible && !clipboardWindow.isVisible && !agentWindow.isVisible && !agentWindow.model.isRunning
-            && settingsWindow?.isVisible != true && model.confirmations.queue.isEmpty
+            && settingsWindow?.isVisible != true && welcomeWindow?.isVisible != true && model.confirmations.queue.isEmpty
             && !model.terminal.isRunning && !model.isMCPBusy
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard model != nil else { return true }
-        if let settingsWindow, settingsWindow.isVisible {
+        if !model.preferences.hasCompletedWelcome {
+            showWelcome()
+        } else if let settingsWindow, settingsWindow.isVisible {
             windowPresentation.show(settingsWindow)
         } else {
             openLauncher()
@@ -407,6 +421,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.activate()
             Task { @MainActor in await AppDialog.present(alert) }
         }
+    }
+
+    private func showWelcome() {
+        if welcomeWindow == nil {
+            welcomeWindow = WelcomeWindowController { [weak self] in
+                guard let self else { return }
+                self.model.preferences.hasCompletedWelcome = true
+                self.openLauncher()
+            }
+        }
+        welcomeWindow?.show()
     }
 
     @objc private func openLauncher() { clipboardWindow.hide(); launcher.show() }

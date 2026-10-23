@@ -27,6 +27,20 @@ enum SettingsRegression {
         application.setActivationPolicy(preview ? .regular : .accessory)
         Task { @MainActor in
             do {
+                if CommandLine.arguments.contains("--welcome-only") {
+                    let decoder = JSONDecoder()
+                    precondition(!SettingsPreferences().hasCompletedWelcome, "Fresh installation welcomes the user")
+                    let legacy = try decoder.decode(SettingsPreferences.self, from: Data("{}".utf8))
+                    precondition(legacy.hasCompletedWelcome, "Existing installations skip onboarding")
+                    for completed in [false, true] {
+                        var preferences = SettingsPreferences()
+                        preferences.hasCompletedWelcome = completed
+                        let restored = try decoder.decode(SettingsPreferences.self, from: JSONEncoder().encode(preferences))
+                        precondition(restored.hasCompletedWelcome == completed, "Welcome state survives relaunch")
+                    }
+                    print("Welcome preference migration and persistence regression passed")
+                    exit(0)
+                }
                 try await assertModelCheckFailures()
                 if CommandLine.arguments.contains("--model-check-only") {
                     print("Model capability HTTP diagnostics regression passed")

@@ -10,6 +10,7 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
     var appearance = "system"
     var showMenuBarIcon = true
     var showDockIcon = false
+    var hasCompletedWelcome = false
     var hasInitializedLoginItem = false
     var liquidGlass = true
     var automaticUpdates = true
@@ -49,6 +50,8 @@ struct SettingsPreferences: Codable, Equatable, Sendable {
         showMenuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? d.showMenuBarIcon
         showDockIcon = try c.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? d.showDockIcon
         // Existing installations retain their system login-item choice.
+        // Existing saved installations skip first-install onboarding.
+        hasCompletedWelcome = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedWelcome) ?? true
         hasInitializedLoginItem = try c.decodeIfPresent(Bool.self, forKey: .hasInitializedLoginItem) ?? true
         liquidGlass = try c.decodeIfPresent(Bool.self, forKey: .liquidGlass) ?? d.liquidGlass
         automaticUpdates = try c.decodeIfPresent(Bool.self, forKey: .automaticUpdates) ?? d.automaticUpdates

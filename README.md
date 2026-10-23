@@ -92,6 +92,8 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 - 打开 DMG，将 `Asky.app` 拖入“应用程序”目录即可。安装包已预置 Node.js 与 AgentRuntime，无需手动配置外部环境。
 - 应用默认开启静默自动更新，可在“设置 › 关于 Asky › 软件更新”中管理。
 
+首次打开时显示原生欢迎窗口，以渐变手写动画迎接用户；点击“开始使用”进入搜索。完成后不再自动显示，已有安装升级时跳过欢迎页。支持系统“减少动态效果”。
+
 #### 权限与 AI 配置
 - **系统权限**：自动粘贴与窗口搜索功能需要 macOS **辅助功能**（Accessibility）权限；访问日历、备忘录等需在首次使用时授权。
 - **智能配置**：在“设置 › 智能配置”中填入对应模型服务商的 API Key，或自定义兼容 OpenAI 协议的 Base URL 及模型名。API 密钥安全存放在 macOS 系统钥匙串中。
@@ -232,6 +234,8 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 - Download the latest DMG release from [GitHub Releases](https://github.com/Niall-Young/Asky/releases) or the [Official Website](https://asky.niallyoung2002.workers.dev/) (macOS 15+, Apple Silicon).
 - Open the DMG and drag `Asky.app` into Applications. Node.js and AgentRuntime are bundled—no extra setup required.
 - In-app automatic updates are enabled by default; configure in Settings › About Asky › Software Update.
+
+On first launch, a native welcome window draws a gradient handwritten greeting. Choose “Get Started” to open search. Completed welcomes and existing installations upgrading are skipped. Respects Reduce Motion.
 
 #### Permissions & AI Configuration
 - **Permissions**: Automatic pasting and window search require macOS **Accessibility** access. Calendar and Notes access require user authorization on first use.

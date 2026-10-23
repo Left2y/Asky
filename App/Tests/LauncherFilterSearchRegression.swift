@@ -73,6 +73,8 @@ private enum LauncherFilterSearchRegression {
             throw NSError(domain: "CategorySearch", code: 3)
         }
         panel.onBlur = {}
+        // This suite scripts keyboard navigation; the user's pointer must not select rows.
+        panel.ignoresMouseEvents = true
         panel.resignKey()
         NSApp.deactivate()
         model.inputText = "report"
@@ -95,14 +97,49 @@ private enum LauncherFilterSearchRegression {
                     throw NSError(domain: "CategorySearch", code: 4)
                 }
                 try require(scroll.contentView.bounds.origin.y > 0, "last hit must scroll into view")
+                guard let document = scroll.documentView else { throw NSError(domain: "CategorySearch", code: 4) }
+                try require(abs(document.bounds.maxY - scroll.contentView.bounds.maxY) <= 2,
+                            "lazy list must reveal the actual final row, including footer clearance")
                 let capture = Process()
                 capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
                 capture.arguments = ["-x", "-l", String(panel.windowNumber), "build/category-search-\(appearance.rawValue).png"]
                 try capture.run()
                 capture.waitUntilExit()
                 try require(capture.terminationStatus == 0, "screenshot must succeed")
+                model.move(-199)
+                try await Task.sleep(for: .milliseconds(250))
+                try require(model.selection == 0 && scroll.contentView.bounds.origin.y <= 1,
+                            "keyboard must return to the first unrealized row: selection=\(model.selection), offset=\(scroll.contentView.bounds.origin.y), height=\(document.bounds.height)")
             }
         }
+        // Sample the real main run loop while result rows and rapid query updates run.
+        model.setFilter(.files)
+        var gaps: [Double] = []
+        let probe = Task { @MainActor in
+            var last = ContinuousClock.now
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(5)) } catch { return }
+                let now = ContinuousClock.now
+                let duration = last.duration(to: now).components
+                gaps.append(Double(duration.seconds) * 1_000 + Double(duration.attoseconds) / 1e15)
+                last = now
+            }
+        }
+        for i in 0..<20 {
+            model.inputText = "report\(i)"
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        try await settle(model)
+        try await Task.sleep(for: .milliseconds(150))
+        probe.cancel()
+        try require(model.results.count == 200 && model.results.allSatisfy { $0.title.hasPrefix("report19 ") },
+                    "rapid edits must publish only the newest query: query=\(model.query), searching=\(model.isSearching), count=\(model.results.count), first=\(model.results.first?.title ?? "nil")")
+        let sorted = gaps.sorted()
+        if !sorted.isEmpty {
+            print("\(appearance.rawValue): main-loop probe p95=\(sorted[min(sorted.count - 1, sorted.count * 95 / 100)]) ms, max=\(sorted.last!) ms")
+        }
+        model.inputText = "report"
+        try await settle(model)
         model.setFilter(.files)
         try await Task.sleep(for: .milliseconds(110))
         model.setFilter(.applications)
@@ -166,8 +203,14 @@ private enum LauncherFilterSearchRegression {
                     "native edit must consume the prefix and synchronize the field editor")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(100))
-        let handled = field.delegate?.control?(field, textView: editor, doCommandBy: #selector(NSResponder.deleteBackward(_:)))
-        try require(handled == true && model.filter == .all && editor.string.isEmpty,
+        // Dispatch a real key event: calling the delegate directly can see an unrelated
+        // NSApp.currentEvent (for example a mouse event from the screenshot capture).
+        let backspace = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                        windowNumber: panel.windowNumber, context: nil, characters: "\u{7F}",
+                                        charactersIgnoringModifiers: "\u{7F}", isARepeat: false, keyCode: 51)!
+        panel.sendEvent(backspace)
+        try await Task.sleep(for: .milliseconds(100))
+        try require(model.filter == .all && editor.string.isEmpty,
                     "native empty Backspace must leave category mode")
         print("\(appearance.rawValue): category limits, scrolling, stale queries, command discovery, custom tokens, Space/Return/Escape/Backspace and native editor passed")
     }

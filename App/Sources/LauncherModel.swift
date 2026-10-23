@@ -910,7 +910,7 @@ final class LauncherModel {
         }
         if merged.isEmpty { closeActionsMenu() }
         if filter != .all && filter != .windows { merged = Array(merged.prefix(filter.displayLimit)) }
-        results = merged
+        if results != merged { results = merged }
         selection = min(selection, max(0, results.count - 1))
     }
 

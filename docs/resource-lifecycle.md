@@ -55,6 +55,8 @@
 
 使用 Image I/O 从源文件直接生成按目标尺寸与显示 scale 计算的缩略图，避免完整解码后再缩小。一张 3840×2160 的 8-bit RGBA 图像，仅像素缓冲就约 31.6 MiB，不能按 PNG 文件大小估算解码内存。[Apple 图像内存说明](https://developer.apple.com/videos/play/wwdc2018/416/)
 
+启动器结果列表按行懒加载；分组标题和结果展开为同一个带稳定标识的列表，供键盘定位屏幕外的结果。行渲染只读取已准备的图标与类型，系统图标获取、96 px 位图绘制及文件类型读取经 ToolService 的独立 actor 串行执行；离屏行取消后，尚未开始的读取直接跳过。展示缓存使用 NSCache，配置 128 项、8 MiB 成本限制和 5 秒有效期，预热也写入同一缓存；这些是缓存配置而非严格的进程内存上限。缓存不保存文件搜索结果或文件是否存在，文件检索仍使用 Spotlight。相同结果批次不重复发布。实际检查见[启动器结果渲染验证](validation/2026-10-24-launcher-result-performance.md)。
+
 同一附件尽量共享文件引用，避免原图、NSImage、CGImage、Data、Base64、协议字符串和历史消息中长期保留多份内容。模型必须使用完整图像时按需读取，但不能为省内存无声降低模型输入到无法阅读；图像尺寸、上传上限与清理规则需要在能力验证中核实。
 
 NSCache 可以用于可丢弃资源，但 totalCostLimit / countLimit 不是严格上限。项目应自行记录缓存成本并在准入时淘汰，不把它当进程总内存限制。GPU、临时缓冲、框架缓存与在途任务仍需测量。[Apple NSCache](https://developer.apple.com/documentation/foundation/nscache/totalcostlimit)

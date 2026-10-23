@@ -407,8 +407,8 @@ struct LauncherView: View {
             HStack(spacing: LauncherLayout.inputSpacing) {
                 if let folder = model.folderScope {
                     HStack(spacing: 6) {
-                        Image(nsImage: ToolService.launcherIcon(filePath: folder.path))
-                            .resizable().frame(width: 24, height: 24)
+                        LauncherSystemArtwork(request: .file(path: folder.path), fallback: "folder")
+                            .frame(width: 24, height: 24)
                         Text(folder.lastPathComponent)
                             .font(.system(size: 14, weight: .medium))
                             .lineLimit(1).truncationMode(.tail)
@@ -518,7 +518,7 @@ struct LauncherView: View {
         } else if model.filter != .all {
             LauncherFunctionIcon(kind: .searchCommand(model.filter.rawValue))
         } else if model.isTerminalScope {
-            CommandIcon(terminalIcon: model.terminalIcon)
+            LauncherSystemArtwork(request: .application(bundleID: model.terminalApplication.rawValue), fallback: "terminal")
         } else if model.isTabScope {
             LauncherFunctionIcon(kind: .tabs)
         } else if model.isBookmarkScope {
@@ -661,7 +661,7 @@ private struct ResultList: View {
     @Bindable var model: LauncherModel
     let maxHeight: CGFloat
     var excludedCurrencyCode: String? = nil
-    @State private var selectionFromPointer = false
+    @State private var pointerSelection: Int?
     @State private var lastSelectionPointerLocation = NSEvent.mouseLocation
     @State private var isRevealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -670,15 +670,35 @@ private struct ResultList: View {
         model.results.filter { $0.source != .currency || $0.target.identifier != excludedCurrencyCode }
     }
 
-    private var sections: [String] {
-        var seen = Set<String>()
-        return visibleResults.compactMap { seen.insert(Self.section(for: $0)).inserted ? Self.section(for: $0) : nil }
+    private enum Row: Identifiable {
+        case header(String)
+        case result(index: Int, value: SearchResult)
+
+        var id: String {
+            switch self {
+            case .header(let title): "section:\(title)"
+            case .result(_, let value): value.id
+            }
+        }
     }
 
-    private var showsHeaders: Bool {
-        // The AI fallback is an action, not another kind of local match.
-        let resultSections = Set(visibleResults.filter { $0.source != .askAI }.map(Self.section(for:)))
-        return !model.hasScope && resultSections.count > 1
+    /// Flatten sections so even an unrealized row has a scroll target in the lazy stack.
+    private var rows: [Row] {
+        let visible = model.results.enumerated().filter {
+            $0.element.source != .currency || $0.element.target.identifier != excludedCurrencyCode
+        }
+        var order: [String] = []
+        var groups: [String: [Row]] = [:]
+        for (index, result) in visible {
+            let section = Self.section(for: result)
+            if groups[section] == nil { order.append(section) }
+            groups[section, default: []].append(.result(index: index, value: result))
+        }
+        let showsHeaders = !model.hasScope && Set(visible.filter { $0.element.source != .askAI }
+            .map { Self.section(for: $0.element) }).count > 1
+        return order.flatMap { section in
+            (showsHeaders ? [Row.header(section)] : []) + (groups[section] ?? [])
+        }
     }
 
     private var footerHeight: CGFloat { model.primaryLauncherAction == nil ? 0 : LauncherLayout.actionBarHeight }
@@ -687,57 +707,53 @@ private struct ResultList: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                // Search batches are capped; realize their anchors so keyboard
-                // navigation can reveal rows in sections below the viewport.
-                VStack(spacing: 0) {
-                    ForEach(sections, id: \.self) { source in
-                        VStack(spacing: 0) {
-                            if showsHeaders {
-                                Text(source).font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(ThemeColor.kTextSubtle)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 16)
-                                    .padding(.top, 6).padding(.bottom, 4)
-                                    .frame(height: LauncherLayout.sectionHeaderHeight)
-                            }
-                            ForEach(Array(model.results.enumerated()).filter { Self.section(for: $0.element) == source && ($0.element.source != .currency || $0.element.target.identifier != excludedCurrencyCode) }, id: \.element.id) { i, r in
-                                if r.source == .currency {
-                                    ResultRow(result: r, selected: false, keyword: nil)
-                                        .accessibilityLabel(r.title)
-                                        .padding(.bottom, r.id == visibleResults.last?.id ? bottomPadding : 0)
-                                        .id(r.id)
-                                } else {
-                                    Button {
-                                        model.selection = i
-                                        model.submit(.executeSelection)
-                                    } label: {
-                                        ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r),
-                                                  terminalIcon: model.terminalIcon, applicationIconPath: model.windowApplicationPath(for: r))
-                                    }
-                                    .buttonStyle(.plain)
+                LazyVStack(spacing: 0) {
+                    ForEach(rows) { row in
+                        switch row {
+                        case .header(let source):
+                            Text(source).font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(ThemeColor.kTextSubtle)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 6).padding(.bottom, 4)
+                                .frame(height: LauncherLayout.sectionHeaderHeight)
+                        case .result(let i, let r):
+                            if r.source == .currency {
+                                ResultRow(result: r, selected: false, keyword: nil)
                                     .accessibilityLabel(r.title)
-                                    .accessibilityAddTraits(i == model.selection ? .isSelected : [])
-                                    .onHover { inside in
-                                        guard inside, !model.isActionsMenuPresented else { return }
-                                        let location = NSEvent.mouseLocation
-                                        // Keyboard scrolling moves rows under a stationary pointer.
-                                        // Only a moved pointer may take over the selection.
-                                        guard location != lastSelectionPointerLocation else { return }
-                                        lastSelectionPointerLocation = location
-                                        guard model.selection != i else { return }
-                                        selectionFromPointer = true
-                                        model.selection = i
-                                    }
-                                    // Keep enough scrollable clearance for the final row
-                                    // to move above the floating controls.
                                     .padding(.bottom, r.id == visibleResults.last?.id ? bottomPadding : 0)
                                     .id(r.id)
+                            } else {
+                                Button {
+                                    model.selection = i
+                                    model.submit(.executeSelection)
+                                } label: {
+                                    ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r),
+                                              terminalApplication: model.terminalApplication,
+                                              applicationIconPath: model.windowApplicationPath(for: r))
                                 }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(r.title)
+                                .accessibilityAddTraits(i == model.selection ? .isSelected : [])
+                                .onHover { inside in
+                                    guard inside, !model.isActionsMenuPresented else { return }
+                                    let location = NSEvent.mouseLocation
+                                    guard location != lastSelectionPointerLocation else { return }
+                                    lastSelectionPointerLocation = location
+                                    guard model.selection != i else { return }
+                                    pointerSelection = i
+                                    model.selection = i
+                                }
+                                .padding(.bottom, r.id == visibleResults.last?.id ? bottomPadding : 0)
+                                .id(r.id)
                             }
                         }
                     }
                 }
                 .padding(.horizontal, LauncherLayout.listHorizontalPadding)
+                .overlay(alignment: .top) {
+                    Color.clear.frame(height: 0).id("launcher-results-origin")
+                }
             }
             .scrollIndicators(.hidden)
             .mask(alignment: .bottom) {
@@ -755,14 +771,18 @@ private struct ResultList: View {
                 if footerHeight > 0 { LauncherActionBar(model: model) }
             }
             .frame(height: max(0, maxHeight))
+            .onChange(of: model.query) { _, _ in
+                pointerSelection = nil
+                proxy.scrollTo("launcher-results-origin", anchor: .top)
+            }
             .onChange(of: model.selection) { _, s in
                 // Hover must select the row without moving it away from the pointer.
-                if selectionFromPointer {
-                    selectionFromPointer = false
-                    return
-                }
+                let fromPointer = pointerSelection == s
+                pointerSelection = nil
+                if fromPointer { return }
                 guard model.results.indices.contains(s) else { return }
-                proxy.scrollTo(model.results[s].id, anchor: .center)
+                if s == 0 { proxy.scrollTo("launcher-results-origin", anchor: .top) }
+                else { proxy.scrollTo(model.results[s].id, anchor: .center) }
             }
         }
         .onChange(of: model.isActionsMenuPresented) { _, _ in
@@ -812,8 +832,45 @@ private struct ResultRow: View {
     let result: SearchResult
     let selected: Bool
     let keyword: String?
-    var terminalIcon: NSImage?
+    var terminalApplication = LauncherTerminalApplication.system
     var applicationIconPath: String?
+    @State private var loaded: Loaded?
+
+    private struct Loaded {
+        let request: LauncherArtworkRequest
+        let presentation: LauncherRowPresentation
+    }
+
+    private var artworkRequest: LauncherArtworkRequest? {
+        if result.target.kind.hasPrefix("plugin-") || result.target.kind == "search-command" || QuitAskyCommand.isResult(result) { return nil }
+        if result.target.kind == "application-window", let applicationIconPath, !applicationIconPath.isEmpty {
+            return .file(path: applicationIconPath)
+        }
+        switch result.source {
+        case .app: return .file(path: result.target.identifier)
+        case .file: return .file(path: result.target.identifier, includeType: true)
+        case .shortcut: return .application(bundleID: "com.apple.shortcuts")
+        case .terminal: return .application(bundleID: terminalApplication.rawValue)
+        case .bookmark, .keyword:
+            if result.source == .keyword, let keyword, CommandIcon.Brand(rawValue: keyword) != nil { return nil }
+            if result.target.kind == "launcher-alias", result.primaryAction == .open {
+                return .file(path: result.target.identifier)
+            }
+            if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
+                return .application(bundleID: "com.apple.shortcuts")
+            }
+            if result.target.kind == "bookmark-search" { return nil }
+            if case .openURL(let url) = result.primaryAction { return .browser(url) }
+            return nil
+        default: return nil
+        }
+    }
+
+    private var presentation: LauncherRowPresentation? {
+        guard let request = artworkRequest else { return nil }
+        if let loaded, loaded.request == request { return loaded.presentation }
+        return ToolService.cachedLauncherPresentation(for: request)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -847,6 +904,12 @@ private struct ResultRow: View {
                         selected ? AnyShapeStyle(ThemeColor.kBackgroundSelected) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: LauncherLayout.rowCornerRadius))
+        .task(id: artworkRequest) {
+            guard let request = artworkRequest else { loaded = nil; return }
+            let value = await ToolService.loadLauncherPresentation(for: request)
+            guard !Task.isCancelled, let value else { return }
+            loaded = Loaded(request: request, presentation: value)
+        }
     }
 
     private var typeLabel: String {
@@ -859,7 +922,7 @@ private struct ResultRow: View {
         switch result.source {
         case .app: key = "应用"
         case .file:
-            return ToolService.launcherFileType(filePath: result.target.identifier)
+            return presentation?.fileType
                 ?? NSLocalizedString("文件", tableName: "Launcher", comment: "Result type")
         case .link: key = "链接"
         case .bookmark: key = "书签"
@@ -882,7 +945,7 @@ private struct ResultRow: View {
         } else if result.target.kind == "search-command" {
             LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
         } else if result.target.kind == "application-window", let applicationIconPath, !applicationIconPath.isEmpty {
-            Image(nsImage: ToolService.launcherIcon(filePath: applicationIconPath)).resizable().scaledToFit()
+            systemIcon(fallback: "app.badge")
         } else if QuitAskyCommand.isResult(result) {
             LauncherFunctionIcon(kind: .quit)
         } else {
@@ -893,13 +956,13 @@ private struct ResultRow: View {
     @ViewBuilder private var sourceIcon: some View {
         switch result.source {
         case .app, .file:
-            Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+            systemIcon(fallback: result.source == .file ? "doc" : "app.badge")
         case .shortcut:
-            DataSourceIcon(source: .shortcuts)
+            systemIcon(fallback: "square.stack.3d.up")
         case .chromeTab:
             LauncherFunctionIcon(kind: .tabs)
         case .terminal:
-            CommandIcon(terminalIcon: terminalIcon)
+            CommandIcon(terminalIcon: presentation?.icon)
         case .currency:
             if let flag = CurrencyPresentation.flag(for: result.target.identifier) {
                 Text(flag).font(.system(size: LauncherLayout.rowIconSize))
@@ -919,20 +982,28 @@ private struct ResultRow: View {
             if result.source == .keyword, let keyword, CommandIcon.Brand(rawValue: keyword) != nil {
                 CommandIcon(keyword: keyword)
             } else if result.target.kind == "launcher-alias", result.primaryAction == .open {
-                Image(nsImage: ToolService.launcherIcon(filePath: result.target.identifier)).resizable().scaledToFit()
+                systemIcon(fallback: "app.badge")
             } else if result.target.kind == "launcher-alias", case .runShortcut = result.primaryAction {
-                DataSourceIcon(source: .shortcuts)
+                systemIcon(fallback: "square.stack.3d.up")
             } else if result.target.kind == "search-command" {
                 LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
             } else if result.target.kind == "bookmark-search" {
                 LauncherFunctionIcon(kind: .bookmark)
-            } else if case .openURL(let url) = result.primaryAction, let icon = ToolService.launcherBrowserIcon(for: url) {
-                Image(nsImage: icon).resizable().scaledToFit()
+            } else if case .openURL = result.primaryAction {
+                systemIcon(fallback: "globe")
             } else {
                 Image(mingCute: "globe", size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
             }
         default:
             Image(mingCute: Self.symbol(result.source), size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
+        }
+    }
+
+    @ViewBuilder private func systemIcon(fallback: String) -> some View {
+        if let icon = presentation?.icon {
+            Image(nsImage: icon).resizable().scaledToFit()
+        } else {
+            Image(mingCute: fallback, size: LauncherLayout.rowIconSize).foregroundStyle(ThemeColor.kIcon)
         }
     }
 
@@ -982,5 +1053,31 @@ private struct TerminalOutputView: View {
             }
         }
         .padding(12)
+    }
+}
+
+/// Scope artwork follows the same cache-only draw / background-load path as result rows.
+private struct LauncherSystemArtwork: View {
+    let request: LauncherArtworkRequest
+    let fallback: String
+    @State private var loadedRequest: LauncherArtworkRequest?
+    @State private var image: NSImage?
+
+    var body: some View {
+        let warm = ToolService.cachedLauncherPresentation(for: request)?.icon
+        let icon = warm ?? (loadedRequest == request ? image : nil)
+        Group {
+            if let icon {
+                Image(nsImage: icon).resizable().scaledToFit()
+            } else {
+                Image(mingCute: fallback).resizable().scaledToFit()
+            }
+        }
+        .task(id: request) {
+            let value = await ToolService.loadLauncherPresentation(for: request)
+            guard !Task.isCancelled else { return }
+            image = value?.icon
+            loadedRequest = request
+        }
     }
 }

@@ -1307,7 +1307,7 @@ extension LauncherModel {
                                               icon: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
                                               shortcut: actionPreferences.shortcut(.windowFullScreen).label, kind: .setWindowFullScreen(!fullScreen)))
             }
-            if windowActionCanMoveDisplay {
+            if windowActionCanMoveDisplay && windowActionFullScreen != true {
                 actions.append(LauncherAction(title: "切换到上一块屏幕", icon: "arrow.left.to.line",
                     shortcut: actionPreferences.shortcut(.windowPreviousDisplay).label, kind: .moveWindowDisplay(-1)))
                 actions.append(LauncherAction(title: "切换到下一块屏幕", icon: "arrow.right.to.line",

@@ -84,7 +84,7 @@ private enum WindowSearchRegression {
         try require(model.secondaryActions.map(\.title) == ["进入全屏", "切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "window menu must expose both actions in order")
         try require(!model.secondaryActions[0].isNegative && model.secondaryActions[3].isNegative, "only close must be red")
         model.windowActionFullScreen = true
-        try require(model.secondaryActions.map(\.title) == ["退出全屏", "切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "full-screen window must offer Exit Full Screen")
+        try require(model.secondaryActions.map(\.title) == ["退出全屏", "关闭窗口"], "full-screen windows must hide display moves")
         model.windowActionFullScreen = nil
         try require(model.secondaryActions.map(\.title) == ["切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "unsupported full-screen windows retain display actions")
         model.windowActionCanMoveDisplay = false
@@ -114,8 +114,8 @@ private enum WindowSearchRegression {
                 characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
             try require(model.handleActionKey(event) && model.isActionsMenuPresented, "Command K must open window menu")
             model.windowActionCanMoveDisplay = true
-            model.move(3)
-            try require(model.actionSelection == 3, "close remains last after display actions")
+            model.move(model.secondaryActions.count - 1)
+            try require(model.actionSelection == model.secondaryActions.count - 1, "close remains last in either window state")
             try await Task.sleep(for: .milliseconds(350))
             let capture = Process()
             capture.executableURL = URL(filePath: "/usr/sbin/screencapture")

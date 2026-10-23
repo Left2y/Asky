@@ -3,6 +3,7 @@ import ApplicationServices
 import Contracts
 
 /// A panel-scoped snapshot retains exact AX references, including identically titled windows.
+/// The bounded catalog also remembers live windows omitted by AXWindows on other Spaces.
 public final class LauncherWindowSnapshot: @unchecked Sendable {
     public struct Entry: Sendable {
         public let id: String
@@ -43,17 +44,42 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
             || !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasCloseButton
     }
 
-    fileprivate static func capture() throws -> LauncherWindowSnapshot {
+    fileprivate struct RememberedApplication {
+        let launchDate: Date?
+        let windows: [AXUIElement]
+    }
+
+    /// A live reference can remain valid even when its window is absent from AXWindows.
+    /// Closed references return invalidUIElement; never replace a reference by title/app name.
+    private static func isLiveWindow(_ window: AXUIElement, in application: AXUIElement, pid: pid_t) -> Bool {
+        var owner: pid_t = 0
+        var role: CFTypeRef?, parent: CFTypeRef?
+        return AXUIElementGetPid(window, &owner) == .success && owner == pid
+            && AXUIElementCopyAttributeValue(window, kAXRoleAttribute as CFString, &role) == .success
+            && role as? String == kAXWindowRole
+            && AXUIElementCopyAttributeValue(window, kAXParentAttribute as CFString, &parent) == .success
+            && parent.map { CFEqual($0, application) } == true
+    }
+
+    fileprivate static func capture(remembered: inout [pid_t: RememberedApplication]) throws -> LauncherWindowSnapshot {
         guard AXIsProcessTrusted() else { throw WindowSearchError.accessibility }
         var entries: [Entry] = []
         var targets: [String: (pid_t, AXUIElement)] = [:]
+        var nextRemembered: [pid_t: RememberedApplication] = [:]
+        var rememberedCount = 0
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular && app.processIdentifier != getpid() {
             if Task.isCancelled { throw CancellationError() }
             let element = AXUIElementCreateApplication(app.processIdentifier)
             AXUIElementSetMessagingTimeout(element, 0.2)
             var value: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &value) == .success,
-                  let windows = value as? [AXUIElement] else { continue }
+            AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &value)
+            var windows = value as? [AXUIElement] ?? []
+            if let previous = remembered[app.processIdentifier], previous.launchDate == app.launchDate {
+                for window in previous.windows where !windows.contains(where: { CFEqual($0, window) }) {
+                    if isLiveWindow(window, in: element, pid: app.processIdentifier) { windows.append(window) }
+                }
+            }
+            var liveWindows: [AXUIElement] = []
             for window in windows {
                 AXUIElementSetMessagingTimeout(window, 0.2)
                 var role: CFTypeRef?
@@ -68,12 +94,20 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
                 guard isSearchableWindow(subrole: subrole as? String, title: title as? String ?? "",
                                          hasCloseButton: closeButton.map { CFGetTypeID($0) == AXUIElementGetTypeID() } ?? false)
                 else { continue }
+                liveWindows.append(window)
                 let id = UUID().uuidString
                 entries.append(Entry(id: id, title: title as? String ?? "", application: app.localizedName ?? "",
                                      applicationPath: app.bundleURL?.path ?? ""))
                 targets[id] = (app.processIdentifier, window)
             }
+            // Retain identities only, with a process-wide cap. No disk persistence or polling.
+            let retained = Array(liveWindows.prefix(max(0, 512 - rememberedCount)))
+            if !retained.isEmpty {
+                nextRemembered[app.processIdentifier] = RememberedApplication(launchDate: app.launchDate, windows: retained)
+                rememberedCount += retained.count
+            }
         }
+        remembered = nextRemembered
         return LauncherWindowSnapshot(entries: entries, targets: targets)
     }
 
@@ -82,10 +116,13 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
         guard let (pid, window) = targets[id], let app = NSRunningApplication(processIdentifier: pid) else {
             throw WindowSearchError.unavailable
         }
-        // Revalidate by AX identity; never fall back to another window in the same app.
+        // Space membership is not liveness. Validate the exact retained AX object directly
+        // when the application temporarily omits it from AXWindows.
+        let application = AXUIElementCreateApplication(pid)
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid), kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement], windows.contains(where: { CFEqual($0, window) }) else {
+        AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
+        let listed = (value as? [AXUIElement])?.contains(where: { CFEqual($0, window) }) == true
+        guard listed || Self.isLiveWindow(window, in: application, pid: pid) else {
             throw WindowSearchError.unavailable
         }
         return (app, window)
@@ -224,7 +261,7 @@ extension ToolService {
     }
 
     public static func launcherWindows() async throws -> LauncherWindowSnapshot {
-        let task = Task.detached(priority: .userInitiated) { try LauncherWindowSnapshot.capture() }
+        let task = Task.detached(priority: .userInitiated) { try await LauncherWindowCatalog.shared.capture() }
         return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 
@@ -245,5 +282,15 @@ extension ToolService {
     @MainActor public static func setLauncherWindowFullScreen(_ enabled: Bool, for id: String,
                                                              in snapshot: LauncherWindowSnapshot) async throws {
         try await snapshot.setFullScreen(enabled, for: id)
+    }
+}
+
+/// Serializes refreshes and owns a bounded set of live AX references for this process.
+private actor LauncherWindowCatalog {
+    static let shared = LauncherWindowCatalog()
+    private var remembered: [pid_t: LauncherWindowSnapshot.RememberedApplication] = [:]
+
+    func capture() throws -> LauncherWindowSnapshot {
+        try LauncherWindowSnapshot.capture(remembered: &remembered)
     }
 }

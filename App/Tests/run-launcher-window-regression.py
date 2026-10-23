@@ -24,7 +24,8 @@ for path in sorted(maps.glob("*.modulemap")):
     command += ["-Xcc", "-fmodule-map-file=" + str(path)]
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
     command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
-command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
+if "--window-search-spaces" not in sys.argv:
+    command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
 test_source = ("PluginLauncherRegression.swift" if "--plugins" in sys.argv else
                "ColorPickerRegression.swift" if "--color-picker" in sys.argv else
                "CalculatorHistoryRegression.swift" if "--calculator-history" in sys.argv else
@@ -35,6 +36,8 @@ if "--window-search" in sys.argv:
     test_source = "WindowSearchRegression.swift"
 if "--window-search-live" in sys.argv:
     test_source = "WindowSearchLiveRegression.swift"
+if "--window-search-spaces" in sys.argv:
+    test_source = "WindowSearchSpacesRegression.swift"
 command += [str(root / "App/Tests" / test_source)]
 command += [str(path) for path in sorted(products.glob("*.o"))]
 artifacts = derived_data / "LauncherRegression" if "ASKY_DERIVED_DATA" in os.environ else root / "build"

@@ -72,7 +72,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 | **新建 AI 对话** | `Ctrl + Shift + /` | 唤出按需 AI 对话界面 |
 | **分类检索** | `file ` / `app ` / `ql ` / `sc ` | 仅搜索指定分类（文件/应用/快捷方式/快捷指令），`Esc` 退出 |
 | **文件夹浏览** | 选中文件夹按 `Tab` | 在搜索框内直接浏览或搜索该文件夹目录内容 |
-| **窗口搜索** | `sw ` 或 `sw` 后回车 | 检索当前所有运行中的应用窗口并一键切换聚焦；`⌘K` 菜单按窗口状态提供“进入全屏”或“退出全屏”（需目标窗口支持），“关闭窗口”固定在最下方；多屏时可用“切换到上一块屏幕 / 下一块屏幕”（`⇧ ←` / `⇧ →`），横排从左到右、竖排从上到下并循环；单屏隐藏这两项，系统全屏窗口需先退出全屏；`⌃⌘ F` 切换全屏，可在“设置 › 快捷键 › 启动器”配置 |
+| **窗口搜索** | `sw ` 或 `sw` 后回车 | 检索当前所有运行中的应用窗口并一键切换聚焦；全屏后已发现的其他窗口仍可检索与切换；`⌘K` 菜单按窗口状态提供“进入全屏”或“退出全屏”（需目标窗口支持），“关闭窗口”固定在最下方；多屏时可用“切换到上一块屏幕 / 下一块屏幕”（`⇧ ←` / `⇧ →`），横排从左到右、竖排从上到下并循环；单屏隐藏这两项，系统全屏窗口需先退出全屏；`⌃⌘ F` 切换全屏，可在“设置 › 快捷键 › 启动器”配置 |
 | **屏幕取色** | `co` 后回车 | 开启屏幕取色放大镜，点击后自动复制色值到剪贴板 |
 | **计算历史** | `calc` 后回车 | 浏览最近 200 条计算结果，回车回填算式继续编辑 |
 | **网页指令** | `go 关键词`、`yt 关键词` 等 | 快速调用对应搜索引擎打开浏览器 |
@@ -124,6 +124,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ```sh
 # 核心测试套件
 (cd AgentRuntime && npm test)
+python3 App/Tests/run-launcher-window-regression.py --window-search-spaces
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
@@ -204,7 +205,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 | **New AI Chat** | `Ctrl + Shift + /` | Open the on-demand AI conversation panel |
 | **Category Search** | `file ` / `app ` / `ql ` / `sc ` | Filter results by category (files/apps/quick links/shortcuts); `Esc` to exit |
 | **Folder Browse** | Select folder + `Tab` | Browse or search folder contents directly in launcher |
-| **Window Search** | `sw ` or `sw` + Return | Find and focus running application windows; `⌘K` offers Enter Full Screen or Exit Full Screen for supported windows, with Close Window always last; with multiple displays, Move to Previous/Next Display (`⇧ ←` / `⇧ →`) cycles left to right for horizontal layouts and top to bottom for vertical layouts; both actions are hidden with a single display, and native full-screen windows must exit full screen before moving; `⌃⌘ F` toggles full screen and is configurable in Settings › Shortcuts › Launcher |
+| **Window Search** | `sw ` or `sw` + Return | Find and focus running application windows; previously discovered windows remain searchable and switchable after another window enters full screen; `⌘K` offers Enter Full Screen or Exit Full Screen for supported windows, with Close Window always last; with multiple displays, Move to Previous/Next Display (`⇧ ←` / `⇧ →`) cycles left to right for horizontal layouts and top to bottom for vertical layouts; both actions are hidden with a single display, and native full-screen windows must exit full screen before moving; `⌃⌘ F` toggles full screen and is configurable in Settings › Shortcuts › Launcher |
 | **Color Picker** | `co` + Return | Open screen color sampler and copy hex value to clipboard |
 | **Calculation History** | `calc` + Return | View last 200 calculations and restore expressions |
 | **Web Commands** | `go keyword`, `yt keyword`, etc. | Search directly on target websites in your browser |
@@ -256,6 +257,7 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 ```sh
 # Core test suites
 (cd AgentRuntime && npm test)
+python3 App/Tests/run-launcher-window-regression.py --window-search-spaces
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```

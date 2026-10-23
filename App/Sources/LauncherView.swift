@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 import Contracts
 import DirectActions
@@ -293,17 +294,15 @@ final class LauncherController {
         let height = shellHeight.rounded()
         let frame = NSRect(x: origin.x, y: origin.y - height, width: width, height: height)
         if panel.frame != frame {
-            // Let AppKit draw after laying out the new content size instead of forcing
-            // a display of the intermediate field-editor/hosting-view geometry.
+            // The display link already animates the frame. Commit the glass,
+            // clipping layers and field editor together, without a second layer
+            // animation trailing the window during contraction.
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             panel.setFrame(frame, display: false)
-            // The panel's origin and content layout must change in the same main-
-            // actor turn; otherwise the live editor briefly stays at the old height.
+            panel.contentView?.superview?.layoutSubtreeIfNeeded()
             hosting?.layoutSubtreeIfNeeded()
-            panel.invalidateShadow()
-        }
-        if let surface = panel.contentView {
-            WindowSurface.updateCorners(of: surface,
-                radius: LauncherLayout.shellCornerRadius, circular: true)
+            CATransaction.commit()
         }
         if toastPanel.isVisible {
             let size = toastPanel.frame.size

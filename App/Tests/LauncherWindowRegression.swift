@@ -47,6 +47,8 @@ enum LauncherWindowRegression {
                         try await checkFirstPresentation()
                     } else if CommandLine.arguments.contains("--command-transition") {
                         try await checkCommandTransition()
+                    } else if CommandLine.arguments.contains("--result-shrink") {
+                        try await checkResultShrink()
                     } else if CommandLine.arguments.contains("--result-motion") {
                         try await checkResultMotion()
                     } else if CommandLine.arguments.contains("--alias-results") {
@@ -1359,6 +1361,58 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(500))
         try require(abs(panel.frame.height - 52) <= 1, "reset must release retained search height")
         print("PASS: sw Return retains loading height; reset collapses normally")
+    }
+
+    private static func checkResultShrink() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-result-shrink-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [WindowSearchProvider(source: .app, delay: .milliseconds(100), count: 8)])
+        let controller = LauncherController(model: model)
+        NSApp.activate(ignoringOtherApps: true)
+        controller.show()
+        defer { controller.hide() }
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
+              let content = panel.contentView, let field = searchField(in: content) else {
+            throw NSError(domain: "LauncherWindowRegression", code: 2)
+        }
+        panel.onBlur = {}
+        panel.makeFirstResponder(field)
+        model.inputText = "many"
+        try await Task.sleep(for: .milliseconds(1000))
+        let expanded = panel.frame.height
+        let top = panel.frame.maxY
+        let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+        let editor = field.currentEditor()
+        model.inputText = "help me test"
+        try require(model.results.count == 1, "replacement query must have one result")
+        var previous = expanded
+        var samples = Set<Int>()
+        var maxGap = 0.0
+        var lastSample = ProcessInfo.processInfo.systemUptime
+        for _ in 0..<180 {
+            try await Task.sleep(for: .milliseconds(8))
+            let now = ProcessInfo.processInfo.systemUptime
+            maxGap = max(maxGap, now - lastSample)
+            lastSample = now
+            let height = panel.frame.height
+            try require(height <= previous + 1, "shrinking must not reverse direction")
+            try require(panel.frame.maxY == top &&
+                        abs(panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY - inputTop) < 0.01,
+                        "shrinking must keep window and editor top fixed")
+            try require(abs(content.frame.height - height) < 0.01,
+                        "glass must resize with the window in the same frame")
+            try require(panel.alphaValue == 1 && panel.isVisible && field.currentEditor() === editor,
+                        "shrinking must preserve visibility and field editor")
+            if height < expanded { samples.insert(Int(height)) }
+            previous = height
+        }
+        try require(panel.frame.height < expanded - LauncherLayout.rowHeight * 3,
+                    "fewer results must settle at a shorter height: before=\(expanded), after=\(panel.frame.height), results=\(model.results.count), searching=\(model.isSearching), query=\(model.query)")
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            try require(samples.count >= 4, "shrinking must have intermediate frames")
+        }
+        print("PASS: result shrink, intermediateHeights=\(samples.count), maximumSampleGapMS=\(maxGap * 1000)")
     }
 
     private static func checkFirstPresentation() async throws {

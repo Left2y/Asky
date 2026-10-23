@@ -360,6 +360,10 @@ struct LauncherView: View {
     }
 
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
+    private var isEmptyRoot: Bool {
+        !model.hasScope && model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && model.terminal == nil
+    }
     private var hasContent: Bool {
         !model.results.isEmpty || model.hasScope || model.status != nil || model.terminal != nil
             || model.calculation != nil || model.unitConversion != nil || model.currencyConversion != nil
@@ -391,7 +395,10 @@ struct LauncherView: View {
             .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
             .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
             .onChange(of: hasContent, initial: true) { _, hasContent in
-                if hasContent { hasExpanded = true }
+                if hasContent && !isEmptyRoot { hasExpanded = true }
+            }
+            .onChange(of: isEmptyRoot, initial: true) { _, empty in
+                if empty { hasExpanded = false }
             }
     }
 

@@ -58,7 +58,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
   - **可信插件体系**：支持用户主动安装 GitHub 插件；设置中按 AI 插件和功能插件分 Tab 查看，并可跨分类搜索名称与命令；插件可提供无需 AI 的启动器命令与动态搜索结果，支持复制和打开链接，详见[插件开发](docs/plugins.md)。官方提供 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca)。
 
 - 🎨 **纯正 macOS 原生体验与隐私优先**
-  - **现代视觉语言**：采用 AppKit 原生 Regular 玻璃与液态视觉质感，窗口平滑展开后保持固定高度，结果变化或清空输入不再伸缩，关闭重开恢复单行输入；严格适配系统“减少动态效果”。
+  - **现代视觉语言**：采用 AppKit 原生 Regular 玻璃与液态视觉质感，窗口平滑展开后保持固定高度，结果变化不再伸缩，完全清空普通搜索时收回单行输入，空查询搜索模式保持展开；严格适配系统“减少动态效果”。
   - **严格隐私保护**：不向作者服务器上传任何用户数据；API 密钥安全存放在 macOS 系统钥匙串中，数据完全归用户所有。详见[隐私政策](PRIVACY.md)。
 
 ---
@@ -192,7 +192,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
   - **Trusted Plugin System**: Install plugins from GitHub on demand. Settings separates AI and function plugins into tabs, with search across categories, names, and commands. Plugins can provide launcher commands and dynamic search results without AI, with copy and open-link actions; see the [plugin guide](docs/plugins.md). Official integrations include [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 
 - 🎨 **Pure macOS Native Experience & Privacy First**
-  - **Modern Interface**: Built with AppKit Regular Liquid Glass. Once expanded, the panel keeps a fixed height as results change or input is cleared; closing and reopening restores the single input row. Supports smooth expansion and Reduce Motion.
+  - **Modern Interface**: Built with AppKit Regular Liquid Glass. Once expanded, the panel keeps a fixed height as results change. Clearing root search collapses it to the single input row; an empty query inside a search mode stays expanded. Supports smooth expansion and Reduce Motion.
   - **Privacy First**: Zero telemetry sent to author servers. Sensitive credentials and API keys are stored securely in the macOS Keychain. See [Privacy Policy](PRIVACY.md).
 
 ---

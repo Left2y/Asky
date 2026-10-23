@@ -431,8 +431,8 @@ enum LauncherWindowRegression {
         try capture("calculation")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(400))
-        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1 && !model.isActionsMenuPresented,
-                    "clearing search must remove action surfaces and retain expanded height")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1 && !model.isActionsMenuPresented,
+                    "clearing root search must remove action surfaces and collapse")
         print("action bar: keyboard toggle/navigation, focus, path execution, query dismissal, final row, AI/calculation passed")
     }
 
@@ -480,7 +480,7 @@ enum LauncherWindowRegression {
             URL(filePath: "build/launcher-compact-\(NSApp.appearance!.name.rawValue).png"))
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(1000))
-        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1, "cleared shell must retain expanded height")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1, "cleared root shell must collapse")
         try require(panel.contentView?.layer?.cornerRadius == 26, "empty shell must use a 26 pt radius")
         try require(panel.contentView?.layer?.cornerCurve == .circular, "empty shell ends must be circular")
         let capture = Process()
@@ -685,7 +685,7 @@ enum LauncherWindowRegression {
         try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(220))
-        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1, "clearing must retain expanded height")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1, "clearing root input must collapse")
         try require(abs(field.frame.width - emptyFieldWidth) <= 4, "clearing must restore the empty field width promptly: \(field.frame.width) vs \(emptyFieldWidth)")
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing input must preserve the original field width")
@@ -1300,11 +1300,11 @@ enum LauncherWindowRegression {
         for _ in 0..<65 {
             try await Task.sleep(for: .milliseconds(8))
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
-            try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1 &&
-                        abs(top - inputTop) < 0.01 && abs(panel.frame.maxY - windowTop) < 0.01,
-                        "clearing must preserve expanded geometry")
+            try require(abs(top - inputTop) < 0.01 && abs(panel.frame.maxY - windowTop) < 0.01,
+                        "clearing must preserve the input and window anchor")
         }
-        try require(field.currentEditor() === editor, "clear must preserve the editor")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1 && field.currentEditor() === editor,
+                    "clear must collapse and preserve the editor")
         model.inputText = "s"
         try await Task.sleep(for: .milliseconds(500))
         model.inputText = ""
@@ -1319,7 +1319,7 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(60))
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(400))
-        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1, "clear must retain expanded height")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1, "clear must collapse even during expansion")
         model.inputText = "s"
         try await Task.sleep(for: .milliseconds(60))
         controller.hide()
@@ -1360,8 +1360,8 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(500))
         model.reset()
         try await Task.sleep(for: .milliseconds(500))
-        try require(abs(panel.frame.height - commandHeight) <= 1, "reset must retain expanded height until hidden")
-        print("PASS: sw Return and reset retain expanded height")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1, "reset to empty root must collapse")
+        print("PASS: sw retains expanded height; reset to empty root collapses")
     }
 
     private static func checkFixedExpanded() async throws {
@@ -1389,12 +1389,12 @@ enum LauncherWindowRegression {
         let top = panel.frame.maxY
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         let editor = field.currentEditor()
-        for query in ["many", "help me test", "", "1+2", "sw"] {
+        for query in ["many", "help me test", "1+2", "sw"] {
             model.inputText = query
             for _ in 0..<35 {
                 try await Task.sleep(for: .milliseconds(16))
                 try require(panel.frame.height == expanded && panel.frame.maxY == top,
-                            "result counts, empty input and cards must retain expanded geometry")
+                            "result counts and cards must retain expanded geometry")
                 try require(abs(panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY - inputTop) < 0.01 &&
                             field.currentEditor() === editor, "content changes must preserve editor and input position")
             }
@@ -1405,7 +1405,19 @@ enum LauncherWindowRegression {
             try await Task.sleep(for: .milliseconds(16))
             try require(panel.frame.height == expanded, "sw loading and completion must keep expanded height")
         }
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(400))
+        try require(panel.frame.height == expanded, "empty query inside sw must stay expanded")
         model.leaveCommand()
+        try await Task.sleep(for: .milliseconds(500))
+        try require(panel.frame.height == LauncherLayout.inputHeight,
+                    "leaving empty sw for empty root must collapse")
+        model.inputText = "help me test"
+        try await Task.sleep(for: .milliseconds(500))
+        model.inputText = "   "
+        try await Task.sleep(for: .milliseconds(500))
+        try require(panel.frame.height == LauncherLayout.inputHeight && field.currentEditor() === editor,
+                    "whitespace-only root must collapse and retain the editor")
         model.inputText = "help me test"
         try await Task.sleep(for: .milliseconds(400))
         let capture = Process()
@@ -1419,7 +1431,7 @@ enum LauncherWindowRegression {
         panel.onBlur = {}
         try await Task.sleep(for: .milliseconds(400))
         try require(panel.frame.height == LauncherLayout.inputHeight, "hide and reopen must reset to compact")
-        print("PASS: fixed expanded height, single/many/empty/calculation/sw, stable editor, compact reopen")
+        print("PASS: fixed expanded height, single/many/calculation/sw, empty-root collapse, stable editor, compact reopen")
     }
 
     private static func checkFirstPresentation() async throws {
@@ -1579,7 +1591,7 @@ enum LauncherWindowRegression {
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
             maxInputDrift = max(maxInputDrift, abs(top - inputTop))
         }
-        try require(panel.frame.height == baseline.height, "clearing input must retain expanded height")
+        try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1, "clearing root input must collapse")
         print("settledChangeSamples=160 inputDrift=\(maxInputDrift)")
         try require(maxInputDrift <= 1, "shrinking/clearing results must preserve input position")
 

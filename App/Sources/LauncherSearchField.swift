@@ -24,6 +24,8 @@ struct LauncherSearchField: NSViewRepresentable {
     var enterFolder: (() -> Bool)? = nil
     var shortcuts = SettingsPreferences()
     var shortcutScope = "launcher"
+    var automaticallyFocus = true
+    var onCreate: ((NSTextField) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -36,9 +38,12 @@ struct LauncherSearchField: NSViewRepresentable {
         field.setAccessibilityLabel(accessibilityLabel)
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        DispatchQueue.main.async { [weak field] in
-            guard let field else { return }
-            field.window?.makeFirstResponder(field)
+        onCreate?(field)
+        if automaticallyFocus {
+            DispatchQueue.main.async { [weak field] in
+                guard let field else { return }
+                field.window?.makeFirstResponder(field)
+            }
         }
         return field
     }

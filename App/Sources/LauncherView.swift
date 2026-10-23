@@ -115,6 +115,7 @@ final class LauncherPanel: NSPanel {
     }
     override func becomeKey() {
         super.becomeKey()
+        LauncherPresentationTrace.record("became-key", panel: self)
         onKeyChange(true)
     }
     override func resignKey() {
@@ -129,6 +130,16 @@ struct LauncherChrome: Equatable {
     var toast: String?
 }
 
+/// Only the shell/header survive hiding. A new session mounts fresh result content.
+@MainActor @Observable
+final class LauncherPresentationState {
+    var isPresented = false
+    var sessionID = UUID()
+    var maxShellHeight = LauncherLayout.expandedHeight
+    var hasExpanded = false
+    var statusHeight: CGFloat = 0
+}
+
 @MainActor
 final class LauncherController {
     private let panel = LauncherPanel()
@@ -137,7 +148,8 @@ final class LauncherController {
     private let outsideClickDismissal = OutsideClickDismissal()
     private let model: LauncherModel
     private var hosting: NSHostingView<AnyView>?
-    private var contentID = UUID()
+    private let presentation = LauncherPresentationState()
+    private weak var searchField: NSTextField?
     private var resizeTask: Task<Void, Never>?
     private var hiding = false
     private var chrome = LauncherChrome()
@@ -157,6 +169,7 @@ final class LauncherController {
         }
         panel.onBlur = { [weak self] in
             guard let self else { return }
+            guard !LauncherPresentationTrace.isEnabled else { return }
             self.model.closeActionsMenu()
             guard !self.model.isConfirmingQuit, !self.model.isConfirmingPluginCommand else { return }
             self.hide()
@@ -190,7 +203,8 @@ final class LauncherController {
 
     func toggle() { isVisible ? hide() : show() }
 
-    func show() {
+    func show(on targetScreen: NSScreen? = nil) {
+        LauncherPresentationTrace.record("show-request", panel: panel)
         // Menu/Dock reopen requests can arrive while the launcher is visible.
         // Resetting the spring then would leave the unchanged chrome at alpha 0.
         guard !panel.isVisible else {
@@ -198,7 +212,7 @@ final class LauncherController {
             return
         }
         model.rebuildProviders()
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        let screen = targetScreen ?? NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
             availableShellHeight = min(LauncherLayout.expandedHeight, floor(f.height * (1 - LauncherLayout.topInsetFraction) - LauncherLayout.bottomClearance))
             // Anchor near the top of the pointer screen, leaving room for results below.
@@ -208,34 +222,37 @@ final class LauncherController {
             origin = NSPoint(x: (f.midX - LauncherLayout.toolbarWidth / 2).rounded(),
                              y: (f.maxY - f.height * LauncherLayout.topInsetFraction).rounded())
         }
+        // Every show is a fresh content session, but keeps the same glass and input.
+        presentation.sessionID = UUID()
+        presentation.maxShellHeight = availableShellHeight
+        presentation.hasExpanded = false
+        presentation.statusHeight = 0
+        presentation.isPresented = true
+        shellHeight = LauncherLayout.inputHeight
+        targetShellHeight = shellHeight
+        resultReveal.set(Double(shellHeight))
+        // Install first content at its final screen frame, not at the origin.
+        layoutSurfaces()
         if hosting == nil {
-            let id = UUID()
-            contentID = id
-            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, maxShellHeight: availableShellHeight,
-                                                                    onHeightChange: { [weak self] height in
-                // Resize after SwiftUI's layout pass, and ignore callbacks from a hidden tree.
-                self?.resizeTask?.cancel()
-                self?.resizeTask = Task { @MainActor [weak self] in
-                    guard !Task.isCancelled else { return }
-                    guard let self, self.contentID == id, self.hosting != nil else { return }
-                    self.resize(to: height)
-                }
-            }, onChromeChange: { [weak self] chrome in
-                guard let self, self.contentID == id, self.hosting != nil else { return }
-                self.update(chrome)
-            })
-            // Layout changes before the asynchronous panel resize. Pin the shell
-            // to the top of the current host rather than centering it for a frame.
-            .frame(maxHeight: .infinity, alignment: .top)))
-            // The controller owns the window frame; preferredContentSize alone does not resize it.
+            let view = NSHostingView(rootView: AnyView(LauncherView(model: model, presentation: presentation,
+                onHeightChange: { [weak self] sessionID, height in
+                    guard let self, self.presentation.isPresented,
+                          self.presentation.sessionID == sessionID else { return }
+                    self.resizeTask?.cancel()
+                    self.resizeTask = Task { @MainActor [weak self] in
+                        guard !Task.isCancelled, let self, self.presentation.isPresented,
+                              self.presentation.sessionID == sessionID else { return }
+                        self.resize(to: height)
+                    }
+                }, onChromeChange: { [weak self] sessionID, chrome in
+                    guard let self, self.presentation.isPresented,
+                          self.presentation.sessionID == sessionID else { return }
+                    self.update(chrome)
+                }, onSearchFieldCreated: { [weak self] field in
+                    self?.searchField = field
+                })
+                .frame(maxHeight: .infinity, alignment: .top)))
             view.sizingOptions = []
-            // Give SwiftUI a stable canvas. Resizing the NSHostingView itself
-            // produces an intermediate centered layout for AppKit's field editor.
-            // Only the container/window resize; a flexible bottom margin keeps
-            // the fixed-height canvas anchored to the window top.
-            shellHeight = LauncherLayout.inputHeight
-            targetShellHeight = shellHeight
-            resultReveal.set(Double(shellHeight))
             let size = NSSize(width: LauncherLayout.toolbarWidth, height: shellHeight)
             let container = NSView(frame: NSRect(origin: .zero, size: size))
             container.clipsToBounds = true
@@ -243,11 +260,14 @@ final class LauncherController {
                                 width: size.width, height: availableShellHeight)
             view.autoresizingMask = [.width, .minYMargin]
             container.addSubview(view)
-            panel.setContentSize(size)
             panel.contentView = WindowSurface.glassContentView(container, cornerRadius: LauncherLayout.shellCornerRadius)
             hosting = view
+            LauncherPresentationTrace.record("content-installed", panel: panel)
+        } else {
+            // Re-resolve the stable canvas when moving between differently sized screens.
+            hosting?.frame = NSRect(x: 0, y: shellHeight - availableShellHeight,
+                                    width: LauncherLayout.toolbarWidth, height: availableShellHeight)
         }
-        layoutSurfaces()
         // Cold SwiftUI/glass construction can leave the first backing-store
         // update pending. Finish layout, including AppKit's frame view, while
         // the window is still off screen rather than ordering an empty frame.
@@ -257,8 +277,16 @@ final class LauncherController {
             WindowSurface.updateCorners(of: surface,
                 radius: LauncherLayout.shellCornerRadius, circular: true)
         }
+        // The launcher owns focus timing; no creation-time async request can outlive a show.
+        if let searchField, searchField.window === panel {
+            panel.makeFirstResponder(searchField)
+            LauncherPresentationTrace.record("editor-focused", panel: panel)
+            panel.contentView?.layoutSubtreeIfNeeded()
+        }
         panel.displayIfNeeded()
+        LauncherPresentationTrace.record("layout-ready", panel: panel)
         panel.makeKeyAndOrderFront(nil)
+        LauncherPresentationTrace.record("ordered-front", panel: panel)
         updateOutsideClickDismissal()
     }
 
@@ -326,32 +354,42 @@ final class LauncherController {
         }
     }
 
-    /// Hiding releases the SwiftUI trees and the result payloads (panel resource scope).
+    /// Keep the light shell/header; explicitly unmount result content and cancel its work.
     func hide() {
         guard panel.isVisible, !hiding else { return }
+        LauncherPresentationTrace.record("hide-request", panel: panel)
         hiding = true
         defer { hiding = false }
+        // Invalidate before orderOut or model reset can invoke any old callbacks.
+        presentation.isPresented = false
+        presentation.sessionID = UUID()
         outsideClickDismissal.hide()
         resultReveal.stop()
         for surface in [toastPanel] { surface.remove() }
         panel.orderOut(nil)
         resizeTask?.cancel()
         resizeTask = nil
-        contentID = UUID()
         chrome = LauncherChrome()
-        panel.contentView = nil
-        hosting = nil
+        panel.makeFirstResponder(nil)
         model.reset()
+        presentation.hasExpanded = false
+        presentation.statusHeight = 0
+        hosting?.layoutSubtreeIfNeeded()
+        // Reset the retained shell off-screen. Never leave it expanded until next show.
+        shellHeight = LauncherLayout.inputHeight
+        targetShellHeight = shellHeight
+        resultReveal.set(Double(shellHeight))
+        LauncherPresentationTrace.record("session-unmounted", panel: panel)
     }
 }
 
 struct LauncherView: View {
     @Bindable var model: LauncherModel
-    var maxShellHeight: CGFloat = LauncherLayout.expandedHeight
-    var onHeightChange: (CGFloat) -> Void = { _ in }
-    var onChromeChange: (LauncherChrome) -> Void = { _ in }
-    @State private var statusHeight: CGFloat = 0
-    @State private var hasExpanded = false
+    @Bindable var presentation: LauncherPresentationState
+    var onHeightChange: (UUID, CGFloat) -> Void = { _, _ in }
+    var onChromeChange: (UUID, LauncherChrome) -> Void = { _, _ in }
+    var onSearchFieldCreated: (NSTextField) -> Void = { _ in }
+    private var maxShellHeight: CGFloat { presentation.maxShellHeight }
     @Environment(\.colorScheme) private var colorScheme
 
     private var shellShape: RoundedRectangle {
@@ -373,10 +411,11 @@ struct LauncherView: View {
     }
 
     var body: some View {
-        searchShell
+        let sessionID = presentation.sessionID
+        return searchShell
             .overlayPreferenceValue(LauncherMoreAnchorKey.self) { anchor in
                 GeometryReader { geometry in
-                    if let anchor {
+                    if presentation.isPresented, let anchor {
                         let rect = geometry[anchor]
                         let availableHeight = max(32, rect.maxY - 12)
                         let height = min(availableHeight, LauncherMorphingActions.menuHeight(actionCount: model.secondaryActions.count))
@@ -388,17 +427,25 @@ struct LauncherView: View {
                         LauncherMorphingActions(model: model, availableHeight: availableHeight)
                             .frame(width: surfaceWidth, height: surfaceHeight, alignment: .bottomTrailing)
                             .position(x: rect.maxX - surfaceWidth / 2, y: rect.maxY - surfaceHeight / 2)
-                            .onChange(of: hitRect, initial: true) { _, frame in model.actionsMenuFrame = frame }
+                            .onChange(of: hitRect, initial: true) { _, frame in
+                                guard presentation.isPresented, presentation.sessionID == sessionID else { return }
+                                model.actionsMenuFrame = frame
+                            }
                     }
                 }
             }
-            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
-            .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+                onHeightChange(sessionID, height)
+            }
+            .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(sessionID, chrome) }
+            .onChange(of: presentation.sessionID) { _, _ in
+                presentation.hasExpanded = presentation.isPresented && hasContent && !isEmptyRoot
+            }
             .onChange(of: hasContent, initial: true) { _, hasContent in
-                if hasContent && !isEmptyRoot { hasExpanded = true }
+                if presentation.isPresented && hasContent && !isEmptyRoot { presentation.hasExpanded = true }
             }
             .onChange(of: isEmptyRoot, initial: true) { _, empty in
-                if empty { hasExpanded = false }
+                if empty { presentation.hasExpanded = false }
             }
     }
 
@@ -438,7 +485,8 @@ struct LauncherView: View {
                     copyPathShortcut: model.actionPreferences.copyPathHotKey,
                     revealInFinderShortcut: model.actionPreferences.revealInFinderHotKey,
                     enterFolder: model.enterSelectedFolder,
-                    shortcuts: model.actionPreferences, shortcutScope: "launcher"
+                    shortcuts: model.actionPreferences, shortcutScope: "launcher",
+                    automaticallyFocus: false, onCreate: onSearchFieldCreated
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)
@@ -448,6 +496,26 @@ struct LauncherView: View {
             .padding(.trailing, LauncherLayout.inputTrailingPadding)
             .frame(height: inputHeight)
 
+            if presentation.isPresented {
+                sessionContent(sessionID: presentation.sessionID)
+                    .id(presentation.sessionID)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: presentation.hasExpanded ? maxShellHeight : inputHeight, alignment: .top)
+        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
+        // Blank input/result areas must belong to the shell's pointer region.
+        .contentShape(shellShape)
+        .clipShape(shellShape)
+        .windowSurfaceBackground(in: shellShape)
+        .contentShape(shellShape)
+        .onChange(of: model.status) { _, status in
+            if status == nil { presentation.statusHeight = 0 }
+        }
+    }
+    /// Unmounted while hidden, including scroll state, menus and terminal display.
+    private func sessionContent(sessionID: UUID) -> some View {
+        VStack(spacing: 0) {
             if let t = model.terminal {
                 inputDivider
                 TerminalOutputView(session: t, stop: model.stopTerminal)
@@ -456,7 +524,7 @@ struct LauncherView: View {
                 CalculationView(expression: calculation.expression, result: calculation.result)
                     .frame(height: LauncherLayout.currencyCardHeight)
                     .padding(.bottom, LauncherLayout.actionBarHeight)
-                    .frame(height: maxShellHeight - inputHeight - LauncherLayout.dividerHeight - statusHeight, alignment: .top)
+                    .frame(height: maxShellHeight - inputHeight - LauncherLayout.dividerHeight - presentation.statusHeight, alignment: .top)
                     .overlay(alignment: .bottom) { LauncherActionBar(model: model) }
             } else if let conversion = model.unitConversion {
                 inputDivider
@@ -473,13 +541,13 @@ struct LauncherView: View {
                     .frame(height: LauncherLayout.currencyCardHeight)
                 if model.results.contains(where: { $0.source == .currency && $0.target.identifier != query.to }) {
                     ResultList(model: model, maxHeight: maxShellHeight - inputHeight
-                               - LauncherLayout.dividerHeight - LauncherLayout.currencyCardHeight - statusHeight,
+                               - LauncherLayout.dividerHeight - LauncherLayout.currencyCardHeight - presentation.statusHeight,
                                excludedCurrencyCode: query.to)
                 }
-            } else if hasExpanded || !model.results.isEmpty {
+            } else if presentation.hasExpanded || !model.results.isEmpty {
                 inputDivider
                 ResultList(model: model, maxHeight: maxShellHeight
-                           - inputHeight - LauncherLayout.dividerHeight - statusHeight)
+                           - inputHeight - LauncherLayout.dividerHeight - presentation.statusHeight)
             }
             if let s = model.status {
                 Text(s).font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle)
@@ -489,21 +557,14 @@ struct LauncherView: View {
                     .padding(.trailing, LauncherLayout.inputTrailingPadding)
                     .padding(.top, 8)
                     .padding(.bottom, 16)
-                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusHeight = $0 }
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+                        guard presentation.isPresented, presentation.sessionID == sessionID else { return }
+                        presentation.statusHeight = height
+                    }
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: hasExpanded ? maxShellHeight : inputHeight, alignment: .top)
-        .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
-        // Blank input/result areas must belong to the shell's pointer region.
-        .contentShape(shellShape)
-        .clipShape(shellShape)
-        .windowSurfaceBackground(in: shellShape)
-        .contentShape(shellShape)
-        .onChange(of: model.status) { _, status in
-            if status == nil { statusHeight = 0 }
-        }
     }
+
     private var searchIcon: some View {
         Image(mingCute: "magnifyingglass", size: LauncherLayout.searchIconSize)
             .foregroundStyle(ThemeColor.kIconSubtle.color(for: colorScheme))

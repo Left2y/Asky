@@ -24,6 +24,8 @@ python3 App/Tests/run-launcher-window-regression.py --compact-results
 python3 App/Tests/run-launcher-window-regression.py --result-motion
 python3 App/Tests/run-launcher-window-regression.py --fixed-expanded
 python3 App/Tests/run-launcher-window-regression.py --app-opening
+python3 App/Tests/run-launcher-window-regression.py --first-presentation
+python3 App/Tests/run-launcher-window-regression.py --shell-lifecycle
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
@@ -88,6 +90,20 @@ build/outside-click-regression
 ```
 
 检查结果按实际运行情况记录在 `docs/validation/`。自动化检查与真实系统权限、模型和界面验收分别记录。
+
+### 启动器首帧诊断
+
+先按 README 构建 Debug App，再运行：
+
+```sh
+python3 App/Tests/run-launcher-presentation-diagnostic.py --output build/launcher-presentation/current
+```
+
+默认浅色、深色各启动 20 个独立进程；每个进程展示、隐藏再展示一次。`--runs` 调整每种外观的次数，`--app` 指定 Debug App 路径。录制先于进程启动，固定录制屏幕并裁切启动器及其左下区域，请求 60 fps，不录音；ScreenCaptureKit 会省略未变化的帧，需结合 MP4 的实际时间戳和 `*-recording.log` 的最大帧间隔判断盲区，不能视为恒定 60 fps 的合成追踪。
+
+脚本在启动前拒绝不含隔离入口的普通/Release App。诊断入口 `--diagnose-launcher --diagnostic-root <绝对路径>` 仅在 Debug 存在；脚本传入 `--diagnostic-screen` 固定显示器，`--diagnostic-dark` 选择深色。它调用真实启动器与玻璃代码，但跳过常规服务初始化，使用空搜索源、临时数据、不启动 AI、更新或申请搜索权限，并忽略失焦关闭以防录制期间其他窗口打断。日志只含单调时钟、事件、窗口类型、标识和几何，不记录搜索词或窗口标题。录像会包含裁切区域的桌面内容，仅供本地检查。
+
+前半组使用原构建，后半组使用复制到新路径的同一 Debug bundle；这验证独立进程与路径替换，不代表正式更新器、签名安装或真实数据迁移。退出码和窗口快照不能证明不存在早期闪块，必须查看连续帧。`--shell-lifecycle` 检查 100 次会话的外壳/输入身份、结果滚动视图卸载、取消、跨屏与模拟组合输入；物理中文输入法仍需单独检查。
 
 ### 本地化资源
 
@@ -157,6 +173,8 @@ python3 App/Tests/run-launcher-window-regression.py --compact-results
 python3 App/Tests/run-launcher-window-regression.py --result-motion
 python3 App/Tests/run-launcher-window-regression.py --fixed-expanded
 python3 App/Tests/run-launcher-window-regression.py --app-opening
+python3 App/Tests/run-launcher-window-regression.py --first-presentation
+python3 App/Tests/run-launcher-window-regression.py --shell-lifecycle
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
@@ -219,6 +237,20 @@ build/outside-click-regression
 ```
 
 Record only checks actually executed in `docs/validation/`. Track automated checks separately from acceptance testing of real system permissions, models, and interfaces.
+
+### Launcher First-Presentation Diagnostic
+
+Build the Debug app with the README command, then run:
+
+```sh
+python3 App/Tests/run-launcher-presentation-diagnostic.py --output build/launcher-presentation/current
+```
+
+By default, 20 independent processes run in each of light and dark appearance. Each shows, hides, and reopens the launcher. `--runs` changes the count per appearance; `--app` selects a Debug app. Recording starts before launch, pins the display, crops the launcher and its lower-left surround, requests 60 fps, and captures no audio. ScreenCaptureKit may omit unchanged frames: inspect the MP4 timestamps and maximum frame gap in `*-recording.log` rather than treating this as constant 60 fps compositor tracing.
+
+The script rejects ordinary/Release apps without the isolated entry before launching them. The `--diagnose-launcher --diagnostic-root <absolute-path>` entry exists only in Debug. The runner passes `--diagnostic-screen` to pin the display and `--diagnostic-dark` for dark appearance. It exercises the actual launcher and native glass while skipping normal service initialization, using empty search providers and temporary data. It starts no AI or updater, requests no search permissions, and ignores blur dismissal so other windows cannot interrupt recording. Logs contain monotonic time, events, window types, identifiers and geometry, without queries or window titles. Videos contain desktop content within the crop and are intended for local inspection.
+
+The first half uses the original build; the second half uses the same Debug bundle copied to a new path. This covers separate processes and path replacement, not the production updater, signed installation, or real-data migration. Exit codes and window snapshots cannot rule out early flashes; inspect consecutive frames. `--shell-lifecycle` covers 100 sessions of shell/input identity, result scroll-view unloading, cancellation, screens, and simulated marked text; physical IME input needs separate verification.
 
 ### Localization Resources
 

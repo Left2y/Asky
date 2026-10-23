@@ -45,6 +45,8 @@ enum LauncherWindowRegression {
                     application.appearance = NSAppearance(named: appearance)
                     if CommandLine.arguments.contains("--app-opening") {
                         try await checkAppOpening()
+                    } else if CommandLine.arguments.contains("--shell-lifecycle") {
+                        try await checkShellLifecycle()
                     } else if CommandLine.arguments.contains("--first-presentation") {
                         try await checkFirstPresentation()
                     } else if CommandLine.arguments.contains("--command-transition") {
@@ -142,8 +144,8 @@ enum LauncherWindowRegression {
             panel.sendEvent(event)
             try await Task.sleep(for: .milliseconds(30))
             try require(requestedURL == target && pending != nil, "Return must request exactly the selected application")
-            try require(hiddenBeforeLaunch && !controller.isVisible && panel.contentView == nil,
-                        "launcher must hide and release its tree before waiting for application startup")
+            try require(hiddenBeforeLaunch && !controller.isVisible && model.results.isEmpty,
+                        "launcher must hide and release results before waiting for application startup")
             try require(model.query.isEmpty && !completed, "reset must complete while launch is pending")
 
             // A new session must remain usable while the old launch is suspended.
@@ -755,7 +757,12 @@ enum LauncherWindowRegression {
         try require(abs(field.frame.width - emptyFieldWidth) <= 1, "static search icon must keep field width stable while typing")
         try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
         model.inputText = ""
-        try await Task.sleep(for: .milliseconds(220))
+        // A response of 0.18 is not a 180 ms completion deadline. Wait for the
+        // existing spring to settle rather than sampling an arbitrary animation frame.
+        for _ in 0..<60 {
+            if abs(panel.frame.height - LauncherLayout.inputHeight) <= 1 { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
         try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1, "clearing root input must collapse")
         try require(abs(field.frame.width - emptyFieldWidth) <= 4, "clearing must restore the empty field width promptly: \(field.frame.width) vs \(emptyFieldWidth)")
         try await Task.sleep(for: .milliseconds(400))
@@ -1414,7 +1421,7 @@ enum LauncherWindowRegression {
                         "clearing must preserve the input and window anchor")
         }
         try require(abs(panel.frame.height - LauncherLayout.inputHeight) <= 1 && field.currentEditor() === editor,
-                    "clear must collapse and preserve the editor")
+                    "clear must collapse and preserve the editor: height=\(panel.frame.height) editor=\(field.currentEditor() === editor) key=\(panel.isKeyWindow)")
         model.inputText = "s"
         try await Task.sleep(for: .milliseconds(500))
         model.inputText = ""
@@ -1544,6 +1551,116 @@ enum LauncherWindowRegression {
         print("PASS: fixed expanded height, single/many/calculation/sw, empty-root collapse, stable editor, compact reopen")
     }
 
+    private static func checkShellLifecycle() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-shell-lifecycle-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [
+            WindowSearchProvider(source: .app, delay: .milliseconds(20), count: 8),
+            WindowSearchProvider(source: .file, delay: .milliseconds(100), count: 4)
+        ])
+        let controller = LauncherController(model: model)
+        controller.show()
+        defer { controller.hide() }
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
+              let surface = panel.contentView, let field = searchField(in: surface) else {
+            throw NSError(domain: "LauncherWindowRegression", code: 2)
+        }
+        panel.onBlur = {}
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        guard let retainedHost = descendants(surface).first(where: {
+            String(describing: type(of: $0)).contains("NSHostingView<AnyView>")
+        }) else { throw NSError(domain: "LauncherWindowRegression", code: 3) }
+        func residentKB() throws -> Int {
+            let process = Process()
+            let pipe = Pipe()
+            process.executableURL = URL(filePath: "/bin/ps")
+            process.arguments = ["-o", "rss=", "-p", String(ProcessInfo.processInfo.processIdentifier)]
+            process.standardOutput = pipe
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0,
+                  let value = Int(String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines))
+            else { throw NSError(domain: "LauncherWindowRegression", code: 4) }
+            return value
+        }
+        var memorySamples: [Int] = []
+        let baselineWindowCount = NSApp.windows.count
+        var releasedScrollViews = 0
+        for iteration in 0..<100 {
+            controller.show()
+            try require(panel.contentView === surface && searchField(in: surface) === field,
+                        "shell and search input identities must remain stable")
+            try require(descendants(surface).contains { $0 === retainedHost }, "hosting identity must remain stable")
+            try require(field.currentEditor() != nil, "reopen must synchronously restore input focus")
+            try require(panel.frame.height == LauncherLayout.inputHeight && model.inputText.isEmpty,
+                        "each session starts with compact, empty input")
+            if iteration % 10 == 0 {
+                model.inputText = "s"
+                for _ in 0..<100 {
+                    if !model.results.isEmpty && panel.frame.height > LauncherLayout.inputHeight { break }
+                    try await Task.sleep(for: .milliseconds(10))
+                }
+                try require(!model.results.isEmpty && panel.frame.height > LauncherLayout.inputHeight,
+                            "fresh result content must mount and expand: iteration=\(iteration) results=\(model.results.count) height=\(panel.frame.height) query=\(model.inputText)")
+                weak var scroll = descendants(surface).first { $0 is NSScrollView }
+                try require(scroll != nil, "expanded results must own a scroll view")
+                controller.hide()
+                try await Task.sleep(for: .milliseconds(50))
+                try require(scroll == nil, "hidden results must release their native scroll view")
+                releasedScrollViews += 1
+                memorySamples.append(try residentKB())
+            } else {
+                // Close while a provider and the resize callback may still be in flight.
+                model.inputText = "s"
+                controller.hide()
+                try await Task.sleep(for: .milliseconds(3))
+            }
+            try require(!panel.isVisible && panel.contentView === surface && model.results.isEmpty,
+                        "hidden shell must retain no results")
+            try require(field.currentEditor() == nil, "hidden input must not retain active editing")
+            try require(!descendants(surface).contains { $0 is NSScrollView }, "hidden result content must unmount")
+            try require(panel.frame.height == LauncherLayout.inputHeight, "stale layouts must not expand hidden shell")
+            try require((panel.childWindows ?? []).isEmpty, "hidden shell must remove child windows")
+        }
+        try await Task.sleep(for: .milliseconds(150))
+        try require(model.results.isEmpty && !panel.isVisible, "late provider results cannot revive a closed session")
+        try require(NSApp.windows.count <= baselineWindowCount + 2, "repeated show must not accumulate auxiliary windows")
+        // Different screen sizes update the stable canvas, without replacing the field.
+        for screen in NSScreen.screens {
+            controller.show(on: screen)
+            try require(panel.screen === screen && searchField(in: surface) === field,
+                        "cross-screen show must reuse input and target the requested screen")
+            controller.hide()
+        }
+        // Losing/reopening input must not commit an old IME composition into the next session.
+        controller.show()
+        if let editor = field.currentEditor() as? NSTextView {
+            editor.setMarkedText("ni", selectedRange: NSRange(location: 2, length: 0),
+                                 replacementRange: NSRange(location: NSNotFound, length: 0))
+            try require(editor.hasMarkedText(), "test must establish marked text")
+            controller.hide()
+            controller.show()
+            try require((field.currentEditor() as? NSTextView)?.hasMarkedText() == false && field.stringValue.isEmpty,
+                        "new session must clear old IME composition")
+        }
+        controller.hide()
+        // A separate controller exercises actual first construction again.
+        let cold = LauncherController(model: LauncherModel(app: app, searchProviders: []))
+        cold.show()
+        guard let coldPanel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }),
+              let coldSurface = coldPanel.contentView, let coldField = searchField(in: coldSurface) else {
+            throw NSError(domain: "LauncherWindowRegression", code: 2)
+        }
+        try require(coldSurface !== surface && coldField !== field, "new controller must create a separate shell")
+        cold.hide()
+        print("shell lifecycle RSS KiB after each 10-session group: \(memorySamples)")
+        print("shell lifecycle: 100 sessions, \(releasedScrollViews) released scroll views, stable shell/input, cancellation, screens and marked text passed")
+    }
+
     private static func checkFirstPresentation() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "Asky-first-presentation-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
@@ -1551,6 +1668,8 @@ enum LauncherWindowRegression {
         let model = LauncherModel(app: app, searchProviders: [])
         let controller = LauncherController(model: model)
         defer { controller.hide() }
+        var retainedSurface: NSView?
+        var retainedField: NSTextField?
         for iteration in 0..<10 {
             controller.show()
             guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel,
@@ -1559,6 +1678,14 @@ enum LauncherWindowRegression {
                               userInfo: [NSLocalizedDescriptionKey: "first presentation must already contain the search field"])
             }
             panel.onBlur = {}
+            if let retainedSurface, let retainedField {
+                try require(surface === retainedSurface && field === retainedField,
+                            "reopen must reuse the original glass and input field")
+            } else {
+                retainedSurface = surface
+                retainedField = field
+            }
+            try require(field.currentEditor() != nil, "editor must be ready before show returns")
             try require(panel.animationBehavior == .none, "shell presentation must not use an AppKit window transition")
             try require(panel.frame.width == LauncherLayout.toolbarWidth && panel.frame.height == LauncherLayout.inputHeight,
                         "first presentation must already have final shell geometry")
@@ -1575,14 +1702,18 @@ enum LauncherWindowRegression {
                                      "build/launcher-first-presentation-\(NSApp.appearance!.name.rawValue).png"]
                 try capture.run()
                 capture.waitUntilExit()
-                try require(capture.terminationStatus == 0, "first presentation screenshot must succeed")
+                let imageURL = URL(filePath: capture.arguments!.last!)
+                try require(capture.terminationStatus == 0 && FileManager.default.fileExists(atPath: imageURL.path),
+                            "first presentation screenshot must actually exist")
             }
             controller.show()
             try require(panel.isVisible, "a repeated show request must keep the shell visible")
             controller.hide()
-            try require(!panel.isVisible && panel.contentView == nil, "hide must release the presented tree")
+            try require(!panel.isVisible && panel.contentView === surface && model.results.isEmpty,
+                        "hide must keep the shell while releasing result payloads")
+            try require(field.currentEditor() == nil, "hidden input must end field editing")
         }
-        print("first presentation: 10 rebuilt trees, initial geometry/clipping, editor and repeated show passed")
+        print("first presentation: one cold shell, 9 reused shells, initial geometry/clipping and synchronous editor passed")
     }
 
     private static func checkWindow() async throws {

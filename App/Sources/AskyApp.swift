@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--diagnose-launcher") {
+            runLauncherPresentationDiagnostic()
+            return
+        }
         if CommandLine.arguments.contains("--test-launcher-sheet") {
             ConfirmationPreviews.runLauncherSheet()
             return
@@ -173,6 +177,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    #if DEBUG
+    /// Isolated renderer cold start: no live providers, permissions, updater or agent startup.
+    private func runLauncherPresentationDiagnostic() {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: "--diagnostic-root"), args.indices.contains(index + 1),
+              args[index + 1].hasPrefix("/") else {
+            NSLog("--diagnose-launcher requires an absolute --diagnostic-root")
+            NSApp.terminate(nil)
+            return
+        }
+        do {
+            LauncherPresentationTrace.start()
+            LauncherPresentationTrace.record("process-ready")
+            model = try AppModel(root: URL(filePath: args[index + 1]))
+            NSApp.appearance = NSAppearance(named: args.contains("--diagnostic-dark") ? .darkAqua : .aqua)
+            launcherModel = LauncherModel(app: model, searchProviders: [])
+            launcher = LauncherController(model: launcherModel)
+            // Recording must not stop when another app owns focus during a test run.
+            launcher.onOpenSettings = {}
+            let displayID = args.firstIndex(of: "--diagnostic-screen").flatMap { index in
+                args.indices.contains(index + 1) ? UInt32(args[index + 1]) : nil
+            }
+            let screen = NSScreen.screens.first {
+                ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32) == displayID
+            }
+            Task { @MainActor in
+                self.launcher.show(on: screen)
+                try? await Task.sleep(for: .milliseconds(350))
+                self.launcher.hide()
+                try? await Task.sleep(for: .milliseconds(100))
+                self.launcher.show(on: screen)
+                try? await Task.sleep(for: .milliseconds(350))
+                self.launcher.hide()
+                NSApp.terminate(nil)
+            }
+        } catch {
+            NSLog("Launcher diagnostic failed: %@", error.localizedDescription)
+            NSApp.terminate(nil)
+        }
+    }
+    #endif
+
     /// Silent relaunch only when nothing is open, running or waiting for the user.
     private var isQuietForUpdate: Bool {
         !launcher.isVisible && !clipboardWindow.isVisible && !agentWindow.isVisible && !agentWindow.model.isRunning
@@ -191,6 +237,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        #if DEBUG
+        if CommandLine.arguments.contains("--diagnose-launcher") { return .terminateNow }
+        #endif
         guard let model else { return .terminateNow }
         return termination.request { [self] in
             clipboard?.stop()

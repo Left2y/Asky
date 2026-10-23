@@ -128,6 +128,14 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
 
+启动器首帧诊断使用隔离数据，录制独立 Debug 进程的首次打开与再次打开；需要屏幕录制权限。输出保存在 `build/`，不操作日常安装和数据：
+
+```sh
+python3 App/Tests/run-launcher-presentation-diagnostic.py --output build/launcher-presentation/current
+```
+
+录制请求 60 fps，实际交付帧率以输出文件与日志为准；复制 Debug 应用路径的检查不等同于正式安装更新验证。详细覆盖见[开发指南](docs/development.md)。
+
 > [!NOTE]
 > 完整的 UI 自动化回归脚本、Debug 交互预览参数以及 Developer ID 签名与公证打包流程，详见[开发与发布指南](docs/development.md)。
 
@@ -259,6 +267,14 @@ open build/DerivedData/Build/Products/Debug/Asky.app
 (cd MCPBridge && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build)
 (cd Packages/KulaCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)
 ```
+
+The launcher presentation diagnostic uses isolated data and records first and repeat presentation in separate Debug processes. Screen Recording access is required. Outputs stay in `build/`; the installed app and everyday data are untouched:
+
+```sh
+python3 App/Tests/run-launcher-presentation-diagnostic.py --output build/launcher-presentation/current
+```
+
+Recording requests 60 fps; inspect the output files and logs for delivered cadence. Testing a copied Debug bundle is not production update-installation verification. See the [development guide](docs/development.md) for coverage.
 
 > [!NOTE]
 > For UI automation regression scripts, Debug interactive preview arguments, and Developer ID code-signing and packaging, see the [Development and Release Guide](docs/development.md).

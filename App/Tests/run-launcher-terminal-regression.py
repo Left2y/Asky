@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Compile the actual launcher against the products of the documented Debug build."""
 import os
+import plistlib
+import shutil
 import platform
 from pathlib import Path
 from regression_resources import copy_core_resources
@@ -32,4 +34,17 @@ environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Develo
 sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], env=environment, text=True).strip()
 command += ["-sdk", sdk]
 subprocess.run(command, env=environment, cwd=root, check=True)
-subprocess.run([str(binary), *sys.argv[1:]], env=environment, cwd=root, check=True)
+# The launcher uses asset-catalog icons; a loose executable has no main-bundle assets.
+bundle = root / "build/LauncherTerminalRegression.app/Contents"
+(bundle / "MacOS").mkdir(parents=True, exist_ok=True)
+(bundle / "Resources").mkdir(exist_ok=True)
+copy_core_resources(products, bundle / "Resources")
+executable = bundle / "MacOS/LauncherTerminalRegression"
+shutil.copy2(binary, executable)
+shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
+with (bundle / "Info.plist").open("wb") as output:
+    plistlib.dump({"CFBundleExecutable": "LauncherTerminalRegression",
+                  "CFBundleIdentifier": "app.asky.launcher-terminal-regression",
+                  "CFBundleName": "LauncherTerminalRegression", "CFBundlePackageType": "APPL",
+                  "LSUIElement": True, "KHSourceRoot": str(root)}, output)
+subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

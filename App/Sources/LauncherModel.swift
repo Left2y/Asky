@@ -1390,6 +1390,7 @@ extension LauncherModel {
             Task { @MainActor in
                 do {
                     if case .closeWindow = action.kind {
+                        try await ToolService.resolveLauncherWindow(result.target.identifier, in: snapshot)
                         try ToolService.closeLauncherWindow(result.target.identifier, in: snapshot)
                         windowSnapshot = nil
                         update()

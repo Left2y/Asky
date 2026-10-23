@@ -69,7 +69,7 @@ private struct HotKeySettings: View {
                 Text(NSLocalizedString("文件与应用", comment: ""))
             }
             Section {
-                localRows([.askAI, .launcherMore])
+                localRows([.askAI, .launcherMore, .windowFullScreen])
             } header: {
                 Text(NSLocalizedString("启动器", comment: ""))
             }

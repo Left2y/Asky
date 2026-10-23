@@ -101,9 +101,34 @@ public final class LauncherWindowSnapshot: @unchecked Sendable {
         }
     }
 
-    @MainActor fileprivate func quitApplication(_ id: String) throws {
-        let (app, _) = try validatedTarget(id)
-        guard app.terminate() else { throw WindowSearchError.unavailable }
+    @MainActor fileprivate func fullScreenState(_ id: String) throws -> Bool {
+        let (_, window) = try validatedTarget(id)
+        var value: CFTypeRef?
+        var settable = DarwinBoolean(false)
+        let read = AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &value)
+        let writable = AXUIElementIsAttributeSettable(window, "AXFullScreen" as CFString, &settable)
+        guard read == .success, let state = value as? Bool,
+              writable == .success, settable.boolValue else { throw WindowSearchError.unavailable }
+        return state
+    }
+
+    @MainActor fileprivate func setFullScreen(_ enabled: Bool, for id: String) async throws {
+        // Revalidate and read current state at execution, preserving the menu's explicit intent.
+        _ = try fullScreenState(id)
+        try await activate(id)
+        let (_, window) = try validatedTarget(id)
+        if try fullScreenState(id) == enabled { return }
+        let result = AXUIElementSetAttributeValue(window, "AXFullScreen" as CFString,
+                                                 enabled ? kCFBooleanTrue : kCFBooleanFalse)
+        guard result == .success else {
+            throw WindowSearchError.unavailable
+        }
+        // Native full-screen transitions are asynchronous; confirm the resulting state.
+        for _ in 0..<40 {
+            try await Task.sleep(for: .milliseconds(100))
+            if let state = try? fullScreenState(id), state == enabled { return }
+        }
+        throw WindowSearchError.unavailable
     }
 
     @MainActor fileprivate func activate(_ id: String) async throws {
@@ -151,7 +176,12 @@ extension ToolService {
         try snapshot.close(id)
     }
 
-    @MainActor public static func quitLauncherWindowApplication(_ id: String, in snapshot: LauncherWindowSnapshot) throws {
-        try snapshot.quitApplication(id)
+    @MainActor public static func launcherWindowFullScreenState(_ id: String, in snapshot: LauncherWindowSnapshot) throws -> Bool {
+        try snapshot.fullScreenState(id)
+    }
+
+    @MainActor public static func setLauncherWindowFullScreen(_ enabled: Bool, for id: String,
+                                                             in snapshot: LauncherWindowSnapshot) async throws {
+        try await snapshot.setFullScreen(enabled, for: id)
     }
 }

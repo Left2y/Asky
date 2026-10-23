@@ -80,8 +80,13 @@ private enum WindowSearchRegression {
             if !model.isSearching && !model.results.isEmpty { break }
             try await Task.sleep(for: .milliseconds(50))
         }
-        try require(model.secondaryActions.map(\.title) == ["关闭窗口", "退出应用"], "window menu must expose both actions in order")
-        try require(model.secondaryActions.allSatisfy(\.isNegative), "both window actions must be red")
+        try require(model.secondaryActions.map(\.title) == ["进入全屏", "关闭窗口"], "window menu must expose both actions in order")
+        try require(!model.secondaryActions[0].isNegative && model.secondaryActions[1].isNegative, "only close must be red")
+        model.windowActionFullScreen = true
+        try require(model.secondaryActions.map(\.title) == ["退出全屏", "关闭窗口"], "full-screen window must offer Exit Full Screen")
+        model.windowActionFullScreen = nil
+        try require(model.secondaryActions.map(\.title) == ["关闭窗口"], "unsupported window must only offer Close Window")
+        model.windowActionFullScreen = false
         let controller = LauncherController(model: model)
         NSApp.activate(ignoringOtherApps: true)
         controller.show()
@@ -92,6 +97,7 @@ private enum WindowSearchRegression {
         }
         (panel as? LauncherPanel)?.onBlur = {}
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            model.windowActionFullScreen = appearance == .darkAqua
             NSApp.appearance = NSAppearance(named: appearance)
             try await Task.sleep(for: .milliseconds(500))
             let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
@@ -99,7 +105,7 @@ private enum WindowSearchRegression {
                 characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
             try require(model.handleActionKey(event) && model.isActionsMenuPresented, "Command K must open window menu")
             model.move(1)
-            try require(model.actionSelection == 1, "down must select Quit Application")
+            try require(model.actionSelection == 1, "down must select Close Window")
             try await Task.sleep(for: .milliseconds(350))
             let capture = Process()
             capture.executableURL = URL(filePath: "/usr/sbin/screencapture")

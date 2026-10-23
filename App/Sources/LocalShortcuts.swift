@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Stored by stable action ID; missing IDs retain their defaults on older installations.
 enum LocalShortcutAction: String, CaseIterable, Identifiable {
-    case reveal, copyPath, copyFile, copyName, fileInfo, execute, askAI, launcherMore, launcherUp, launcherDown, enterFolder, back, launcherEscape, settings, paste, clipboardCopy, delete, clipboardMore, clipboardUp, clipboardDown, clipboardLeft, clipboardRight, clipboardEscape, send, newline, newChat, history, closeChat, agentEscape
+    case windowFullScreen, reveal, copyPath, copyFile, copyName, fileInfo, execute, askAI, launcherMore, launcherUp, launcherDown, enterFolder, back, launcherEscape, settings, paste, clipboardCopy, delete, clipboardMore, clipboardUp, clipboardDown, clipboardLeft, clipboardRight, clipboardEscape, send, newline, newChat, history, closeChat, agentEscape
     var id: String { rawValue }
     var isConfigurable: Bool {
         switch self {
@@ -15,6 +15,7 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var title: String {
         switch self {
+        case .windowFullScreen: "进入或退出全屏"
         case .reveal: "在访达中显示"
         case .copyPath: "复制文件路径"
         case .copyFile: "复制文件"
@@ -48,6 +49,7 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var scope: String {
         switch self {
+        case .windowFullScreen: "launcher"
         case .reveal: "launcher"
         case .copyPath: "launcher"
         case .copyFile: "launcher"
@@ -81,6 +83,7 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var defaultShortcut: LauncherActionShortcut {
         switch self {
+        case .windowFullScreen: .init(code: 3, modifiers: 4352, label: "⌃⌘ F")
         case .reveal: .revealInFinder
         case .copyPath: .init(code: 8, modifiers: 2304, label: "⌥⌘ C")
         case .copyFile: .init(code: 8, modifiers: 256, label: "⌘ C")

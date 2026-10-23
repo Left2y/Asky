@@ -81,6 +81,7 @@ final class LauncherModel {
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
     private var windowSnapshot: LauncherWindowSnapshot?
+    var windowActionFullScreen: Bool? = false
     private var folderStack: [(url: URL, previousText: String)] = []
     private var folderText = ""
     var folderScope: URL? { folderStack.last?.url }
@@ -1061,6 +1062,15 @@ extension LauncherModel {
             if !event.isARepeat { toggleActionsMenu() }
             return true
         }
+        if matches(.windowFullScreen), let result = selectedActionResult,
+           result.target.kind == "application-window", let snapshot = windowSnapshot,
+           let fullScreen = try? ToolService.launcherWindowFullScreenState(result.target.identifier, in: snapshot) {
+            if !event.isARepeat {
+                performLauncherAction(LauncherAction(title: fullScreen ? "退出全屏" : "进入全屏", icon: "", shortcut: nil,
+                                                     kind: .setWindowFullScreen(!fullScreen)))
+            }
+            return true
+        }
         if matches(.copyFile),
            ((NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().length ?? 0) == 0,
            copySelectedFile() { return true }
@@ -1122,8 +1132,14 @@ extension LauncherModel {
     var secondaryActions: [LauncherAction] {
         guard let result = selectedActionResult, result.primaryAction != nil else { return [] }
         if result.target.kind == "application-window" {
-            return [LauncherAction(title: "关闭窗口", icon: "xmark", shortcut: nil, kind: .closeWindow),
-                    LauncherAction(title: "退出应用", icon: "power", shortcut: nil, kind: .quitWindowApplication)]
+            var actions: [LauncherAction] = []
+            if let fullScreen = windowActionFullScreen {
+                actions.append(LauncherAction(title: fullScreen ? "退出全屏" : "进入全屏",
+                                              icon: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                                              shortcut: actionPreferences.shortcut(.windowFullScreen).label, kind: .setWindowFullScreen(!fullScreen)))
+            }
+            actions.append(LauncherAction(title: "关闭窗口", icon: "xmark", shortcut: nil, kind: .closeWindow))
+            return actions
         }
         if result.target.kind == "calculator-history" {
             return [LauncherAction(title: "基于此继续计算", icon: "equal.square", shortcut: nil, kind: .continueCalculation),
@@ -1167,6 +1183,9 @@ extension LauncherModel {
     @discardableResult
     func toggleActionsMenu() -> Bool {
         if isActionsMenuPresented { closeActionsMenu(); return true }
+        if let result = selectedActionResult, result.target.kind == "application-window", let snapshot = windowSnapshot {
+            windowActionFullScreen = try? ToolService.launcherWindowFullScreenState(result.target.identifier, in: snapshot)
+        }
         guard !secondaryActions.isEmpty else { return false }
         actionSelection = 0
         actionMenuTarget = selectedActionResult
@@ -1190,23 +1209,26 @@ extension LauncherModel {
         let result = selectedActionResult
         closeActionsMenu()
         switch action.kind {
-        case .closeWindow, .quitWindowApplication:
+        case .closeWindow, .setWindowFullScreen:
             guard let result, result.target.kind == "application-window", let snapshot = windowSnapshot else { return }
-            do {
-                if case .closeWindow = action.kind {
-                    try ToolService.closeLauncherWindow(result.target.identifier, in: snapshot)
+            Task { @MainActor in
+                do {
+                    if case .closeWindow = action.kind {
+                        try ToolService.closeLauncherWindow(result.target.identifier, in: snapshot)
+                        windowSnapshot = nil
+                        update()
+                    } else if case .setWindowFullScreen(let enabled) = action.kind {
+                        try await ToolService.setLauncherWindowFullScreen(enabled, for: result.target.identifier, in: snapshot)
+                        windowSnapshot = nil
+                        onHide()
+                    }
+                } catch WindowSearchError.accessibility {
                     windowSnapshot = nil
-                    update()
-                } else {
-                    try ToolService.quitLauncherWindowApplication(result.target.identifier, in: snapshot)
-                    onHide()
+                    status = NSLocalizedString("窗口操作需要辅助功能权限，请在系统设置中允许 Asky", comment: "")
+                } catch {
+                    windowSnapshot = nil
+                    status = NSLocalizedString("窗口已关闭或无法操作，请重新搜索", comment: "")
                 }
-            } catch WindowSearchError.accessibility {
-                windowSnapshot = nil
-                status = NSLocalizedString("窗口操作需要辅助功能权限，请在系统设置中允许 Asky", comment: "")
-            } catch {
-                windowSnapshot = nil
-                status = NSLocalizedString("窗口已关闭或无法操作，请重新搜索", comment: "")
             }
         case .editCommand(let id):
             guard let result, builtInCommandIDs[result.id] == id else { return }

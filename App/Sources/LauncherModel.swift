@@ -581,7 +581,7 @@ final class LauncherModel {
                 guard exact || command.urlTemplate.contains("{query}"),
                       let url = command.url(for: exact ? "" : text) else { return nil }
                 let result = SearchResult(source: .keyword, target: TargetRef(kind: exact ? "keyword-match" : "url", identifier: url.absoluteString),
-                                          title: NSLocalizedString(command.name, comment: "Built-in website command"), actions: [.openURL(url)], score: 0)
+                                          title: NSLocalizedString(command.name, comment: "Built-in website command"), actions: exact ? [.open] : [.openURL(url)], score: 0)
                 if let preset = KeywordCommand.builtIn.first(where: { $0.urlTemplate == command.urlTemplate }) {
                     builtInCommandIDs[result.id] = preset.keyword
                 }
@@ -1010,6 +1010,14 @@ final class LauncherModel {
         closeActionsMenu()
         guard let action else { return }
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
+        if r.target.kind == "keyword-match", action == .open {
+            guard let command = app.keywords.commands.first(where: {
+                $0.keyword.caseInsensitiveCompare(query.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame &&
+                    $0.url(for: "")?.absoluteString == r.target.identifier
+            }) else { return }
+            setFilter(.all, query: command.keyword + " ")
+            return
+        }
         if r.target.kind == "plugin-command" {
             guard let entry = pluginCommands.first(where: { $0.id == r.target.identifier }) else { return }
             enterPlugin(entry, text: "")
@@ -1295,7 +1303,7 @@ extension LauncherModel {
         if result.target.kind == "application-window" {
             return LauncherAction(title: "切换窗口", icon: "web", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
-        if result.target.kind == "search-command" {
+        if ["search-command", "keyword-match"].contains(result.target.kind) {
             return LauncherAction(title: result.title, icon: "magnifyingglass", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == "tab-search" {

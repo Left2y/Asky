@@ -75,7 +75,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 | **窗口搜索** | `sw ` 或 `sw` 后回车 | 检索应用通过辅助功能暴露的窗口并一键切换聚焦；`⌘K` 菜单提供“关闭窗口”，固定在最下方；多屏时可用“切换到上一块屏幕 / 下一块屏幕”（`⇧ ←` / `⇧ →`），横排从左到右、竖排从上到下并循环；单屏或选中的窗口处于系统全屏时隐藏这两项；屏幕切换快捷键可在“设置 › 快捷键 › 启动器”配置 |
 | **屏幕取色** | `co` 后回车 | 开启屏幕取色放大镜，点击后自动复制色值到剪贴板 |
 | **计算历史** | `calc` 后回车 | 浏览最近 200 条计算结果，回车回填算式继续编辑 |
-| **网页指令** | `go 关键词`、`yt 关键词` 等 | 快速调用对应搜索引擎打开浏览器 |
+| **网页指令** | `go 关键词`、`yt 关键词` 等 | 输入指令后按空格或回车进入，输入关键词后回车打开搜索结果 |
 | **终端执行** | `> pwd` | 直接在启动器中执行 Shell 命令 |
 | **项操作菜单** | `⌘K` | 打开当前项的更多操作菜单（如展示文件简介 `⌘I`、复制文件名 `⌘⇧.` 等） |
 | **打开设置** | `⌘,`（窗口获焦时） | 呼出 Asky 设置面板 |
@@ -207,7 +207,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 | **Window Search** | `sw ` or `sw` + Return | Find and focus application windows exposed through Accessibility; `⌘K` offers Close Window, always last; with multiple displays, Move to Previous/Next Display (`⇧ ←` / `⇧ →`) cycles left to right for horizontal layouts and top to bottom for vertical layouts; both actions are hidden with a single display or when the selected window is in native full screen; display shortcuts are configurable in Settings › Shortcuts › Launcher |
 | **Color Picker** | `co` + Return | Open screen color sampler and copy hex value to clipboard |
 | **Calculation History** | `calc` + Return | View last 200 calculations and restore expressions |
-| **Web Commands** | `go keyword`, `yt keyword`, etc. | Search directly on target websites in your browser |
+| **Web Commands** | `go keyword`, `yt keyword`, etc. | Press Space or Return after a command to enter it, then type a query and press Return to search |
 | **Terminal** | `> pwd` | Execute shell commands directly from the search bar |
 | **Action Menu** | `⌘K` | Open context menu (Show Get Info `⌘I`, Copy filename `⌘⇧.`, etc.) |
 | **Settings** | `⌘,` (when window is focused) | Open Asky Settings |

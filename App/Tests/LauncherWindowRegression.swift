@@ -71,7 +71,7 @@ enum LauncherWindowRegression {
                         try await checkCommandIcons()
                     } else if CommandLine.arguments.contains("--system-app-names") {
                         try await checkSystemAppNames()
-                    } else if CommandLine.arguments.contains("--alias-routing") {
+                    } else if CommandLine.arguments.contains("--alias-routing") || CommandLine.arguments.contains("--command-entry") {
                         try await checkAliasRouting()
                     } else if CommandLine.arguments.contains("--ai-routing") {
                         try await checkAIRouting()
@@ -1000,6 +1000,45 @@ enum LauncherWindowRegression {
                 let file = "build/launcher-alias-" + (NSApp.appearance?.name.rawValue ?? "default") + ".png"
                 try png.write(to: URL(filePath: file))
             }
+        }
+        for custom in [false, true] {
+            app.preferences.commandKeywords["go"] = custom ? "google" : nil
+            for command in app.keywords.commands {
+                model.reset()
+                try await Task.sleep(for: .milliseconds(80))
+                guard let field = commandSearchField(in: panel?.contentView),
+                      panel?.makeFirstResponder(field) == true,
+                      let editor = field.currentEditor() as? NSTextView else {
+                    throw NSError(domain: "CommandEntry", code: 1)
+                }
+                editor.insertText(command.keyword.uppercased(), replacementRange: editor.selectedRange())
+                field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
+                try require(model.results.first?.target.kind == "keyword-match" && model.results.first?.primaryAction == .open,
+                            "bare trigger must offer command entry: \(command.keyword)")
+                try await Task.sleep(for: .milliseconds(80))
+                let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                            windowNumber: panel!.windowNumber, context: nil, characters: "\r",
+                                            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+                panel!.sendEvent(event)
+                try await Task.sleep(for: .milliseconds(80))
+                try require(field.stringValue.isEmpty && editor.string.isEmpty, "native editor must consume the trigger")
+                try require(model.commandInput?.command.keyword == command.keyword && model.inputText.isEmpty,
+                            "Return must enter command with empty input: \(command.keyword)")
+                try require(panel?.isVisible == true, "entering command must keep launcher visible")
+                model.inputText = "SwiftUI"
+                try require(model.results.first?.primaryAction == command.url(for: "SwiftUI").map { .openURL($0) },
+                            "entered command must offer its query URL")
+                model.inputText = ""
+                try require(model.backspaceOnEmptyInput() && !model.hasScope, "Backspace must leave entered command")
+                model.query = command.keyword + " SwiftUI"
+                try require(model.commandInput?.command.keyword == command.keyword && model.inputText == "SwiftUI",
+                            "Space must retain existing command entry")
+            }
+        }
+        app.preferences.commandKeywords["go"] = nil
+        if CommandLine.arguments.contains("--command-entry") {
+            print("Command entry: all website commands, native Return, custom trigger, case folding, query URLs, Space and Backspace passed")
+            return
         }
         model.query = "Safari"
         for _ in 0..<60 {

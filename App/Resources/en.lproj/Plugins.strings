@@ -6,3 +6,8 @@
 "%d 个命令" = "%d commands";
 "操作结果尚未核实" = "Operation result has not been verified";
 "已完成" = "Completed";
+"AI 插件" = "AI Plugins";
+"功能插件" = "Function Plugins";
+"尚未安装 AI 插件" = "No AI plugins installed";
+"尚未安装功能插件" = "No function plugins installed";
+"未找到匹配的插件" = "No matching plugins";

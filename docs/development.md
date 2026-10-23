@@ -46,6 +46,8 @@ python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-settings-regression.py --permissions-only
 python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
+python3 App/Tests/run-settings-regression.py --plugin-tabs -AppleLanguages "(zh-Hans)"
+python3 App/Tests/run-settings-regression.py --plugin-tabs -AppleLanguages "(en)"
 python3 App/Tests/check-localization.py
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"
@@ -175,6 +177,8 @@ python3 App/Tests/run-settings-regression.py
 python3 App/Tests/run-settings-regression.py --permissions-only
 python3 App/Tests/run-settings-regression.py --preview-legacy-material
 python3 App/Tests/run-settings-regression.py --plugins-only -AppleLanguages "(en)"
+python3 App/Tests/run-settings-regression.py --plugin-tabs -AppleLanguages "(zh-Hans)"
+python3 App/Tests/run-settings-regression.py --plugin-tabs -AppleLanguages "(en)"
 python3 App/Tests/check-localization.py
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(en)"
 python3 App/Tests/run-application-language-regression.py -AppleLanguages "(zh-Hans)"

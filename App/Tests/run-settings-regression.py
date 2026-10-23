@@ -30,7 +30,8 @@ for path in sorted(maps.glob("*.modulemap")):
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
     command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
-test_source = "LocalShortcutsRegression.swift" if "--local-shortcuts" in sys.argv else "SettingsRegression.swift"
+test_source = ("PluginSettingsRegression.swift" if "--plugin-tabs" in sys.argv else
+               "LocalShortcutsRegression.swift" if "--local-shortcuts" in sys.argv else "SettingsRegression.swift")
 command += [str(root / "App/Tests" / test_source)]
 command += [str(path) for path in sorted(products.glob("*.o"))]
 binary = root / "build/settings-regression"
@@ -47,7 +48,7 @@ shutil.copy2(products / "Asky.app/Contents/Resources/AskyNative.icns", bundle / 
 for localization in (products / "Asky.app/Contents/Resources").glob("*.lproj"):
     shutil.copytree(localization, bundle / "Resources" / localization.name, dirs_exist_ok=True)
 with (bundle / "Info.plist").open("wb") as output:
-    plistlib.dump({"CFBundleExecutable": "SettingsRegression", "CFBundleIdentifier": "app.asky.settings-regression",
+    plistlib.dump({"CFBundleExecutable": "SettingsRegression", "CFBundleIdentifier": "app.asky.plugin-settings-regression" if "--plugin-tabs" in sys.argv else "app.asky.settings-regression",
                   "CFBundleName": "SettingsRegression", "CFBundleIconFile": "AskyNative", "CFBundleIconName": "AskyNative",
                   "CFBundleDevelopmentRegion": "zh-Hans", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
 # Refresh the bundle signature after replacing its executable and resources.

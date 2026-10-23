@@ -34,7 +34,7 @@ struct CommandSettings: View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 HStack(spacing: 24) {
-                    CommandSearchField(query: $query, focus: $searchFocused,
+                    SettingsSearchField(query: $query, focus: $searchFocused,
                                        placeholder: "搜索指令或名称", identifier: "command-search")
                         .frame(height: 28)
                     Picker(NSLocalizedString("指令", comment: ""), selection: $selectedTab) {
@@ -132,37 +132,6 @@ struct CommandSettings: View {
     }
 }
 
-private struct CommandSearchField: View {
-    @Binding var query: String
-    let focus: FocusState<Bool>.Binding
-    let placeholder: String
-    let identifier: String
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(mingCute: "magnifyingglass").foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            TextField(NSLocalizedString(placeholder, comment: ""), text: $query)
-                .textFieldStyle(.plain)
-                .focused(focus)
-                .accessibilityIdentifier(identifier)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(mingCute: "xmark.circle.fill").foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(NSLocalizedString("清除搜索", comment: ""))
-            }
-        }
-        .font(.system(size: 14))
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .settingsInputChrome(scheme: scheme, focused: focus.wrappedValue, cornerRadius: 8)
-    }
-}
 
 private struct CommandKeywordEditor: View {
     @Bindable var app: AppModel

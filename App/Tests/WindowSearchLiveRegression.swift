@@ -15,7 +15,6 @@ import ToolService
             for index in 0..<2 {
                 let window = NSWindow(contentRect: NSRect(x: 160 + index * 60, y: 160, width: 320, height: 180),
                                       styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-                window.collectionBehavior = [.fullScreenPrimary]
                 window.title = "Asky SW Live Fixture"
                 window.isReleasedWhenClosed = false
                 windows.append(window)
@@ -27,8 +26,6 @@ import ToolService
             windows[1].miniaturize(nil)
             _ = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 MainActor.assumeIsolated {
-                    let fullScreen = windows.indices.filter { windows[$0].styleMask.contains(.fullScreen) }
-                    try? fullScreen.map(String.init).joined(separator: ",").write(to: root.appendingPathComponent("full-screen"), atomically: true, encoding: .utf8)
                     try? windows.map { $0.screen?.localizedName ?? "unknown" }.joined(separator: "\n")
                         .write(to: root.appendingPathComponent("screens"), atomically: true, encoding: .utf8)
                     let command = root.appendingPathComponent("close")
@@ -63,30 +60,6 @@ import ToolService
                     guard Set(focused).count == 2 else { throw NSError(domain: "WindowSearchLiveRegression-wrong-focus", code: 2) }
                     print("PASS: exact focus and minimized restoration")
                     let target = rows[1].target.identifier
-                    guard try !ToolService.launcherWindowFullScreenState(target, in: snapshot) else {
-                        throw NSError(domain: "WindowSearchLiveRegression-initial-fullscreen", code: 6)
-                    }
-                    print("PASS: read initial full-screen state")
-                    try await ToolService.setLauncherWindowFullScreen(true, for: target, in: snapshot)
-                    try await Task.sleep(for: .seconds(2))
-                    guard try ToolService.launcherWindowFullScreenState(target, in: snapshot),
-                          try String(contentsOf: root.appendingPathComponent("full-screen"), encoding: .utf8) == focused[1] else {
-                        throw NSError(domain: "WindowSearchLiveRegression-enter-fullscreen", code: 7)
-                    }
-                    print("PASS: entered full screen on exact target")
-                    if ToolService.launcherHasMultipleDisplays {
-                        do {
-                            try await ToolService.moveLauncherWindowDisplay(1, for: target, in: snapshot)
-                            throw NSError(domain: "WindowDisplay-fullscreen-accepted", code: 22)
-                        } catch WindowSearchError.fullScreenDisplayMove {}
-                    }
-                    try await ToolService.setLauncherWindowFullScreen(false, for: target, in: snapshot)
-                    try await Task.sleep(for: .seconds(2))
-                    guard try !ToolService.launcherWindowFullScreenState(target, in: snapshot) else {
-                        throw NSError(domain: "WindowSearchLiveRegression-exit-fullscreen", code: 8)
-                    }
-                    print("PASS: exited full screen")
-                    try await Task.sleep(for: .seconds(2))
                     if ToolService.launcherHasMultipleDisplays {
                         let fixtureIndex = Int(focused[1])!
                         func fixtureScreen() throws -> String {
@@ -107,51 +80,6 @@ import ToolService
                         print("PASS: real previous/next display moves independently confirmed by target window")
                     }
                     let app = try AppModel(root: root.appendingPathComponent("app"))
-                    let launcher = LauncherModel(app: app, searchProviders: [], chromeBookmarkAccessAllowed: false)
-                    launcher.inputText = "sw Asky SW Live Fixture"
-                    for _ in 0..<60 {
-                        if !launcher.isSearching && launcher.results.count == 2 { break }
-                        try await Task.sleep(for: .milliseconds(100))
-                    }
-                    guard launcher.results.count == 2, launcher.toggleActionsMenu(),
-                          launcher.secondaryActions.first?.title == "进入全屏",
-                          launcher.secondaryActions.first?.shortcut == "⌃⌘ F" else {
-                        throw NSError(domain: "WindowSearchLiveRegression-launcher-menu", code: 10)
-                    }
-                    func key(_ flags: NSEvent.ModifierFlags) -> NSEvent {
-                        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
-                                         windowNumber: 0, context: nil, characters: "f", charactersIgnoringModifiers: "f",
-                                         isARepeat: false, keyCode: 3)!
-                    }
-                    guard launcher.handleActionKey(key([.control, .command])) else {
-                        throw NSError(domain: "WindowSearchLiveRegression-default-key", code: 11)
-                    }
-                    try await Task.sleep(for: .seconds(3))
-                    guard try !String(contentsOf: root.appendingPathComponent("full-screen"), encoding: .utf8).isEmpty else {
-                        throw NSError(domain: "WindowSearchLiveRegression-key-enter", code: 12)
-                    }
-                    launcher.inputText = "Asky SW Live Fixture"
-                    try await Task.sleep(for: .seconds(1))
-                    var foundFullScreen = false
-                    for index in launcher.results.indices {
-                        launcher.selection = index
-                        launcher.toggleActionsMenu()
-                        foundFullScreen = launcher.secondaryActions.first?.title == "退出全屏"
-                        launcher.closeActionsMenu()
-                        if foundFullScreen { break }
-                    }
-                    guard foundFullScreen,
-                          app.preferences.setShortcut(.windowFullScreen, .init(code: 3, modifiers: 6400, label: "⌃⌥⌘ F")),
-                          !launcher.handleActionKey(key([.control, .command])),
-                          launcher.handleActionKey(key([.control, .option, .command])) else {
-                        throw NSError(domain: "WindowSearchLiveRegression-custom-key", code: 13)
-                    }
-                    try await Task.sleep(for: .seconds(3))
-                    guard try String(contentsOf: root.appendingPathComponent("full-screen"), encoding: .utf8).isEmpty else {
-                        throw NSError(domain: "WindowSearchLiveRegression-key-exit", code: 14)
-                    }
-                    launcher.reset()
-                    print("PASS: default/custom launcher full-screen shortcuts, menu labels, old binding stops firing")
                     if ToolService.launcherHasMultipleDisplays {
                         for (action, code) in [(LocalShortcutAction.windowPreviousDisplay, UInt16(123)), (.windowNextDisplay, UInt16(124))] {
                             let mover = LauncherModel(app: app, searchProviders: [], chromeBookmarkAccessAllowed: false)
@@ -197,11 +125,6 @@ import ToolService
                         try ToolService.closeLauncherWindow(rows[0].target.identifier, in: snapshot)
                         throw NSError(domain: "WindowSearchLiveRegression-stale-close-accepted", code: 4)
                     } catch WindowSearchError.unavailable {}
-                    do {
-                        try await ToolService.setLauncherWindowFullScreen(true, for: rows[0].target.identifier, in: snapshot)
-                        throw NSError(domain: "WindowSearchLiveRegression-stale-fullscreen-accepted", code: 9)
-                    } catch WindowSearchError.unavailable {}
-                    print("PASS: exact close, stale close/full-screen rejected, enter/exit full screen on exact same-title window")
                     print("PASS: live same-title windows stay distinct, exact focus switches between both, minimized restoration, closed target rejected")
                     cleanUp()
                     exit(0)

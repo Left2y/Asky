@@ -55,8 +55,6 @@
 "窗口" = "Windows";
 
 "关闭窗口" = "Close Window";
-"进入全屏" = "Enter Full Screen";
-"退出全屏" = "Exit Full Screen";
 
 "切换到上一块屏幕" = "Move to Previous Display";
 "切换到下一块屏幕" = "Move to Next Display";

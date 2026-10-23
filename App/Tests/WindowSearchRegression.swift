@@ -81,10 +81,10 @@ private enum WindowSearchRegression {
             try await Task.sleep(for: .milliseconds(50))
         }
         model.windowActionCanMoveDisplay = true
-        try require(model.secondaryActions.map(\.title) == ["进入全屏", "切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "window menu must expose both actions in order")
-        try require(!model.secondaryActions[0].isNegative && model.secondaryActions[3].isNegative, "only close must be red")
+        try require(model.secondaryActions.map(\.title) == ["切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "window menu must expose both actions in order")
+        try require(!model.secondaryActions[0].isNegative && model.secondaryActions[2].isNegative, "only close must be red")
         model.windowActionFullScreen = true
-        try require(model.secondaryActions.map(\.title) == ["退出全屏", "关闭窗口"], "full-screen windows must hide display moves")
+        try require(model.secondaryActions.map(\.title) == ["关闭窗口"], "full-screen windows must hide display moves")
         model.windowActionFullScreen = nil
         try require(model.secondaryActions.map(\.title) == ["切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "unsupported full-screen windows retain display actions")
         model.windowActionCanMoveDisplay = false

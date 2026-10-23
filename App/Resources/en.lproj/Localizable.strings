@@ -372,6 +372,7 @@
 "仍未生效，请再拖一次。" = "Not active yet. Drag the card again.";
 
 "插件" = "Plugins";
+"添加插件" = "Add Plugin";
 "安装插件" = "Install Plugin";
 "GitHub 仓库链接" = "GitHub repository URL";
 "安装" = "Install";
@@ -868,7 +869,6 @@
 
 "窗口操作需要辅助功能权限，请在系统设置中允许 Asky" = "Window actions require Accessibility access. Allow Asky in System Settings.";
 
-"进入或退出全屏" = "Enter or Exit Full Screen";
 
 "切换到上一块屏幕" = "Move to Previous Display";
 "切换到下一块屏幕" = "Move to Next Display";

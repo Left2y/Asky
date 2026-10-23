@@ -1,6 +1,7 @@
 import SwiftUI
 import Contracts
 import ToolService
+import Theme
 
 enum PluginSettingsCategory: String, CaseIterable, Identifiable {
     case ai, function
@@ -37,36 +38,58 @@ struct PluginSettings: View {
     @State private var query = ""
     @FocusState private var searchFocused: Bool
     @State private var plugins: [InstalledPlugin] = []
+    @State private var adding = false
     @State private var repository = ""
+    @State private var repositoryError = ""
     @State private var pendingRepository = ""
     @State private var confirmInstall = false
     @State private var busy = false
     @State private var status = ""
     @State private var editing: InstalledPlugin?
     @State private var icons: [String: NSImage] = [:]
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var manager: PluginManager { app.tools.plugins }
     private func label(_ key: String) -> String { NSLocalizedString(key, comment: "") }
     private var isSearching: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var categories: [PluginSettingsCategory] { isSearching ? PluginSettingsCategory.allCases : [selectedCategory] }
-    private func installed(in category: PluginSettingsCategory) -> [InstalledPlugin] {
-        plugins.filter { category.includes($0.manifest) && PluginSettingsCategory.matches($0, query: query) }
+    private var trimmedRepository: String { repository.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// One showcase row per repository: official catalog entries appear whether or not they are installed.
+    private struct PluginEntry: Identifiable {
+        let repository: String
+        let installed: InstalledPlugin?
+        var id: String { repository }
     }
-    private func official(in category: PluginSettingsCategory) -> [String] {
-        PluginManager.officialRepositories.filter { source in
+    private func entries(in category: PluginSettingsCategory) -> [PluginEntry] {
+        var result: [PluginEntry] = []
+        for source in PluginManager.officialRepositories {
             if let plugin = plugins.first(where: { $0.repository == source }) {
-                return category.includes(plugin.manifest) && PluginSettingsCategory.matches(plugin, query: query)
+                if category.includes(plugin.manifest) && PluginSettingsCategory.matches(plugin, query: query) {
+                    result.append(PluginEntry(repository: source, installed: plugin))
+                }
+            } else if category == .ai && matchesOfficial(source) {
+                result.append(PluginEntry(repository: source, installed: nil))
             }
-            guard category == .ai else { return false }
-            let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            return term.isEmpty || [officialName(source), officialDescription(source), source].contains { $0.localizedStandardContains(term) }
+        }
+        for plugin in plugins where !plugin.isOfficial
+            && category.includes(plugin.manifest) && PluginSettingsCategory.matches(plugin, query: query) {
+            result.append(PluginEntry(repository: plugin.repository, installed: plugin))
+        }
+        return result
+    }
+    private func matchesOfficial(_ source: String) -> Bool {
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return term.isEmpty || [officialName(source), officialDescription(source), source].contains {
+            $0.localizedStandardContains(term)
         }
     }
     private func officialName(_ source: String) -> String { source.hasSuffix("asky-plugin-lark") ? label("飞书") : "Orca" }
     private func officialDescription(_ source: String) -> String {
         label(source.hasSuffix("asky-plugin-lark") ? "通过飞书 CLI 管理文档、日程、任务和消息" : "添加项目，启动指定 Agent 并提交任务")
     }
-    private func sectionTitle(_ key: String, category: PluginSettingsCategory) -> String {
-        isSearching ? category.title + " · " + label(key) : label(key)
+    private func sectionTitle(_ category: PluginSettingsCategory) -> String {
+        isSearching ? category.title : label("插件")
     }
     var body: some View {
         VStack(spacing: 0) {
@@ -74,49 +97,36 @@ struct PluginSettings: View {
                 SettingsSearchField(query: $query, focus: $searchFocused,
                                     placeholder: "搜索插件或命令", identifier: "plugin-search")
                     .frame(height: 28)
-                Picker(label("插件"), selection: $selectedCategory) {
-                    ForEach(PluginSettingsCategory.allCases) { category in
-                        Text(category.title).tag(category)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .controlSize(.large)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(height: 28)
-                .accessibilityIdentifier("plugin-tabs")
+                SettingsSegmentedControl(selection: $selectedCategory,
+                                         options: PluginSettingsCategory.allCases.map { ($0, $0.title) },
+                                         identifier: "plugin-tabs", accessibilityLabel: label("插件"))
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(height: 28)
+                SettingsButton(label("添加"), systemImage: "plus") { openAddDialog() }
+                    .accessibilityLabel(label("添加插件"))
+                    .accessibilityIdentifier("plugin-add")
+                    .disabled(busy)
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 16)
             SettingsForm {
-                Section(label("安装插件")) {
-                    HStack(alignment: .settingsInput) {
-                        SettingsTextField(label("GitHub 仓库链接"), text: $repository)
-                            .accessibilityIdentifier("plugin-repository")
-                        SettingsButton(label("安装")) { requestInstall(repository) }.accessibilityLabel(label("安装")).disabled(busy || repository.isEmpty)
-                    }
-                }
                 ForEach(categories) { category in
-                    let sources = official(in: category)
-                    let installed = installed(in: category)
-                    if !sources.isEmpty {
-                        Section(sectionTitle("官方插件", category: category)) {
-                            ForEach(sources, id: \.self) { source in
-                                officialRow(source)
-                            }
-                        }
-                    }
-                    if !installed.isEmpty || !isSearching {
-                        Section(sectionTitle("已安装插件", category: category)) {
-                            if installed.isEmpty { Text(category.emptyTitle).foregroundStyle(.secondary) }
-                            ForEach(installed) { plugin in
-                                installedRow(plugin, category: category)
+                    let entries = entries(in: category)
+                    if !entries.isEmpty || !isSearching {
+                        Section(sectionTitle(category)) {
+                            if entries.isEmpty { Text(category.emptyTitle).foregroundStyle(.secondary) }
+                            ForEach(entries) { entry in
+                                if let plugin = entry.installed {
+                                    installedRow(plugin, category: category)
+                                } else {
+                                    catalogRow(entry.repository)
+                                }
                             }
                         }
                     }
                 }
-                if isSearching && categories.allSatisfy({ installed(in: $0).isEmpty && official(in: $0).isEmpty }) {
+                if isSearching && categories.allSatisfy({ entries(in: $0).isEmpty }) {
                     Section {
                         Text(NSLocalizedString("未找到匹配的插件", tableName: "Plugins", comment: ""))
                             .foregroundStyle(.secondary)
@@ -132,6 +142,10 @@ struct PluginSettings: View {
             }
         }
         .task { await reload() }
+        .overlay {
+            if adding { addDialog }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: adding)
         .appDialog(label("安装可信插件"), isPresented: $confirmInstall,
                    message: label("此仓库的插件将能够在本机执行代码。安装表示你信任该来源") + "\n\n" + pendingRepository,
                    buttons: [label("安装"), label("取消")]) { response in
@@ -144,29 +158,40 @@ struct PluginSettings: View {
             PluginConfigurationEditor(plugin: plugin, manager: manager) { Task { await reload() } }
         }
     }
-    private func officialRow(_ source: String) -> some View {
+    private func catalogRow(_ source: String) -> some View {
         HStack(spacing: 12) {
             pluginIcon(repository: source)
             VStack(alignment: .leading, spacing: 3) {
-                Text(officialName(source))
+                HStack(spacing: 6) {
+                    Text(officialName(source))
+                    officialTag()
+                }
                 Text(officialDescription(source)).foregroundStyle(.secondary)
             }
-            Spacer()
-            if plugins.contains(where: { $0.repository == source }) {
-                Text(label("已安装")).foregroundStyle(.secondary)
-            } else {
-                SettingsButton(label("安装")) { requestInstall(source) }.accessibilityLabel(label("安装")).disabled(busy)
-            }
+            Spacer(minLength: 12)
+            SettingsButton(label("安装")) { requestInstall(source) }
+                .accessibilityLabel(label("安装"))
+                .disabled(busy)
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("plugin-official-" + source.split(separator: "/").last.map(String.init)!)
     }
+    private func officialTag() -> some View {
+        Text(label("官方"))
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(ThemeColor.kTextSubtle)
+            .padding(.horizontal, 6).padding(.vertical, 1)
+            .background(ThemeColor.kBackgroundSelected.color(for: scheme), in: Capsule())
+    }
     private func installedRow(_ plugin: InstalledPlugin, category: PluginSettingsCategory) -> some View {
         HStack(spacing: 12) {
             pluginIcon(repository: plugin.repository)
             VStack(alignment: .leading, spacing: 3) {
-                Text(plugin.manifest.name)
+                HStack(spacing: 6) {
+                    Text(plugin.manifest.name)
+                    if plugin.isOfficial { officialTag() }
+                }
                 pluginSubtitle(plugin)
             }
             Spacer(minLength: 12)
@@ -186,6 +211,75 @@ struct PluginSettings: View {
     private func requestInstall(_ url: String) {
         do { pendingRepository = try PluginManager.repositoryURL(url); confirmInstall = true }
         catch { status = error.localizedDescription }
+    }
+    private func openAddDialog() {
+        repository = ""
+        repositoryError = ""
+        adding = true
+    }
+    private func installFromDialog() {
+        do {
+            let source = try PluginManager.repositoryURL(trimmedRepository)
+            adding = false
+            repository = ""
+            repositoryError = ""
+            perform("安装插件", selectInstalledRepository: source) { try await manager.install(repository: source) }
+        } catch {
+            repositoryError = error.localizedDescription
+        }
+    }
+    private var addDialog: some View {
+        ZStack {
+            Color.clear.ignoresSafeArea()
+                .contentShape(Rectangle()).onTapGesture {}
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text(label("添加插件")).font(.system(size: 16))
+                    Spacer()
+                    Button { adding = false } label: {
+                        Image(mingCute: "xmark", size: 12)
+                            .frame(width: 28, height: 28).contentShape(.circle)
+                    }
+                    .buttonStyle(.plain).foregroundStyle(ThemeColor.kTextSubtle)
+                    .accessibilityLabel(label("关闭"))
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 24) {
+                        Text(label("GitHub 仓库链接")).lineLimit(1).fixedSize()
+                        Spacer(minLength: 24)
+                        SettingsInputField(label("GitHub 仓库链接"), text: $repository)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .background(SettingsPalette.card(scheme), in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("plugin-repository")
+                    Text(label("插件会在本机执行代码。请只安装你信任的仓库。"))
+                        .font(.system(size: 12)).foregroundStyle(ThemeColor.kTextSubtle)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !repositoryError.isEmpty {
+                        Text(repositoryError).font(.system(size: 12))
+                            .foregroundStyle(ThemeColor.kTextNegative)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack {
+                    Spacer()
+                    SettingsButton(label("取消")) { adding = false }
+                    SettingsButton(label("安装")) { installFromDialog() }
+                        .disabled(busy || trimmedRepository.isEmpty)
+                }
+            }
+            .padding(20)
+            .frame(width: 520)
+            .font(.system(size: 14))
+            .foregroundStyle(ThemeColor.kText)
+            .nativeGlassBackground(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: .black.opacity(scheme == .dark ? 0.4 : 0.12), radius: 24, y: 8)
+            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
+            .onExitCommand { adding = false }
+            .accessibilityIdentifier("plugin-add-dialog")
+        }
     }
     private func pluginSubtitle(_ plugin: InstalledPlugin) -> some View {
         HStack(spacing: 6) {

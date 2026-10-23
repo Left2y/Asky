@@ -37,16 +37,12 @@ struct CommandSettings: View {
                     SettingsSearchField(query: $query, focus: $searchFocused,
                                        placeholder: "搜索指令或名称", identifier: "command-search")
                         .frame(height: 28)
-                    Picker(NSLocalizedString("指令", comment: ""), selection: $selectedTab) {
-                        Text(NSLocalizedString("搜索指令", comment: "")).tag("search")
-                        Text(NSLocalizedString("内置指令", comment: "")).tag("builtIn")
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .controlSize(.large)
+                    SettingsSegmentedControl(selection: $selectedTab, options: [
+                        ("search", NSLocalizedString("搜索指令", comment: "")),
+                        ("builtIn", NSLocalizedString("内置指令", comment: "")),
+                    ], identifier: "command-tabs", accessibilityLabel: NSLocalizedString("指令", comment: ""))
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(height: 28)
-                    .accessibilityIdentifier("command-tabs")
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)

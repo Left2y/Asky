@@ -362,6 +362,155 @@ struct SettingsCheckbox: NSViewRepresentable {
     }
 }
 
+/// Segmented tab bar on the shared input surface. macOS 26 draws every native
+/// `NSSegmentedControl` style as a capsule, which clashes with the 8 pt field radius.
+struct SettingsSegmentedControl<Value: Hashable>: NSViewRepresentable {
+    @Binding var selection: Value
+    let options: [(Value, String)]
+    var identifier: String = ""
+    var accessibilityLabel: String = ""
+    @Environment(\.colorScheme) private var scheme
+
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+    func makeNSView(context: Context) -> SegmentedTabsView {
+        let control = SegmentedTabsView()
+        control.onSelect = { index in
+            guard context.coordinator.values.indices.contains(index) else { return }
+            context.coordinator.selection.wrappedValue = context.coordinator.values[index]
+        }
+        return control
+    }
+    func updateNSView(_ control: SegmentedTabsView, context: Context) {
+        context.coordinator.selection = $selection
+        context.coordinator.values = options.map(\.0)
+        control.scheme = scheme
+        control.identifierPrefix = identifier
+        control.label = accessibilityLabel
+        control.titles = options.map(\.1)
+        control.selectedIndex = options.firstIndex { $0.0 == selection } ?? 0
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: SegmentedTabsView, context: Context) -> CGSize? {
+        nsView.intrinsicContentSize
+    }
+
+    final class Coordinator {
+        var selection: Binding<Value>
+        var values: [Value] = []
+        init(selection: Binding<Value>) { self.selection = selection }
+    }
+}
+
+/// AppKit host for the settings tab bar; exposed buttons keep native focus and
+/// press behavior, and can be driven from the regression suites.
+final class SegmentedTabsView: NSView {
+    var onSelect: ((Int) -> Void)?
+    var scheme: ColorScheme = .light { didSet { if scheme != oldValue { applyAppearance() } } }
+    var identifierPrefix: String = "" { didSet { if identifierPrefix != oldValue { updateIdentifiers() } } }
+    var label: String = "" {
+        didSet {
+            guard label != oldValue else { return }
+            setAccessibilityLabel(label); stack.setAccessibilityLabel(label)
+        }
+    }
+    var titles: [String] = [] { didSet { if titles != oldValue { rebuild() } } }
+    var selectedIndex = 0 { didSet { if selectedIndex != oldValue { applySelection() } } }
+
+    private let stack = NSStackView()
+    private var buttons: [NSButton] = []
+    private var segmentWidths: [CGFloat] = []
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.borderWidth = 1
+        stack.orientation = .horizontal
+        stack.spacing = 2
+        stack.alignment = .centerY
+        stack.distribution = .fill
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 2),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
+        ])
+    }
+    required init?(coder: NSCoder) { nil }
+
+    override var intrinsicContentSize: NSSize {
+        let total = segmentWidths.reduce(0, +) + CGFloat(max(0, segmentWidths.count - 1)) * stack.spacing + 4
+        return NSSize(width: total, height: 28)
+    }
+
+    /// Width of the 14 pt title plus 12 pt of horizontal padding on each side.
+    private static func segmentWidth(_ title: String) -> CGFloat {
+        let width = NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 14)])
+            .size().width
+        return ceil(width) + 24
+    }
+
+    private func rebuild() {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        segmentWidths = titles.map(Self.segmentWidth)
+        buttons = titles.enumerated().map { index, title in
+            let button = NSButton(title: title, target: self, action: #selector(press(_:)))
+            button.isBordered = false
+            button.setButtonType(.pushOnPushOff)
+            button.focusRingType = .none
+            button.tag = index
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 6
+            button.layer?.masksToBounds = true
+            button.setAccessibilityRole(.radioButton)
+            button.setAccessibilityLabel(title)
+            button.widthAnchor.constraint(equalToConstant: segmentWidths[index]).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 24).isActive = true
+            stack.addArrangedSubview(button)
+            return button
+        }
+        updateIdentifiers()
+        applyAppearance()
+        invalidateIntrinsicContentSize()
+    }
+
+    @objc private func press(_ sender: NSButton) {
+        if sender.tag != selectedIndex {
+            selectedIndex = sender.tag
+            onSelect?(sender.tag)
+        }
+        applySelection()
+    }
+
+    private func updateIdentifiers() {
+        buttons.enumerated().forEach {
+            $0.element.setAccessibilityIdentifier(identifierPrefix.isEmpty ? nil : "\(identifierPrefix)-\($0.offset)")
+        }
+    }
+
+    private func applyAppearance() {
+        let fill = scheme == .dark ? ThemeColor.kBackgroundNeutral.color(for: scheme)
+            : SettingsPalette.surface(scheme)
+        layer?.backgroundColor = NSColor(fill).cgColor
+        layer?.borderColor = NSColor(ThemeColor.kBorder.color(for: scheme)).cgColor
+        applySelection()
+    }
+
+    private func applySelection() {
+        for (index, button) in buttons.enumerated() {
+            let selected = index == selectedIndex
+            button.state = selected ? .on : .off
+            button.layer?.backgroundColor = selected ? NSColor.controlAccentColor.cgColor : NSColor.clear.cgColor
+            button.attributedTitle = NSAttributedString(string: titles[index], attributes: [
+                .font: NSFont.systemFont(ofSize: 14),
+                .foregroundColor: selected ? NSColor.white : NSColor(ThemeColor.kText.color(for: scheme)),
+            ])
+            button.setAccessibilitySelected(selected)
+        }
+    }
+}
+
 /// Choices and text inputs share one surface, including when composited over bright glass.
 struct SettingsChoice<Value: Hashable>: View {
     @Binding var selection: Value

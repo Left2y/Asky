@@ -861,16 +861,20 @@ enum SettingsRegression {
             view.cacheDisplay(in: view.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])!.write(to: URL(filePath: "build/command-tabs-\(name).png"))
         }
-        guard let tabs = descendants(window.contentView!).compactMap({ $0 as? NSSegmentedControl }).first else {
-            fatalError("missing native command tabs")
+        func tabs() -> [NSButton] {
+            descendants(window.contentView!).compactMap { $0 as? NSButton }
+                .filter { $0.accessibilityIdentifier().hasPrefix("command-tabs-") }
         }
-        precondition(tabs.segmentCount == 2)
+        precondition(tabs().count == 2, "missing command tabs")
+        let tabBar = descendants(window.contentView!).compactMap { $0 as? SegmentedTabsView }.first
+        precondition(tabBar?.layer?.cornerRadius == 8, "command tabs must share the settings input surface")
+        precondition(tabs()[0].state == .on, "first tab must start selected")
         precondition(keywords().contains("ql") && !keywords().contains("go"))
         precondition(AppModel.searchCommands.first { $0.0 == "quickLinks" }?.1 == "搜索指令")
         try capture("search")
-        tabs.selectedSegment = 1
-        NSApp.sendAction(tabs.action!, to: tabs.target, from: tabs)
+        tabs()[1].performClick(nil)
         try await Task.sleep(for: .milliseconds(200))
+        precondition(tabs()[1].state == .on && tabs()[0].state == .off, "selected tab must move")
         precondition(keywords().contains("go") && !keywords().contains("ql"))
         try capture("built-in")
         guard let search = fields().first(where: { $0.placeholderString == NSLocalizedString("搜索指令或名称", comment: "") }) else {

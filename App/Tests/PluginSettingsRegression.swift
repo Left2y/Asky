@@ -20,11 +20,12 @@ private enum PluginSettingsRegression {
         }
         throw NSError(domain: "PluginSettings", code: 2, userInfo: [NSLocalizedDescriptionKey: "Timed out at line \(line)"])
     }
-    static func fixture(_ id: String, name: String, functional: Bool, agentVisible: Bool) throws -> InstalledPlugin {
+    static func fixture(_ id: String, name: String, functional: Bool, agentVisible: Bool,
+                        repository: String? = nil) throws -> InstalledPlugin {
         let tool: JSONValue = ["name": "run", "description": .string("\(name) actions"), "effect": "read", "confirmation": "never", "agentVisible": .bool(agentVisible), "inputSchema": ["type": "object", "properties": [:]]]
         var manifest: [String: JSONValue] = ["id": .string(id), "name": .string(name), "version": "1.0.0", "apiVersion": 1, "entry": "index.mjs", "tools": .array([tool])]
         if functional { manifest["commands"] = [["name": "format", "title": "Format Text", "keyword": "fmt", "tool": "run", "mode": "action"]] }
-        let record: JSONValue = ["manifest": .object(manifest), "repository": .string("https://github.com/example/" + id), "commit": "fixture", "enabled": .bool(id != "hybrid"), "configuration": [:]]
+        let record: JSONValue = ["manifest": .object(manifest), "repository": .string(repository ?? "https://github.com/example/" + id), "commit": "fixture", "enabled": .bool(id != "hybrid"), "configuration": [:]]
         return try JSONDecoder().decode(InstalledPlugin.self, from: record.canonicalData())
     }
     static func main() {
@@ -62,14 +63,18 @@ private enum PluginSettingsRegression {
         window.makeKeyAndOrderFront(nil)
         defer { window.close() }
         try await until { switches(window).count == 2 }
-        guard let tabs = descendants(window.contentView!).compactMap({ $0 as? NSSegmentedControl }).first,
-              let search = descendants(window.contentView!).compactMap({ $0 as? NSTextField }).first(where: { $0.placeholderString == NSLocalizedString("搜索插件或命令", comment: "") }) else {
-            throw NSError(domain: "PluginSettings", code: 3, userInfo: [NSLocalizedDescriptionKey: "Missing shared search or native tabs"])
+        guard let search = descendants(window.contentView!).compactMap({ $0 as? NSTextField }).first(where: { $0.placeholderString == NSLocalizedString("搜索插件或命令", comment: "") }) else {
+            throw NSError(domain: "PluginSettings", code: 3, userInfo: [NSLocalizedDescriptionKey: "Missing shared search or tabs"])
         }
-        try require(tabs.segmentCount == 2, "plugin page must expose exactly two category tabs")
+        func tabButtons(in target: NSWindow) -> [NSButton] {
+            descendants(target.contentView!).compactMap { $0 as? NSButton }
+                .filter { $0.accessibilityIdentifier().hasPrefix("plugin-tabs-") }
+        }
+        try require(tabButtons(in: window).count == 2, "plugin page must expose exactly two category tabs")
+        try require(descendants(window.contentView!).contains { $0 is SegmentedTabsView },
+                    "plugin tabs must use the settings input surface")
         func select(_ index: Int) {
-            tabs.selectedSegment = index
-            NSApp.sendAction(tabs.action!, to: tabs.target, from: tabs)
+            tabButtons(in: window)[index].performClick(nil)
         }
         func capture(_ suffix: String, in target: NSWindow? = nil) throws {
             let view = (target ?? window).contentView!
@@ -123,8 +128,52 @@ private enum PluginSettingsRegression {
         editor.insertText("")
         try await Task.sleep(for: .milliseconds(150))
         try await until { switches(window).count == 2 }
-        try require(tabs.selectedSegment == 0 && switches(window).count == 2, "clearing search must restore the selected tab")
+        try require(tabButtons(in: window)[0].state == .on && switches(window).count == 2,
+                    "clearing search must restore the selected tab")
+        let buttons = descendants(window.contentView!).compactMap { $0 as? NSButton }
+        try require(buttons.filter { $0.title == NSLocalizedString("安装", comment: "") }.count == 2,
+                    "AI catalog must offer one install button per uninstalled official plugin")
+        guard let add = buttons.first(where: { $0.title == NSLocalizedString("添加", comment: "") }) else {
+            throw NSError(domain: "PluginSettings", code: 4, userInfo: [NSLocalizedDescriptionKey: "Missing add button"])
+        }
+        add.performClick(nil)
+        // SwiftUI renders a styled prompt as an attributed placeholder, not `placeholderString`.
+        let repositoryField = { descendants(window.contentView!).compactMap { $0 as? NSTextField }.first {
+            ($0.placeholderString ?? $0.placeholderAttributedString?.string)
+                == NSLocalizedString("GitHub 仓库链接", comment: "")
+        } }
+        try await until { repositoryField() != nil }
+        // The in-window dialog is glass; cacheDisplay does not composite it, so capture the real window.
+        let language = Bundle.main.preferredLocalizations.first ?? "unknown"
+        for appearance in ["light", "dark"] {
+            app.preferences.appearance = appearance
+            try await Task.sleep(for: .milliseconds(400))
+            let shot = Process()
+            shot.executableURL = URL(filePath: "/usr/sbin/screencapture")
+            shot.arguments = ["-x", "-l", String(window.windowNumber), "build/plugin-tabs-\(language)-add-dialog-\(appearance).png"]
+            try shot.run()
+            shot.waitUntilExit()
+            try require(shot.terminationStatus == 0, "native add-dialog capture must succeed")
+        }
+        if let cancel = descendants(window.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == NSLocalizedString("取消", comment: "") }) {
+            cancel.performClick(nil)
+        }
+        try await until { repositoryField() == nil }
         window.close()
+        let official = try fixture("official_orca", name: "Orca", functional: false, agentVisible: true,
+                                   repository: PluginManager.officialRepositories[0])
+        store.setCodableSetting("plugins.installed", [ai, official])
+        let merged = try AppModel(root: root)
+        merged.settingsTab = SettingsPage.plugins.rawValue
+        let mergedWindow = SettingsWindow.make(app: merged)
+        mergedWindow.isReleasedWhenClosed = false
+        mergedWindow.makeKeyAndOrderFront(nil)
+        try await until { switches(mergedWindow).count == 2 }
+        let mergedButtons = descendants(mergedWindow.contentView!).compactMap { $0 as? NSButton }
+        try require(mergedButtons.filter { $0.title == NSLocalizedString("安装", comment: "") }.count == 1,
+                    "installed official plugin must replace its catalog install button")
+        try capture("official-installed", in: mergedWindow)
+        mergedWindow.close()
         store.setCodableSetting("plugins.installed", [ai])
         let onlyAI = try AppModel(root: root)
         onlyAI.settingsTab = SettingsPage.plugins.rawValue
@@ -133,13 +182,11 @@ private enum PluginSettingsRegression {
         emptyWindow.makeKeyAndOrderFront(nil)
         defer { emptyWindow.close() }
         try await until { switches(emptyWindow).count == 1 }
-        let emptyTabs = descendants(emptyWindow.contentView!).compactMap { $0 as? NSSegmentedControl }.first!
-        emptyTabs.selectedSegment = 1
-        NSApp.sendAction(emptyTabs.action!, to: emptyTabs.target, from: emptyTabs)
+        tabButtons(in: emptyWindow)[1].performClick(nil)
         try await until { switches(emptyWindow).isEmpty }
         try capture("function-empty", in: emptyWindow)
-        try require(descendants(emptyWindow.contentView!).compactMap { $0 as? NSButton }.filter { $0.title == NSLocalizedString("安装", comment: "") }.count == 1,
-                    "empty functional tab must only retain the shared install button")
+        try require(descendants(emptyWindow.contentView!).compactMap { $0 as? NSButton }.filter { $0.title == NSLocalizedString("添加", comment: "") }.count == 1,
+                    "empty functional tab must retain the single add button")
 
     }
 }

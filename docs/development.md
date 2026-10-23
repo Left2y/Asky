@@ -22,6 +22,7 @@ python3 App/Tests/run-launcher-window-regression.py
 python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
 python3 App/Tests/run-launcher-window-regression.py --compact-results
 python3 App/Tests/run-launcher-window-regression.py --result-motion
+python3 App/Tests/run-launcher-window-regression.py --fixed-expanded
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py
@@ -153,6 +154,7 @@ python3 App/Tests/run-launcher-window-regression.py
 python3 App/Tests/run-launcher-window-regression.py --bottom-clearance
 python3 App/Tests/run-launcher-window-regression.py --compact-results
 python3 App/Tests/run-launcher-window-regression.py --result-motion
+python3 App/Tests/run-launcher-window-regression.py --fixed-expanded
 python3 App/Tests/run-launcher-window-regression.py --accessories
 python3 App/Tests/run-launcher-window-regression.py --command-icons
 python3 App/Tests/run-launcher-terminal-regression.py

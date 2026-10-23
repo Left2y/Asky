@@ -28,6 +28,7 @@ enum LauncherLayout {
     static let rowHeight: CGFloat = 38
     static let rowIconSize: CGFloat = 24
     static let maxVisibleResults = 10
+    static let expandedHeight = inputHeight + dividerHeight + CGFloat(maxVisibleResults) * rowHeight
     static let sectionHeaderHeight: CGFloat = 30
     static let rowSpacing: CGFloat = 0
     static let listHorizontalPadding: CGFloat = 13
@@ -140,7 +141,7 @@ final class LauncherController {
     private var resizeTask: Task<Void, Never>?
     private var hiding = false
     private var chrome = LauncherChrome()
-    private var availableShellHeight = CGFloat(WindowMetrics.launcherMaxHeight)
+    private var availableShellHeight = LauncherLayout.expandedHeight
     private var shellHeight = LauncherLayout.inputHeight
     private var targetShellHeight = LauncherLayout.inputHeight
     /// The full-width toolbar's top-left corner; every surface is placed from it.
@@ -199,7 +200,7 @@ final class LauncherController {
         model.rebuildProviders()
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
-            availableShellHeight = min(CGFloat(WindowMetrics.launcherMaxHeight), floor(f.height * (1 - LauncherLayout.topInsetFraction) - LauncherLayout.bottomClearance))
+            availableShellHeight = min(LauncherLayout.expandedHeight, floor(f.height * (1 - LauncherLayout.topInsetFraction) - LauncherLayout.bottomClearance))
             // Anchor near the top of the pointer screen, leaving room for results below.
             // NSWindow rounds origins and sizes independently to whole points.
             // A fractional top anchor plus a fractional spring height can round
@@ -315,8 +316,8 @@ final class LauncherController {
         guard targetShellHeight != height else { return }
         targetShellHeight = height
         // AppKit's origin is at the bottom left; the input stays anchored while expanding down.
-        // Step the actual glass window, preserving the fixed hosting canvas and
-        // field editor. Retarget from the current height when another batch arrives.
+        // Reveal the fixed-height glass window while preserving the hosting
+        // canvas and field editor. Later result batches keep this target.
         if panel.isVisible,
            !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             resultReveal.animate(to: Double(height), response: 0.18, damping: 1, in: panel)
@@ -346,11 +347,11 @@ final class LauncherController {
 
 struct LauncherView: View {
     @Bindable var model: LauncherModel
-    var maxShellHeight: CGFloat = CGFloat(WindowMetrics.launcherMaxHeight)
+    var maxShellHeight: CGFloat = LauncherLayout.expandedHeight
     var onHeightChange: (CGFloat) -> Void = { _ in }
     var onChromeChange: (LauncherChrome) -> Void = { _ in }
     @State private var statusHeight: CGFloat = 0
-    @State private var resultListHeight: CGFloat = 0
+    @State private var hasExpanded = false
     @Environment(\.colorScheme) private var colorScheme
 
     private var shellShape: RoundedRectangle {
@@ -359,6 +360,10 @@ struct LauncherView: View {
     }
 
     private var inputHeight: CGFloat { LauncherLayout.inputHeight }
+    private var hasContent: Bool {
+        !model.results.isEmpty || model.hasScope || model.status != nil || model.terminal != nil
+            || model.calculation != nil || model.unitConversion != nil || model.currencyConversion != nil
+    }
     private var chrome: LauncherChrome {
         LauncherChrome(toast: model.toast)
     }
@@ -385,8 +390,8 @@ struct LauncherView: View {
             }
             .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
             .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
-            .onChange(of: model.isSearching) { _, searching in
-                if !searching && model.results.isEmpty { resultListHeight = 0 }
+            .onChange(of: hasContent, initial: true) { _, hasContent in
+                if hasContent { hasExpanded = true }
             }
     }
 
@@ -444,6 +449,7 @@ struct LauncherView: View {
                 CalculationView(expression: calculation.expression, result: calculation.result)
                     .frame(height: LauncherLayout.currencyCardHeight)
                     .padding(.bottom, LauncherLayout.actionBarHeight)
+                    .frame(height: maxShellHeight - inputHeight - LauncherLayout.dividerHeight - statusHeight, alignment: .top)
                     .overlay(alignment: .bottom) { LauncherActionBar(model: model) }
             } else if let conversion = model.unitConversion {
                 inputDivider
@@ -463,13 +469,10 @@ struct LauncherView: View {
                                - LauncherLayout.dividerHeight - LauncherLayout.currencyCardHeight - statusHeight,
                                excludedCurrencyCode: query.to)
                 }
-            } else if !model.results.isEmpty || (model.isSearching && resultListHeight > 0) {
+            } else if hasExpanded || !model.results.isEmpty {
                 inputDivider
                 ResultList(model: model, maxHeight: maxShellHeight
                            - inputHeight - LauncherLayout.dividerHeight - statusHeight)
-                    // Keep the list mounted through the empty loading state so
-                    // its retained height survives entering a search command.
-                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { resultListHeight = $0 }
             }
             if let s = model.status {
                 Text(s).font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle)
@@ -483,7 +486,7 @@ struct LauncherView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(height: hasExpanded ? maxShellHeight : inputHeight, alignment: .top)
         .foregroundStyle(ThemeColor.kText.color(for: colorScheme))
         // Blank input/result areas must belong to the shell's pointer region.
         .contentShape(shellShape)
@@ -651,17 +654,10 @@ private struct ResultList: View {
     @Bindable var model: LauncherModel
     let maxHeight: CGFloat
     var excludedCurrencyCode: String? = nil
-    @State private var retainedHeight: CGFloat = 0
     @State private var selectionFromPointer = false
     @State private var lastSelectionPointerLocation = NSEvent.mouseLocation
     @State private var isRevealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private struct LayoutRequest: Equatable {
-        let query: String
-        let height: CGFloat
-        let isSearching: Bool
-    }
 
     private var visibleResults: [SearchResult] {
         model.results.filter { $0.source != .currency || $0.target.identifier != excludedCurrencyCode }
@@ -680,14 +676,6 @@ private struct ResultList: View {
 
     private var footerHeight: CGFloat { model.primaryLauncherAction == nil ? 0 : LauncherLayout.actionBarHeight }
     private var bottomPadding: CGFloat { LauncherLayout.listBottomPadding + footerHeight }
-
-    private var height: CGFloat {
-        let rows = CGFloat(visibleResults.count) * LauncherLayout.rowHeight
-        let headers = showsHeaders ? CGFloat(sections.count) * LauncherLayout.sectionHeaderHeight : 0
-        // Headers share the ten-row budget. Short result lists still size to their content.
-        let listHeightLimit = CGFloat(LauncherLayout.maxVisibleResults) * LauncherLayout.rowHeight
-        return min(rows + headers + bottomPadding, listHeightLimit, maxHeight)
-    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -759,17 +747,7 @@ private struct ResultList: View {
             .overlay(alignment: .bottom) {
                 if footerHeight > 0 { LauncherActionBar(model: model) }
             }
-            .frame(height: min(maxHeight, max(height, retainedHeight)))
-            .task(id: LayoutRequest(query: model.query, height: height, isSearching: model.isSearching)) {
-                let target = height
-                if target < retainedHeight {
-                    // Hold the footprint only while replacement results are
-                    // pending. Once delivered, resize with the new content.
-                    guard !model.isSearching else { return }
-                }
-                guard !Task.isCancelled else { return }
-                retainedHeight = target
-            }
+            .frame(height: max(0, maxHeight))
             .onChange(of: model.selection) { _, s in
                 // Hover must select the row without moving it away from the pointer.
                 if selectionFromPointer {

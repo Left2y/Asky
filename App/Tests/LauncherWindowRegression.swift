@@ -47,8 +47,8 @@ enum LauncherWindowRegression {
                         try await checkFirstPresentation()
                     } else if CommandLine.arguments.contains("--command-transition") {
                         try await checkCommandTransition()
-                    } else if CommandLine.arguments.contains("--result-shrink") {
-                        try await checkResultShrink()
+                    } else if CommandLine.arguments.contains("--fixed-expanded") || CommandLine.arguments.contains("--result-shrink") {
+                        try await checkFixedExpanded()
                     } else if CommandLine.arguments.contains("--result-motion") {
                         try await checkResultMotion()
                     } else if CommandLine.arguments.contains("--alias-results") {
@@ -431,8 +431,8 @@ enum LauncherWindowRegression {
         try capture("calculation")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(400))
-        try require(abs(panel.frame.height - 52) <= 1 && !model.isActionsMenuPresented,
-                    "clearing search must remove action surfaces and restore compact input")
+        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1 && !model.isActionsMenuPresented,
+                    "clearing search must remove action surfaces and retain expanded height")
         print("action bar: keyboard toggle/navigation, focus, path execution, query dismissal, final row, AI/calculation passed")
     }
 
@@ -480,7 +480,7 @@ enum LauncherWindowRegression {
             URL(filePath: "build/launcher-compact-\(NSApp.appearance!.name.rawValue).png"))
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(1000))
-        try require(abs(panel.frame.height - 52) <= 1, "empty shell must be 52 pt high")
+        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1, "cleared shell must retain expanded height")
         try require(panel.contentView?.layer?.cornerRadius == 26, "empty shell must use a 26 pt radius")
         try require(panel.contentView?.layer?.cornerCurve == .circular, "empty shell ends must be circular")
         let capture = Process()
@@ -685,7 +685,7 @@ enum LauncherWindowRegression {
         try require(abs(panel.frame.width - LauncherLayout.toolbarWidth) <= 1, "typing must give the shell the full toolbar width")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(220))
-        try require(abs(panel.frame.height - 52) <= 1, "clearing must collapse the result window promptly")
+        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1, "clearing must retain expanded height")
         try require(abs(field.frame.width - emptyFieldWidth) <= 4, "clearing must restore the empty field width promptly: \(field.frame.width) vs \(emptyFieldWidth)")
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(field.frame.width - emptyFieldWidth) <= 1, "clearing input must preserve the original field width")
@@ -1107,17 +1107,25 @@ enum LauncherWindowRegression {
                     "scrolling must preserve selection, text and input focus: selection \(model.selection)/\(selection), text \(editor.string == text), responder \(String(describing: panel.firstResponder)), key \(panel.isKeyWindow)")
         let target = model.results.lastIndex { $0.source == .file }!
         let steps = target - selection
-        let field = searchField(in: content)!
+        func pressArrow(_ keyCode: UInt16 = 125) async throws {
+            let character = keyCode == 125 ? "\u{F701}" : "\u{F700}"
+            let down = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber,
+                context: nil, characters: character, charactersIgnoringModifiers: character,
+                isARepeat: false, keyCode: keyCode)!
+            // Dispatch through NSApplication so currentEvent is this key, not
+            // the wheel event left by the preceding scroll checks.
+            NSApp.postEvent(down, atStart: false)
+            try await Task.sleep(for: .milliseconds(20))
+        }
         for _ in 0..<steps {
-            _ = (field.delegate as? LauncherSearchField.Coordinator)?.control(
-                field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+            try await pressArrow()
         }
         try await Task.sleep(for: .milliseconds(200))
         try require(model.selection == target, "keyboard navigation must remain available")
         try require(scroll.contentView.bounds.origin.y > 0, "keyboard must reveal an offscreen selection")
-        let coordinator = field.delegate as! LauncherSearchField.Coordinator
         for _ in 0..<(model.results.count + 3) {
-            _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+            try await pressArrow()
         }
         try await Task.sleep(for: .milliseconds(200))
         try require(model.selection == model.results.count - 1, "repeated Down must stop at the last result")
@@ -1128,14 +1136,14 @@ enum LauncherWindowRegression {
         try require(abs(remaining) <= 1,
                     "last selection must reveal the full document including bottom clearance, remaining=\(remaining)")
         let bottom = scroll.contentView.bounds.origin.y
-        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        try await pressArrow()
         try await Task.sleep(for: .milliseconds(200))
         try require(scroll.contentView.bounds.origin.y == bottom, "Down at the last result must not scroll back to the top")
-        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
+        try await pressArrow(126)
         try require(model.selection == model.results.count - 2, "Up must move away from the last result")
         try await Task.sleep(for: .milliseconds(200))
         let beforeLast = scroll.contentView.bounds.origin.y
-        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        try await pressArrow()
         try await Task.sleep(for: .milliseconds(200))
         let lastReveal = scroll.contentView.bounds.origin.y - beforeLast
         try require(lastReveal >= -1 && lastReveal <= LauncherLayout.rowHeight + LauncherLayout.listBottomPadding + 1,
@@ -1143,15 +1151,15 @@ enum LauncherWindowRegression {
         try require(abs(document.bounds.maxY - scroll.contentView.bounds.maxY) <= 1,
                     "returning to the final row must preserve bottom clearance")
         for _ in 0..<(model.results.count + 3) {
-            _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
+            try await pressArrow(126)
         }
         try await Task.sleep(for: .milliseconds(200))
         try require(model.selection == 0, "repeated Up must stop at the first result")
         let top = scroll.contentView.bounds.origin.y
-        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:)))
+        try await pressArrow(126)
         try await Task.sleep(for: .milliseconds(200))
         try require(scroll.contentView.bounds.origin.y == top, "Up at the first result must not scroll back to the bottom")
-        _ = coordinator.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:)))
+        try await pressArrow()
         try require(model.selection == 1 && panel.firstResponder === editor,
                     "Down must move away from the first result while preserving input focus")
         model.selection = selection
@@ -1289,21 +1297,14 @@ enum LauncherWindowRegression {
         capture.waitUntilExit()
         try require(capture.terminationStatus == 0, "result motion screenshot must succeed")
         model.inputText = ""
-        var collapseHeights: Set<Int> = []
         for _ in 0..<65 {
             try await Task.sleep(for: .milliseconds(8))
-            let height = panel.frame.height
-            if height > 53 && height < 432 { collapseHeights.insert(Int(height)) }
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
-            try require(abs(top - inputTop) < 0.01 && abs(panel.frame.maxY - windowTop) < 0.01,
-                        "collapse must keep the input and window top stationary")
+            try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1 &&
+                        abs(top - inputTop) < 0.01 && abs(panel.frame.maxY - windowTop) < 0.01,
+                        "clearing must preserve expanded geometry")
         }
-        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            try require(collapseHeights.count >= 4,
-                        "clearing must visit multiple intermediate window heights")
-        }
-        try require(abs(panel.frame.height - 52) <= 1 && field.currentEditor() === editor,
-                    "clear must settle at input height and preserve the editor")
+        try require(field.currentEditor() === editor, "clear must preserve the editor")
         model.inputText = "s"
         try await Task.sleep(for: .milliseconds(500))
         model.inputText = ""
@@ -1311,14 +1312,14 @@ enum LauncherWindowRegression {
         model.inputText = "sa"
         try await Task.sleep(for: .milliseconds(500))
         try require(abs(panel.frame.height - 433) <= 1,
-                    "typing during collapse must retarget the window back to its results")
+                    "typing again must retain expanded height")
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(500))
         model.inputText = "sa"
         try await Task.sleep(for: .milliseconds(60))
         model.inputText = ""
         try await Task.sleep(for: .milliseconds(400))
-        try require(abs(panel.frame.height - 52) <= 1, "clear must cancel an in-flight reveal")
+        try require(abs(panel.frame.height - LauncherLayout.expandedHeight) <= 1, "clear must retain expanded height")
         model.inputText = "s"
         try await Task.sleep(for: .milliseconds(60))
         controller.hide()
@@ -1326,7 +1327,7 @@ enum LauncherWindowRegression {
         panel.onBlur = {}
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(panel.frame.height - 52) <= 1, "reopen must not resume a stale reveal")
-        print("result motion: intermediateSamples=\(intermediateHeights.count), collapseHeights=\(collapseHeights.count), inputDrift=\(maxDrift), keyboard/clear/reversal/interruption/reopen passed")
+        print("result motion: intermediateSamples=\(intermediateHeights.count), inputDrift=\(maxDrift), keyboard/clear/fixed-height/interruption/reopen passed")
     }
 
     private static func checkCommandTransition() async throws {
@@ -1359,12 +1360,12 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(500))
         model.reset()
         try await Task.sleep(for: .milliseconds(500))
-        try require(abs(panel.frame.height - 52) <= 1, "reset must release retained search height")
-        print("PASS: sw Return retains loading height; reset collapses normally")
+        try require(abs(panel.frame.height - commandHeight) <= 1, "reset must retain expanded height until hidden")
+        print("PASS: sw Return and reset retain expanded height")
     }
 
-    private static func checkResultShrink() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-result-shrink-\(UUID())")
+    private static func checkFixedExpanded() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-fixed-expanded-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let app = try AppModel(root: root)
         let model = LauncherModel(app: app, searchProviders: [WindowSearchProvider(source: .app, delay: .milliseconds(100), count: 8)])
@@ -1378,48 +1379,47 @@ enum LauncherWindowRegression {
         }
         panel.onBlur = {}
         panel.makeFirstResponder(field)
-        model.inputText = "many"
-        try await Task.sleep(for: .milliseconds(1000))
+        try await Task.sleep(for: .milliseconds(100))
+        try require(panel.frame.height == LauncherLayout.inputHeight, "new presentation must start compact")
+        model.inputText = "help me test"
+        try await Task.sleep(for: .milliseconds(650))
+        try require(model.results.count == 1 && panel.frame.height == LauncherLayout.expandedHeight,
+                    "a single result must open the full expanded height: height=\(panel.frame.height), results=\(model.results.count), query=\(model.query)")
         let expanded = panel.frame.height
         let top = panel.frame.maxY
         let inputTop = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
         let editor = field.currentEditor()
-        model.inputText = "help me test"
-        try require(model.results.count == 1, "replacement query must have one result")
-        let contentChangedAt = ProcessInfo.processInfo.systemUptime
-        var firstShrinkMS: Double?
-        var previous = expanded
-        var samples = Set<Int>()
-        var maxGap = 0.0
-        var lastSample = ProcessInfo.processInfo.systemUptime
-        for _ in 0..<180 {
-            try await Task.sleep(for: .milliseconds(8))
-            let now = ProcessInfo.processInfo.systemUptime
-            maxGap = max(maxGap, now - lastSample)
-            lastSample = now
-            let height = panel.frame.height
-            if firstShrinkMS == nil && height < expanded - 1 {
-                firstShrinkMS = (now - contentChangedAt) * 1000
+        for query in ["many", "help me test", "", "1+2", "sw"] {
+            model.inputText = query
+            for _ in 0..<35 {
+                try await Task.sleep(for: .milliseconds(16))
+                try require(panel.frame.height == expanded && panel.frame.maxY == top,
+                            "result counts, empty input and cards must retain expanded geometry")
+                try require(abs(panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY - inputTop) < 0.01 &&
+                            field.currentEditor() === editor, "content changes must preserve editor and input position")
             }
-            try require(height <= previous + 1, "shrinking must not reverse direction")
-            try require(panel.frame.maxY == top &&
-                        abs(panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY - inputTop) < 0.01,
-                        "shrinking must keep window and editor top fixed")
-            try require(abs(content.frame.height - height) < 0.01,
-                        "glass must resize with the window in the same frame")
-            try require(panel.alphaValue == 1 && panel.isVisible && field.currentEditor() === editor,
-                        "shrinking must preserve visibility and field editor")
-            if height < expanded { samples.insert(Int(height)) }
-            previous = height
         }
-        try require(panel.frame.height < expanded - LauncherLayout.rowHeight * 3,
-                    "fewer results must settle at a shorter height: before=\(expanded), after=\(panel.frame.height), results=\(model.results.count), searching=\(model.isSearching), query=\(model.query)")
-        try require(firstShrinkMS.map { $0 < 150 } == true,
-                    "new content must start shrinking without a deferred hold: firstShrinkMS=\(String(describing: firstShrinkMS))")
-        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            try require(samples.count >= 4, "shrinking must have intermediate frames")
+        model.submit(.executeSelection)
+        try require(model.filter == .windows, "Return must enter window mode")
+        for _ in 0..<35 {
+            try await Task.sleep(for: .milliseconds(16))
+            try require(panel.frame.height == expanded, "sw loading and completion must keep expanded height")
         }
-        print("PASS: result shrink, firstShrinkMS=\(firstShrinkMS!), intermediateHeights=\(samples.count), maximumSampleGapMS=\(maxGap * 1000)")
+        model.leaveCommand()
+        model.inputText = "help me test"
+        try await Task.sleep(for: .milliseconds(400))
+        let capture = Process()
+        capture.executableURL = URL(filePath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-l", String(panel.windowNumber),
+                             "build/launcher-fixed-expanded-\(NSApp.appearance!.name.rawValue).png"]
+        try capture.run(); capture.waitUntilExit()
+        try require(capture.terminationStatus == 0, "fixed expanded screenshot must succeed")
+        controller.hide()
+        controller.show()
+        panel.onBlur = {}
+        try await Task.sleep(for: .milliseconds(400))
+        try require(panel.frame.height == LauncherLayout.inputHeight, "hide and reopen must reset to compact")
+        print("PASS: fixed expanded height, single/many/empty/calculation/sw, stable editor, compact reopen")
     }
 
     private static func checkFirstPresentation() async throws {
@@ -1571,7 +1571,7 @@ enum LauncherWindowRegression {
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
             maxInputDrift = max(maxInputDrift, abs(top - inputTop))
         }
-        try require(panel.frame.height < baseline.height, "settled smaller results must release reserved height")
+        try require(panel.frame.height == baseline.height, "settled smaller results must retain expanded height")
         try require(!model.results.contains { $0.source == .app || $0.source == .file }, "empty provider batches must remove old results")
         model.inputText = ""
         for _ in 0..<60 {
@@ -1579,7 +1579,7 @@ enum LauncherWindowRegression {
             let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
             maxInputDrift = max(maxInputDrift, abs(top - inputTop))
         }
-        try require(abs(panel.frame.height - 52) <= 1, "clearing input must restore the 52 pt field")
+        try require(panel.frame.height == baseline.height, "clearing input must retain expanded height")
         print("settledChangeSamples=160 inputDrift=\(maxInputDrift)")
         try require(maxInputDrift <= 1, "shrinking/clearing results must preserve input position")
 

@@ -351,6 +351,7 @@ struct LauncherView: View {
     var onHeightChange: (CGFloat) -> Void = { _ in }
     var onChromeChange: (LauncherChrome) -> Void = { _ in }
     @State private var statusHeight: CGFloat = 0
+    @State private var resultListHeight: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
 
     private var shellShape: RoundedRectangle {
@@ -385,6 +386,9 @@ struct LauncherView: View {
             }
             .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: onHeightChange)
             .onChange(of: chrome, initial: true) { _, chrome in onChromeChange(chrome) }
+            .onChange(of: model.isSearching) { _, searching in
+                if !searching && model.results.isEmpty { resultListHeight = 0 }
+            }
     }
 
     private var searchShell: some View {
@@ -460,10 +464,13 @@ struct LauncherView: View {
                                - LauncherLayout.dividerHeight - LauncherLayout.currencyCardHeight - statusHeight,
                                excludedCurrencyCode: query.to)
                 }
-            } else if !model.results.isEmpty {
+            } else if !model.results.isEmpty || (model.isSearching && resultListHeight > 0) {
                 inputDivider
                 ResultList(model: model, maxHeight: maxShellHeight
                            - inputHeight - LauncherLayout.dividerHeight - statusHeight)
+                    // Keep the list mounted through the empty loading state so
+                    // its retained height survives entering a search command.
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { resultListHeight = $0 }
             }
             if let s = model.status {
                 Text(s).font(.system(size: 14)).foregroundStyle(ThemeColor.kTextSubtle)

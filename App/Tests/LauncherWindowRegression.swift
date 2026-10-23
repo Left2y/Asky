@@ -45,6 +45,8 @@ enum LauncherWindowRegression {
                     application.appearance = NSAppearance(named: appearance)
                     if CommandLine.arguments.contains("--first-presentation") {
                         try await checkFirstPresentation()
+                    } else if CommandLine.arguments.contains("--command-transition") {
+                        try await checkCommandTransition()
                     } else if CommandLine.arguments.contains("--result-motion") {
                         try await checkResultMotion()
                     } else if CommandLine.arguments.contains("--alias-results") {
@@ -1323,6 +1325,40 @@ enum LauncherWindowRegression {
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(panel.frame.height - 52) <= 1, "reopen must not resume a stale reveal")
         print("result motion: intermediateSamples=\(intermediateHeights.count), collapseHeights=\(collapseHeights.count), inputDrift=\(maxDrift), keyboard/clear/reversal/interruption/reopen passed")
+    }
+
+    private static func checkCommandTransition() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-command-transition-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        let model = LauncherModel(app: app, searchProviders: [])
+        let controller = LauncherController(model: model)
+        NSApp.activate(ignoringOtherApps: true)
+        controller.show()
+        defer { controller.hide() }
+        guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
+            throw NSError(domain: "LauncherWindowRegression", code: 2)
+        }
+        panel.onBlur = {}
+        model.inputText = "sw"
+        try await Task.sleep(for: .milliseconds(500))
+        let commandHeight = panel.frame.height
+        try require(model.results.first?.target.identifier == "windows", "sw must select the window command")
+        model.submit(.executeSelection)
+        try require(model.filter == .windows && model.isSearching && model.results.isEmpty,
+                    "Return must enter the window search loading state")
+        // Window enumeration starts after 100 ms; sample the real panel during
+        // that empty interval to catch a collapse before results arrive.
+        for _ in 0..<8 {
+            try await Task.sleep(for: .milliseconds(8))
+            try require(abs(panel.frame.height - commandHeight) <= 1,
+                        "entering sw must retain list height while loading: before=\(commandHeight), now=\(panel.frame.height)")
+        }
+        try await Task.sleep(for: .milliseconds(500))
+        model.reset()
+        try await Task.sleep(for: .milliseconds(500))
+        try require(abs(panel.frame.height - 52) <= 1, "reset must release retained search height")
+        print("PASS: sw Return retains loading height; reset collapses normally")
     }
 
     private static func checkFirstPresentation() async throws {

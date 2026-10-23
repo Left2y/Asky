@@ -1386,6 +1386,8 @@ enum LauncherWindowRegression {
         let editor = field.currentEditor()
         model.inputText = "help me test"
         try require(model.results.count == 1, "replacement query must have one result")
+        let contentChangedAt = ProcessInfo.processInfo.systemUptime
+        var firstShrinkMS: Double?
         var previous = expanded
         var samples = Set<Int>()
         var maxGap = 0.0
@@ -1396,6 +1398,9 @@ enum LauncherWindowRegression {
             maxGap = max(maxGap, now - lastSample)
             lastSample = now
             let height = panel.frame.height
+            if firstShrinkMS == nil && height < expanded - 1 {
+                firstShrinkMS = (now - contentChangedAt) * 1000
+            }
             try require(height <= previous + 1, "shrinking must not reverse direction")
             try require(panel.frame.maxY == top &&
                         abs(panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY - inputTop) < 0.01,
@@ -1409,10 +1414,12 @@ enum LauncherWindowRegression {
         }
         try require(panel.frame.height < expanded - LauncherLayout.rowHeight * 3,
                     "fewer results must settle at a shorter height: before=\(expanded), after=\(panel.frame.height), results=\(model.results.count), searching=\(model.isSearching), query=\(model.query)")
+        try require(firstShrinkMS.map { $0 < 150 } == true,
+                    "new content must start shrinking without a deferred hold: firstShrinkMS=\(String(describing: firstShrinkMS))")
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             try require(samples.count >= 4, "shrinking must have intermediate frames")
         }
-        print("PASS: result shrink, intermediateHeights=\(samples.count), maximumSampleGapMS=\(maxGap * 1000)")
+        print("PASS: result shrink, firstShrinkMS=\(firstShrinkMS!), intermediateHeights=\(samples.count), maximumSampleGapMS=\(maxGap * 1000)")
     }
 
     private static func checkFirstPresentation() async throws {

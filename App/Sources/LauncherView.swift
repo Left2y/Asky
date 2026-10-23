@@ -763,12 +763,9 @@ private struct ResultList: View {
             .task(id: LayoutRequest(query: model.query, height: height, isSearching: model.isSearching)) {
                 let target = height
                 if target < retainedHeight {
-                    // A replacement query can temporarily have fewer matching rows.
-                    // Hold their footprint until typing/batch delivery settles so
-                    // the glass/window does not collapse and expand per character.
+                    // Hold the footprint only while replacement results are
+                    // pending. Once delivered, resize with the new content.
                     guard !model.isSearching else { return }
-                    do { try await Task.sleep(for: .milliseconds(200)) }
-                    catch { return }
                 }
                 guard !Task.isCancelled else { return }
                 retainedHeight = target

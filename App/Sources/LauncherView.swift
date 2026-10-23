@@ -317,7 +317,7 @@ final class LauncherController {
         // AppKit's origin is at the bottom left; the input stays anchored while expanding down.
         // Step the actual glass window, preserving the fixed hosting canvas and
         // field editor. Retarget from the current height when another batch arrives.
-        if panel.isVisible, height > LauncherLayout.inputHeight,
+        if panel.isVisible,
            !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             resultReveal.animate(to: Double(height), response: 0.18, damping: 1, in: panel)
         } else {

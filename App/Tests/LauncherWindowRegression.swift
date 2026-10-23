@@ -1285,8 +1285,31 @@ enum LauncherWindowRegression {
         capture.waitUntilExit()
         try require(capture.terminationStatus == 0, "result motion screenshot must succeed")
         model.inputText = ""
-        try await Task.sleep(for: .milliseconds(50))
-        try require(abs(panel.frame.height - 52) <= 1, "clear must collapse immediately")
+        var collapseHeights: Set<Int> = []
+        for _ in 0..<65 {
+            try await Task.sleep(for: .milliseconds(8))
+            let height = panel.frame.height
+            if height > 53 && height < 432 { collapseHeights.insert(Int(height)) }
+            let top = panel.convertToScreen(field.convert(field.bounds, to: nil)).maxY
+            try require(abs(top - inputTop) < 0.01 && abs(panel.frame.maxY - windowTop) < 0.01,
+                        "collapse must keep the input and window top stationary")
+        }
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            try require(collapseHeights.count >= 4,
+                        "clearing must visit multiple intermediate window heights")
+        }
+        try require(abs(panel.frame.height - 52) <= 1 && field.currentEditor() === editor,
+                    "clear must settle at input height and preserve the editor")
+        model.inputText = "s"
+        try await Task.sleep(for: .milliseconds(500))
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(60))
+        model.inputText = "sa"
+        try await Task.sleep(for: .milliseconds(500))
+        try require(abs(panel.frame.height - 433) <= 1,
+                    "typing during collapse must retarget the window back to its results")
+        model.inputText = ""
+        try await Task.sleep(for: .milliseconds(500))
         model.inputText = "sa"
         try await Task.sleep(for: .milliseconds(60))
         model.inputText = ""
@@ -1299,7 +1322,7 @@ enum LauncherWindowRegression {
         panel.onBlur = {}
         try await Task.sleep(for: .milliseconds(400))
         try require(abs(panel.frame.height - 52) <= 1, "reopen must not resume a stale reveal")
-        print("result motion: intermediateSamples=\(intermediateHeights.count), inputDrift=\(maxDrift), keyboard/clear/interruption/reopen passed")
+        print("result motion: intermediateSamples=\(intermediateHeights.count), collapseHeights=\(collapseHeights.count), inputDrift=\(maxDrift), keyboard/clear/reversal/interruption/reopen passed")
     }
 
     private static func checkFirstPresentation() async throws {

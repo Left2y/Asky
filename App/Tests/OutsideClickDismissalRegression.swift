@@ -11,6 +11,11 @@ enum OutsideClickDismissalRegression {
     static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
+        if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--background" {
+            runBackground(log: URL(fileURLWithPath: CommandLine.arguments[2]))
+            app.run()
+            return
+        }
         Task { @MainActor in
             do {
                 try await check()
@@ -22,6 +27,26 @@ enum OutsideClickDismissalRegression {
             }
         }
         app.run()
+    }
+
+    /// A separate process proves the global monitor path, without sharing AppKit dispatch.
+    static func runBackground(log: URL) {
+        let window = NSWindow(contentRect: NSRect(x: 150, y: 200, width: 480, height: 240),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.title = "Asky background input regression"
+        window.isReleasedWhenClosed = false
+        var events: [String] = []
+        _ = NSEvent.addLocalMonitorForEvents(matching: [
+            .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown, .rightMouseUp, .scrollWheel
+        ]) { event in
+            MainActor.assumeIsolated {
+                events.append(String(event.type.rawValue))
+                try? events.joined(separator: "\n").write(to: log, atomically: true, encoding: .utf8)
+            }
+            return event
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     static func require(_ condition: Bool, _ message: String) throws {
@@ -64,7 +89,7 @@ enum OutsideClickDismissalRegression {
         defer { dismissal.hide(); popup.orderOut(nil); background.orderOut(nil) }
         func show() {
             popup.orderFrontRegardless()
-            dismissal.show(below: popup, contains: { popup.frame.contains($0) }, dismiss: {
+            dismissal.show(contains: { popup.frame.contains($0) }, dismiss: {
                 dismissals += 1
                 dismissal.hide()
                 popup.orderOut(nil)
@@ -80,17 +105,57 @@ enum OutsideClickDismissalRegression {
         try require(popup.isVisible && dismissals == 0, "Internal click dismissed popup")
         try await click(point, drag: true)
         try require(!popup.isVisible && dismissals == 1, "Outside press did not dismiss")
-        try require(counter.clicks == 1, "Closing click or release activated background button")
+        try require(counter.clicks == 2, "Outside click/drag did not reach background button")
         try await click(point)
-        try require(counter.clicks == 2, "Next click blocked by a leftover shield")
+        try require(counter.clicks == 3, "Next click was blocked")
         show()
         try await Task.sleep(for: .milliseconds(200))
         try await click(point, button: .right)
         try require(!popup.isVisible && dismissals == 2, "Right click did not dismiss")
         show()
-        dismissal.hide() // Fixed/pinned mode removes outside interception.
+        dismissal.hide() // Fixed/pinned mode stops dismissal observation.
         try await click(point)
-        try require(popup.isVisible && counter.clicks == 3, "Pinned popup blocked background")
+        try require(popup.isVisible && counter.clicks == 4, "Pinned popup blocked background")
         dismissal.hide()
+        popup.orderOut(nil)
+        background.orderOut(nil)
+
+        let log = FileManager.default.temporaryDirectory.appendingPathComponent("asky-input-\(UUID().uuidString).txt")
+        let helper = Process()
+        helper.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        helper.arguments = ["--background", log.path]
+        try helper.run()
+        defer {
+            helper.terminate()
+            helper.waitUntilExit()
+            try? FileManager.default.removeItem(at: log)
+        }
+        try await Task.sleep(for: .milliseconds(700))
+        func received(_ type: NSEvent.EventType) -> Bool {
+            let contents = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
+            return contents.split(separator: "\n").contains(Substring(String(type.rawValue)))
+        }
+        show()
+        try await Task.sleep(for: .milliseconds(200))
+        // Scrolling the background remains possible and does not dismiss a panel.
+        let screen = NSScreen.screens[0]
+        CGWarpMouseCursorPosition(CGPoint(x: point.x, y: screen.frame.maxY - point.y))
+        CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+                wheel1: 30, wheel2: 0, wheel3: 0)?.post(tap: .cghidEventTap)
+        try await Task.sleep(for: .milliseconds(200))
+        try require(received(.scrollWheel) && popup.isVisible, "Background scroll blocked or dismissed popup")
+        try await click(point, drag: true)
+        try require(!popup.isVisible && dismissals == 3, "Cross-app click did not dismiss")
+        try require(received(.leftMouseDown) && received(.leftMouseDragged) && received(.leftMouseUp),
+                    "Cross-app press/drag/release did not reach background")
+        show()
+        try await Task.sleep(for: .milliseconds(200))
+        try await click(point, button: .right)
+        try require(!popup.isVisible && dismissals == 4, "Cross-app right click did not dismiss")
+        try require(received(.rightMouseDown) && received(.rightMouseUp), "Cross-app right click was swallowed")
+        show()
+        dismissal.hide()
+        try await click(point)
+        try require(popup.isVisible && dismissals == 4, "Removed global observer still dismissed popup")
     }
 }

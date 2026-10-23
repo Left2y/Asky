@@ -292,7 +292,7 @@ final class LauncherController {
 
     private func updateOutsideClickDismissal() {
         guard panel.isVisible else { outsideClickDismissal.hide(); return }
-        outsideClickDismissal.show(below: panel, contains: { [weak self] point in
+        outsideClickDismissal.show(contains: { [weak self] point in
             guard let self else { return false }
             if self.model.isConfirmingPluginCommand { return true }
             let surfaces = [self.panel]

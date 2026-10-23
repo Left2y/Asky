@@ -576,7 +576,7 @@ enum ClipboardRegression {
                     return
                 }
                 if dragPreview || dragTest {
-                    // Keep the initial launch stable, then enable the real unpinned dismissal shield.
+                    // Keep the initial launch stable, then enable the real unpinned outside-click observer.
                     panel().makeKey()
                     controller.pinned = false
                 }

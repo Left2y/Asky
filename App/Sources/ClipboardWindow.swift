@@ -175,7 +175,7 @@ final class ClipboardController {
         panel.handleKey = { [weak self] in self?.handleActionKey($0) ?? false }
         panel.onOpenSettings = { [weak app] in app?.openSettings() }
         panel.shortcuts = { [weak app] in app?.preferences ?? SettingsPreferences() }
-        // Keyboard application switching must also release the outside-click shield.
+        // Keyboard application switching must also remove outside-click observation.
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { if let self, !self.pinned, !self.dragSource.active, !self.keepingOpenForPaste, !self.isConfirmingClearAll { self.hide() } }
         }
@@ -242,7 +242,7 @@ final class ClipboardController {
 
     private func updateOutsideClickDismissal() {
         guard !isConfirmingClearAll, panel.isVisible, (!pinned || isActionsMenuPresented), !dragSource.active else { outsideClickDismissal.hide(); return }
-        outsideClickDismissal.show(below: panel, contains: { [weak self] point in
+        outsideClickDismissal.show(contains: { [weak self] point in
             guard let self else { return false }
             return self.shellFrame.contains(point)
         }, dismiss: { [weak self] in
@@ -425,7 +425,7 @@ final class ClipboardController {
             return entry
         }
         dragSource.beginTracking(verifyNativeTextDrop: item.kind == .text)
-        // The outside-click shields are real windows and would intercept the destination's drop.
+        // Pause dismissal while dragging to another application.
         outsideClickDismissal.hide()
         dragSource.onEnd = { [weak self] operation, point, wasReleased in
             #if DEBUG

@@ -59,6 +59,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 
 - 🎨 **纯正 macOS 原生体验与隐私优先**
   - **现代视觉语言**：采用 AppKit 原生 Regular 玻璃与液态视觉质感，窗口平滑展开后保持固定高度，结果变化不再伸缩，完全清空普通搜索时收回单行输入，空查询搜索模式保持展开；严格适配系统“减少动态效果”。
+  - **背景交互**：点击搜索框外部时收起窗口，原始点击继续交给背景应用；背景滚动与拖动不受遮罩拦截。
   - **严格隐私保护**：不向作者服务器上传任何用户数据；API 密钥安全存放在 macOS 系统钥匙串中，数据完全归用户所有。详见[隐私政策](PRIVACY.md)。
 
 ---
@@ -199,6 +200,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 
 - 🎨 **Pure macOS Native Experience & Privacy First**
   - **Modern Interface**: Built with AppKit Regular Liquid Glass. Once expanded, the panel keeps a fixed height as results change. Clearing root search collapses it to the single input row; an empty query inside a search mode stays expanded. Supports smooth expansion and Reduce Motion.
+  - **Background Interaction**: Clicking outside the launcher dismisses it while delivering the original click to the background app. Background scrolling and dragging remain available.
   - **Privacy First**: Zero telemetry sent to author servers. Sensitive credentials and API keys are stored securely in the macOS Keychain. See [Privacy Policy](PRIVACY.md).
 
 ---

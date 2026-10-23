@@ -136,7 +136,7 @@ public actor ToolService {
 
     private func process(_ request: ActionRequest) async -> ExecutionResult {
         var candidate = adapters[request.tool]
-        if candidate == nil { candidate = await plugins.adapter(named: request.tool) }
+        if candidate == nil { candidate = await plugins.adapter(named: request.tool, origin: request.origin) }
         guard let adapter = candidate else {
             return .failure(request.requestID, .unknownTool, CoreLocalization.format("未知工具：%@", String(describing: request.tool)))
         }

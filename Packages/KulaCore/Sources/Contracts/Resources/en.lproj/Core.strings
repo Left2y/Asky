@@ -328,3 +328,10 @@
 "该交通方式暂无可用路线时间" = "No travel estimate is available for this transport mode.";
 "暂无可用路线时间，不能生成具体出发建议，请稍后重试" = "No travel estimates are available. A specific departure recommendation cannot be generated. Please try again later.";
 "耗时为估计，临近出发需刷新；不包含停车或打车等候时间，不提供公交线路与换乘详情；不能把驾车耗时当成打车总耗时" = "Travel times are estimates; refresh near departure. Parking and taxi waits are excluded. Transit lines and transfer details are unavailable. Driving time is not total taxi travel time.";
+
+/* Launcher plugins */
+"插件命令定义无效" = "Invalid plugin command definitions";
+"插件命令定义无效：%@" = "Invalid plugin command: %@";
+"插件结果必须包含文本或列表" = "Plugin output must contain text or items";
+"插件结果格式无效" = "Invalid plugin result";
+"插件结果链接必须使用 HTTP 或 HTTPS" = "Plugin result URLs must use HTTP or HTTPS";

@@ -55,7 +55,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 - 🧩 **系统生态与扩展**
   - **macOS 系统集成**：按授权安全访问系统日历、提醒事项、备忘录与通讯录。
   - **MCP 协议支持**：内置 MCP（Model Context Protocol）桥接，可无缝连接外部工具生态。
-  - **可信插件体系**：支持用户主动安装 GitHub 插件，官方提供 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca)。
+  - **可信插件体系**：支持用户主动安装 GitHub 插件；插件可提供无需 AI 的启动器命令与动态搜索结果，支持复制和打开链接，详见[插件开发](docs/plugins.md)。官方提供 [飞书插件](https://github.com/Niall-Young/asky-plugin-lark) 与 [Orca 插件](https://github.com/Niall-Young/asky-plugin-orca)。
 
 - 🎨 **纯正 macOS 原生体验与隐私优先**
   - **现代视觉语言**：采用 AppKit 原生 Regular 玻璃与液态视觉质感，窗口平滑展开，严格适配系统“减少动态效果”。
@@ -187,7 +187,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 - 🧩 **System Integration & Extensibility**
   - **macOS Native Access**: Authorized access to system Calendars, Reminders, Notes, and Contacts.
   - **MCP Protocol**: Built-in Model Context Protocol bridge for broad compatibility with external tooling ecosystems.
-  - **Trusted Plugin System**: Install community plugins from GitHub on demand, featuring official plugins for [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
+  - **Trusted Plugin System**: Install plugins from GitHub on demand. Plugins can provide launcher commands and dynamic search results without AI, with copy and open-link actions; see the [plugin guide](docs/plugins.md). Official integrations include [Feishu](https://github.com/Niall-Young/asky-plugin-lark) and [Orca](https://github.com/Niall-Young/asky-plugin-orca).
 
 - 🎨 **Pure macOS Native Experience & Privacy First**
   - **Modern Interface**: Engineered with AppKit Regular Liquid Glass, smooth window transitions, and full support for Reduce Motion.

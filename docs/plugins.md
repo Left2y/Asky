@@ -2,6 +2,48 @@
 
 Asky 插件是用户主动安装的可信本机代码。主应用携带插件宿主，不携带官方插件实现；官方与自行安装的插件使用同一套安装和执行接口。官方插件各自拥有独立仓库，包括 [Orca](https://github.com/Niall-Young/asky-plugin-orca) 与 [飞书 / Lark](https://github.com/Niall-Young/asky-plugin-lark)。不提供系统沙箱，也不宣称能力声明能限制插件自行执行的代码。
 
+插件可以同时提供启动器功能和 Agent 工具，也可以只提供其中一种。启动器命令无需模型配置、不启动 AI 会话；既有只声明 `tools` 的插件继续兼容。已有 Orca / 飞书插件不会自动获得启动器入口，需要插件作者声明 `commands`。
+
+## 启动器功能扩展
+
+安装并启用后，在普通搜索中按命令标题、插件名称或触发词查找入口，回车进入。唯一且未与已有内置指令、网页指令或别名冲突的触发词可用 `触发词 空格` 直接进入。重名触发词不抢占已有路由，仍可按标题选择入口。Esc 返回普通搜索并保留输入，空输入退格退出；隐藏窗口取消当前调用并清理临时结果，不撤销已完成的外部操作。
+
+清单增加可选的 `commands` 数组，每个插件最多 64 项；每项引用同一清单中的一个工具：
+
+```json
+{
+  "commands": [
+    {"name": "text", "title": "Text Tools", "keyword": "text", "tool": "transform", "mode": "search", "queryArgument": "text"},
+    {"name": "uuid", "title": "Generate UUID", "keyword": "uuid", "tool": "uuid", "mode": "action"}
+  ]
+}
+```
+
+- `name`：插件内唯一标识，沿用工具名的字符规则；`title` 为入口名称，可选 `subtitle` 为描述。
+- `keyword`：可选触发词，沿用工具名的字符规则，不覆盖内置或用户已有触发词。
+- `tool`：引用工具名称；执行仍经 ToolService 的权限、确认、超时、取消、状态与回读流程。
+- `mode: "search"`：进入后按输入动态查询，150 ms 防抖，取消旧查询并丢弃过期结果；引用的工具必须为 `read`，空输入也会查询。最多显示前 200 项。
+- `mode: "action"`：无 `queryArgument` 时，选择入口立即执行；有该字段时，进入输入模式，编辑参数后回车执行，不随输入自动执行。
+- `queryArgument`：可选，指定接收输入文本的字符串属性。不声明时传入 `{}`；声明时传入例如 `{"text":"用户输入"}`。工具不能要求宿主未提供的其他必填参数，确认保留字段不能作为输入属性。
+
+工具新增可选的 `agentVisible`（默认 true）。设为 false 时，不向 Agent 发布该工具，Agent 也不能直接调用它；引用它的启动器命令仍可使用。因此纯功能插件可以将其所有工具设为 false，不要求提供 Agent 指导文件。所有插件仍需声明 `tools`，命令直接复用这些实现。
+
+工具通过既有 `execute(args, context)` 返回原生展示数据：
+
+```js
+return {
+  items: [
+    { id: 'encoded', title: 'hello%20world', subtitle: 'URL Encode', copy: 'hello%20world' },
+    { id: 'site', title: 'Example', url: 'https://example.com' }
+  ]
+};
+// 单个文本结果：return { text: 'value' };
+```
+
+列表项 `id` 在本次结果中唯一，`title` 非空，`subtitle` 可选。`copy` 添加复制动作，`url` 添加 HTTP/HTTPS 打开动作；同时声明时复制为主动作，打开位于 `⌘K` 菜单。无动作的项目只展示。`text` 生成可复制的单条结果，`items: []` 显示无匹配状态。宿主不会执行返回内容中的 HTML、脚本、Shell 或工具调用。写命令只有执行完成并通过原有回读流程后才展示成功结果；未知结果显示待核实，不自动重放。
+
+可运行的 [Text Tools 示例](../examples/plugins/text-tools/asky-plugin.json) 提供 URL 编解码、Base64 编码和 UUID 生成，无 npm 依赖。将 `examples/plugins/text-tools/` 的内容放到公开 GitHub 仓库根目录，即可沿用设置中的 GitHub 安装流程；应用不会自动安装示例，也不修改用户现有插件配置。本版使用原生结果列表，不提供插件自定义 HTML 或任意窗口视图接口。
+
 ## 安装与生命周期
 
 设置 › 插件可安装官方插件或添加公开 GitHub HTTPS 仓库根目录链接。清单必须位于默认分支根目录。首版不支持私有仓库认证、子目录安装或 Pi 扩展直接兼容。

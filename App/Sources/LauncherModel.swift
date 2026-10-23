@@ -80,6 +80,17 @@ struct TerminalSession: Identifiable {
 final class LauncherModel {
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
+    private var pluginCommands: [PluginLauncherCommand] = []
+    private(set) var pluginScope: PluginLauncherCommand?
+    private var pluginText = ""
+    private var pluginCatalogTask: Task<Void, Never>?
+    private var pluginTask: Task<Void, Never>?
+    private var pluginRunID: UUID?
+    var isConfirmingPluginCommand: Bool {
+        pluginRunID != nil && app.confirmations.queue.contains {
+            $0.request.origin == .launcher && $0.request.tool.hasPrefix("plugin_")
+        }
+    }
     private var windowSnapshot: LauncherWindowSnapshot?
     var windowActionFullScreen: Bool? = false
     var windowActionCanMoveDisplay = ToolService.launcherHasMultipleDisplays
@@ -89,6 +100,7 @@ final class LauncherModel {
 
     func setFilter(_ value: LauncherFilter, query: String? = nil) {
         let text = query ?? inputText
+        pluginScope = nil
         folderStack = []
         folderText = ""
         windowSnapshot = nil
@@ -103,7 +115,7 @@ final class LauncherModel {
 
     /// Category prefixes are parsed only at the root, never inside another mode or folder.
     private func enterCategoryCommand(_ value: String) -> Bool {
-        guard filter == .all, folderScope == nil, !inputState.hasScope,
+        guard pluginScope == nil, filter == .all, folderScope == nil, !inputState.hasScope,
               let separator = value.firstIndex(where: \.isWhitespace) else { return false }
         let token = String(value[..<separator])
         guard let command = LauncherFilter.commands.first(where: {
@@ -128,10 +140,11 @@ final class LauncherModel {
         set { storedInputState = newValue }
     }
     var query: String {
-        get { folderScope != nil ? folderText : filter == .all ? inputState.rawQuery : filterText }
+        get { pluginScope != nil ? pluginText : folderScope != nil ? folderText : filter == .all ? inputState.rawQuery : filterText }
         set {
-            if enterCategoryCommand(newValue) { return }
-            if folderScope != nil { folderText = newValue }
+            if enterPluginCommand(newValue) || enterCategoryCommand(newValue) { return }
+            if pluginScope != nil { pluginText = newValue }
+            else if folderScope != nil { folderText = newValue }
             else if filter == .all { inputState.replaceRawQuery(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
             update()
@@ -209,6 +222,21 @@ final class LauncherModel {
     }
 
     func rebuildProviders() {
+        pluginCatalogTask?.cancel()
+        pluginCatalogTask = Task { [weak self] in
+            guard let self else { return }
+            let commands = await self.app.tools.plugins.launcherCommands()
+            guard !Task.isCancelled else { return }
+            guard commands != self.pluginCommands else { return }
+            self.pluginCommands = commands
+            if let scope = self.pluginScope, !commands.contains(where: { $0 == scope }) {
+                self.pluginTask?.cancel()
+                self.pluginRunID = nil
+                self.pluginScope = nil
+                self.pluginText = ""
+            }
+            if self.pluginRunID == nil, !self.enterPluginCommand(self.query) { self.update() }
+        }
         if searchProviders == nil { apps.prewarm() }
         chromeAccessTask?.cancel()
         chromeBookmarkAccessAllowed = chromeAccessOverride ?? (searchProviders != nil)
@@ -220,6 +248,7 @@ final class LauncherModel {
             guard !Task.isCancelled else { return }
             self.chromeBookmarkAccessAllowed = state == .authorized
             self.configureProviders()
+            guard self.pluginScope == nil else { return }
             let rawQuery = self.query
             if self.filter == .all, self.folderScope == nil {
                 self.inputState.replaceRawQuery(rawQuery, keywords: self.app.keywords,
@@ -277,6 +306,11 @@ final class LauncherModel {
 
     /// Panel hidden: cancel work and drop result payloads (resource scope = panel).
     func reset() {
+        pluginCatalogTask?.cancel()
+        pluginTask?.cancel()
+        pluginRunID = nil
+        pluginScope = nil
+        pluginText = ""
         windowSnapshot = nil
         folderStack = []
         folderText = ""
@@ -335,13 +369,14 @@ final class LauncherModel {
     var isBookmarkScope: Bool { inputState.bookmarks }
     var isLinkScope: Bool { inputState.links }
     var isAIScope: Bool { inputState.ai }
-    var hasScope: Bool { filter != .all || folderScope != nil || inputState.hasScope }
+    var hasScope: Bool { pluginScope != nil || filter != .all || folderScope != nil || inputState.hasScope }
 
     var inputText: String {
-        get { folderScope != nil ? folderText : filter == .all ? inputState.text : filterText }
+        get { pluginScope != nil ? pluginText : folderScope != nil ? folderText : filter == .all ? inputState.text : filterText }
         set {
-            if enterCategoryCommand(newValue) { return }
-            if folderScope != nil { folderText = newValue }
+            if enterPluginCommand(newValue) || enterCategoryCommand(newValue) { return }
+            if pluginScope != nil { pluginText = newValue }
+            else if folderScope != nil { folderText = newValue }
             else if filter == .all { inputState.edit(newValue, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks) }
             else { filterText = newValue }
             update()
@@ -350,6 +385,14 @@ final class LauncherModel {
 
     func leaveCommand() {
         guard hasScope else { return }
+        if pluginScope != nil {
+            let text = pluginText
+            pluginScope = nil
+            pluginText = ""
+            inputState.replaceRawQuery(text, keywords: app.keywords, bookmarksEnabled: canSearchBookmarks)
+            update()
+            return
+        }
         if let previous = folderStack.popLast() {
             folderText = folderStack.isEmpty ? "" : previous.previousText
             update()
@@ -364,6 +407,11 @@ final class LauncherModel {
     }
 
     func backspaceOnEmptyInput() -> Bool {
+        if pluginScope != nil {
+            guard pluginText.isEmpty else { return false }
+            leaveCommand()
+            return true
+        }
         if folderScope != nil {
             guard folderText.isEmpty else { return false }
             if app.preferences.folderBackspaceBehavior == .exitNavigation {
@@ -418,6 +466,8 @@ final class LauncherModel {
     }
 
     private func update() {
+        pluginTask?.cancel()
+        pluginRunID = nil
         closeActionsMenu()
         builtInCommandIDs = [:]
         if inputState.bookmarks && !canSearchBookmarks {
@@ -432,6 +482,10 @@ final class LauncherModel {
         bookmarkCoordinator?.cancel()
         tabCoordinator?.cancel()
         currencyTask?.cancel()
+        if let scope = pluginScope {
+            updatePluginScope(scope)
+            return
+        }
         if let folder = folderScope {
             searchFolder(folder)
             return
@@ -611,6 +665,76 @@ final class LauncherModel {
         publish()
     }
 
+    private func pluginEntry(_ entry: PluginLauncherCommand, kind: String) -> SearchResult {
+        SearchResult(source: .keyword, target: TargetRef(kind: kind, identifier: entry.id),
+                     title: entry.command.title, subtitle: entry.command.subtitle ?? entry.pluginName,
+                     actions: [.open], score: 100)
+    }
+
+    private func enterPluginCommand(_ value: String) -> Bool {
+        guard pluginScope == nil, filter == .all, folderScope == nil, !inputState.hasScope,
+              let separator = value.firstIndex(where: \.isWhitespace) else { return false }
+        let token = String(value[..<separator])
+        // Existing user-defined and built-in triggers always keep their meaning.
+        guard token != app.settings.terminalCommandKeyword,
+              !app.keywords.commands.contains(where: { $0.keyword.caseInsensitiveCompare(token) == .orderedSame }),
+              !AppModel.searchCommands.contains(where: { app.isSearchCommandEnabled($0.0) && app.commandKeyword($0.0).caseInsensitiveCompare(token) == .orderedSame }),
+              !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(token) == .orderedSame }) else { return false }
+        let matches = pluginCommands.filter { $0.command.keyword?.caseInsensitiveCompare(token) == .orderedSame }
+        guard matches.count == 1, let entry = matches.first else { return false }
+        enterPlugin(entry, text: String(value[value.index(after: separator)...]))
+        return true
+    }
+
+    private func enterPlugin(_ entry: PluginLauncherCommand, text: String) {
+        pluginScope = entry
+        pluginText = text
+        inputState.leaveCommand()
+        update()
+    }
+
+    private func updatePluginScope(_ entry: PluginLauncherCommand) {
+        batches = []
+        remainingSearchProviders = 0
+        isSearching = false
+        direct = []
+        if entry.command.mode == .search {
+            runPlugin(entry, debounce: true)
+        } else {
+            direct = [pluginEntry(entry, kind: "plugin-run")]
+            publish()
+        }
+    }
+
+    private func runPlugin(_ entry: PluginLauncherCommand, debounce: Bool = false) {
+        guard pluginRunID == nil else { return }
+        let text = pluginText
+        let runID = UUID()
+        pluginRunID = runID
+        isSearching = true
+        direct = []
+        publish()
+        pluginTask = Task { [weak self] in
+            guard let self else { return }
+            if debounce {
+                do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+            }
+            let result = await self.app.tools.runPluginCommand(id: entry.id, query: text)
+            guard !Task.isCancelled, self.pluginRunID == runID, self.pluginScope == entry, self.pluginText == text else { return }
+            self.pluginRunID = nil
+            self.isSearching = false
+            if result.status == .completed, let output = result.output ?? result.readback {
+                do {
+                    self.direct = try PluginLauncherOutput.results(output, commandID: entry.id)
+                    self.status = self.direct.isEmpty ? NSLocalizedString(entry.command.mode == .action ? "已完成" : "没有匹配结果", tableName: "Plugins", comment: "") : nil
+                } catch { self.status = error.localizedDescription }
+            } else {
+                self.status = result.error?.message ?? NSLocalizedString(result.status == .pendingVerification ? "操作结果尚未核实" : "操作未完成", tableName: "Plugins", comment: "")
+            }
+            self.publish()
+        }
+    }
+
     func windowApplicationPath(for result: SearchResult) -> String? {
         guard result.target.kind == "application-window" else { return nil }
         return windowSnapshot?.entries.first { $0.id == result.target.identifier }?.applicationPath
@@ -733,11 +857,17 @@ final class LauncherModel {
 
     private func publish() {
         var merged = direct + ResultMerger.merge(batches, limit: filter.displayLimit)
+        if filter == .all, !hasScope, case .search(let text) = router.route(query) {
+            merged += pluginCommands.compactMap { entry in
+                guard FuzzyMatch.score(text, in: [entry.command.title, entry.command.keyword ?? "", entry.pluginName].joined(separator: " ")) != nil else { return nil }
+                return pluginEntry(entry, kind: "plugin-command")
+            }
+        }
         // Generic search shortcuts are not local matches. Plain text with no
         // concrete target falls back to AI regardless of its wording.
         if filter == .all, !hasScope, case .search = router.route(query) {
             let hasLocalMatch = merged.contains {
-                if $0.target.kind == "search-command" { return true }
+                if ["search-command", "plugin-command"].contains($0.target.kind) { return true }
                 return ($0.source != .keyword || ($0.target.kind == "keyword-match" || $0.target.kind == "launcher-alias" || QuitAskyCommand.isResult($0))) && $0.source != .askAI && $0.target.kind != "bookmark-search" && $0.target.kind != "tab-search"
             }
             if !hasLocalMatch { merged = [] }
@@ -769,8 +899,8 @@ final class LauncherModel {
             }
         }
         // Exact command triggers must remain visible ahead of fuzzy app/shortcut matches.
-        let exactEntries = merged.filter { $0.target.kind == "search-command" }
-        merged = exactEntries + merged.filter { $0.target.kind != "search-command" }
+        let exactEntries = merged.filter { ["search-command", "plugin-command"].contains($0.target.kind) }
+        merged = exactEntries + merged.filter { !["search-command", "plugin-command"].contains($0.target.kind) }
         merged = merged.filter(QuitAskyCommand.isResult) + merged.filter { !QuitAskyCommand.isResult($0) }
         if isActionsMenuPresented, merged.indices.contains(selection), merged[selection] != actionMenuTarget {
             closeActionsMenu()
@@ -877,6 +1007,32 @@ final class LauncherModel {
         closeActionsMenu()
         guard let action else { return }
         guard ![.link, .bookmark].contains(r.source) || canSearchBookmarks else { return }
+        if r.target.kind == "plugin-command" {
+            guard let entry = pluginCommands.first(where: { $0.id == r.target.identifier }) else { return }
+            enterPlugin(entry, text: "")
+            if entry.command.mode == .action && entry.command.queryArgument == nil { runPlugin(entry) }
+            return
+        }
+        if r.target.kind == "plugin-run", let entry = pluginScope {
+            runPlugin(entry)
+            return
+        }
+        if r.target.kind == "plugin-result" {
+            guard let scope = pluginScope else { return }
+            Task { [weak self] in
+                guard let self, await self.app.tools.plugins.launcherCommands().contains(scope), self.pluginScope == scope else { return }
+                switch action {
+                case .copy(let text):
+                    if ToolService.copyPluginText(text) { self.onHide() }
+                    else { self.status = NSLocalizedString("复制失败", tableName: "Plugins", comment: "") }
+                case .openURL(let url):
+                    if ToolService.openLauncherURL(url) { self.onHide() }
+                    else { self.status = NSLocalizedString("无法打开链接", tableName: "Plugins", comment: "") }
+                default: break
+                }
+            }
+            return
+        }
         if r.target.kind == "search-command" {
             guard AppModel.searchCommands.contains(where: { $0.0 == r.target.identifier }),
                   app.isSearchCommandEnabled(r.target.identifier) else { return }
@@ -1115,6 +1271,9 @@ extension LauncherModel {
         guard let result = selectedActionResult, let action = result.primaryAction else { return nil }
         if QuitAskyCommand.isResult(result) {
             return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
+        }
+        if ["plugin-command", "plugin-run"].contains(result.target.kind) {
+            return LauncherAction(title: result.title, icon: "tool", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == "application-window" {
             return LauncherAction(title: "切换窗口", icon: "web", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))

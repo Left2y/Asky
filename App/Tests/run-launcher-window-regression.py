@@ -25,7 +25,8 @@ for path in sorted(maps.glob("*.modulemap")):
 for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include"]:
     command += ["-I", str(derived_data / "SourcePackages/checkouts" / relative)]
 command += [str(root / "App/Sources" / (name + ".swift")) for name in sources]
-test_source = ("ColorPickerRegression.swift" if "--color-picker" in sys.argv else
+test_source = ("PluginLauncherRegression.swift" if "--plugins" in sys.argv else
+               "ColorPickerRegression.swift" if "--color-picker" in sys.argv else
                "CalculatorHistoryRegression.swift" if "--calculator-history" in sys.argv else
                "LauncherFilterSearchRegression.swift" if "--filter-search" in sys.argv else
                "LauncherFileSearchRegression.swift" if "--file-search" in sys.argv else
@@ -53,7 +54,11 @@ executable = bundle / "MacOS/LauncherWindowRegression"
 executable.unlink(missing_ok=True)
 shutil.copy2(binary, executable)
 shutil.copy2(products / "Asky.app/Contents/Resources/Assets.car", bundle / "Resources/Assets.car")
+if "--plugins" in sys.argv:
+    for language in ("en", "zh-Hans"):
+        source = root / "App/Resources" / (language + ".lproj")
+        shutil.copytree(source, bundle / "Resources" / source.name, dirs_exist_ok=True)
 with (bundle / "Info.plist").open("wb") as output:
-    plistlib.dump({"CFBundleExecutable": "LauncherWindowRegression", "CFBundleIdentifier": "app.asky.launcher-window-regression",
-                  "CFBundleName": "LauncherWindowRegression", "CFBundlePackageType": "APPL", "LSUIElement": True}, output)
+    plistlib.dump({"CFBundleExecutable": "LauncherWindowRegression", "CFBundleIdentifier": "app.asky.plugin-launcher-regression" if "--plugins" in sys.argv else "app.asky.launcher-window-regression",
+                  "CFBundleName": "LauncherWindowRegression", "CFBundlePackageType": "APPL", "LSUIElement": True, "KHSourceRoot": str(root)}, output)
 subprocess.run([str(executable), *sys.argv[1:]], env=environment, cwd=root, check=True)

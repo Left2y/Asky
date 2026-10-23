@@ -156,7 +156,7 @@ final class LauncherController {
         panel.onBlur = { [weak self] in
             guard let self else { return }
             self.model.closeActionsMenu()
-            guard !self.model.isConfirmingQuit else { return }
+            guard !self.model.isConfirmingQuit, !self.model.isConfirmingPluginCommand else { return }
             self.hide()
         }
         panel.onActionKey = { [weak model] event in
@@ -264,6 +264,7 @@ final class LauncherController {
         guard panel.isVisible else { outsideClickDismissal.hide(); return }
         outsideClickDismissal.show(below: panel, contains: { [weak self] point in
             guard let self else { return false }
+            if self.model.isConfirmingPluginCommand { return true }
             let surfaces = [self.panel]
             return surfaces.contains { $0.isVisible && !$0.ignoresMouseEvents && $0.alphaValue > 0 && $0.frame.contains(point) }
         }, dismiss: { [weak self] in self?.hide() })
@@ -405,7 +406,7 @@ struct LauncherView: View {
                 } else if model.hasScope {
                     commandIcon
                         .frame(width: 24, height: 24)
-                        .accessibilityLabel(model.filter != .all ? NSLocalizedString(model.filter.title, tableName: "Launcher", comment: "Launcher filter") : model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isTabScope ? NSLocalizedString("搜索开启的标签页", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.isAIScope ? NSLocalizedString("AI 搜索", comment: "") : model.isLinkScope ? NSLocalizedString("搜索链接", comment: "") : model.commandInput.map { NSLocalizedString($0.command.name, comment: "Built-in website command") } ?? NSLocalizedString("关键词命令", comment: ""))
+                        .accessibilityLabel(model.pluginScope?.command.title ?? (model.filter != .all ? NSLocalizedString(model.filter.title, tableName: "Launcher", comment: "Launcher filter") : model.isTerminalScope ? NSLocalizedString("终端命令", comment: "") : model.isTabScope ? NSLocalizedString("搜索开启的标签页", comment: "") : model.isBookmarkScope ? NSLocalizedString("搜索书签", comment: "") : model.isAIScope ? NSLocalizedString("AI 搜索", comment: "") : model.isLinkScope ? NSLocalizedString("搜索链接", comment: "") : model.commandInput.map { NSLocalizedString($0.command.name, comment: "Built-in website command") } ?? NSLocalizedString("关键词命令", comment: "")))
                 }
                 LauncherSearchField(
                     text: Binding(get: { model.inputText }, set: { model.inputText = $0 }),
@@ -496,7 +497,9 @@ struct LauncherView: View {
     }
 
     @ViewBuilder private var commandIcon: some View {
-        if model.filter != .all {
+        if model.pluginScope != nil {
+            LauncherFunctionIcon(kind: .plugin)
+        } else if model.filter != .all {
             LauncherFunctionIcon(kind: .searchCommand(model.filter.rawValue))
         } else if model.isTerminalScope {
             CommandIcon(terminalIcon: model.terminalIcon)
@@ -789,6 +792,7 @@ private struct ResultList: View {
     }
 
     private static func section(for result: SearchResult) -> String {
+        if result.target.kind.hasPrefix("plugin-") { return NSLocalizedString("插件", tableName: "Plugins", comment: "") }
         if QuitAskyCommand.isResult(result) { return title(.app) }
         if result.target.kind == "search-command", result.target.identifier == "colorPicker" { return NSLocalizedString("取色", comment: "") }
         if ["search-command", "tab-search"].contains(result.target.kind) { return NSLocalizedString("搜索指令", comment: "") }
@@ -858,6 +862,8 @@ private struct ResultRow: View {
     }
 
     private var typeLabel: String {
+        if result.target.kind == "plugin-result", !result.subtitle.isEmpty { return result.subtitle }
+        if result.target.kind.hasPrefix("plugin-") { return NSLocalizedString("插件", tableName: "Plugins", comment: "") }
         if result.target.kind == "application-window" {
             return NSLocalizedString("窗口", tableName: "Launcher", comment: "Result type")
         }
@@ -883,7 +889,9 @@ private struct ResultRow: View {
     }
 
     @ViewBuilder private var icon: some View {
-        if result.target.kind == "search-command" {
+        if result.target.kind.hasPrefix("plugin-") {
+            LauncherFunctionIcon(kind: .plugin)
+        } else if result.target.kind == "search-command" {
             LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
         } else if result.target.kind == "application-window", let applicationIconPath, !applicationIconPath.isEmpty {
             Image(nsImage: ToolService.launcherIcon(filePath: applicationIconPath)).resizable().scaledToFit()

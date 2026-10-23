@@ -24,6 +24,26 @@ public struct PluginTool: Codable, Sendable, Hashable {
     public var effect: ToolEffect
     public var confirmation: ConfirmationRule
     public var timeoutSeconds: Int?
+    /// Omit or set true to publish this tool to the Agent catalogue.
+    public var agentVisible: Bool?
+}
+public struct PluginCommand: Codable, Sendable, Hashable {
+    public enum Mode: String, Codable, Sendable { case action, search }
+    public var name: String
+    public var title: String
+    public var subtitle: String?
+    public var keyword: String?
+    public var tool: String
+    public var mode: Mode
+    /// The string property receiving launcher input; nil means no arguments.
+    public var queryArgument: String?
+}
+
+public struct PluginLauncherCommand: Sendable, Hashable, Identifiable {
+    public var id: String { pluginID + "/" + command.name }
+    public let pluginID: String
+    public let pluginName: String
+    public let command: PluginCommand
 }
 public struct PluginManifest: Codable, Sendable, Hashable {
     public var id: String
@@ -36,6 +56,7 @@ public struct PluginManifest: Codable, Sendable, Hashable {
     public var icon: String?
     public var configuration: [PluginConfigurationField]?
     public var tools: [PluginTool]
+    public var commands: [PluginCommand]?
 
     public func validate(at root: URL) throws {
         let valid: (String) -> Bool = { $0.range(of: "^[a-z][a-z0-9_-]{0,63}$", options: .regularExpression) != nil }
@@ -55,6 +76,20 @@ public struct PluginManifest: Codable, Sendable, Hashable {
                   (1...240).contains(tool.timeoutSeconds ?? 20),
                   tool.effect != .write || tool.confirmation != .never else {
                 throw ToolError(.invalidArguments, CoreLocalization.format("插件工具定义无效：%@", String(describing: tool.name)))
+            }
+        }
+        let commands = commands ?? []
+        guard Set(commands.map(\.name)).count == commands.count, commands.count <= 64 else {
+            throw ToolError(.invalidArguments, CoreLocalization.text("插件命令定义无效"))
+        }
+        for command in commands {
+            guard valid(command.name), !command.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  command.keyword.map({ valid($0) }) ?? true,
+                  let tool = tools.first(where: { $0.name == command.tool }),
+                  command.mode != .search || tool.effect == .read,
+                  command.queryArgument.map({ !ActionRequest.untrustedKeys.contains($0) && tool.inputSchema["properties"]?[$0]?["type"]?.stringValue == "string" }) ?? true,
+                  (tool.inputSchema["required"]?.arrayValue ?? []).allSatisfy({ $0.stringValue != nil && $0.stringValue == command.queryArgument }) else {
+                throw ToolError(.invalidArguments, CoreLocalization.format("插件命令定义无效：%@", command.name))
             }
         }
     }

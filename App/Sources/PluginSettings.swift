@@ -86,6 +86,10 @@ struct PluginSettings: View {
         HStack(spacing: 6) {
             Text(plugin.isOfficial ? "v\(plugin.manifest.version)" : "\(label("自行安装")) · v\(plugin.manifest.version)")
                 .foregroundStyle(.secondary)
+            if let commands = plugin.manifest.commands, !commands.isEmpty {
+                Text(String(format: NSLocalizedString("%d 个命令", tableName: "Plugins", comment: ""), commands.count))
+                    .foregroundStyle(.secondary)
+            }
             if plugin.needsConfiguration { Text(label("需要配置")).foregroundStyle(.orange) }
         }
         .help(plugin.isOfficial ? "" : plugin.repository)

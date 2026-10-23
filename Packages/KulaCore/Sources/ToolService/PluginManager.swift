@@ -143,16 +143,26 @@ public actor PluginManager {
         records[index].configuration = values; save()
     }
     public func definitions() -> [ToolDefinition] {
-        records.filter { $0.enabled && !$0.needsConfiguration }.flatMap { p in p.manifest.tools.map { definition($0, plugin: p.id) } }
+        records.filter { $0.enabled && !$0.needsConfiguration }.flatMap { p in
+            p.manifest.tools.filter { $0.agentVisible != false }.map { definition($0, plugin: p.id) }
+        }
+    }
+    public func launcherCommands() -> [PluginLauncherCommand] {
+        records.filter { $0.enabled && !$0.needsConfiguration }.flatMap { plugin in
+            (plugin.manifest.commands ?? []).map {
+                PluginLauncherCommand(pluginID: plugin.id, pluginName: plugin.manifest.name, command: $0)
+            }
+        }
     }
     private func definition(_ t: PluginTool, plugin: String) -> ToolDefinition {
         ToolDefinition(name: "plugin_\(plugin)__\(t.name)", summary: t.description, inputSchema: t.inputSchema,
                        source: .plugins, effect: t.effect, writeKind: t.effect == .write ? .handoff : nil,
                        confirmation: t.confirmation, externallyExposable: false)
     }
-    public func adapter(named name: String) -> (any ToolAdapter)? {
+    public func adapter(named name: String, origin: CallerOrigin = .launcher) -> (any ToolAdapter)? {
         for p in records where p.enabled && !p.needsConfiguration {
             if let t = p.manifest.tools.first(where: { "plugin_\(p.id)__\($0.name)" == name }) {
+                if case .agent = origin, t.agentVisible == false { return nil }
                 return PluginAdapter(definition: definition(t, plugin: p.id), executionTimeout: .seconds(t.timeoutSeconds ?? 20),
                                      pluginID: p.id, pluginName: p.manifest.name, toolName: t.name, manager: self)
             }

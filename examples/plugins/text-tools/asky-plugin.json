@@ -1,0 +1,34 @@
+{
+  "id": "text_tools",
+  "name": "Text Tools",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "entry": "index.mjs",
+  "tools": [
+    {
+      "name": "transform",
+      "description": "Encode and decode text",
+      "agentVisible": false,
+      "effect": "read",
+      "confirmation": "never",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"text": {"type": "string"}},
+        "required": ["text"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "uuid",
+      "description": "Generate a UUID",
+      "agentVisible": false,
+      "effect": "read",
+      "confirmation": "never",
+      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": false}
+    }
+  ],
+  "commands": [
+    {"name": "text", "title": "Text Tools", "keyword": "text", "tool": "transform", "mode": "search", "queryArgument": "text"},
+    {"name": "uuid", "title": "Generate UUID", "keyword": "uuid", "tool": "uuid", "mode": "action"}
+  ]
+}

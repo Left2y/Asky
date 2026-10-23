@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Stored by stable action ID; missing IDs retain their defaults on older installations.
 enum LocalShortcutAction: String, CaseIterable, Identifiable {
-    case windowFullScreen, reveal, copyPath, copyFile, copyName, fileInfo, execute, askAI, launcherMore, launcherUp, launcherDown, enterFolder, back, launcherEscape, settings, paste, clipboardCopy, delete, clipboardMore, clipboardUp, clipboardDown, clipboardLeft, clipboardRight, clipboardEscape, send, newline, newChat, history, closeChat, agentEscape
+    case windowPreviousDisplay, windowNextDisplay, windowFullScreen, reveal, copyPath, copyFile, copyName, fileInfo, execute, askAI, launcherMore, launcherUp, launcherDown, enterFolder, back, launcherEscape, settings, paste, clipboardCopy, delete, clipboardMore, clipboardUp, clipboardDown, clipboardLeft, clipboardRight, clipboardEscape, send, newline, newChat, history, closeChat, agentEscape
     var id: String { rawValue }
     var isConfigurable: Bool {
         switch self {
@@ -15,6 +15,8 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var title: String {
         switch self {
+        case .windowPreviousDisplay: "切换到上一块屏幕"
+        case .windowNextDisplay: "切换到下一块屏幕"
         case .windowFullScreen: "进入或退出全屏"
         case .reveal: "在访达中显示"
         case .copyPath: "复制文件路径"
@@ -49,6 +51,7 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var scope: String {
         switch self {
+        case .windowPreviousDisplay, .windowNextDisplay: "launcher"
         case .windowFullScreen: "launcher"
         case .reveal: "launcher"
         case .copyPath: "launcher"
@@ -83,6 +86,8 @@ enum LocalShortcutAction: String, CaseIterable, Identifiable {
     }
     var defaultShortcut: LauncherActionShortcut {
         switch self {
+        case .windowPreviousDisplay: .init(code: 123, modifiers: 512, label: "⇧ ←")
+        case .windowNextDisplay: .init(code: 124, modifiers: 512, label: "⇧ →")
         case .windowFullScreen: .init(code: 3, modifiers: 4352, label: "⌃⌘ F")
         case .reveal: .revealInFinder
         case .copyPath: .init(code: 8, modifiers: 2304, label: "⌥⌘ C")

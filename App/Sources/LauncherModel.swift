@@ -82,6 +82,7 @@ final class LauncherModel {
     private var filterText = ""
     private var windowSnapshot: LauncherWindowSnapshot?
     var windowActionFullScreen: Bool? = false
+    var windowActionCanMoveDisplay = ToolService.launcherHasMultipleDisplays
     private var folderStack: [(url: URL, previousText: String)] = []
     private var folderText = ""
     var folderScope: URL? { folderStack.last?.url }
@@ -1062,6 +1063,15 @@ extension LauncherModel {
             if !event.isARepeat { toggleActionsMenu() }
             return true
         }
+        if let result = selectedActionResult, result.target.kind == "application-window",
+           ToolService.launcherHasMultipleDisplays,
+           matches(.windowPreviousDisplay) || matches(.windowNextDisplay) {
+            if !event.isARepeat {
+                performLauncherAction(LauncherAction(title: "", icon: "", shortcut: nil,
+                    kind: .moveWindowDisplay(matches(.windowPreviousDisplay) ? -1 : 1)))
+            }
+            return true
+        }
         if matches(.windowFullScreen), let result = selectedActionResult,
            result.target.kind == "application-window", let snapshot = windowSnapshot,
            let fullScreen = try? ToolService.launcherWindowFullScreenState(result.target.identifier, in: snapshot) {
@@ -1138,6 +1148,12 @@ extension LauncherModel {
                                               icon: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
                                               shortcut: actionPreferences.shortcut(.windowFullScreen).label, kind: .setWindowFullScreen(!fullScreen)))
             }
+            if windowActionCanMoveDisplay {
+                actions.append(LauncherAction(title: "切换到上一块屏幕", icon: "arrow.left.to.line",
+                    shortcut: actionPreferences.shortcut(.windowPreviousDisplay).label, kind: .moveWindowDisplay(-1)))
+                actions.append(LauncherAction(title: "切换到下一块屏幕", icon: "arrow.right.to.line",
+                    shortcut: actionPreferences.shortcut(.windowNextDisplay).label, kind: .moveWindowDisplay(1)))
+            }
             actions.append(LauncherAction(title: "关闭窗口", icon: "xmark", shortcut: nil, kind: .closeWindow))
             return actions
         }
@@ -1183,6 +1199,7 @@ extension LauncherModel {
     @discardableResult
     func toggleActionsMenu() -> Bool {
         if isActionsMenuPresented { closeActionsMenu(); return true }
+        windowActionCanMoveDisplay = ToolService.launcherHasMultipleDisplays
         if let result = selectedActionResult, result.target.kind == "application-window", let snapshot = windowSnapshot {
             windowActionFullScreen = try? ToolService.launcherWindowFullScreenState(result.target.identifier, in: snapshot)
         }
@@ -1209,7 +1226,7 @@ extension LauncherModel {
         let result = selectedActionResult
         closeActionsMenu()
         switch action.kind {
-        case .closeWindow, .setWindowFullScreen:
+        case .closeWindow, .setWindowFullScreen, .moveWindowDisplay:
             guard let result, result.target.kind == "application-window", let snapshot = windowSnapshot else { return }
             Task { @MainActor in
                 do {
@@ -1217,11 +1234,17 @@ extension LauncherModel {
                         try ToolService.closeLauncherWindow(result.target.identifier, in: snapshot)
                         windowSnapshot = nil
                         update()
+                    } else if case .moveWindowDisplay(let direction) = action.kind {
+                        try await ToolService.moveLauncherWindowDisplay(direction, for: result.target.identifier, in: snapshot)
+                        windowSnapshot = nil
+                        onHide()
                     } else if case .setWindowFullScreen(let enabled) = action.kind {
                         try await ToolService.setLauncherWindowFullScreen(enabled, for: result.target.identifier, in: snapshot)
                         windowSnapshot = nil
                         onHide()
                     }
+                } catch WindowSearchError.fullScreenDisplayMove {
+                    status = NSLocalizedString("请先退出全屏，再切换屏幕", comment: "")
                 } catch WindowSearchError.accessibility {
                     windowSnapshot = nil
                     status = NSLocalizedString("窗口操作需要辅助功能权限，请在系统设置中允许 Asky", comment: "")

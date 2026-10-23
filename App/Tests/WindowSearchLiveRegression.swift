@@ -29,6 +29,8 @@ import ToolService
                 MainActor.assumeIsolated {
                     let fullScreen = windows.indices.filter { windows[$0].styleMask.contains(.fullScreen) }
                     try? fullScreen.map(String.init).joined(separator: ",").write(to: root.appendingPathComponent("full-screen"), atomically: true, encoding: .utf8)
+                    try? windows.map { $0.screen?.localizedName ?? "unknown" }.joined(separator: "\n")
+                        .write(to: root.appendingPathComponent("screens"), atomically: true, encoding: .utf8)
                     let command = root.appendingPathComponent("close")
                     if let text = try? String(contentsOf: command, encoding: .utf8), let index = Int(text) {
                         windows[index].close()
@@ -72,12 +74,38 @@ import ToolService
                         throw NSError(domain: "WindowSearchLiveRegression-enter-fullscreen", code: 7)
                     }
                     print("PASS: entered full screen on exact target")
+                    if ToolService.launcherHasMultipleDisplays {
+                        do {
+                            try await ToolService.moveLauncherWindowDisplay(1, for: target, in: snapshot)
+                            throw NSError(domain: "WindowDisplay-fullscreen-accepted", code: 22)
+                        } catch WindowSearchError.fullScreenDisplayMove {}
+                    }
                     try await ToolService.setLauncherWindowFullScreen(false, for: target, in: snapshot)
                     try await Task.sleep(for: .seconds(2))
                     guard try !ToolService.launcherWindowFullScreenState(target, in: snapshot) else {
                         throw NSError(domain: "WindowSearchLiveRegression-exit-fullscreen", code: 8)
                     }
                     print("PASS: exited full screen")
+                    try await Task.sleep(for: .seconds(2))
+                    if ToolService.launcherHasMultipleDisplays {
+                        let fixtureIndex = Int(focused[1])!
+                        func fixtureScreen() throws -> String {
+                            try String(contentsOf: root.appendingPathComponent("screens"), encoding: .utf8)
+                                .components(separatedBy: "\n")[fixtureIndex]
+                        }
+                        let originalScreen = try fixtureScreen()
+                        try await ToolService.moveLauncherWindowDisplay(-1, for: target, in: snapshot)
+                        try await Task.sleep(for: .milliseconds(400))
+                        guard try fixtureScreen() != originalScreen else {
+                            throw NSError(domain: "WindowDisplay-previous", code: 20)
+                        }
+                        try await ToolService.moveLauncherWindowDisplay(1, for: target, in: snapshot)
+                        try await Task.sleep(for: .milliseconds(400))
+                        guard try fixtureScreen() == originalScreen else {
+                            throw NSError(domain: "WindowDisplay-next", code: 21)
+                        }
+                        print("PASS: real previous/next display moves independently confirmed by target window")
+                    }
                     let app = try AppModel(root: root.appendingPathComponent("app"))
                     let launcher = LauncherModel(app: app, searchProviders: [], chromeBookmarkAccessAllowed: false)
                     launcher.inputText = "sw Asky SW Live Fixture"
@@ -124,6 +152,41 @@ import ToolService
                     }
                     launcher.reset()
                     print("PASS: default/custom launcher full-screen shortcuts, menu labels, old binding stops firing")
+                    if ToolService.launcherHasMultipleDisplays {
+                        for (action, code) in [(LocalShortcutAction.windowPreviousDisplay, UInt16(123)), (.windowNextDisplay, UInt16(124))] {
+                            let mover = LauncherModel(app: app, searchProviders: [], chromeBookmarkAccessAllowed: false)
+                            mover.inputText = "sw Asky SW Live Fixture"
+                            for _ in 0..<60 {
+                                if !mover.isSearching && mover.results.count == 2 { break }
+                                try await Task.sleep(for: .milliseconds(100))
+                            }
+                            guard mover.results.count == 2 else { throw NSError(domain: "WindowDisplay-search", code: 23) }
+                            let before = try String(contentsOf: root.appendingPathComponent("screens"), encoding: .utf8)
+                            func arrow(_ flags: NSEvent.ModifierFlags) -> NSEvent {
+                                NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                                    windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "",
+                                    isARepeat: false, keyCode: code)!
+                            }
+                            var hidden = false
+                            mover.onHide = { hidden = true }
+                            var flags: NSEvent.ModifierFlags = .shift
+                            if action == .windowNextDisplay {
+                                guard app.preferences.setShortcut(action, .init(code: UInt32(code), modifiers: 768, label: "⌘⇧ →")),
+                                      !mover.handleActionKey(arrow(.shift)) else { throw NSError(domain: "WindowDisplay-custom", code: 24) }
+                                flags.insert(.command)
+                            }
+                            guard mover.handleActionKey(arrow(flags)) else { throw NSError(domain: "WindowDisplay-key", code: 25) }
+                            for _ in 0..<40 {
+                                if hidden { break }
+                                try await Task.sleep(for: .milliseconds(100))
+                            }
+                            try await Task.sleep(for: .milliseconds(300))
+                            let after = try String(contentsOf: root.appendingPathComponent("screens"), encoding: .utf8)
+                            guard hidden, before != after else { throw NSError(domain: "WindowDisplay-key-move", code: 26) }
+                            mover.reset()
+                        }
+                        print("PASS: default Shift Left and custom Shift Command Right move real windows; old binding stops firing")
+                    }
                     try ToolService.closeLauncherWindow(rows[0].target.identifier, in: snapshot)
                     try await Task.sleep(for: .milliseconds(400))
                     do {

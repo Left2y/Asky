@@ -80,12 +80,21 @@ private enum WindowSearchRegression {
             if !model.isSearching && !model.results.isEmpty { break }
             try await Task.sleep(for: .milliseconds(50))
         }
-        try require(model.secondaryActions.map(\.title) == ["进入全屏", "关闭窗口"], "window menu must expose both actions in order")
-        try require(!model.secondaryActions[0].isNegative && model.secondaryActions[1].isNegative, "only close must be red")
+        model.windowActionCanMoveDisplay = true
+        try require(model.secondaryActions.map(\.title) == ["进入全屏", "切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "window menu must expose both actions in order")
+        try require(!model.secondaryActions[0].isNegative && model.secondaryActions[3].isNegative, "only close must be red")
         model.windowActionFullScreen = true
-        try require(model.secondaryActions.map(\.title) == ["退出全屏", "关闭窗口"], "full-screen window must offer Exit Full Screen")
+        try require(model.secondaryActions.map(\.title) == ["退出全屏", "切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "full-screen window must offer Exit Full Screen")
         model.windowActionFullScreen = nil
-        try require(model.secondaryActions.map(\.title) == ["关闭窗口"], "unsupported window must only offer Close Window")
+        try require(model.secondaryActions.map(\.title) == ["切换到上一块屏幕", "切换到下一块屏幕", "关闭窗口"], "unsupported full-screen windows retain display actions")
+        model.windowActionCanMoveDisplay = false
+        try require(model.secondaryActions.map(\.title) == ["关闭窗口"], "single display omits display actions")
+        try require(app.preferences.shortcut(.windowPreviousDisplay).code == 123
+                    && app.preferences.shortcut(.windowPreviousDisplay).modifiers == 512
+                    && app.preferences.shortcut(.windowNextDisplay).code == 124
+                    && app.preferences.shortcut(.windowNextDisplay).modifiers == 512, "display shortcut defaults must be Shift Left and Right")
+        var preferences = app.preferences
+        try require(!preferences.setShortcut(.windowPreviousDisplay, preferences.shortcut(.windowNextDisplay)), "display shortcut conflicts must be rejected")
         model.windowActionFullScreen = false
         let controller = LauncherController(model: model)
         NSApp.activate(ignoringOtherApps: true)
@@ -104,8 +113,9 @@ private enum WindowSearchRegression {
                 timestamp: 0, windowNumber: panel.windowNumber, context: nil,
                 characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
             try require(model.handleActionKey(event) && model.isActionsMenuPresented, "Command K must open window menu")
-            model.move(1)
-            try require(model.actionSelection == 1, "down must select Close Window")
+            model.windowActionCanMoveDisplay = true
+            model.move(3)
+            try require(model.actionSelection == 3, "close remains last after display actions")
             try await Task.sleep(for: .milliseconds(350))
             let capture = Process()
             capture.executableURL = URL(filePath: "/usr/sbin/screencapture")

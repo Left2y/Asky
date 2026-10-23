@@ -339,9 +339,9 @@ final class LauncherController {
         resizeTask = nil
         contentID = UUID()
         chrome = LauncherChrome()
-        model.reset()
         panel.contentView = nil
         hosting = nil
+        model.reset()
     }
 }
 

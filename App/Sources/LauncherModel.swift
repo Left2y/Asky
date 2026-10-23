@@ -78,6 +78,7 @@ struct TerminalSession: Identifiable {
 
 @MainActor @Observable
 final class LauncherModel {
+    private let applicationOpener: @MainActor (URL) async throws -> Void
     private(set) var filter = LauncherFilter.all
     private var filterText = ""
     private var pluginCommands: [PluginLauncherCommand] = []
@@ -194,8 +195,10 @@ final class LauncherModel {
     var onHide: () -> Void = {}
     var onAskAI: (String) -> Void = { _ in }
 
-    init(app: AppModel, searchProviders: [any SearchProvider]? = nil, chromeBookmarkAccessAllowed: Bool? = nil) {
+    init(app: AppModel, searchProviders: [any SearchProvider]? = nil, chromeBookmarkAccessAllowed: Bool? = nil,
+         applicationOpener: @escaping @MainActor (URL) async throws -> Void = { try await ToolService.openLauncherApplication($0) }) {
         self.app = app
+        self.applicationOpener = applicationOpener
         self.searchProviders = searchProviders
         self.chromeAccessOverride = chromeBookmarkAccessAllowed
         apps = AppsProvider(cacheURL: searchProviders == nil
@@ -1078,6 +1081,10 @@ final class LauncherModel {
             confirmQuit()
             return
         }
+        if action == .open, r.source == .app || r.target.kind == "launcher-alias" {
+            openApplication(r)
+            return
+        }
         try? ActivityStore(app.store).append(kind: "launcher", sourceID: "launcher", text: r.title)
         switch action {
         case .open:
@@ -1089,14 +1096,8 @@ final class LauncherModel {
                 return
             }
             let url = URL(filePath: r.target.identifier)
-            if r.source == .app { apps.recordLaunch(path: url.path) }
-            if r.target.kind == "launcher-alias" {
-                if ToolService.openLauncherApplication(url) { onHide() }
-                else { status = NSLocalizedString("应用已移动或无法打开，请更新别名。", comment: "") }
-            } else {
-                NSWorkspace.shared.open(url)
-                onHide()
-            }
+            NSWorkspace.shared.open(url)
+            onHide()
         case .revealInFinder:
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: r.target.identifier)])
             onHide()
@@ -1130,6 +1131,31 @@ final class LauncherModel {
             runShortcut(name)
         case .askAI(let prompt):
             onAskAI(prompt)
+        }
+    }
+
+    private func openApplication(_ result: SearchResult) {
+        let url = URL(filePath: result.target.identifier)
+        apps.recordLaunch(path: url.path)
+        let store = app.store
+        // Let the field-editor / SwiftUI action finish before tearing down its
+        // view tree. The launch must survive reset(), and never write into a
+        // later search session if Launch Services reports a delayed failure.
+        Task { [onHide, applicationOpener] in
+            onHide()
+            Task.detached(priority: .utility) {
+                try? ActivityStore(store).append(kind: "launcher", sourceID: "launcher", text: result.title)
+            }
+            do {
+                try await applicationOpener(url)
+            } catch {
+                let alert = AppDialog.make()
+                alert.messageText = String(format: NSLocalizedString("无法打开应用“%@”", comment: ""), result.title)
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: NSLocalizedString("好", comment: ""))
+                NSApp.activate()
+                _ = await AppDialog.present(alert)
+            }
         }
     }
 

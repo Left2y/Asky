@@ -43,7 +43,9 @@ enum LauncherWindowRegression {
                     ? [.darkAqua] : [.aqua, .darkAqua]
                 for appearance in appearances {
                     application.appearance = NSAppearance(named: appearance)
-                    if CommandLine.arguments.contains("--first-presentation") {
+                    if CommandLine.arguments.contains("--app-opening") {
+                        try await checkAppOpening()
+                    } else if CommandLine.arguments.contains("--first-presentation") {
                         try await checkFirstPresentation()
                     } else if CommandLine.arguments.contains("--command-transition") {
                         try await checkCommandTransition()
@@ -97,6 +99,75 @@ enum LauncherWindowRegression {
         let source: SearchSource
         let results: [SearchResult]
         func search(_ query: String, limit: Int) async -> [SearchResult] { Array(results.prefix(limit)) }
+    }
+
+    private static func checkAppOpening() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Asky-app-opening-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try AppModel(root: root)
+        for kind in ["app", "launcher-alias"] {
+            let target = URL(filePath: "/Applications/Slow Launch Fixture.app")
+            let source: SearchSource = kind == "launcher-alias" ? .keyword : .app
+            let result = SearchResult(source: source, target: TargetRef(kind: kind, identifier: target.path),
+                                      title: "Slow Launch Fixture", actions: [.open], score: 100)
+            var pending: CheckedContinuation<Void, Error>?
+            var requestedURL: URL?
+            var hiddenBeforeLaunch = false
+            var completed = false
+            let model = LauncherModel(app: app, searchProviders: [CompactProvider(source: source, results: [result])],
+                                      applicationOpener: { url in
+                requestedURL = url
+                hiddenBeforeLaunch = !NSApp.windows.contains { $0 is LauncherPanel && $0.isVisible }
+                try await withCheckedThrowingContinuation { pending = $0 }
+                completed = true
+            })
+            let controller = LauncherController(model: model)
+            defer { controller.hide() }
+            controller.show()
+            guard let panel = NSApp.windows.first(where: { $0 is LauncherPanel && $0.isVisible }) as? LauncherPanel else {
+                throw NSError(domain: "LauncherWindowRegression", code: 1)
+            }
+            panel.onBlur = {}
+            model.query = "slowfixture"
+            try await Task.sleep(for: .milliseconds(350))
+            try require(model.results.first?.target == result.target,
+                        "application result must be selected: kind=\(kind), query=\(model.query), results=\(model.results.map { $0.target })")
+            guard let field = panel.contentView.flatMap({ searchField(in: $0) }) else {
+                throw NSError(domain: "LauncherWindowRegression", code: 1)
+            }
+            panel.makeFirstResponder(field)
+            let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                        windowNumber: panel.windowNumber, context: nil, characters: "\r",
+                                        charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+            panel.sendEvent(event)
+            try await Task.sleep(for: .milliseconds(30))
+            try require(requestedURL == target && pending != nil, "Return must request exactly the selected application")
+            try require(hiddenBeforeLaunch && !controller.isVisible && panel.contentView == nil,
+                        "launcher must hide and release its tree before waiting for application startup")
+            try require(model.query.isEmpty && !completed, "reset must complete while launch is pending")
+
+            // A new session must remain usable while the old launch is suspended.
+            controller.show()
+            panel.onBlur = {}
+            model.query = "next session"
+            try await Task.sleep(for: .milliseconds(30))
+            try require(controller.isVisible && model.query == "next session" && !completed,
+                        "a slow target must not prevent reopening and typing")
+            pending?.resume()
+            pending = nil
+            try await Task.sleep(for: .milliseconds(30))
+            try require(completed && controller.isVisible && model.query == "next session",
+                        "late launch completion must not reset or hide the newer session")
+            controller.hide()
+            print("PASS: \(kind) Return hides before slow startup; new session remains responsive")
+        }
+        do {
+            try await ToolService.openLauncherApplication(root.appending(path: "Missing.app"))
+            throw NSError(domain: "LauncherWindowRegression", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "missing application unexpectedly opened"])
+        } catch let error as NSError where error.domain != "LauncherWindowRegression" {
+            print("PASS: async launch reports missing application: \(error.domain) \(error.code)")
+        }
     }
 
     private static func checkCommandActions() async throws {

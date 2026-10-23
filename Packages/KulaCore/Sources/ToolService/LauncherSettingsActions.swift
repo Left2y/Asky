@@ -65,8 +65,14 @@ extension ToolService {
     }
 
     @MainActor
-    public static func openLauncherApplication(_ url: URL) -> Bool {
-        guard url.isFileURL, url.pathExtension.lowercased() == "app", FileManager.default.fileExists(atPath: url.path) else { return false }
-        return NSWorkspace.shared.open(url)
+    public static func openLauncherApplication(_ url: URL) async throws {
+        guard url.isFileURL, url.pathExtension.lowercased() == "app" else {
+            throw CocoaError(.fileReadUnsupportedScheme)
+        }
+        // The synchronous open(URL) API can wait on Launch Services while the
+        // target app starts. Its async counterpart keeps the launcher responsive.
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.allowsRunningApplicationSubstitution = false
+        _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
     }
 }

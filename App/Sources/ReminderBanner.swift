@@ -266,7 +266,7 @@ final class ReminderBannerCenter {
 
     private static func openApp(_ bundleID: String) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
-        _ = ToolService.openLauncherApplication(url)
+        Task { try? await ToolService.openLauncherApplication(url) }
     }
     #endif
 }

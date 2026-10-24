@@ -12,10 +12,7 @@ struct AboutSettings: View {
         SettingsForm {
             Section {
                 HStack(spacing: 14) {
-                    // The logo artwork carries ~9% transparent margin; scale it so the visible
-                    // square matches the 56 pt tile used by StarRepositoryRow.
-                    Image("AskyLogo").resizable().scaledToFit().frame(width: 56, height: 56)
-                        .scaleEffect(1.22)
+                    Image("AskyLogo").resizable().scaledToFit().frame(width: 40, height: 40)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(verbatim: "Asky").font(.title2.weight(.semibold))

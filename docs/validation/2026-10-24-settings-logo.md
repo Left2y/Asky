@@ -9,3 +9,11 @@
 - 覆盖范围：本次检查浅色、英文原生设置预览；未运行整套设置回归，未单独检查深色与中文显示。预览包显示 Version 0，不代表正式应用版本。
 - README 与 AGENTS.md 检查：本次仅修正现有界面尺寸，未改变命令、使用流程或架构，均无需更新。
 - 构建与预览产物由现有 `.gitignore` 的 `build/` 规则排除。
+
+## 第二轮：整张卡片对齐
+
+- 用户截图指出首轮仅缩小 Logo 后，Star 图标仍为 56 pt，两行正文起点相差 16 pt。
+- Star 图标背景同步改为 40 × 40 pt；两行均使用 14 pt 图文间距、4 pt 文本间距和 4 pt 纵向内边距。
+- 再次运行上述 XcodeGen、独立 DerivedData 构建及 KulaCore `swift test`，均退出码 0。
+- 使用 `ASKY_DERIVED_DATA=build/LogoDerivedData python3 App/Tests/run-settings-regression.py --preview -AppleLanguages '(zh-Hans)'` 编译并启动当前源码，实际点击“关于 Asky”并截图检查：两行图标同宽同高，正文左边缘对齐，按钮右边缘对齐。
+- 此轮视觉覆盖浅色中文原生窗口，未新增深色视觉验收；README 与 AGENTS.md 无需变更。

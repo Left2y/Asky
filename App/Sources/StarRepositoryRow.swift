@@ -16,11 +16,11 @@ struct StarRepositoryRow: View {
                 .foregroundStyle(starred ? AnyShapeStyle(Color.yellow) : AnyShapeStyle(ThemeColor.kIconSubtle))
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.bounce, value: bounce)
-                .frame(width: 56, height: 56)
+                .frame(width: 40, height: 40)
                 .background(ThemeColor.kBackgroundNeutral,
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(starred ? NSLocalizedString("已点亮 Star，感谢支持！", comment: "")
                              : NSLocalizedString("喜欢 Asky？去 GitHub 点个 Star", comment: ""))
                 Text(starred ? NSLocalizedString("你的支持是持续更新的动力", comment: "")
@@ -34,6 +34,7 @@ struct StarRepositoryRow: View {
                 _ = ToolService.openLauncherURL(ToolService.appRepositoryURL)
             }
         }
+        .padding(.vertical, 4)
         .task { await refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if openedPage { Task { await refresh() } }

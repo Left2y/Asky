@@ -1,28 +1,51 @@
 {
-  "fill" : {
-    "solid" : "srgb:0.07500,0.11000,0.20500,1.00000"
-  },
+  "features" : [
+    "refractivity"
+  ],
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "srgb:0.95000,0.95000,0.96000,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "display-p3:0.99474,0.98947,1.00000,1.00000"
+      }
+    }
+  ],
   "groups" : [
     {
       "layers" : [
         {
           "blend-mode" : "normal",
-          "fill" : "automatic",
-          "glass" : false,
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.00597,0.01395,0.02485,1.00000",
+              "display-p3:0.12675,0.22467,0.58296,1.00000"
+            ]
+          },
+          "glass" : true,
           "hidden" : false,
-          "image-name" : "Companion.png",
-          "name" : "Companion"
+          "image-name" : "Mark.svg",
+          "name" : "Mark"
         }
       ],
-      "name" : "Companion",
+      "name" : "Asky",
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : true,
+        "strength" : 0.5
+      },
       "shadow" : {
         "kind" : "neutral",
-        "opacity" : 0
+        "opacity" : 0.35
       },
-      "specular" : false,
+      "specular" : true,
       "translucency" : {
-        "enabled" : false,
-        "value" : 0
+        "enabled" : true,
+        "value" : 0.15
       }
     }
   ],

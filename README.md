@@ -106,6 +106,8 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 - Node.js 22+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
+应用图标源文件为 `App/Branding/AskyNative.icon`，使用 Xcode 附带的 Icon Composer 编辑。修改后同步导出的 `AppIcon.appiconset`、`AskyLogo.imageset` 和 `App/Branding` 中的 PNG / ICNS 兼容资源。
+
 #### 构建与运行
 在仓库根目录执行：
 
@@ -246,6 +248,8 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 - Xcode 16+ / Swift 6.2+
 - Node.js 22+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+
+The app icon source is `App/Branding/AskyNative.icon`, edited with Icon Composer bundled with Xcode. After changes, synchronize the exported `AppIcon.appiconset`, `AskyLogo.imageset`, and PNG / ICNS compatibility assets in `App/Branding`.
 
 #### Build & Run
 Run from the repository root:

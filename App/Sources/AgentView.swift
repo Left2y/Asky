@@ -37,12 +37,16 @@ final class AgentWindowController {
             w.level = .normal
             w.collectionBehavior = [.moveToActiveSpace, .primary]
             w.minSize = NSSize(width: WindowMetrics.agentMinSize.width, height: WindowMetrics.agentMinSize.height)
+            w.maxSize = NSSize(width: WindowMetrics.launcherWidth, height: .greatestFiniteMagnitude)
             w.isReleasedWhenClosed = false
             let host = NSHostingView(rootView: AgentView(model: model, close: { [weak w] in w?.close() },
                 setPinned: { [weak w] pinned in w?.level = pinned ? .floating : .normal }))
             host.sizingOptions = []
             host.frame = NSRect(origin: .zero, size: w.contentLayoutRect.size)
             w.contentView = WindowSurface.glassContentView(host, cornerRadius: AgentLayout.radius)
+            if let surface = w.contentView {
+                WindowSurface.updateCorners(of: surface, radius: AgentLayout.radius, circular: true)
+            }
             w.center()
             window = w
         }
@@ -83,7 +87,7 @@ final class AgentWindowController {
 
 private enum AgentLayout {
     // Figma UI page 22:293, new chat 43:1072, conversation 42:761 and history 38:654.
-    static let radius: CGFloat = 32
+    static let radius: CGFloat = LauncherLayout.shellCornerRadius
     static let message = TextStyle(size: 14, weight: 400, mode: .default)
     static let title = TextStyle(size: 18, weight: 500, mode: .default)
 }
@@ -98,7 +102,7 @@ struct AgentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: AgentLayout.radius, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: AgentLayout.radius, style: .circular) }
     private var navigationAnimation: Animation { .easeInOut(duration: reduceMotion ? 0.15 : 0.24) }
     private var historyTransition: AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .offset(x: -16))

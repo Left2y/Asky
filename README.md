@@ -37,7 +37,7 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
   - **分类过滤与下钻**：支持 `app `（应用）、`file `（文件）、`ql `（快捷方式）、`sc `（快捷指令）专属分类过滤；选中文件夹按 `Tab` 可直接下钻浏览或检索子目录。
   - **即时计算与换算**：支持数学表达式计算、单位换算与实时汇率换算；输入 `calc` 查看计算历史并支持一键回填算式。
   - **屏幕取色器**：输入 `co` 快速调用 macOS 原生取色工具，点击即复制大写 sRGB 十六进制色值。
-  - **快捷指令与终端**：集成网页搜索指令（`go`、`yt`、`x` 等预设）与终端命令执行（`> 命令`）。
+  - **快捷指令与终端**：集成网页搜索指令（`go`、`yt`、`x` 等预设）与终端命令执行（`> 命令`），支持系统终端、iTerm2、Ghostty 1.3+、Otty 1.2+ 和 Kero。
 
 - 📋 **强大的剪贴板历史**
   - **多类型支持**：完整记录文本、富文本、图片与文件历史，支持关键词与来源应用组合检索。
@@ -190,7 +190,7 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
   - **Category Filtering & Deep Dive**: Use dedicated filters like `app `, `file `, `ql ` (quick links), and `sc ` (shortcuts). Press `Tab` on any folder to browse or search its subdirectories directly.
   - **Instant Calculations & Conversions**: Support for mathematical formulas, unit conversions, and live currency rates. Enter `calc` to view calculation history and restore expressions with one click.
   - **Screen Color Picker**: Enter `co` to launch macOS's native color sampler; click to copy the sRGB uppercase hex value.
-  - **Web Commands & Terminal**: Quick web search presets (`go`, `yt`, `x`, etc.) and terminal command execution (`> command`).
+  - **Web Commands & Terminal**: Quick web search presets (`go`, `yt`, `x`, etc.) and terminal command execution (`> command`) with Terminal, iTerm2, Ghostty 1.3+, Otty 1.2+, and Kero.
 
 - 📋 **Robust Clipboard History**
   - **Multi-Type Support**: Records text, rich text, images, and files with combined keyword and source app search.

@@ -9,6 +9,7 @@ enum LauncherTerminalRegression {
         Task { @MainActor in
             do {
                 try await check()
+                try await checkThirdPartyHandoff()
                 print("Launcher terminal native regression passed")
                 exit(0)
             } catch {
@@ -17,6 +18,30 @@ enum LauncherTerminalRegression {
             }
         }
         NSApplication.shared.run()
+    }
+
+    /// Opt-in: creates real terminal sessions and executes harmless file writes in a temporary directory.
+    static func checkThirdPartyHandoff() async throws {
+        guard ProcessInfo.processInfo.environment["ASKY_TERMINAL_HANDOFF_TEST"] == "1" else { return }
+        for application in [LauncherTerminalApplication.otty, .kero] {
+            try require(ToolService.launcherTerminalApplicationURL(application) != nil, "\(application.name) is installed")
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("Asky-\(UUID().uuidString)/中文 folder's")
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
+            let command = "pwd > cwd.txt; printf '%s\\n' \"hello 'quote'\" > result.txt"
+            try await ToolService.openLauncherTerminal(command: command, workingDirectory: root, application: application)
+            let output = root.appendingPathComponent("result.txt")
+            for _ in 0..<100 {
+                if (try? String(contentsOf: output, encoding: .utf8)) == "hello 'quote'\n" { break }
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            let result = try String(contentsOf: output, encoding: .utf8)
+            try require(result == "hello 'quote'\n", "\(application.name) executed the command")
+            let cwd = try String(contentsOf: root.appendingPathComponent("cwd.txt"), encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            try require(URL(filePath: cwd).resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().path, "\(application.name) used the configured directory")
+            print("\(application.name): native handoff and command output readback passed")
+        }
     }
 
     static func require(_ condition: Bool, _ message: String) throws {

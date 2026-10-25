@@ -5,6 +5,8 @@ public enum LauncherTerminalApplication: String, CaseIterable, Sendable, Identif
     case system = "com.apple.Terminal"
     case iTerm = "com.googlecode.iterm2"
     case ghostty = "com.mitchellh.ghostty"
+    case otty = "io.appmakes.otty"
+    case kero = "sh.kero"
 
     public var id: String { rawValue }
     public var name: String {
@@ -12,6 +14,8 @@ public enum LauncherTerminalApplication: String, CaseIterable, Sendable, Identif
         case .system: CoreLocalization.text("系统终端")
         case .iTerm: "iTerm2"
         case .ghostty: "Ghostty"
+        case .otty: "Otty"
+        case .kero: "Kero"
         }
     }
 }

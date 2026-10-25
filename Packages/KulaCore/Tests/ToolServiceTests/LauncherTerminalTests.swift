@@ -41,12 +41,12 @@ import Testing
         }
     }
 
-    @Test func thirdPartyDispatchUsesTheirNativeCommandInterfaces() {
+    @Test func thirdPartyDispatchUsesTheirNativeCommandInterfaces() throws {
         let directory = URL(filePath: "/tmp/test folder")
-        let iterm = LauncherTerminalScript.source(command: "echo hello", directory: directory, application: .iTerm)
+        let iterm = try #require(LauncherTerminalScript.source(command: "echo hello", directory: directory, application: .iTerm))
         #expect(iterm.contains("com.googlecode.iterm2"))
         #expect(iterm.contains("tell current session of win to write text"))
-        let ghostty = LauncherTerminalScript.source(command: "echo hello", directory: directory, application: .ghostty)
+        let ghostty = try #require(LauncherTerminalScript.source(command: "echo hello", directory: directory, application: .ghostty))
         #expect(ghostty.contains("com.mitchellh.ghostty"))
         #expect(ghostty.contains("set initial working directory of cfg to \"/tmp/test folder\""))
         #expect(ghostty.contains("set initial input of cfg to \"echo hello\n\""))
@@ -54,9 +54,23 @@ import Testing
 
     @Test func scriptPreservesCommandAndQuotesDirectory() throws {
         let command = "printf '%s\\n' \"hello\" > result.txt"
-        let source = LauncherTerminalScript.source(command: command, directory: URL(filePath: "/tmp/Asky's folder"))
+        let source = try #require(LauncherTerminalScript.source(command: command, directory: URL(filePath: "/tmp/Asky's folder")))
         #expect(source.contains("cd '/tmp/Asky'\\\\''s folder' && printf"))
         #expect(source.contains("\\\"hello\\\" > result.txt"))
         #expect(NSAppleScript(source: source)?.compileAndReturnError(nil) == true)
+    }
+
+    @Test func ottyUsesDoScriptAndKeroUsesCLI() throws {
+        let directory = URL(filePath: "/tmp/中文 folder's")
+        let command = "printf '%s\\n' \"hello\" > result.txt\necho done"
+        let otty = try #require(LauncherTerminalScript.source(command: command, directory: directory, application: .otty))
+        #expect(otty.contains("tell application id \"io.appmakes.otty\""))
+        #expect(otty.contains("do script"))
+        #expect(otty.contains("cd '/tmp/中文 folder'\\\\''s'"))
+        #expect(LauncherTerminalScript.source(command: command, directory: directory, application: .kero) == nil)
+        #expect(LauncherTerminalCLI.keroArguments(command: command, directory: directory)
+                == ["new", "--focus", "--dir", directory.path, "--", command])
+        #expect(LauncherTerminalApplication(rawValue: "io.appmakes.otty") == .otty)
+        #expect(LauncherTerminalApplication(rawValue: "sh.kero") == .kero)
     }
 }

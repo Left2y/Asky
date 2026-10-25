@@ -87,6 +87,15 @@ Asky 是使用 SwiftUI 与 AppKit 构建的 macOS 原生效率入口。本地全
 
 ### 📦 安装与配置
 
+#### Homebrew
+
+```sh
+brew tap niall-young/asky https://github.com/Niall-Young/Asky.git
+brew install --cask niall-young/asky/asky
+```
+
+支持 macOS 15+、Apple Silicon，使用与手动下载相同的正式安装包。应用内自动更新默认开启；也可运行 `brew update && brew upgrade --cask --greedy niall-young/asky/asky` 更新，或运行 `brew uninstall --cask niall-young/asky/asky` 卸载应用。卸载保留个人数据与设置。
+
 #### 下载安装
 - 前往 [GitHub Releases](https://github.com/Niall-Young/Asky/releases) 或 [官方网站](https://asky.niallyoung2002.workers.dev/) 下载最新 DMG 安装包（支持 macOS 15+，Apple Silicon）。
 - 打开 DMG，将 `Asky.app` 拖入“应用程序”目录即可。安装包已预置 Node.js 与 AgentRuntime，无需手动配置外部环境。
@@ -229,6 +238,15 @@ Asky is a native macOS efficiency launcher built with SwiftUI and AppKit. Local 
 ---
 
 ### 📦 Installation & Setup
+
+#### Homebrew
+
+```sh
+brew tap niall-young/asky https://github.com/Niall-Young/Asky.git
+brew install --cask niall-young/asky/asky
+```
+
+Requires macOS 15+ and Apple Silicon. Homebrew uses the same official package as the manual download. In-app automatic updates are enabled by default. You can also run `brew update && brew upgrade --cask --greedy niall-young/asky/asky` to update, or `brew uninstall --cask niall-young/asky/asky` to uninstall the app. Uninstalling preserves personal data and settings.
 
 #### Download & Install
 - Download the latest DMG release from [GitHub Releases](https://github.com/Niall-Young/Asky/releases) or the [Official Website](https://asky.niallyoung2002.workers.dev/) (macOS 15+, Apple Silicon).

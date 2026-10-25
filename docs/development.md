@@ -139,6 +139,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun notarytool store-
 
 脚本先为应用、MCP Bridge、Node 与原生依赖（含无扩展名可执行文件）签名并附安全时间戳，检查随包 runtime 的启动协议，再提交应用 ZIP 公证、确认 Accepted、为应用装订并验证票据，然后生成更新 ZIP。DMG 完成 Finder 布局后单独签名、公证、装订并验证；两种产物的 SHA-256 都在最终内容完成后计算。公证回执与详细日志保存在 `build/release-<version>-{app,dmg}-notarization*.json`。输出位于 `build/releases/<version>/`；不执行 GitHub 发布或本机安装，每次打包需要新的 staging 目录。DMG 使用 `scripts/dmg/background.tiff` 的 Retina 背景与 `scripts/dmg/layout.applescript` 的固定图标布局，终端需获准自动化 Finder。
 
+### Homebrew 安装源
+
+本仓库同时作为自定义 tap，通过 README 中带显式仓库 URL 的 `brew tap` 命令添加；不依赖独立的 `homebrew-asky` 仓库。`Casks/asky.rb` 固定正式 DMG 的版本和 SHA-256。每次 GitHub Release 公开后，核对远端 DMG 的 SHA-256 与对应 `.sha256` 文件，再更新这两个字段并提交、推送；不要使用 `sha256 :no_check` 或指向可变的 latest 下载地址。发布前运行：
+
+```sh
+brew style Casks/asky.rb
+brew audit --cask niall-young/asky/asky
+```
+
+`audit` 使用已添加的 tap 中的文件；验证未推送改动时，先将待验证版本放入独立的本地 tap。应用有内置更新，因此 Cask 声明 `auto_updates true`，主动通过 brew 升级需使用 `--greedy`。普通卸载仅移除应用，不清除用户数据。
+
 ### 短信日程配置回归
 
 先按 README 完成 Debug 构建，再执行 `python3 App/Tests/run-calendar-editor-regression.py`。默认检查标题、时间、日历选择和字段传递；`--preview` 打开实际分组弹窗，使用示例日历且不写入真实日程；另加 `--preview-error` 模拟首次冲突，检查窗口保留输入并允许重试。日期行展开月历与数字小时、分钟下拉框，创建直接经 ToolService 保存，不再交接 ICS 或打开日历应用。
@@ -285,6 +296,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun notarytool store-
 Credentials stay in Keychain, outside source control. Then run the packaging arguments above with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 scripts/package-release.py ...`. Override the Developer ID Application certificate name or SHA-1 with `--signing-identity`, and the Keychain profile with `--notary-profile`. Missing certificates, private keys, or notarization credentials fail immediately. Release packaging no longer accepts self-signed or ad-hoc identities.
 
 The script signs the app, MCP Bridge, Node, and native dependencies (including executables without extensions) with secure timestamps and checks the bundled runtime startup protocol. It submits an app ZIP for notarization, requires Accepted, staples and validates the app ticket, and only then creates the updater ZIP. After the Finder layout, it separately signs, notarizes, staples, and validates the DMG. Both SHA-256 checksums are computed from the final artifacts. Receipts and detailed logs are saved as `build/release-<version>-{app,dmg}-notarization*.json`. Outputs go to `build/releases/<version>/`. The script does not publish to GitHub or install locally, and each run needs a new staging directory. DMGs use the Retina background in `scripts/dmg/background.tiff` and fixed icon layout in `scripts/dmg/layout.applescript`; allow terminal automation of Finder.
+
+### Homebrew Tap
+
+This repository also serves as a custom tap, added with the explicit repository URL in the README's `brew tap` command; no separate `homebrew-asky` repository is required. `Casks/asky.rb` pins the official DMG version and SHA-256. After each GitHub Release becomes public, verify the remote DMG against its `.sha256` file, then update both fields, commit, and push. Do not use `sha256 :no_check` or a mutable latest download URL. Before publishing, run:
+
+```sh
+brew style Casks/asky.rb
+brew audit --cask niall-young/asky/asky
+```
+
+`audit` reads the file in the installed tap. To validate unpublished changes, first place the candidate in a separate local tap. Since the app has a built-in updater, the cask declares `auto_updates true`; explicit brew upgrades require `--greedy`. Normal uninstall removes the app and preserves user data.
 
 ### Message Calendar Editor Regression
 

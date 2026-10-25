@@ -1,6 +1,6 @@
 cask "asky" do
-  version "0.2.8"
-  sha256 "e596d461929dc937b672f1191402115c4fa09e774d727e0f2b387d9d6fc1af16"
+  version "0.2.9"
+  sha256 "f37104f7eb55a5b165b182651007d20129a79cd3ce17d1aa6946a5e7d3d91233"
 
   url "https://github.com/Niall-Young/Asky/releases/download/v#{version}/Asky-#{version}-macos-arm64.dmg"
   name "Asky"

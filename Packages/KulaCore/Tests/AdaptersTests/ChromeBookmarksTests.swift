@@ -1,5 +1,5 @@
 import Testing
-import Synchronization
+import os
 import Foundation
 import Contracts
 import ToolService
@@ -42,7 +42,7 @@ struct ChromeBookmarksTests {
         #expect(ChromeBookmarkService.load(root: root.appendingPathComponent("missing")).isEmpty)
     }
     @Test func readFailuresReachProviderWithoutBecomingMissingMatches() async throws {
-        let failures = Mutex<[ChromeBookmarkService.ReadFailure]>([])
+        let failures = OSAllocatedUnfairLock<[ChromeBookmarkService.ReadFailure]>(initialState: [])
         let provider = ChromeBookmarksProvider(load: { throw ChromeBookmarkService.ReadFailure.permissionDenied },
                                                onFailure: { _, failure in failures.withLock { $0.append(failure) } })
         #expect(await provider.search("deepseek", limit: 8).isEmpty)

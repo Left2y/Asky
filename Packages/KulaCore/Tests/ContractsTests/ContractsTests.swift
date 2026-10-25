@@ -32,6 +32,23 @@ import Foundation
         #expect(!AgentTaskState.awaitingInput.isTerminal)
     }
 
+    @Test func resourceScopeConcurrentEndAndRegistrationReleasesExactlyOnce() async {
+        let scope = ResourceScope(owner: "concurrent", kind: .task)
+        let counter = Counter()
+        // Release callbacks must run outside the lock so they can reenter the scope.
+        scope.onEnd { scope.end(); counter.bump() }
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<200 {
+                group.addTask { scope.onEnd { counter.bump() } }
+                group.addTask { scope.end() }
+            }
+        }
+        #expect(scope.isEnded)
+        #expect(counter.value == 201)
+        scope.onEnd { counter.bump() }
+        #expect(counter.value == 202)
+    }
+
     @Test func resourceScopeCancelsAndReleasesOnce() async {
         let scope = ResourceScope(owner: "panel", kind: .panel)
         let counter = Counter()

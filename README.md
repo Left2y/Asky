@@ -7,7 +7,7 @@
 macOS 原生效率入口，连接本地搜索、剪贴板与按需 AI 助手。<br />
 A native macOS launcher for local search, clipboard history, and an on-demand AI assistant.
 
-[![macOS](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white)](project.yml)
+[![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](project.yml)
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Packages/KulaCore/Package.swift)
 [![MCP](https://img.shields.io/badge/MCP-Bridge-6A1B9A)](docs/native-tools-and-mcp.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -110,8 +110,10 @@ brew install --cask niall-young/asky/asky
 
 ### 🛠️ 开发与构建
 
+当前源码最低支持 macOS 14，功能与 macOS 15 保持一致，均使用原生背景模糊材质；macOS 26+ 可使用液态玻璃。14 的设置使用原生分组表单，15+ 保留自定义卡片。macOS 14/15 实机验收尚待完成。当前 Homebrew Cask 固定的 0.2.9 安装包仍要求 macOS 15；macOS 14 支持需使用本次源码构建或后续发布包。
+
 #### 环境要求
-- macOS 15+ (Apple Silicon)
+- 目标运行系统：macOS 14+ (Apple Silicon)
 - Xcode 16+ / Swift 6.2+
 - Node.js 22+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
@@ -263,8 +265,10 @@ Requires macOS 15+ and Apple Silicon. Homebrew uses the same official package as
 
 ### 🛠️ Development & Building
 
+Current source targets macOS 14 with the same features and native background blur as macOS 15; macOS 26+ can use Liquid Glass. Settings use a native grouped form on 14 and retain custom cards on 15+. Testing on macOS 14/15 hardware is still pending. The current Homebrew Cask pins the 0.2.9 package, which still requires macOS 15; macOS 14 support requires a build from this source or a subsequent release.
+
 #### Prerequisites
-- macOS 15+ (Apple Silicon)
+- Target runtime: macOS 14+ (Apple Silicon)
 - Xcode 16+ / Swift 6.2+
 - Node.js 22+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)

@@ -17,8 +17,8 @@ if not (products / "Search.o").exists():
 
 sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
            if path.stem != "AskyApp"]
-command = ["xcrun", "swiftc", "-parse-as-library", "-whole-module-optimization", "-swift-version", "6",
-           "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
+command = ["xcrun", "swiftc", "-parse-as-library", "-whole-module-optimization", "-swift-version", "6", "-D", "DEBUG",
+           "-target", platform.machine() + "-apple-macos14.0", "-I", str(products)]
 command += ["-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
 maps = derived_data / "Build/Intermediates.noindex/GeneratedModuleMaps"
 for path in sorted(maps.glob("*.modulemap")):
@@ -34,6 +34,8 @@ binary = artifacts / "agent-reply-regression"
 command += ["-lsqlite3", "-o", str(binary)]
 environment = os.environ.copy()
 environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
+sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], env=environment, text=True).strip()
+command += ["-sdk", sdk]
 subprocess.run(command, env=environment, cwd=root, check=True)
 bundle = artifacts / "AgentReplyRegression.app/Contents"
 (bundle / "MacOS").mkdir(parents=True, exist_ok=True)

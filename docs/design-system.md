@@ -100,9 +100,11 @@ Theme、ButtonStyle、LabelStyle 或 ViewModifier 只负责样式映射，不重
 
 ## Liquid Glass
 
-macOS 15 的兼容表面使用 `NSVisualEffectView` 的 `underWindowBackground` 材质与 `behindWindow` 模式，叠加现有 `background` 变量（浅色白 60%、深色黑 60%）及 1pt `border` 描边。设置侧栏与内容区同步适配；按钮降级为原生 bordered / borderedProminent。用户已接受系统控制的背景模糊半径，不要求精确 120px。辅助功能模式保持不透明背景与高对比描边。
+macOS 14/15 的兼容表面使用 `NSVisualEffectView` 的 `underWindowBackground` 材质与 `behindWindow` 模式，叠加现有 `background` 变量（浅色白 60%、深色黑 60%）及 1pt `border` 描边。设置侧栏与内容区同步适配；按钮降级为原生 bordered / borderedProminent。用户已接受系统控制的背景模糊半径，不要求精确 120px。辅助功能模式保持不透明背景与高对比描边。
 
-macOS 26+ 使用原生液态玻璃；源码构建最低支持 macOS 15。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
+macOS 14 的设置使用原生分组 `Form`，保留全部设置项；15+ 保留现有自定义分组卡片。14 的聊天滚动使用 `ScrollViewReader` 与 AppKit 滚动区域通知，保留初始底部、流式跟随和回到底部按钮；标题栏空隙通过 AppKit `performDrag` 拖动窗口。
+
+macOS 26+ 使用原生液态玻璃；源码构建最低支持 macOS 14。SwiftUI 的 glassEffect、GlassEffectContainer 与原生玻璃按钮样式，以及 AppKit NSGlassEffectView 是实施候选；具体组合与 SDK 可用性在 M0 编译和视觉验证。[Apple SwiftUI Liquid Glass](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)、[Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
 
 玻璃控件统一使用 `NativeGlassBackground`，整窗背景通过 `windowSurfaceBackground` 仅绘制回退、由 `WindowSurface.glassContentView` 提供原生玻璃：macOS 26+ 普通模式仅使用原生 `.glassEffect(.regular, in:)`，不叠加 `background` 的黑白填充或自制渐变描边；原生材质负责磨砂、光学边缘和背景适配。按钮可使用 Regular 的 interactive 变体。整窗表面采用 Spotlight 式窗口结构：启动器外壳、AI 对话、筛选菜单、剪贴板主窗口和完整预览各自是一个窗口，窗口帧恰好等于玻璃外形，由 AppKit `NSGlassEffectView` 填满（显式 `.regular`、`tintColor = nil`）并开启 `hasShadow`，阴影由窗口服务器按可见外形生成；`NSGlassEffectView` 与内容层都按同一圆角裁剪，否则玻璃在窗口角落留下的微弱 alpha 会让系统阴影呈方角黑边。启动器与剪贴板列表的“更多”均在各自主窗口内由按钮原位变形展开；启动器的固定与筛选是搜索框内部的普通图标按钮，共用外壳玻璃，只绘制悬停和按下反馈，不创建按钮窗口或执行分离动画。筛选与更多菜单的非 key 玻璃和 key 外壳的材质差由 `InactiveGlassTintView` 补偿：深色用 5% 白色透明叠层；浅色改用 5% `.plusLighter` 加色叠层，因为普通白色叠层在亮背景接近饱和、补不上约 12 级的暗差。补偿必须在窗口 alpha 入场动画开始前启用：加色叠层在窗口 alpha 动画期间不会被合成，动画中途才启用会等到落定才出现，形成约 12 级的亮度突跳。见[浅色模式非 key 玻璃提亮](validation/2026-10-18-inactive-glass-light-mode.md)。提示条是不透明的独立表面。不使用透明留白画布与自绘阴影（前者被描出偏下黑框，后者曾让浅色玻璃变深）。降低透明度或增强对比度时由 SwiftUI 绘制不透明回退表面。见[Spotlight 式浮动表面](validation/2026-10-16-spotlight-surfaces.md)、[原生窗口阴影](validation/2026-10-14-native-window-shadow.md)与[启动器黑框](validation/2026-10-16-launcher-shadow-outline.md)。
 

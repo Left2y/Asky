@@ -1,13 +1,13 @@
 import Testing
 import Foundation
-import Synchronization
+import os
 import Contracts
 import LocalStore
 @testable import ToolService
 
 final class FakeAdapter: ToolAdapter, @unchecked Sendable {
     let definition: ToolDefinition
-    let executions = Mutex(0)
+    let executions = OSAllocatedUnfairLock(initialState: 0)
     let delay: Duration
     let verify: Bool
     init(_ name: String, effect: ToolEffect = .write, kind: WriteKind? = .create,
@@ -33,7 +33,7 @@ final class FakeAdapter: ToolAdapter, @unchecked Sendable {
 }
 
 final class Presenter: @unchecked Sendable {
-    let calls = Mutex<[ConfirmationRequest]>([])
+    let calls = OSAllocatedUnfairLock<[ConfirmationRequest]>(initialState: [])
     let decision: ConfirmationDecision
     let onAsk: @Sendable () -> Void
     init(_ d: ConfirmationDecision, onAsk: @escaping @Sendable () -> Void = {}) { decision = d; self.onAsk = onAsk }
@@ -44,8 +44,8 @@ final class Presenter: @unchecked Sendable {
 }
 
 final class PolicyBox: Sendable {
-    let m: Mutex<PolicySnapshot>
-    init(_ p: PolicySnapshot) { m = Mutex(p) }
+    let m: OSAllocatedUnfairLock<PolicySnapshot>
+    init(_ p: PolicySnapshot) { m = OSAllocatedUnfairLock(initialState: p) }
     var value: PolicySnapshot { m.withLock { $0 } }
 }
 
@@ -211,7 +211,7 @@ func req(_ tool: String, _ args: JSONValue = ["title": "x"], origin: CallerOrigi
 final class ConcurrencyProbe: ToolAdapter, @unchecked Sendable {
     let definition = ToolDefinition(name: "probe", summary: "p", source: .calendar, effect: .write, writeKind: .create,
                                      confirmation: .createDirectOtherwiseConfirm, externallyExposable: false)
-    let state = Mutex((cur: 0, peak: 0))
+    let state = OSAllocatedUnfairLock(initialState: (cur: 0, peak: 0))
     var peak: Int { state.withLock { $0.peak } }
     func execute(_ a: JSONValue) async throws -> AdapterOutput {
         state.withLock { $0.cur += 1; $0.peak = max($0.peak, $0.cur) }
@@ -239,7 +239,7 @@ final class ConcurrencyProbe: ToolAdapter, @unchecked Sendable {
 
     @Test func disabledSourceDoesNotRequestSystemPermission() async throws {
         let store = try LocalStore(inMemoryWithRoot: FileManager.default.temporaryDirectory)
-        let called = Mutex(false)
+        let called = OSAllocatedUnfairLock(initialState: false)
         let service = ToolService(store: store, policy: { PolicySnapshot(enabledSources: []) },
                                   presenter: Presenter(.approved).fn, authorize: { _, _ in
             called.withLock { $0 = true }

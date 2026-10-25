@@ -10,7 +10,7 @@ Asky 围绕“快速入口、按需理解、本地记忆、少量提醒”构建
 
 | 项目 | 当前方案 | 状态 |
 | --- | --- | --- |
-| 平台 | macOS 15+、Apple Silicon，中文优先 | 26+ 使用液态玻璃；15 使用原生背景模糊，旧系统实机待验收，Intel 不承诺 |
+| 平台 | macOS 14+、Apple Silicon，中文优先 | 26+ 使用液态玻璃；14/15 使用相同的原生背景模糊，旧系统实机待验收，Intel 不承诺 |
 | 原生界面 | Swift 6、SwiftUI + AppKit、NSPanel | 已确认技术方向，实际工程配置待建立 |
 | 视觉 | 用户 Figma 变量与 Styles、原生 Liquid Glass | 已确认；[设计系统](design-system.md) |
 | Agent | 优先验证 Pi Coding Agent SDK，本地 Node.js 辅助进程 | M0 通过后锁定，保持可替换 |

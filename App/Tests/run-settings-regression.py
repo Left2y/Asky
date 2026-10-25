@@ -22,7 +22,7 @@ sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], e
 sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
            if path.stem != "AskyApp"]
 command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6", "-D", "DEBUG",
-           "-sdk", sdk, "-target", platform.machine() + "-apple-macos15.0", "-I", str(products)]
+           "-sdk", sdk, "-target", platform.machine() + "-apple-macos14.0", "-I", str(products)]
 command += ["-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
 maps = derived_data / "Build/Intermediates.noindex/GeneratedModuleMaps"
 for path in sorted(maps.glob("*.modulemap")):

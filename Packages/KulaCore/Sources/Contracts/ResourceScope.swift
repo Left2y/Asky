@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 public enum ScopeKind: String, Sendable {
     case app, panel, search, task, disk
@@ -15,7 +15,7 @@ public final class ResourceScope: Sendable {
         var tasks: [Task<Void, Never>] = []
         var releases: [@Sendable () -> Void] = []
     }
-    private let state = Mutex(State())
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     public init(owner: String, kind: ScopeKind) {
         self.owner = owner

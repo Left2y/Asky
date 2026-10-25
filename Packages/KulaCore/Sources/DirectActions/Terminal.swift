@@ -1,6 +1,6 @@
 import Foundation
 import Contracts
-import Synchronization
+import os
 
 public enum TerminalEvent: Sendable, Equatable {
     case stdout(String)
@@ -28,7 +28,7 @@ public final class TerminalRunner: Sendable {
         return true
     }
 
-    private let process = Mutex<Process?>(nil)
+    private let process = OSAllocatedUnfairLock<Process?>(initialState: nil)
     public let memoryLimit: Int
     public let spillDirectory: URL
 

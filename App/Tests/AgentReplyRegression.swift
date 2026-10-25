@@ -332,7 +332,49 @@ enum AgentReplyRegression {
             try await formPreview(app: app, model: model)
             return
         }
-        if CommandLine.arguments.contains("--window-glass") {
+        if CommandLine.arguments.contains("--macos14-checks") {
+            precondition(SurfaceCompatibility.useMacOS14Compatibility)
+            precondition(SurfaceCompatibility.useLegacyMaterial)
+            let id = try ConversationStore(app.store).create(title: "Compatibility regression")
+            for index in 0..<24 {
+                try ConversationStore(app.store).append(conversationID: id,
+                    role: index.isMultiple(of: 2) ? "user" : "assistant",
+                    text: "Message \(index): transcript scrolling compatibility")
+            }
+            model.open(id)
+            let controller = AgentWindowController(model: model, presentation: WindowPresentation())
+            controller.show()
+            let window = application.windows.first { $0.title == "Asky AI" }!
+            defer { window.close() }
+            func descendants(_ view: NSView) -> [NSView] {
+                [view] + view.subviews.flatMap { descendants($0) }
+            }
+            for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+                window.appearance = NSAppearance(named: appearance)
+                try await Task.sleep(for: .milliseconds(350))
+                guard let view = window.contentView else { fatalError("missing chat surface") }
+                view.layoutSubtreeIfNeeded()
+                let views = descendants(view)
+                precondition(views.contains { $0 is NSVisualEffectView }, "legacy chat must retain native blur")
+                precondition(views.contains { String(describing: type(of: $0)).contains("DragView") },
+                             "legacy chat header must retain a native window drag area")
+                guard let scroll = views.compactMap({ $0 as? NSScrollView }).first(where: {
+                    ($0.documentView?.frame.height ?? 0) > $0.contentView.bounds.height
+                }) else { fatalError("legacy transcript must remain scrollable") }
+                scroll.contentView.scroll(to: .zero)
+                scroll.reflectScrolledClipView(scroll.contentView)
+                try await Task.sleep(for: .milliseconds(200))
+                view.layoutSubtreeIfNeeded()
+                if let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    try bitmap.representation(using: .png, properties: [:])!.write(
+                        to: URL(filePath: "build/macos14-chat-\(appearance.rawValue).png"))
+                }
+            }
+            print("macOS 14 branch: chat blur, native drag area, scrollable transcript and light/dark captures passed")
+            return
+        }
+        if #available(macOS 26, *), CommandLine.arguments.contains("--window-glass") {
             func capture(_ window: NSWindow, name: String) throws {
                 let frame = window.frame
                 let top = NSScreen.screens[0].frame.maxY - frame.maxY

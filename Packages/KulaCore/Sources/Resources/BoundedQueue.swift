@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 /// Bounded FIFO queue with key-based coalescing. When full, the oldest item is dropped.
 public final class BoundedQueue<Key: Hashable & Sendable, Item: Sendable>: Sendable {
@@ -8,7 +8,7 @@ public final class BoundedQueue<Key: Hashable & Sendable, Item: Sendable>: Senda
         var items: [Key: Item] = [:]
         var dropped = 0
     }
-    private let state = Mutex(State())
+    private let state = OSAllocatedUnfairLock(initialState: State())
     public let capacity: Int
 
     public init(capacity: Int) { self.capacity = capacity }
@@ -42,7 +42,8 @@ public final class BoundedQueue<Key: Hashable & Sendable, Item: Sendable>: Senda
     }
 
     public func remove(where predicate: (Key, Item) -> Bool) {
-        state.withLock { s in
+        // The nonescaping predicate runs synchronously on the caller while state is locked.
+        state.withLockUnchecked { s in
             s.order.removeAll { k in
                 guard let it = s.items[k], predicate(k, it) else { return false }
                 s.items.removeValue(forKey: k)

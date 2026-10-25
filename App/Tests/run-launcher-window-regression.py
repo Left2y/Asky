@@ -17,8 +17,8 @@ if not (products / "Search.o").exists():
 
 sources = [path.stem for path in sorted((root / "App/Sources").glob("*.swift"))
            if path.stem != "AskyApp"]
-command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
-           "-target", platform.machine() + "-apple-macos26.0", "-I", str(products)]
+command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6", "-D", "DEBUG",
+           "-target", platform.machine() + "-apple-macos14.0", "-I", str(products)]
 maps = derived_data / "Build/Intermediates.noindex/GeneratedModuleMaps"
 for path in sorted(maps.glob("*.modulemap")):
     command += ["-Xcc", "-fmodule-map-file=" + str(path)]

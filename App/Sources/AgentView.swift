@@ -225,8 +225,7 @@ struct AgentView: View {
         .padding(.horizontal, 12)
         .frame(height: 56)
         .contentShape(Rectangle())
-        .gesture(WindowDragGesture())
-        .allowsWindowActivationEvents()
+        .compatibleWindowDrag()
     }
 
     private func headerIcon(_ symbol: String) -> some View {
@@ -345,10 +344,6 @@ struct AgentIconButtonStyle: ButtonStyle {
 
 private struct Transcript: View {
     let model: AgentModel
-    @State private var isAtBottom = true
-    @State private var scrollPosition = ScrollPosition()
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // Value snapshots let an outgoing transcript finish fading after model.open
     // clears/replaces the active conversation. The live model still owns actions.
     private let items: [ChatItem]
@@ -371,51 +366,18 @@ private struct Transcript: View {
     }
 
     var body: some View {
-        Group {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    if hasOlder {
-                        Button(NSLocalizedString("加载更早的消息", comment: "")) { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
-                    }
-                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                        ResponseGroupView(group: group, model: model)
-                            .padding(.top, index == 0 ? 0 : (group.items.first?.kind == .user ? 20 : 12))
-                    }
-                    Color.clear.frame(height: 1).id("bottom")
+        CompatibleTranscriptScroll(itemCount: items.count, streaming: streaming) {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if hasOlder {
+                    Button(NSLocalizedString("加载更早的消息", comment: "")) { model.loadOlder() }.buttonStyle(.link).frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 32).padding(.vertical, 12)
-            }
-            .scrollPosition($scrollPosition)
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y + geometry.containerSize.height
-                    >= geometry.contentSize.height + geometry.contentInsets.bottom - 1
-            } action: { _, atBottom in
-                isAtBottom = atBottom
-            }
-            .overlay(alignment: .bottom) {
-                if !isAtBottom {
-                    Button {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-                            scrollPosition.scrollTo(edge: .bottom)
-                        }
-                    } label: {
-                        Image(mingCute: "arrow.up", size: 20)
-                            .rotationEffect(.degrees(180))
-                            .frame(width: 32, height: 32)
-                    }
-                    .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
-                    .accessibilityLabel(NSLocalizedString("回到底部", comment: ""))
-                    .help(NSLocalizedString("回到底部", comment: ""))
-                    .padding(.bottom, 8)
+                ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                    ResponseGroupView(group: group, model: model)
+                        .padding(.top, index == 0 ? 0 : (group.items.first?.kind == .user ? 20 : 12))
                 }
+                Color.clear.frame(height: 1).id("bottom")
             }
-            .onChange(of: items.count) {
-                if isAtBottom { scrollPosition.scrollTo(edge: .bottom) }
-            }
-            .onChange(of: streaming) {
-                if isAtBottom { scrollPosition.scrollTo(edge: .bottom) }
-            }
+            .padding(.horizontal, 32).padding(.vertical, 12)
         }
     }
 
@@ -450,6 +412,156 @@ private struct Transcript: View {
         case .cancelled: NSLocalizedString("已停止", comment: "")
         case .failed: NSLocalizedString("失败", comment: "")
         case .pendingVerification: NSLocalizedString("待核实", comment: "")
+        }
+    }
+}
+
+private struct CompatibleTranscriptScroll<Content: View>: View {
+    let itemCount: Int
+    let streaming: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if #available(macOS 15, *), !SurfaceCompatibility.useMacOS14Compatibility {
+            ModernTranscriptScroll(itemCount: itemCount, streaming: streaming, content: content)
+        } else {
+            LegacyTranscriptScroll(itemCount: itemCount, streaming: streaming, content: content)
+        }
+    }
+}
+
+@available(macOS 15, *)
+private struct ModernTranscriptScroll<Content: View>: View {
+    let itemCount: Int
+    let streaming: String
+    var content: Content
+    @State private var isAtBottom = true
+    @State private var scrollPosition = ScrollPosition()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            ScrollView {
+                content
+            }
+            .scrollPosition($scrollPosition)
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height
+                    >= geometry.contentSize.height + geometry.contentInsets.bottom - 1
+            } action: { _, atBottom in
+                isAtBottom = atBottom
+            }
+            .overlay(alignment: .bottom) {
+                if !isAtBottom {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                            scrollPosition.scrollTo(edge: .bottom)
+                        }
+                    } label: {
+                        Image(mingCute: "arrow.up", size: 20)
+                            .rotationEffect(.degrees(180))
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
+                    .accessibilityLabel(NSLocalizedString("回到底部", comment: ""))
+                    .help(NSLocalizedString("回到底部", comment: ""))
+                    .padding(.bottom, 8)
+                }
+            }
+            .onChange(of: itemCount) {
+                if isAtBottom { scrollPosition.scrollTo(edge: .bottom) }
+            }
+            .onChange(of: streaming) {
+                if isAtBottom { scrollPosition.scrollTo(edge: .bottom) }
+            }
+        }
+    }
+}
+
+/// AppKit bounds notifications also cover wheel events and programmatic scrolling on 14.
+private struct LegacyTranscriptPosition: NSViewRepresentable {
+    var onChange: (Bool) -> Void
+    func makeNSView(context: Context) -> ObserverView { ObserverView() }
+    func updateNSView(_ view: ObserverView, context: Context) {
+        view.onChange = onChange
+        view.scheduleUpdate()
+    }
+
+    final class ObserverView: NSView {
+        var onChange: ((Bool) -> Void)?
+        private weak var observedScroll: NSScrollView?
+
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleUpdate() }
+        override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); scheduleUpdate() }
+
+        func scheduleUpdate() {
+            DispatchQueue.main.async { [weak self] in self?.updatePosition() }
+        }
+
+        @objc private func boundsChanged(_ notification: Notification) { scheduleUpdate() }
+
+        private func updatePosition() {
+            guard let scroll = enclosingScrollView, let document = scroll.documentView else { return }
+            if observedScroll !== scroll {
+                NotificationCenter.default.removeObserver(self)
+                observedScroll = scroll
+                scroll.contentView.postsBoundsChangedNotifications = true
+                document.postsFrameChangedNotifications = true
+                NotificationCenter.default.addObserver(self, selector: #selector(boundsChanged(_:)),
+                    name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+                NotificationCenter.default.addObserver(self, selector: #selector(boundsChanged(_:)),
+                    name: NSView.frameDidChangeNotification, object: document)
+            }
+            onChange?(scroll.documentVisibleRect.maxY >= document.bounds.maxY - 1)
+        }
+
+        deinit { NotificationCenter.default.removeObserver(self) }
+    }
+}
+
+private struct LegacyTranscriptScroll<Content: View>: View {
+    let itemCount: Int
+    let streaming: String
+    var content: Content
+    @State private var isAtBottom = true
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    content.background {
+                        LegacyTranscriptPosition { isAtBottom = $0 }
+                    }
+                }
+                .defaultScrollAnchor(.bottom)
+                .overlay(alignment: .bottom) {
+                    if !isAtBottom {
+                        Button {
+                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                                proxy.scrollTo("bottom", anchor: .bottom)
+                            }
+                        } label: {
+                            Image(mingCute: "arrow.up", size: 20)
+                                .rotationEffect(.degrees(180))
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(AgentHeaderButtonStyle(colorScheme: colorScheme))
+                        .accessibilityLabel(NSLocalizedString("回到底部", comment: ""))
+                        .help(NSLocalizedString("回到底部", comment: ""))
+                        .padding(.bottom, 8)
+                    }
+                }
+                .onChange(of: itemCount) {
+                    if isAtBottom { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
+                .onChange(of: streaming) {
+                    if isAtBottom { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
+            }
         }
     }
 }

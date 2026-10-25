@@ -22,6 +22,24 @@ struct SettingsForm<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        Group {
+            if #available(macOS 15, *), !SurfaceCompatibility.useMacOS14Compatibility {
+                sectionCards
+            } else {
+                Form { content }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+            }
+        }
+        .font(.system(size: 14))
+        .foregroundStyle(ThemeColor.kText)
+        .labeledContentStyle(SettingsLabelStyle())
+        .textFieldStyle(.roundedBorder)
+        .controlSize(.regular)
+    }
+
+    @available(macOS 15, *)
+    private var sectionCards: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForEach(sections: content) { section in
@@ -52,11 +70,6 @@ struct SettingsForm<Content: View>: View {
             }
             .padding(20).padding(.top, -4)
         }
-        .font(.system(size: 14))
-        .foregroundStyle(ThemeColor.kText)
-        .labeledContentStyle(SettingsLabelStyle())
-        .textFieldStyle(.roundedBorder)
-        .controlSize(.regular)
     }
 }
 

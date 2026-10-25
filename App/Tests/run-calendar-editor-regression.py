@@ -18,7 +18,7 @@ environment = os.environ.copy()
 environment.setdefault("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], env=environment, text=True).strip()
 command = ["xcrun", "swiftc", "-parse-as-library", "-whole-module-optimization", "-swift-version", "6", "-D", "DEBUG",
-           "-sdk", sdk, "-target", platform.machine() + "-apple-macos15.0", "-I", str(products),
+           "-sdk", sdk, "-target", platform.machine() + "-apple-macos14.0", "-I", str(products),
            "-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"]
 for path in sorted((derived / "Build/Intermediates.noindex/GeneratedModuleMaps").glob("*.modulemap")):
     command += ["-Xcc", "-fmodule-map-file=" + str(path)]

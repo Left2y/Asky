@@ -599,7 +599,7 @@ enum SettingsRegression {
                             precondition(model.preferences.folderBackspaceBehavior == .parent)
                         }
                         if page == .model {
-                            assertMCPCheckboxLayout(in: split.splitViewItems[1].viewController.view)
+                            try await assertMCPCheckboxLayout(in: split.splitViewItems[1].viewController.view)
                         }
                         guard let view = window.contentView,
                               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("missing settings view") }
@@ -936,7 +936,16 @@ enum SettingsRegression {
         print("Settings inputs: inside click, input switching, outside blur and value preservation passed")
     }
 
-    private static func assertMCPCheckboxLayout(in view: NSView) {
+    private static func assertMCPCheckboxLayout(in view: NSView) async throws {
+        // Native grouped forms create offscreen rows lazily on macOS 14.
+        if SurfaceCompatibility.useMacOS14Compatibility,
+           let scroll = findScrollView(in: view), let document = scroll.documentView {
+            scroll.contentView.scroll(to: NSPoint(x: 0,
+                y: max(0, document.bounds.height - scroll.contentView.bounds.height)))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            try await Task.sleep(for: .milliseconds(200))
+            view.layoutSubtreeIfNeeded()
+        }
         func buttons(in view: NSView) -> [NSButton] {
             (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons(in: $0) }
         }

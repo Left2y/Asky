@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-import Synchronization
+import os
 import Contracts
 @testable import AgentHost
 
@@ -12,7 +12,7 @@ final class FakeRuntime: RuntimeProcess, @unchecked Sendable {
     let output: AsyncStream<Data>
     private let cont: AsyncStream<Data>.Continuation
     private let script: Script
-    private let st = Mutex<(exit: Int32?, waiters: [CheckedContinuation<Int32, Never>], seen: [String])>((nil, [], []))
+    private let st = OSAllocatedUnfairLock<(exit: Int32?, waiters: [CheckedContinuation<Int32, Never>], seen: [String])>(initialState: (nil, [], []))
     let protocolVersion: Int
     let exitOnShutdown: Bool
 
@@ -82,7 +82,7 @@ let echoScript: FakeRuntime.Script = { msg, reply, _ in
 }
 
 final class Launches: @unchecked Sendable {
-    let list = Mutex<[FakeRuntime]>([])
+    let list = OSAllocatedUnfairLock<[FakeRuntime]>(initialState: [])
     var count: Int { list.withLock { $0.count } }
     var last: FakeRuntime? { list.withLock { $0.last } }
 }
@@ -124,7 +124,7 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
 
 @Suite(.timeLimit(.minutes(1))) struct AgentHostTests {
     @Test func asynchronousCredentialFailureFinishesHandoffBeforeFailureEvent() async {
-        let handoffFinished = Mutex(false)
+        let handoffFinished = OSAllocatedUnfairLock(initialState: false)
         let launches = Launches()
         let host = AgentHost(launcher: {
             let p = FakeRuntime(pid: 1234, script: echoScript)
@@ -164,7 +164,7 @@ func finalState(_ events: [AgentEvent]) -> AgentTaskState? {
         struct AuthorizationError: LocalizedError {
             var errorDescription: String? { "钥匙串授权已取消" }
         }
-        let authorized = Mutex(false)
+        let authorized = OSAllocatedUnfairLock(initialState: false)
         let launches = Launches()
         let host = AgentHost(launcher: {
             let p = FakeRuntime(pid: 1234, script: echoScript)

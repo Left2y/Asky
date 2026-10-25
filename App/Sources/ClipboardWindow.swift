@@ -556,8 +556,7 @@ private struct ClipboardHistoryView: View {
             .frame(height: LauncherLayout.inputHeight)
             // The header gaps drag the panel, like the agent window's title bar.
             .contentShape(Rectangle())
-            .gesture(WindowDragGesture())
-            .allowsWindowActivationEvents()
+            .compatibleWindowDrag()
             Rectangle().fill(ThemeColor.kBorder)
                 .frame(height: LauncherLayout.dividerHeight)
                 .padding(.horizontal, 28)

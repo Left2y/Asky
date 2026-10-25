@@ -1,6 +1,6 @@
 import Foundation
 import Darwin
-import Synchronization
+import os
 
 /// A managed runtime child process speaking the JSONL protocol.
 public protocol RuntimeProcess: Sendable {
@@ -25,10 +25,10 @@ public final class SpawnedRuntimeProcess: RuntimeProcess {
     /// Must be retained: dropping it closes the read end and the child gets EPIPE.
     private let stdoutHandle: FileHandle
     private final class ExitBox: Sendable {
-        let state = Mutex<(code: Int32?, waiters: [CheckedContinuation<Int32, Never>])>((nil, []))
+        let state = OSAllocatedUnfairLock<(code: Int32?, waiters: [CheckedContinuation<Int32, Never>])>(initialState: (nil, []))
     }
     private let exitBox = ExitBox()
-    private let inputClosed = Mutex(false)
+    private let inputClosed = OSAllocatedUnfairLock(initialState: false)
 
     public init(executable: String, arguments: [String], workingDirectory: String,
                 environment: [String: String], stderrLog: String?) throws {

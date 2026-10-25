@@ -2,7 +2,7 @@ import AppKit
 import LocalStore
 import UniformTypeIdentifiers
 import ImageIO
-import Synchronization
+import os
 
 /// Native clipboard boundary. History never requires an agent or paste permission.
 @MainActor
@@ -90,7 +90,7 @@ public enum ClipboardAccess {
         let size: Int
         let available: Bool
     }
-    nonisolated private static let imageAvailability = Mutex<[String: ImageAvailability]>([:])
+    nonisolated private static let imageAvailability = OSAllocatedUnfairLock<[String: ImageAvailability]>(initialState: [:])
 
     /// Check original content, never a surviving thumbnail. Keep unavailable rows in storage so
     /// file references can reappear when a removable volume or temporarily unavailable file returns.

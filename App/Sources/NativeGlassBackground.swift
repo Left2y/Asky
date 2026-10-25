@@ -10,7 +10,16 @@ enum SurfaceCompatibility {
     }
     static let state = State()
 
+    static var useMacOS14Compatibility: Bool {
+        #if DEBUG
+        if CommandLine.arguments.contains("--preview-macos14") { return true }
+        #endif
+        if #available(macOS 15, *) { return false }
+        return true
+    }
+
     static var supportsLiquidGlass: Bool {
+        if useMacOS14Compatibility { return false }
         #if DEBUG
         if CommandLine.arguments.contains("--preview-legacy-material") { return false }
         #endif
@@ -128,5 +137,27 @@ private struct SettingsVersionBackground: ViewModifier {
 extension View {
     func settingsVersionBackground() -> some View {
         modifier(SettingsVersionBackground())
+    }
+}
+
+/// Keeps title-bar gaps draggable on systems before WindowDragGesture.
+extension View {
+    @ViewBuilder
+    func compatibleWindowDrag() -> some View {
+        if #available(macOS 15, *), !SurfaceCompatibility.useMacOS14Compatibility {
+            self.gesture(WindowDragGesture()).allowsWindowActivationEvents()
+        } else {
+            self.background(LegacyWindowDragArea())
+        }
+    }
+}
+
+private struct LegacyWindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> DragView { DragView() }
+    func updateNSView(_ view: DragView, context: Context) {}
+
+    final class DragView: NSView {
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
     }
 }

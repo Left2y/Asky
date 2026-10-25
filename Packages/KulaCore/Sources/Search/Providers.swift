@@ -1,6 +1,6 @@
 import Foundation
 import Contracts
-import Synchronization
+import os
 import LocalStore
 import ToolService
 
@@ -33,10 +33,10 @@ public final class AppsProvider: SearchProvider {
         var index: Index
     }
     private static let cacheVersion = 1
-    private let index = Mutex<Index?>(nil)
+    private let index = OSAllocatedUnfairLock<Index?>(initialState: nil)
     /// Serializes rebuilds so a background prewarm and a first search never parse twice.
     private let buildLock = NSLock()
-    private let usage = Mutex<[String: Date]>([:])
+    private let usage = OSAllocatedUnfairLock<[String: Date]>(initialState: [:])
 
     public init(roots: [URL] = AppsProvider.defaultRoots,
                 extraApps: [URL] = AppsProvider.defaultExtraApps,

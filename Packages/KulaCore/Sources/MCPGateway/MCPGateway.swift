@@ -2,7 +2,7 @@ import Foundation
 import Darwin
 import CryptoKit
 import Security
-import Synchronization
+import os
 import Contracts
 import LocalStore
 import ToolService
@@ -74,9 +74,9 @@ public final class MCPLinkServer: Sendable {
 
     private let path: String
     private let gateway: MCPGateway
-    private let state = Mutex<(listenFD: Int32, source: DispatchSourceRead?, connections: Int)>((-1, nil, 0))
+    private let state = OSAllocatedUnfairLock<(listenFD: Int32, source: DispatchSourceRead?, connections: Int)>(initialState: (-1, nil, 0))
     private let queue = DispatchQueue(label: "asky.mcp.link")
-    private let activity = Mutex<(inFlight: Int, last: Date)>((0, .distantPast))
+    private let activity = OSAllocatedUnfairLock<(inFlight: Int, last: Date)>(initialState: (0, .distantPast))
 
     public init(socketPath: String = MCPLink.defaultSocketPath(), gateway: MCPGateway) {
         path = socketPath
@@ -235,10 +235,13 @@ private final class Connection: @unchecked Sendable {
 
 /// Readability handlers run serially; the lock only satisfies Sendable checking.
 private final class FramerBox: Sendable {
-    private let framer = Mutex(LineFramer())
+    private let framer = OSAllocatedUnfairLock(initialState: LineFramer())
     func push(_ d: Data, onOversize: () -> Void) -> [Data] {
-        var over = false
-        let out = framer.withLock { $0.push(d) { over = true } }
+        let (out, over) = framer.withLock { state in
+            var over = false
+            let out = state.push(d) { over = true }
+            return (out, over)
+        }
         if over { onOversize() }
         return out
     }

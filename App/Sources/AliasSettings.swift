@@ -128,14 +128,23 @@ private struct AliasEditor: View {
                 .accessibilityLabel(label("关闭"))
             }
             VStack(alignment: .leading, spacing: 8) {
-                card {
-                    LabeledContent(label("类型")) { AliasKindPicker(selection: $draft.kind) }
-                        .onChange(of: draft.kind) { _, _ in draft.target = "" }
-                    if draft.kind == "app" { appPicker } else { shortcutPicker }
-                    SettingsTextField(label("别名"), text: $draft.alias,
-                                      prompt: Text(verbatim: label("不能包含空格，不区分大小写。")))
-                        .onSubmit(save)
+                VStack(spacing: 0) {
+                    cardRow {
+                        LabeledContent(label("类型")) { AliasKindPicker(selection: $draft.kind) }
+                            .onChange(of: draft.kind) { _, _ in draft.target = "" }
+                    }
+                    cardSeparator
+                    cardRow {
+                        if draft.kind == "app" { appPicker } else { shortcutPicker }
+                    }
+                    cardSeparator
+                    cardRow {
+                        SettingsTextField(label("别名"), text: $draft.alias,
+                                          prompt: Text(verbatim: label("不能包含空格，不区分大小写。")))
+                            .onSubmit(save)
+                    }
                 }
+                .background(SettingsPalette.card(scheme), in: RoundedRectangle(cornerRadius: 12))
                 if let error = validationError {
                     Text(error).foregroundStyle(ThemeColor.kTextNegative)
                         .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
@@ -158,19 +167,13 @@ private struct AliasEditor: View {
         .task { await refreshShortcuts() }
     }
 
-    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        Group(subviews: content()) { rows in
-            VStack(spacing: 0) {
-                ForEach(rows) { row in
-                    if row.id != rows.first?.id {
-                        Rectangle().fill(SettingsPalette.separator(scheme)).frame(height: 1).padding(.horizontal, 16)
-                    }
-                    row.frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16).padding(.vertical, 12)
-                }
-            }
-            .background(SettingsPalette.card(scheme), in: RoundedRectangle(cornerRadius: 12))
-        }
+    private var cardSeparator: some View {
+        Rectangle().fill(SettingsPalette.separator(scheme)).frame(height: 1).padding(.horizontal, 16)
+    }
+
+    private func cardRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content().frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16).padding(.vertical, 12)
     }
 
     private var appPicker: some View {

@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "KulaCore",
     defaultLocalization: "zh-Hans",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v14)],
     products: [
         .library(name: "Contracts", targets: ["Contracts"]),
         .library(name: "Theme", targets: ["Theme"]),

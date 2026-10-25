@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-import Synchronization
+import os
 import Contracts
 import LocalStore
 import ToolService
@@ -9,7 +9,7 @@ import MCPLink
 
 private final class Adapter: ToolAdapter, @unchecked Sendable {
     let definition: ToolDefinition
-    let runs = Mutex(0)
+    let runs = OSAllocatedUnfairLock(initialState: 0)
     init(_ name: String, effect: ToolEffect, source: DataSourceID = .calendar, external: Bool = true) {
         definition = ToolDefinition(name: name, summary: name, source: source, effect: effect,
                                     writeKind: effect == .write ? .create : nil,

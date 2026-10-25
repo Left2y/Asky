@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 /// LRU cache with explicit cost accounting. Eviction happens on admission, so the
 /// accounted total never exceeds `costLimit` (unlike NSCache, whose limits are advisory).
@@ -10,7 +10,7 @@ public final class CostLRUCache<Key: Hashable & Sendable, Value: Sendable>: Send
         var totalCost = 0
         var tick: UInt64 = 0
     }
-    private let state = Mutex(State())
+    private let state = OSAllocatedUnfairLock(initialState: State())
     public let costLimit: Int
     public let name: String
 

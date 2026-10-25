@@ -1,6 +1,6 @@
 import Foundation
 import Contracts
-import Synchronization
+import os
 
 /// A local search source. Must honour cancellation and return a bounded batch.
 public protocol SearchProvider: Sendable {
@@ -59,7 +59,7 @@ final class LockedState: Sendable {
         var current: UInt64 = 0
         var tasks: [Task<Void, Never>] = []
     }
-    private let m = Mutex(S())
+    private let m = OSAllocatedUnfairLock(initialState: S())
 
     func next() -> (QueryID, [Task<Void, Never>]) {
         m.withLock { s in

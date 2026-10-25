@@ -3,6 +3,30 @@ import Testing
 @testable import ToolService
 
 @Suite struct LauncherTerminalTests {
+    @Test func removedTerminalBundleIsRejected() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let url = root.appendingPathComponent("Ghostty.app")
+        let contents = url.appendingPathComponent("Contents")
+        let executable = contents.appendingPathComponent("MacOS/ghostty")
+        try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let plist = try PropertyListSerialization.data(fromPropertyList: [
+            "CFBundleIdentifier": LauncherTerminalApplication.ghostty.rawValue,
+            "CFBundleExecutable": "ghostty",
+            "CFBundlePackageType": "APPL",
+        ], format: .xml, options: 0)
+        try plist.write(to: contents.appendingPathComponent("Info.plist"))
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: executable)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+        #expect(ToolService.validatedLauncherTerminalURL(url, application: .ghostty) == url)
+        #expect(ToolService.validatedLauncherTerminalURL(url, application: .iTerm) == nil)
+        try FileManager.default.removeItem(at: executable)
+        #expect(ToolService.validatedLauncherTerminalURL(url, application: .ghostty) == nil)
+        try FileManager.default.removeItem(at: url)
+        #expect(ToolService.validatedLauncherTerminalURL(url, application: .ghostty) == nil)
+        #expect(ToolService.validatedLauncherTerminalURL(nil, application: .ghostty) == nil)
+    }
+
     @Test @MainActor func missingTerminalIsReportedInsteadOfFallingBack() async {
         guard let missing = LauncherTerminalApplication.allCases.first(where: {
             ToolService.launcherTerminalApplicationURL($0) == nil

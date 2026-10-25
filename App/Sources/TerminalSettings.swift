@@ -39,6 +39,12 @@ struct TerminalSettings: View {
             }
         }
         .onAppear { terminals = ToolService.installedLauncherTerminals() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            terminals = ToolService.installedLauncherTerminals()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            terminals = ToolService.installedLauncherTerminals()
+        }
     }
 
     private var keyword: Binding<String> {

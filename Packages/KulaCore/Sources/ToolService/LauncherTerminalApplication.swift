@@ -18,7 +18,19 @@ public enum LauncherTerminalApplication: String, CaseIterable, Sendable, Identif
 
 extension ToolService {
     @MainActor public static func launcherTerminalApplicationURL(_ application: LauncherTerminalApplication) -> URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: application.rawValue)
+        validatedLauncherTerminalURL(
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: application.rawValue),
+            application: application)
+    }
+
+    static func validatedLauncherTerminalURL(_ url: URL?, application: LauncherTerminalApplication) -> URL? {
+        guard let url,
+              FileManager.default.fileExists(atPath: url.path),
+              let bundle = Bundle(url: url),
+              bundle.bundleIdentifier == application.rawValue,
+              let executable = bundle.executableURL,
+              FileManager.default.isExecutableFile(atPath: executable.path) else { return nil }
+        return url
     }
 
     @MainActor public static func installedLauncherTerminals() -> [LauncherTerminalApplication] {

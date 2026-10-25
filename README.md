@@ -95,10 +95,10 @@ brew tap niall-young/asky https://github.com/Niall-Young/Asky.git
 brew install --cask niall-young/asky/asky
 ```
 
-支持 macOS 15+、Apple Silicon，使用与手动下载相同的正式安装包。应用内自动更新默认开启；也可运行 `brew update && brew upgrade --cask --greedy niall-young/asky/asky` 更新，或运行 `brew uninstall --cask niall-young/asky/asky` 卸载应用。卸载保留个人数据与设置。
+支持 macOS 14+、Apple Silicon，使用与手动下载相同的正式安装包。应用内自动更新默认开启；也可运行 `brew update && brew upgrade --cask --greedy niall-young/asky/asky` 更新，或运行 `brew uninstall --cask niall-young/asky/asky` 卸载应用。卸载保留个人数据与设置。
 
 #### 下载安装
-- 前往 [GitHub Releases](https://github.com/Niall-Young/Asky/releases) 或 [官方网站](https://asky.niallyoung2002.workers.dev/) 下载最新 DMG 安装包（支持 macOS 15+，Apple Silicon）。
+- 前往 [GitHub Releases](https://github.com/Niall-Young/Asky/releases) 或 [官方网站](https://asky.niallyoung2002.workers.dev/) 下载最新 DMG 安装包（支持 macOS 14+，Apple Silicon）。
 - 打开 DMG，将 `Asky.app` 拖入“应用程序”目录即可。安装包已预置 Node.js 与 AgentRuntime，无需手动配置外部环境。
 - 应用默认开启静默自动更新，可在“设置 › 关于 Asky › 软件更新”中管理。
 
@@ -110,7 +110,7 @@ brew install --cask niall-young/asky/asky
 
 ### 🛠️ 开发与构建
 
-当前源码最低支持 macOS 14，功能与 macOS 15 保持一致，均使用原生背景模糊材质；macOS 26+ 可使用液态玻璃。14 的设置使用原生分组表单，15+ 保留自定义卡片。macOS 14/15 实机验收尚待完成。当前 Homebrew Cask 固定的 0.2.9 安装包仍要求 macOS 15；macOS 14 支持需使用本次源码构建或后续发布包。
+当前源码最低支持 macOS 14，功能与 macOS 15 保持一致，均使用原生背景模糊材质；macOS 26+ 可使用液态玻璃。14 的设置使用原生分组表单，15+ 保留自定义卡片。macOS 14/15 实机验收尚待完成。0.2.10 起的正式安装包与 Homebrew Cask 支持 macOS 14。
 
 #### 环境要求
 - 目标运行系统：macOS 14+ (Apple Silicon)
@@ -250,10 +250,10 @@ brew tap niall-young/asky https://github.com/Niall-Young/Asky.git
 brew install --cask niall-young/asky/asky
 ```
 
-Requires macOS 15+ and Apple Silicon. Homebrew uses the same official package as the manual download. In-app automatic updates are enabled by default. You can also run `brew update && brew upgrade --cask --greedy niall-young/asky/asky` to update, or `brew uninstall --cask niall-young/asky/asky` to uninstall the app. Uninstalling preserves personal data and settings.
+Requires macOS 14+ and Apple Silicon. Homebrew uses the same official package as the manual download. In-app automatic updates are enabled by default. You can also run `brew update && brew upgrade --cask --greedy niall-young/asky/asky` to update, or `brew uninstall --cask niall-young/asky/asky` to uninstall the app. Uninstalling preserves personal data and settings.
 
 #### Download & Install
-- Download the latest DMG release from [GitHub Releases](https://github.com/Niall-Young/Asky/releases) or the [Official Website](https://asky.niallyoung2002.workers.dev/) (macOS 15+, Apple Silicon).
+- Download the latest DMG release from [GitHub Releases](https://github.com/Niall-Young/Asky/releases) or the [Official Website](https://asky.niallyoung2002.workers.dev/) (macOS 14+, Apple Silicon).
 - Open the DMG and drag `Asky.app` into Applications. Node.js and AgentRuntime are bundled—no extra setup required.
 - In-app automatic updates are enabled by default; configure in Settings › About Asky › Software Update.
 
@@ -265,7 +265,7 @@ Requires macOS 15+ and Apple Silicon. Homebrew uses the same official package as
 
 ### 🛠️ Development & Building
 
-Current source targets macOS 14 with the same features and native background blur as macOS 15; macOS 26+ can use Liquid Glass. Settings use a native grouped form on 14 and retain custom cards on 15+. Testing on macOS 14/15 hardware is still pending. The current Homebrew Cask pins the 0.2.9 package, which still requires macOS 15; macOS 14 support requires a build from this source or a subsequent release.
+Current source targets macOS 14 with the same features and native background blur as macOS 15; macOS 26+ can use Liquid Glass. Settings use a native grouped form on 14 and retain custom cards on 15+. Testing on macOS 14/15 hardware is still pending. Official packages and the Homebrew Cask support macOS 14 starting with 0.2.10.
 
 #### Prerequisites
 - Target runtime: macOS 14+ (Apple Silicon)

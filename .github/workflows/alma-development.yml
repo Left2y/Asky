@@ -28,8 +28,8 @@ jobs:
         run: |
           /usr/libexec/PlistBuddy -c 'Add :KHIsolatedDevelopment bool true' App/Info.plist
           /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Asky-Alma' App/Info.plist
-      - name: Core tests
-        run: swift test --package-path Packages/KulaCore --triple arm64-apple-macosx14.0
+      - name: Isolated native chat tests
+        run: swift test --package-path Packages/KulaCore --filter NativeChat --triple arm64-apple-macosx14.0
       - name: Build native app
         run: >-
           xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug

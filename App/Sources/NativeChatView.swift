@@ -1,35 +1,51 @@
 import AppKit
+import Observation
 import SwiftUI
 import Theme
 import ToolService
+
+@MainActor @Observable final class NativeChatComposer {
+    var draft = ""
+    var focusRequest = UUID()
+}
 
 /// External conversations have their own transport and state; AgentModel remains unchanged.
 @MainActor final class NativeChatWindowController {
     private var window: NSWindow?
     private let backend: AlmaChatBackend
+    private let composer = NativeChatComposer()
+    private var restoreTask: Task<Void, Never>?
     init(backend: AlmaChatBackend) { self.backend = backend }
 
     func show(draft: String = "") {
+        if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            composer.draft = draft
+        }
+        composer.focusRequest = UUID()
         if window == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 680),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "Asky · Alma"
             window.minSize = NSSize(width: 540, height: 440)
             window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: NativeChatView(backend: backend, initialDraft: draft))
+            window.contentView = NSHostingView(rootView: NativeChatView(backend: backend, composer: composer))
             window.center()
             self.window = window
         }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate()
-        Task { await backend.restore() }
+        if !backend.connected, restoreTask == nil {
+            restoreTask = Task { [self] in
+                defer { restoreTask = nil }
+                await backend.restore()
+            }
+        }
     }
 }
 
 struct NativeChatView: View {
     let backend: AlmaChatBackend
-    var initialDraft = ""
-    @State private var draft = ""
+    @Bindable var composer: NativeChatComposer
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -85,14 +101,14 @@ struct NativeChatView: View {
                     Spacer(minLength: 0)
                 }
                 HStack(alignment: .bottom, spacing: 12) {
-                    TextField("向 Alma 提问…", text: $draft, axis: .vertical)
+                    TextField("向 Alma 提问…", text: $composer.draft, axis: .vertical)
                         .textFieldStyle(.roundedBorder).lineLimit(1...6).focused($composerFocused)
                         .onSubmit { send() }
                         .accessibilityIdentifier("alma-composer")
                     if backend.isBusy {
                         Button("停止") { Task { await backend.stop() } }.disabled(!backend.connected)
                     } else {
-                        Button("发送", action: send).disabled(!backend.canSend || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button("发送", action: send).disabled(!backend.canSend || composer.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .keyboardShortcut(.return, modifiers: .command)
                     }
                 }
@@ -100,12 +116,13 @@ struct NativeChatView: View {
             .padding(16)
         }
         .background(ThemeColor.kBackground)
-        .onAppear { draft = initialDraft; composerFocused = true }
+        .onAppear { composerFocused = true }
+        .onChange(of: composer.focusRequest) { _, _ in composerFocused = true }
     }
     private func send() {
-        guard backend.canSend, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let text = draft
-        draft = ""
+        guard backend.canSend, !composer.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let text = composer.draft
+        composer.draft = ""
         Task { await backend.send(text) }
     }
 }

@@ -496,6 +496,16 @@ final class LauncherModel {
             updatePluginScope(scope)
             return
         }
+        if let input = nativeChatInput {
+            batches = []
+            isSearching = false
+            remainingSearchProviders = 0
+            var result = pluginEntry(input.entry, kind: "plugin-chat")
+            result.subtitle = "按回车在原生聊天中继续"
+            direct = [result]
+            publish()
+            return
+        }
         if let folder = folderScope {
             searchFolder(folder)
             return
@@ -681,18 +691,28 @@ final class LauncherModel {
                      actions: [.open], score: 100)
     }
 
-    private func enterPluginCommand(_ value: String) -> Bool {
+    private func pluginCommandInput(_ value: String) -> (entry: PluginLauncherCommand, text: String)? {
         guard pluginScope == nil, filter == .all, folderScope == nil, !inputState.hasScope,
-              let separator = value.firstIndex(where: \.isWhitespace) else { return false }
+              let separator = value.firstIndex(where: \.isWhitespace) else { return nil }
         let token = String(value[..<separator])
         // Existing user-defined and built-in triggers always keep their meaning.
         guard token != app.settings.terminalCommandKeyword,
               !app.keywords.commands.contains(where: { $0.keyword.caseInsensitiveCompare(token) == .orderedSame }),
               !AppModel.searchCommands.contains(where: { app.isSearchCommandEnabled($0.0) && app.commandKeyword($0.0).caseInsensitiveCompare(token) == .orderedSame }),
-              !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(token) == .orderedSame }) else { return false }
+              !app.preferences.aliases.contains(where: { $0.alias.caseInsensitiveCompare(token) == .orderedSame }) else { return nil }
         let matches = pluginCommands.filter { $0.command.keyword?.caseInsensitiveCompare(token) == .orderedSame }
-        guard matches.count == 1, let entry = matches.first else { return false }
-        enterPlugin(entry, text: String(value[value.index(after: separator)...]))
+        guard matches.count == 1, let entry = matches.first else { return nil }
+        return (entry, String(value[value.index(after: separator)...]))
+    }
+
+    private var nativeChatInput: (entry: PluginLauncherCommand, text: String)? {
+        guard let input = pluginCommandInput(query), input.entry.command.chat?.backend == "alma" else { return nil }
+        return input
+    }
+
+    private func enterPluginCommand(_ value: String) -> Bool {
+        guard let input = pluginCommandInput(value), input.entry.command.chat?.backend != "alma" else { return false }
+        enterPlugin(input.entry, text: input.text)
         return true
     }
 
@@ -871,6 +891,11 @@ final class LauncherModel {
 
     private func publish() {
         var merged = direct + ResultMerger.merge(batches, limit: filter.displayLimit)
+        if nativeChatInput != nil {
+            if results != direct { results = direct }
+            selection = 0
+            return
+        }
         if filter == .all, !hasScope, case .search(let text) = router.route(query) {
             merged += pluginCommands.compactMap { entry in
                 guard FuzzyMatch.score(text, in: [entry.command.title, entry.command.keyword ?? "", entry.pluginName].joined(separator: " ")) != nil else { return nil }
@@ -1027,6 +1052,10 @@ final class LauncherModel {
                     $0.url(for: "")?.absoluteString == r.target.identifier
             }) else { return }
             setFilter(.all, query: command.keyword + " ")
+            return
+        }
+        if r.target.kind == "plugin-chat", let input = nativeChatInput, input.entry.id == r.target.identifier {
+            onNativeChat(input.entry, input.text)
             return
         }
         if r.target.kind == "plugin-command" {
@@ -1312,7 +1341,7 @@ extension LauncherModel {
         if QuitAskyCommand.isResult(result) {
             return LauncherAction(title: "退出 Asky", icon: "xmark", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
-        if ["plugin-command", "plugin-run"].contains(result.target.kind) {
+        if ["plugin-command", "plugin-run", "plugin-chat"].contains(result.target.kind) {
             return LauncherAction(title: result.title, icon: "tool", shortcut: actionPreferences.shortcut(.execute).label, kind: .result(action))
         }
         if result.target.kind == "application-window" {

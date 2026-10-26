@@ -23,12 +23,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var model: AppModel!
     private var launcher: LauncherController!
     private var launcherModel: LauncherModel!
-    private var agentWindow: AgentWindowController!
+    private var agentWindow: AgentWindowController?
     private var nativeChatWindow: NativeChatWindowController?
-    private var clipboard: ClipboardMonitor!
-    private var clipboardWindow: ClipboardController!
+    private var clipboard: ClipboardMonitor?
+    private var clipboardWindow: ClipboardController?
     private var clipboardHotKey: HotKey?
-    private var reminders: ProactiveReminders!
+    private var reminders: ProactiveReminders?
     private var hotKey: HotKey?
     private var newAgentHotKey: HotKey?
     private var statusItem: NSStatusItem?
@@ -137,10 +137,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         launcher.onOpenSettings = { [weak self] in self?.openSettings() }
         agentWindow = AgentWindowController(model: AgentModel(app: model), presentation: windowPresentation)
         model.onModelAuthenticationStarted = { [weak self] in
-            self?.agentWindow.prepareForAuthentication()
+            self?.agentWindow?.prepareForAuthentication()
         }
         model.onModelAuthenticationFinished = { [weak self] in
-            self?.agentWindow.restoreAfterAuthentication()
+            self?.agentWindow?.restoreAfterAuthentication()
         }
         launcherModel.onNativeChat = { [weak self] entry, draft in
             Task { @MainActor in
@@ -154,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         launcherModel.onAskAI = { [weak self] prompt in
             self?.launcher.hide()
-            self?.agentWindow.show(prompt: prompt)
+            self?.agentWindow?.show(prompt: prompt)
         }
 
         NSApp.appearance = model.preferences.appearance == "system" ? nil : NSAppearance(named: model.preferences.appearance == "dark" ? .darkAqua : .aqua)
@@ -171,9 +171,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.statusItem?.isVisible = visible
         }
         clipboard = ClipboardMonitor(app: model)
-        clipboard.start()
+        clipboard?.start()
         reminders = ProactiveReminders(app: model)
-        model.onSettingsChange = { [weak self] in self?.reminders.schedule() }
+        model.onSettingsChange = { [weak self] in self?.reminders?.schedule() }
         model.updater.isQuiet = { [weak self] in self?.isQuietForUpdate ?? false }
         ToolService.removeStaleAppUpdates()
         pressure = MemoryPressureMonitor { [weak self] _ in
@@ -181,19 +181,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         #if DEBUG
         if CommandLine.arguments.contains("--test-clipboard") {
-            clipboardWindow.pinned = true
-            clipboardWindow.show()
-            clipboardWindow.query = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TEST_QUERY"] ?? ""
+            clipboardWindow?.pinned = true
+            clipboardWindow?.show()
+            clipboardWindow?.query = ProcessInfo.processInfo.environment["ASKY_CLIPBOARD_TEST_QUERY"] ?? ""
         }
         #endif
         Task {
             await model.start()
-            reminders.start()
+            reminders?.start()
         }
     }
 
     /// Explicit development mode: no agent, scheduler, clipboard, login item, MCP or hotkeys.
     private func runNativeChatPreview() {
+        guard DevelopmentProfile.isolated else {
+            NSLog("--native-chat-preview requires KHIsolatedDevelopment for Keychain isolation")
+            NSApp.terminate(nil)
+            return
+        }
         guard let root = ProcessInfo.processInfo.environment["ASKY_PREVIEW_ROOT"], root.hasPrefix("/") else {
             NSLog("--native-chat-preview requires ASKY_PREVIEW_ROOT")
             NSApp.terminate(nil)
@@ -267,14 +272,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Silent relaunch only when nothing is open, running or waiting for the user.
     private var isQuietForUpdate: Bool {
-        !launcher.isVisible && !clipboardWindow.isVisible && !agentWindow.isVisible && !agentWindow.model.isRunning
+        launcher?.isVisible != true && clipboardWindow?.isVisible != true && agentWindow?.isVisible != true && agentWindow?.model.isRunning != true
             && settingsWindow?.isVisible != true && model.confirmations.queue.isEmpty
             && !model.terminal.isRunning && !model.isMCPBusy
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard model != nil else { return true }
-        if let settingsWindow, settingsWindow.isVisible {
+        if CommandLine.arguments.contains("--native-chat-preview") {
+            nativeChatWindow?.show()
+        } else if let settingsWindow, settingsWindow.isVisible {
             windowPresentation.show(settingsWindow)
         } else {
             openLauncher()
@@ -320,7 +327,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let previous = model.preferences
         let action: () -> Void = { [weak self] in
             self?.launcher.hide()
-            self?.clipboardWindow.toggle()
+            self?.clipboardWindow?.toggle()
         }
         clipboardHotKey?.unregister()
         do {
@@ -458,17 +465,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    @objc private func openLauncher() { clipboardWindow.hide(); launcher.show() }
-    @objc private func openClipboard() { launcher.hide(); clipboardWindow.show() }
+    @objc private func openLauncher() { clipboardWindow?.hide(); launcher.show() }
+    @objc private func openClipboard() { launcher.hide(); clipboardWindow?.show() }
     @objc private func openAgent() {
         launcher.hide()
-        agentWindow.show()
+        agentWindow?.show()
     }
 
     private func openNewAgentConversation() {
         launcher.hide()
-        clipboardWindow.hide()
-        agentWindow.showNewConversation()
+        clipboardWindow?.hide()
+        agentWindow?.showNewConversation()
     }
 
     @objc private func openSettings() {
@@ -481,7 +488,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             settingsWindow = w
         }
         launcher.hide()
-        clipboardWindow.hide()
+        clipboardWindow?.hide()
         if let settingsWindow { windowPresentation.show(settingsWindow) }
     }
 }

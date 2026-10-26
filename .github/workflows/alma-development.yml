@@ -24,6 +24,16 @@ jobs:
           xcrun swift package --package-path Packages/KulaCore dump-package > /dev/null
       - name: Install XcodeGen
         run: command -v xcodegen || brew install xcodegen
+      - name: Use SDK 26 compatible app icon
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path("project.yml")
+          text = project.read_text()
+          text = text.replace("      - path: App/Branding/AskyNative.icon\n        type: file\n        buildPhase: resources\n", "")
+          text = text.replace("ASSETCATALOG_COMPILER_APPICON_NAME: AskyNative", "ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon")
+          project.write_text(text)
+          PY
       - name: Generate project
         run: xcodegen generate
       - name: Isolate development app

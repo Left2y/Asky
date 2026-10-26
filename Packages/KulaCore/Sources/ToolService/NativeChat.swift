@@ -196,8 +196,9 @@ private final class LoopbackSessionDelegate: NSObject, URLSessionTaskDelegate, S
     init(store: LocalStore, noTools: Bool = false, transport: any NativeChatTransport) {
         self.store = store; self.noTools = noTools; self.transport = transport
         let saved = store.codableSetting(Self.key, as: Saved.self)
-        sessions = (saved?.sessions ?? []).filter { NativeChatCodec.validID($0.id) }
-        threadID = sessions.first(where: { $0.id == saved?.current })?.id
+        let restoredSessions = (saved?.sessions ?? []).filter { NativeChatCodec.validID($0.id) }
+        sessions = restoredSessions
+        threadID = restoredSessions.first(where: { $0.id == saved?.current })?.id
         pendingSends = saved?.pendingSends ?? [:]
     }
     private func save() {

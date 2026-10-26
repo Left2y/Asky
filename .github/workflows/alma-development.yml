@@ -1,0 +1,44 @@
+name: Alma development app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/alma-native-chat]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+      - name: Install XcodeGen
+        run: command -v xcodegen || brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Isolate development app
+        run: |
+          /usr/libexec/PlistBuddy -c 'Add :KHIsolatedDevelopment bool true' App/Info.plist
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Asky-Alma' App/Info.plist
+      - name: Core tests
+        run: swift test --package-path Packages/KulaCore --triple arm64-apple-macosx14.0
+      - name: Build native app
+        run: >-
+          xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug
+          -destination 'platform=macOS,arch=arm64' -derivedDataPath build
+          PRODUCT_BUNDLE_IDENTIFIER=app.left2y.asky-alma CODE_SIGNING_ALLOWED=NO
+      - name: Archive build
+        run: ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Debug/Asky.app Asky-Alma-native.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Asky-Alma-native
+          path: Asky-Alma-native.zip
+          retention-days: 7

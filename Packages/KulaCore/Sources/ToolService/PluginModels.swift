@@ -37,6 +37,14 @@ public struct PluginCommand: Codable, Sendable, Hashable {
     public var mode: Mode
     /// The string property receiving launcher input; nil means no arguments.
     public var queryArgument: String?
+    /// Optional native conversation capability. Older API v1 hosts use the tool above.
+    public var chat: PluginChatDescriptor?
+}
+
+public struct PluginChatDescriptor: Codable, Sendable, Hashable {
+    /// Host-provided adapter; plugins cannot supply arbitrary network endpoints or code.
+    public var backend: String
+    public init(backend: String) { self.backend = backend }
 }
 
 public struct PluginLauncherCommand: Sendable, Hashable, Identifiable {

@@ -194,6 +194,13 @@ final class LauncherModel {
     var onQuit: () -> Void = { NSApp.terminate(nil) }
     var onHide: () -> Void = {}
     var onAskAI: (String) -> Void = { _ in }
+    var onNativeChat: (PluginLauncherCommand, String) -> Void = { _, _ in }
+
+    func pluginIcon(for result: SearchResult) async -> NSImage? {
+        guard result.target.kind.hasPrefix("plugin-"), let id = result.target.identifier.split(separator: "/").first,
+              let data = await app.tools.plugins.iconData(for: String(id)) else { return nil }
+        return NSImage(data: data)
+    }
 
     init(app: AppModel, searchProviders: [any SearchProvider]? = nil, chromeBookmarkAccessAllowed: Bool? = nil,
          applicationOpener: @escaping @MainActor (URL) async throws -> Void = { try await ToolService.openLauncherApplication($0) }) {
@@ -710,6 +717,10 @@ final class LauncherModel {
     }
 
     private func runPlugin(_ entry: PluginLauncherCommand, debounce: Bool = false) {
+        if entry.command.chat?.backend == "alma" {
+            onNativeChat(entry, pluginText)
+            return
+        }
         guard pluginRunID == nil else { return }
         let text = pluginText
         let runID = UUID()
@@ -1020,8 +1031,12 @@ final class LauncherModel {
         }
         if r.target.kind == "plugin-command" {
             guard let entry = pluginCommands.first(where: { $0.id == r.target.identifier }) else { return }
-            enterPlugin(entry, text: "")
-            if entry.command.mode == .action && entry.command.queryArgument == nil { runPlugin(entry) }
+            if entry.command.chat?.backend == "alma" {
+                onNativeChat(entry, "")
+            } else {
+                enterPlugin(entry, text: "")
+                if entry.command.mode == .action && entry.command.queryArgument == nil { runPlugin(entry) }
+            }
             return
         }
         if r.target.kind == "plugin-run", let entry = pluginScope {

@@ -74,7 +74,7 @@ final class AppModel {
     let native: NativeTools
     let memory: MemoryFolder
     let gateway: MCPGateway
-    let keychain = Keychain()
+    let keychain = Keychain(service: DevelopmentProfile.keychainService)
     let confirmations: ConfirmationCenter
     let exchange: ExchangeRateService
     let terminal: TerminalRunner
@@ -118,7 +118,7 @@ final class AppModel {
                 SurfaceCompatibility.state.liquidGlassEnabled = preferences.liquidGlass
             }
             if preferences.automaticUpdates != oldValue.automaticUpdates {
-                updater.setAutomatic(preferences.automaticUpdates)
+                updater.setAutomatic(!DevelopmentProfile.isolated && preferences.automaticUpdates)
             }
             if preferences.language != oldValue.language {
                 ToolService.setApplicationLanguage(preferences.language)
@@ -202,12 +202,12 @@ final class AppModel {
 
     /// Apply the fresh-install default once; never re-enable a user's disabled login item.
     func initializeLaunchAtLogin(register: () throws -> Void = { try ToolService.enableDefaultLaunchAtLogin() }) throws {
-        guard !preferences.hasInitializedLoginItem else { return }
+        guard !DevelopmentProfile.isolated, !preferences.hasInitializedLoginItem else { return }
         try register()
         preferences.hasInitializedLoginItem = true
     }
 
-    init(root: URL = LocalStore.defaultRoot) throws {
+    init(root: URL = DevelopmentProfile.root) throws {
         let store = try LocalStore(root: root)
         self.store = store
         let reader = SettingsReader(store: store)
@@ -249,7 +249,7 @@ final class AppModel {
         refreshMCPServer()
         ClipboardMonitor.cleanup(clipboardStore)
         _ = try? ActivityStore(store).purgeExpired()
-        updater.setAutomatic(preferences.automaticUpdates)
+        updater.setAutomatic(!DevelopmentProfile.isolated && preferences.automaticUpdates)
     }
 
     func shutdown() async {
@@ -317,6 +317,7 @@ final class AppModel {
 
     /// The link socket only listens while at least one instance is enabled.
     func refreshMCPServer() {
+        guard !DevelopmentProfile.isolated else { return }
         let anyEnabled = MCPInstanceStore(store).all().contains { $0.enabled }
         if anyEnabled, mcpServer == nil {
             let server = MCPLinkServer(gateway: gateway)

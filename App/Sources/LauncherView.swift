@@ -791,7 +791,8 @@ private struct ResultList: View {
                                 } label: {
                                     ResultRow(result: r, selected: i == model.selection, keyword: model.keyword(for: r),
                                               terminalApplication: model.terminalApplication,
-                                              applicationIconPath: model.windowApplicationPath(for: r))
+                                              applicationIconPath: model.windowApplicationPath(for: r),
+                                              loadPluginIcon: { await model.pluginIcon(for: r) })
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(r.title)
@@ -895,6 +896,8 @@ private struct ResultRow: View {
     let keyword: String?
     var terminalApplication = LauncherTerminalApplication.system
     var applicationIconPath: String?
+    var loadPluginIcon: (() async -> NSImage?)? = nil
+    @State private var pluginImage: NSImage?
     @State private var loaded: Loaded?
 
     private struct Loaded {
@@ -1002,7 +1005,14 @@ private struct ResultRow: View {
 
     @ViewBuilder private var icon: some View {
         if result.target.kind.hasPrefix("plugin-") {
-            LauncherFunctionIcon(kind: .plugin)
+            Group {
+                if let pluginImage {
+                    Image(nsImage: pluginImage).resizable().scaledToFit()
+                } else {
+                    LauncherFunctionIcon(kind: .plugin)
+                }
+            }
+            .task(id: result.target.identifier) { pluginImage = await loadPluginIcon?() }
         } else if result.target.kind == "search-command" {
             LauncherFunctionIcon(kind: .searchCommand(result.target.identifier))
         } else if result.target.kind == "application-window", let applicationIconPath, !applicationIconPath.isEmpty {

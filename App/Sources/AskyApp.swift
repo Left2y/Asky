@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var launcher: LauncherController!
     private var launcherModel: LauncherModel!
     private var agentWindow: AgentWindowController!
+    private var nativeChatWindow: NativeChatWindowController?
     private var clipboard: ClipboardMonitor!
     private var clipboardWindow: ClipboardController!
     private var clipboardHotKey: HotKey?
@@ -110,6 +111,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         #endif
+        if CommandLine.arguments.contains("--native-chat-preview") {
+            runNativeChatPreview()
+            return
+        }
         guard !AppInstallationPrompt.handleLaunchIfNeeded() else { return }
         do { model = try AppModel() } catch {
             let alert = AppDialog.make()
@@ -136,6 +141,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         model.onModelAuthenticationFinished = { [weak self] in
             self?.agentWindow.restoreAfterAuthentication()
+        }
+        launcherModel.onNativeChat = { [weak self] entry, draft in
+            Task { @MainActor in
+                guard let self, await self.model.tools.plugins.nativeChatDescriptor(commandID: entry.id)?.backend == "alma" else { return }
+                self.launcher.hide()
+                if self.nativeChatWindow == nil {
+                    self.nativeChatWindow = NativeChatWindowController(backend: AlmaChatBackend(store: self.model.store))
+                }
+                self.nativeChatWindow?.show(draft: draft)
+            }
         }
         launcherModel.onAskAI = { [weak self] prompt in
             self?.launcher.hide()
@@ -174,6 +189,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task {
             await model.start()
             reminders.start()
+        }
+    }
+
+    /// Explicit development mode: no agent, scheduler, clipboard, login item, MCP or hotkeys.
+    private func runNativeChatPreview() {
+        guard let root = ProcessInfo.processInfo.environment["ASKY_PREVIEW_ROOT"], root.hasPrefix("/") else {
+            NSLog("--native-chat-preview requires ASKY_PREVIEW_ROOT")
+            NSApp.terminate(nil)
+            return
+        }
+        do {
+            model = try AppModel(root: URL(filePath: root))
+            EditMenu.install()
+            launcherModel = LauncherModel(app: model, searchProviders: [])
+            launcher = LauncherController(model: launcherModel)
+            launcher.onOpenSettings = {}
+            let backend = AlmaChatBackend(store: model.store, noTools: CommandLine.arguments.contains("--no-tools"))
+            nativeChatWindow = NativeChatWindowController(backend: backend)
+            launcherModel.onNativeChat = { [weak self] entry, draft in
+                Task { @MainActor in
+                    guard let self, await self.model.tools.plugins.nativeChatDescriptor(commandID: entry.id)?.backend == "alma" else { return }
+                    self.launcher.hide()
+                    self.nativeChatWindow?.show(draft: draft)
+                }
+            }
+            NSApp.setActivationPolicy(.regular)
+            if CommandLine.arguments.contains("--show-launcher") { launcher.show() }
+            else { nativeChatWindow?.show() }
+        } catch {
+            NSLog("Native chat preview could not open its isolated store: %@", error.localizedDescription)
+            NSApp.terminate(nil)
         }
     }
 
@@ -255,6 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func registerHotKey(code: UInt32, modifiers: UInt32) -> Bool {
+        guard !DevelopmentProfile.isolated else { return false }
         let previous = model.preferences
         hotKey?.unregister()
         do {
@@ -269,6 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func registerClipboardHotKey(code: UInt32, modifiers: UInt32) -> Bool {
+        guard !DevelopmentProfile.isolated else { return false }
         let previous = model.preferences
         let action: () -> Void = { [weak self] in
             self?.launcher.hide()
@@ -293,6 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func registerAgentHotKey(code: UInt32, modifiers: UInt32) -> Bool {
+        guard !DevelopmentProfile.isolated else { return false }
         let previous = model.preferences
         let action: () -> Void = { [weak self] in self?.openNewAgentConversation() }
         newAgentHotKey?.unregister()

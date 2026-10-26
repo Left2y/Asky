@@ -47,13 +47,14 @@ struct NativeMapClient: MapClient {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
         let search = MKLocalSearch(request: request)
+        let cancel: @MainActor @Sendable () -> Void = { search.cancel() }
         return try await withTaskCancellationHandler {
             let response = try await search.start()
             return response.mapItems.prefix(limit).map {
                 MapPlace(name: $0.name ?? query, address: $0.placemark.title ?? "",
                          latitude: $0.placemark.coordinate.latitude, longitude: $0.placemark.coordinate.longitude)
             }
-        } onCancel: { search.cancel() }
+        } onCancel: { Task { @MainActor in cancel() } }
     }
 
     @MainActor func estimate(from: MapPlace, to: MapPlace, mode: String, departure: Date?, arrival: Date?) async throws -> MapEstimate {
@@ -66,13 +67,14 @@ struct NativeMapClient: MapClient {
         request.departureDate = departure
         request.arrivalDate = arrival
         let directions = MKDirections(request: request)
+        let cancel: @MainActor @Sendable () -> Void = { directions.cancel() }
         return try await withTaskCancellationHandler {
             let response = try await directions.calculateETA()
             guard response.transportType == request.transportType else {
                 throw ToolError(.unavailable, CoreLocalization.text("该交通方式暂无可用路线时间"))
             }
             return MapEstimate(seconds: response.expectedTravelTime, meters: response.distance)
-        } onCancel: { directions.cancel() }
+        } onCancel: { Task { @MainActor in cancel() } }
     }
 }
 

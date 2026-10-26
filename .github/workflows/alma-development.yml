@@ -10,16 +10,18 @@ permissions:
 
 jobs:
   build:
-    runs-on: xcode-27
-    timeout-minutes: 35
+    runs-on: macos-26
+    timeout-minutes: 15
     env:
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
-      - name: Verify SDK
+      - name: Verify SDK and Swift tools
         run: |
           xcodebuild -version
           xcrun --sdk macosx --show-sdk-version
+          xcrun swift --version
+          xcrun swift package --package-path Packages/KulaCore dump-package > /dev/null
       - name: Install XcodeGen
         run: command -v xcodegen || brew install xcodegen
       - name: Generate project
@@ -29,6 +31,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Add :KHIsolatedDevelopment bool true' App/Info.plist
           /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Asky-Alma' App/Info.plist
       - name: Build native app
+        timeout-minutes: 8
         run: >-
           xcodebuild -project Asky.xcodeproj -scheme Asky -configuration Debug
           -destination 'platform=macOS,arch=arm64' -derivedDataPath build

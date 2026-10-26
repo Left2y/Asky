@@ -417,9 +417,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hideAutomaticImage(quit)
     }
 
-    /// macOS 27 auto-attaches SF Symbols to items whose (English) titles it recognizes, e.g. "Settings…".
+    /// SDK 26 builds use the standard menu appearance; image visibility is cosmetic.
     private func hideAutomaticImage(_ item: NSMenuItem) {
-        if #available(macOS 27.0, *) { item.preferredImageVisibility = .hidden }
+        item.image = nil
     }
 
     @discardableResult
